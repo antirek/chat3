@@ -182,6 +182,10 @@ const options = {
       {
         name: 'Dialogs',
         description: 'Управление диалогами и участниками'
+      },
+      {
+        name: 'Messages',
+        description: 'Управление сообщениями в диалогах'
       }
     ]
   },

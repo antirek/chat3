@@ -1,0 +1,215 @@
+import { Message, Dialog, Meta } from '../models/index.js';
+import * as metaUtils from '../utils/metaUtils.js';
+import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
+
+const messageController = {
+  // Get messages for a specific dialog
+  async getDialogMessages(req, res) {
+    try {
+      const { dialogId } = req.params;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+
+      // Check if dialog exists and belongs to tenant
+      const dialog = await Dialog.findOne({
+        _id: dialogId,
+        tenantId: req.tenantId
+      });
+
+      if (!dialog) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Dialog not found'
+        });
+      }
+
+      // Parse filters if provided
+      let query = {
+        tenantId: req.tenantId,
+        dialogId: dialogId
+      };
+
+      if (req.query.filter) {
+        try {
+          const parsedFilters = parseFilters(req.query.filter);
+          const { regularFilters, metaFilters } = extractMetaFilters(parsedFilters);
+          
+          // Apply regular filters
+          Object.assign(query, regularFilters);
+          
+          // Apply meta filters if any
+          if (Object.keys(metaFilters).length > 0) {
+            const metaQuery = await metaUtils.buildMetaQuery(req.tenantId, 'message', metaFilters);
+            if (metaQuery) {
+              query = { ...query, ...metaQuery };
+            }
+          }
+        } catch (error) {
+          return res.status(400).json({
+            error: 'Bad Request',
+            message: 'Invalid filter format'
+          });
+        }
+      }
+
+      const messages = await Message.find(query)
+        .skip(skip)
+        .limit(limit)
+        .select('-__v')
+        .populate('tenantId', 'name domain')
+        .populate('dialogId', 'name')
+        .sort({ createdAt: -1 }); // Sort by newest first
+
+      // Add meta data for each message
+      const messagesWithMeta = await Promise.all(
+        messages.map(async (message) => {
+          // Get message meta data
+          const meta = await metaUtils.getEntityMeta(
+            req.tenantId,
+            'message',
+            message._id
+          );
+          
+          const messageObj = message.toObject();
+          
+          return {
+            ...messageObj,
+            meta
+          };
+        })
+      );
+
+      const total = await Message.countDocuments(query);
+
+      res.json({
+        data: messagesWithMeta,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      });
+    } catch (error) {
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Invalid dialog ID'
+        });
+      }
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  // Create new message in dialog
+  async createMessage(req, res) {
+    try {
+      const { dialogId } = req.params;
+      const { content, senderId, type = 'text', meta } = req.body;
+
+      // Basic validation
+      if (!content || !senderId) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Missing required fields: content, senderId'
+        });
+      }
+
+      // Check if dialog exists and belongs to tenant
+      const dialog = await Dialog.findOne({
+        _id: dialogId,
+        tenantId: req.tenantId
+      });
+
+      if (!dialog) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Dialog not found'
+        });
+      }
+
+      // Create message
+      const message = await Message.create({
+        tenantId: req.tenantId,
+        dialogId: dialogId,
+        content,
+        senderId,
+        type
+      });
+
+      // Add meta data if provided
+      if (meta && typeof meta === 'object') {
+        for (const [key, value] of Object.entries(meta)) {
+          if (typeof value === 'object' && value !== null) {
+            // If value is an object with dataType and value properties
+            await metaUtils.setEntityMeta(
+              req.tenantId,
+              'message',
+              message._id,
+              key,
+              value.value,
+              value.dataType || 'string'
+            );
+          } else {
+            // If value is a simple value
+            await metaUtils.setEntityMeta(
+              req.tenantId,
+              'message',
+              message._id,
+              key,
+              value,
+              typeof value === 'number' ? 'number' : 
+              typeof value === 'boolean' ? 'boolean' :
+              Array.isArray(value) ? 'array' : 'string'
+            );
+          }
+        }
+      }
+
+      // Get message with meta data
+      const messageWithMeta = await Message.findById(message._id)
+        .select('-__v')
+        .populate('tenantId', 'name domain')
+        .populate('dialogId', 'name');
+
+      const messageMeta = await metaUtils.getEntityMeta(
+        req.tenantId,
+        'message',
+        message._id
+      );
+
+      const messageObj = messageWithMeta.toObject();
+
+      res.status(201).json({
+        data: {
+          ...messageObj,
+          meta: messageMeta
+        },
+        message: 'Message created successfully'
+      });
+    } catch (error) {
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Invalid dialog ID'
+        });
+      }
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: error.message
+        });
+      }
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  }
+};
+
+export default messageController;

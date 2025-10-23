@@ -12,8 +12,7 @@ const messageSchema = new mongoose.Schema({
     required: true
   },
   senderId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: true
   },
   content: {
@@ -22,7 +21,6 @@ const messageSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['text', 'image', 'video', 'audio', 'file', 'system'],
     default: 'text'
   },
   createdAt: {

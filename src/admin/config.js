@@ -218,37 +218,60 @@ const adminOptions = {
             isRequired: true,
           },
           senderId: {
-            reference: 'User',
+            type: 'string',
             isRequired: true,
+            description: 'ID отправителя (произвольная строка)',
           },
           type: {
-            availableValues: [
-              { value: 'text', label: 'Текст' },
-              { value: 'image', label: 'Изображение' },
-              { value: 'video', label: 'Видео' },
-              { value: 'audio', label: 'Аудио' },
-              { value: 'file', label: 'Файл' },
-              { value: 'system', label: 'Системное' },
-            ],
+            type: 'string',
+            description: 'Тип сообщения (любая строка)',
           },
-          replyTo: {
-            reference: 'Message',
+          meta: {
+            type: 'textarea',
+            isVisible: { list: false, show: true, edit: false },
+            description: 'Meta теги сообщения (channelType, channelId)',
           },
-          attachments: {
-            isArray: true,
-            isVisible: { list: false, show: true, edit: true }
-          },
-          readBy: {
-            isArray: true,
-            isVisible: { list: false, show: true, edit: false }
-          },
-          isEdited: { isVisible: { list: true, show: true, edit: false } },
-          isDeleted: { isVisible: { list: true, show: true, edit: true } },
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
-        listProperties: ['_id', 'content', 'dialogId', 'senderId', 'type', 'isDeleted', 'createdAt'],
-        filterProperties: ['dialogId', 'senderId', 'type', 'isDeleted'],
+        listProperties: ['_id', 'content', 'dialogId', 'senderId', 'type', 'createdAt'],
+        showProperties: ['_id', 'content', 'tenantId', 'dialogId', 'senderId', 'type', 'meta', 'createdAt', 'updatedAt'],
+        filterProperties: ['dialogId', 'senderId', 'type'],
+        actions: {
+          show: {
+            after: async (response, request, context) => {
+              const { record } = context;
+              if (record && record.params._id && record.params.tenantId) {
+                try {
+                  console.log('Loading meta for message:', record.params._id);
+                  
+                  // Загружаем метаданные сообщения
+                  const metaRecords = await Meta.find({
+                    tenantId: record.params.tenantId,
+                    entityType: 'message',
+                    entityId: record.params._id
+                  }).lean();
+                  
+                  console.log('Found meta records for message:', metaRecords.length);
+                  
+                  // Преобразуем в объект {key: value}
+                  const metaObject = {};
+                  metaRecords.forEach(m => {
+                    metaObject[m.key] = m.value;
+                  });
+                  
+                  console.log('Message meta object:', metaObject);
+                  
+                  // Добавляем в record как JSON строку для отображения
+                  record.params.meta = JSON.stringify(metaObject, null, 2);
+                } catch (error) {
+                  console.error('Error loading message meta:', error);
+                }
+              }
+              return response;
+            }
+          }
+        },
       }
     },
     {
