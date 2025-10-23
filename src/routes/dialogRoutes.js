@@ -80,6 +80,21 @@ const router = express.Router();
  *           operator-in-array:
  *             summary: Оператор - в массиве
  *             value: '(meta.type,in,[internal,external])'
+ *           members-with-john:
+ *             summary: Members - диалоги с john
+ *             value: '(meta.members,in,[john])'
+ *           members-with-sara-carl:
+ *             summary: Members - диалоги с sara или carl
+ *             value: '(meta.members,in,[sara,carl])'
+ *           members-without-kirk:
+ *             summary: Members - диалоги без kirk
+ *             value: '(meta.members,nin,[kirk])'
+ *           members-combined:
+ *             summary: Members + Type - internal диалоги с john
+ *             value: '(meta.type,eq,internal)&(meta.members,in,[john])'
+ *           members-whatsapp-john:
+ *             summary: Members + Channel - WhatsApp диалоги с john
+ *             value: '(meta.channelType,eq,whatsapp)&(meta.members,in,[john])'
  *     responses:
  *       200:
  *         description: Список диалогов с участниками и meta данными
@@ -241,15 +256,9 @@ router.get('/:dialogId/meta/:key', apiAuth, requirePermission('read'), dialogCon
  *               dataType:
  *                 type: string
  *                 enum: [string, number, boolean, object, array]
- *               description:
- *                 type: string
- *               isPublic:
- *                 type: boolean
  *             example:
  *               value: "Welcome to the chat!"
  *               dataType: "string"
- *               description: "Welcome message"
- *               isPublic: true
  *     responses:
  *       200:
  *         description: Meta set successfully

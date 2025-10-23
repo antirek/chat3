@@ -55,8 +55,6 @@ export async function setEntityMeta(tenantId, entityType, entityId, key, value, 
       {
         value,
         dataType,
-        description: options.description,
-        isPublic: options.isPublic !== undefined ? options.isPublic : false,
         createdBy: options.createdBy,
         updatedAt: new Date()
       },

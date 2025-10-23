@@ -289,7 +289,7 @@ export const dialogController = {
   async setMeta(req, res) {
     try {
       const { dialogId, key } = req.params;
-      const { value, dataType, description, isPublic } = req.body;
+      const { value, dataType } = req.body;
 
       // Проверяем существование диалога
       const dialog = await Dialog.findOne({
@@ -320,11 +320,7 @@ export const dialogController = {
         dialogId,
         key,
         value,
-        dataType,
-        {
-          description,
-          isPublic
-        }
+        dataType
       );
 
       res.json({

@@ -29,13 +29,6 @@ const metaSchema = new mongoose.Schema({
     enum: ['string', 'number', 'boolean', 'object', 'array'],
     required: true
   },
-  description: {
-    type: String
-  },
-  isPublic: {
-    type: Boolean,
-    default: false
-  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

@@ -297,15 +297,14 @@ const adminOptions = {
             ],
             isRequired: true,
           },
-          isPublic: {},
           createdBy: {
             reference: 'User',
           },
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
-        listProperties: ['_id', 'key', 'entityType', 'dataType', 'isPublic', 'createdAt'],
-        filterProperties: ['key', 'entityType', 'entityId', 'tenantId', 'isPublic'],
+        listProperties: ['_id', 'key', 'entityType', 'dataType', 'createdAt'],
+        filterProperties: ['key', 'entityType', 'entityId', 'tenantId'],
       }
     },
   ],

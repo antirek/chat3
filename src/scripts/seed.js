@@ -207,8 +207,6 @@ async function seed() {
         key: 'isBot',
         value: true,
         dataType: 'boolean',
-        description: 'Identifies user as a bot',
-        isPublic: true,
       },
       {
         tenantId: systemTenant._id,
@@ -217,8 +215,6 @@ async function seed() {
         key: 'botType',
         value: 'system',
         dataType: 'string',
-        description: 'Type of bot: system, assistant, etc',
-        isPublic: true,
       },
       {
         tenantId: systemTenant._id,
@@ -227,8 +223,6 @@ async function seed() {
         key: 'capabilities',
         value: ['notifications', 'system_messages', 'auto_reply'],
         dataType: 'array',
-        description: 'Bot capabilities',
-        isPublic: true,
       },
       // Demo tenant meta
       {
@@ -238,8 +232,6 @@ async function seed() {
         key: 'plan',
         value: 'premium',
         dataType: 'string',
-        description: 'Subscription plan',
-        isPublic: true,
       },
       {
         tenantId: tenant._id,
@@ -248,8 +240,6 @@ async function seed() {
         key: 'theme',
         value: 'dark',
         dataType: 'string',
-        description: 'User theme preference',
-        isPublic: false,
         createdBy: users[0]._id,
       },
     ];
@@ -264,8 +254,6 @@ async function seed() {
         key: 'type',
         value: dialog.metaType,
         dataType: 'string',
-        description: 'Dialog type: internal or external',
-        isPublic: true,
       });
 
       // Channel type (whatsapp/telegram)
@@ -276,8 +264,6 @@ async function seed() {
         key: 'channelType',
         value: dialog.channelType,
         dataType: 'string',
-        description: 'Communication channel: whatsapp or telegram',
-        isPublic: true,
       });
 
       // Welcome message
@@ -288,8 +274,6 @@ async function seed() {
         key: 'welcomeMessage',
         value: `Добро пожаловать в "${dialog.name}"!`,
         dataType: 'string',
-        description: 'Welcome message for new participants',
-        isPublic: true,
       });
 
       // Max participants
@@ -300,8 +284,6 @@ async function seed() {
         key: 'maxParticipants',
         value: dialog.metaType === 'internal' ? 50 : 10,
         dataType: 'number',
-        description: 'Maximum number of participants',
-        isPublic: true,
       });
 
       // Features based on type
@@ -316,8 +298,6 @@ async function seed() {
         key: 'features',
         value: features,
         dataType: 'array',
-        description: 'Enabled features for this dialog',
-        isPublic: true,
       });
 
       // Security level
@@ -328,8 +308,21 @@ async function seed() {
         key: 'securityLevel',
         value: dialog.metaType === 'internal' ? 'high' : 'medium',
         dataType: 'string',
-        description: 'Security level',
-        isPublic: false,
+      });
+
+      // Members - случайный набор из доступных имен
+      const availableMembers = ['john', 'sara', 'carl', 'marta', 'kirk'];
+      const memberCount = Math.floor(Math.random() * 4) + 2; // 2-5 участников
+      const shuffledMembers = availableMembers.sort(() => 0.5 - Math.random());
+      const selectedMembers = shuffledMembers.slice(0, memberCount);
+      
+      metaEntries.push({
+        tenantId: tenant._id,
+        entityType: 'dialog',
+        entityId: dialog._id,
+        key: 'members',
+        value: selectedMembers,
+        dataType: 'array',
       });
     });
 
@@ -339,7 +332,7 @@ async function seed() {
     console.log(`   - Bot metadata: 3`);
     console.log(`   - Tenant metadata: 1`);
     console.log(`   - User metadata: 1`);
-    console.log(`   - Dialog metadata: ${dialogs.length * 6} (6 per dialog: type, channelType, welcomeMessage, maxParticipants, features, securityLevel)`);
+    console.log(`   - Dialog metadata: ${dialogs.length * 7} (7 per dialog: type, channelType, welcomeMessage, maxParticipants, features, securityLevel, members)`);
 
     console.log('\n🎉 Database seeding completed successfully!');
     console.log('\n📊 Summary:');
@@ -347,7 +340,7 @@ async function seed() {
     console.log(`   - Users: ${await User.countDocuments()} (1 system bot + 3 demo users)`);
     console.log(`   - Dialogs: ${await Dialog.countDocuments()} (70 internal + 30 external = 100 total, без участников)`);
     console.log(`   - Messages: ${await Message.countDocuments()}`);
-    console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/user/tenant + ${dialogs.length * 6} dialog)`);
+    console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/user/tenant + ${dialogs.length * 7} dialog)`);
     console.log('\n🤖 System Bot:');
     console.log(`   - Username: ${systemBot.username}`);
     console.log(`   - Email: ${systemBot.email}`);
@@ -362,6 +355,10 @@ async function seed() {
     console.log(`   - GET /api/dialogs?filter={"meta":{"channelType":"whatsapp"}} → 50 dialogs`);
     console.log(`   - GET /api/dialogs?filter={"meta":{"channelType":"telegram"}} → 50 dialogs`);
     console.log(`   - GET /api/dialogs?filter={"meta":{"type":"internal","channelType":"whatsapp"}} → 35 dialogs`);
+    console.log('\n👥 Members filters:');
+    console.log(`   - GET /api/dialogs?filter=(meta.members,in,[john]) → диалоги с john`);
+    console.log(`   - GET /api/dialogs?filter=(meta.members,in,[sara,carl]) → диалоги с sara или carl`);
+    console.log(`   - GET /api/dialogs?filter=(meta.members,nin,[kirk]) → диалоги без kirk`);
     console.log('\n');
 
     process.exit(0);
