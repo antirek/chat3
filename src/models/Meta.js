@@ -1,0 +1,72 @@
+import mongoose from 'mongoose';
+
+const metaSchema = new mongoose.Schema({
+  tenantId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Tenant',
+    required: true
+  },
+  entityType: {
+    type: String,
+    enum: ['user', 'dialog', 'message', 'tenant', 'system'],
+    required: true
+  },
+  entityId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
+  },
+  key: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  value: {
+    type: mongoose.Schema.Types.Mixed,
+    required: true
+  },
+  dataType: {
+    type: String,
+    enum: ['string', 'number', 'boolean', 'object', 'array'],
+    required: true
+  },
+  description: {
+    type: String
+  },
+  isPublic: {
+    type: Boolean,
+    default: false
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true
+});
+
+// Compound indexes for uniqueness and queries
+// Non-unique index for general queries
+metaSchema.index({ tenantId: 1, entityType: 1, entityId: 1, key: 1 });
+metaSchema.index({ entityType: 1, entityId: 1 });
+metaSchema.index({ key: 1 });
+// Unique index for participant records (ensures one participant entry per user per dialog)
+metaSchema.index(
+  { tenantId: 1, entityType: 1, entityId: 1, key: 1, 'value.userId': 1 }, 
+  { 
+    unique: true,
+    partialFilterExpression: { key: 'participant' }
+  }
+);
+
+const Meta = mongoose.model('Meta', metaSchema);
+
+export default Meta;
+
