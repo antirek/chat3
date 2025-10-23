@@ -186,6 +186,10 @@ const options = {
       {
         name: 'Messages',
         description: 'Управление сообщениями в диалогах'
+      },
+      {
+        name: 'MessageStatus',
+        description: 'Управление статусом прочтения сообщений'
       }
     ]
   },

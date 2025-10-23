@@ -2,7 +2,7 @@ import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import * as AdminJSMongoose from '@adminjs/mongoose';
 
-import { Tenant, User, Dialog, Message, Meta, ApiKey } from '../models/index.js';
+import { Tenant, User, Dialog, Message, Meta, ApiKey, MessageStatus } from '../models/index.js';
 
 // Register the mongoose adapter
 AdminJS.registerAdapter({
@@ -324,6 +324,59 @@ const adminOptions = {
         },
         listProperties: ['_id', 'key', 'entityType', 'dataType', 'createdAt'],
         filterProperties: ['key', 'entityType', 'entityId', 'tenantId'],
+      }
+    },
+    {
+      resource: MessageStatus,
+      options: {
+        navigation: {
+          name: 'Чаты',
+          icon: 'Eye',
+        },
+        properties: {
+          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          messageId: {
+            reference: 'Message',
+            isRequired: true,
+            isTitle: true,
+          },
+          userId: {
+            type: 'string',
+            isRequired: true,
+            description: 'ID пользователя (строка)',
+          },
+          tenantId: {
+            reference: 'Tenant',
+            isRequired: true,
+          },
+          status: {
+            availableValues: [
+              { value: 'unread', label: 'Не прочитано' },
+              { value: 'delivered', label: 'Доставлено' },
+              { value: 'read', label: 'Прочитано' },
+            ],
+            isRequired: true,
+          },
+          readAt: {
+            type: 'datetime',
+            isVisible: { list: true, show: true, edit: false },
+            description: 'Время прочтения',
+          },
+          deliveredAt: {
+            type: 'datetime',
+            isVisible: { list: true, show: true, edit: false },
+            description: 'Время доставки',
+          },
+          createdAt: { isVisible: { list: true, show: true, edit: false } },
+          updatedAt: { isVisible: { list: false, show: true, edit: false } },
+        },
+        listProperties: ['_id', 'messageId', 'userId', 'status', 'readAt', 'deliveredAt', 'createdAt'],
+        showProperties: ['_id', 'messageId', 'userId', 'tenantId', 'status', 'readAt', 'deliveredAt', 'createdAt', 'updatedAt'],
+        filterProperties: ['messageId', 'userId', 'tenantId', 'status'],
+        sort: {
+          sortBy: 'createdAt',
+          direction: 'desc'
+        }
       }
     },
   ],

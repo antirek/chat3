@@ -7,6 +7,7 @@ import tenantRoutes from './routes/tenantRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import dialogRoutes from './routes/dialogRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
+import messageStatusRoutes from './routes/messageStatusRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,6 +37,9 @@ const startServer = async () => {
     app.use('/api/users', userRoutes);
     app.use('/api/dialogs', dialogRoutes);
     app.use('/api/dialogs', messageRoutes);
+    app.use('/api/messages', messageStatusRoutes);
+    app.use('/api/users', messageStatusRoutes);
+    app.use('/api/dialogs', messageStatusRoutes);
 
     // Quick links page for AdminJS
     app.get('/admin-links', (req, res) => {
@@ -128,6 +132,9 @@ const startServer = async () => {
                 <li><code>GET/POST/PUT/DELETE /api/users</code></li>
                 <li><code>GET/POST/DELETE /api/dialogs</code></li>
                 <li><code>GET/POST /api/dialogs/:id/messages</code></li>
+                <li><code>GET/PUT /api/messages/:id/status</code></li>
+                <li><code>GET /api/users/:id/unread</code></li>
+                <li><code>GET /api/dialogs/:id/unread</code></li>
               </ul>
               <p style="margin-bottom: 0; color: #666; font-size: 14px;">
                 💡 Все API запросы требуют заголовок <code>X-API-Key</code>
@@ -179,6 +186,10 @@ const startServer = async () => {
       console.log(`   GET  /api/dialogs`);
       console.log(`   GET  /api/dialogs/:id/messages`);
       console.log(`   POST /api/dialogs/:id/messages`);
+      console.log(`   GET  /api/messages/:id/status`);
+      console.log(`   PUT  /api/messages/:id/status`);
+      console.log(`   GET  /api/users/:id/unread`);
+      console.log(`   GET  /api/dialogs/:id/unread`);
       console.log(`\n⚠️  Don't forget to generate an API key first!\n`);
     });
   } catch (error) {
