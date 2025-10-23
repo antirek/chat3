@@ -201,7 +201,7 @@ export const dialogController = {
   // Create new dialog
   async create(req, res) {
     try {
-      const { name, description, avatar, createdBy } = req.body;
+      const { name, createdBy } = req.body;
 
       // Basic validation
       if (!name || !createdBy) {
@@ -214,8 +214,6 @@ export const dialogController = {
       const dialog = await Dialog.create({
         tenantId: req.tenantId,
         name,
-        description,
-        avatar,
         createdBy
       });
 

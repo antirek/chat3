@@ -145,9 +145,6 @@ const adminOptions = {
             reference: 'Tenant',
             isRequired: true,
           },
-          description: {
-            isVisible: { list: false, show: true, edit: true }
-          },
           meta: {
             type: 'textarea',
             isVisible: { list: false, show: true, edit: false },
@@ -156,12 +153,11 @@ const adminOptions = {
           createdBy: {
             reference: 'User',
           },
-          lastMessageAt: { isVisible: { list: true, show: true, edit: false } },
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
-        listProperties: ['_id', 'name', 'lastMessageAt', 'createdAt'],
-        showProperties: ['_id', 'name', 'tenantId', 'description', 'createdBy', 'lastMessageAt', 'createdAt', 'updatedAt', 'meta'],
+        listProperties: ['_id', 'name', 'createdAt'],
+        showProperties: ['_id', 'name', 'tenantId', 'createdBy', 'createdAt', 'updatedAt', 'meta'],
         filterProperties: ['name', 'tenantId'],
         actions: {
           show: {

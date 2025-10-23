@@ -10,19 +10,6 @@ const dialogSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  avatar: {
-    type: String
-  },
-  description: {
-    type: String
-  },
-  lastMessageId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Message'
-  },
-  lastMessageAt: {
-    type: Date
-  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -42,7 +29,6 @@ const dialogSchema = new mongoose.Schema({
 
 // Indexes
 dialogSchema.index({ tenantId: 1 });
-dialogSchema.index({ lastMessageAt: -1 });
 
 // Включить виртуальные поля в JSON/Object
 dialogSchema.set('toJSON', { virtuals: true });

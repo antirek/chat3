@@ -131,7 +131,6 @@ async function seed() {
       const dialog = await Dialog.create({
         tenantId: tenant._id,
         name,
-        description: `${metaType === 'internal' ? 'Внутренний' : 'Внешний'} диалог через ${channelType}`,
         createdBy: users[0]._id
       });
       

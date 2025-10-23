@@ -162,10 +162,6 @@ router.get('/:id', apiAuth, requirePermission('read'), dialogController.getById)
  *             properties:
  *               name:
  *                 type: string
- *               description:
- *                 type: string
- *               avatar:
- *                 type: string
  *               createdBy:
  *                 type: string
  *     responses:
