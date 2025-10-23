@@ -1,6 +1,5 @@
 import connectDB from '../config/database.js';
-import { Tenant, User, Dialog, DialogParticipant, Message, Meta } from '../models/index.js';
-import * as participantUtils from '../utils/dialogParticipants.js';
+import { Tenant, User, Dialog, Message, Meta } from '../models/index.js';
 
 async function seed() {
   try {
@@ -12,7 +11,6 @@ async function seed() {
     await Tenant.deleteMany({});
     await User.deleteMany({});
     await Dialog.deleteMany({});
-    await DialogParticipant.deleteMany({});
     await Message.deleteMany({});
     await Meta.deleteMany({});
 
@@ -134,7 +132,7 @@ async function seed() {
         tenantId: tenant._id,
         name,
         description: `${metaType === 'internal' ? 'Внутренний' : 'Внешний'} диалог через ${channelType}`,
-        createdBy: users[0]._id,
+        createdBy: users[0]._id
       });
       
       dialogs.push({ 
@@ -142,14 +140,6 @@ async function seed() {
         metaType,
         channelType 
       });
-
-      // Add participants - добавляем 2-3 участника в зависимости от индекса
-      await participantUtils.addParticipant(tenant._id, dialog._id, users[0]._id.toString(), 'owner');
-      await participantUtils.addParticipant(tenant._id, dialog._id, users[1]._id.toString(), 'member');
-      if (i % 3 === 0) {
-        // Каждый третий диалог с тремя участниками
-        await participantUtils.addParticipant(tenant._id, dialog._id, users[2]._id.toString(), 'member');
-      }
     }
 
     console.log(`✅ Created ${dialogs.length} dialogs`);
@@ -355,8 +345,7 @@ async function seed() {
     console.log('\n📊 Summary:');
     console.log(`   - Tenants: ${await Tenant.countDocuments()} (1 system + 1 demo)`);
     console.log(`   - Users: ${await User.countDocuments()} (1 system bot + 3 demo users)`);
-    console.log(`   - Dialogs: ${await Dialog.countDocuments()} (70 internal + 30 external = 100 total)`);
-    console.log(`   - DialogParticipants: ${await DialogParticipant.countDocuments()}`);
+    console.log(`   - Dialogs: ${await Dialog.countDocuments()} (70 internal + 30 external = 100 total, без участников)`);
     console.log(`   - Messages: ${await Message.countDocuments()}`);
     console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/user/tenant + ${dialogs.length * 6} dialog)`);
     console.log('\n🤖 System Bot:');

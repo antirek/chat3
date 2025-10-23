@@ -34,7 +34,7 @@ export const apiAuth = async (req, res, next) => {
 
     // Attach key info to request
     req.apiKey = key;
-    req.tenantId = key.tenantId._id;
+    req.tenantId = key.tenantId ? key.tenantId._id : key.tenantId;
     req.tenant = key.tenantId;
 
     next();

@@ -1,5 +1,4 @@
-import { Dialog, DialogParticipant, User, Meta } from '../models/index.js';
-import * as participantUtils from '../utils/dialogParticipants.js';
+import { Dialog, User, Meta } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 
@@ -114,14 +113,9 @@ export const dialogController = {
         .populate('tenantId', 'name domain')
         .populate('createdBy', 'username email');
 
-      // Добавляем участников и мета из DialogParticipant и Meta
-      const dialogsWithParticipants = await Promise.all(
+      // Добавляем метаданные для каждого диалога
+      const dialogsWithMeta = await Promise.all(
         dialogs.map(async (dialog) => {
-          const participants = await participantUtils.getParticipants(
-            req.tenantId,
-            dialog._id
-          );
-          
           // Получаем метаданные диалога
           const meta = await metaUtils.getEntityMeta(
             req.tenantId,
@@ -130,12 +124,9 @@ export const dialogController = {
           );
           
           const dialogObj = dialog.toObject();
-          delete dialogObj.participants; // Убираем старое поле
           
           return {
             ...dialogObj,
-            participants,
-            participantCount: participants.length,
             meta
           };
         })
@@ -144,7 +135,7 @@ export const dialogController = {
       const total = await Dialog.countDocuments(query);
 
       res.json({
-        data: dialogsWithParticipants,
+        data: dialogsWithMeta,
         pagination: {
           page,
           limit,
@@ -178,23 +169,6 @@ export const dialogController = {
         });
       }
 
-      // Получаем участников из DialogParticipant
-      const participants = await participantUtils.getParticipants(
-        req.tenantId,
-        dialog._id
-      );
-
-      // Получаем детали пользователей
-      const participantDetails = await Promise.all(
-        participants.map(async (p) => {
-          const user = await User.findById(p.userId).select('username email firstName lastName avatar');
-          return {
-            ...p,
-            user
-          };
-        })
-      );
-
       // Получаем метаданные диалога
       const meta = await metaUtils.getEntityMeta(
         req.tenantId,
@@ -203,13 +177,10 @@ export const dialogController = {
       );
 
       const dialogObj = dialog.toObject();
-      delete dialogObj.participants; // Убираем старое поле
 
       res.json({
         data: {
           ...dialogObj,
-          participants: participantDetails,
-          participantCount: participants.length,
           meta
         }
       });
@@ -230,31 +201,23 @@ export const dialogController = {
   // Create new dialog
   async create(req, res) {
     try {
-      const dialogData = {
-        ...req.body,
-        tenantId: req.tenantId,
-        createdBy: req.body.createdBy
-      };
+      const { name, description, avatar, createdBy } = req.body;
 
-      const dialog = await Dialog.create(dialogData);
-
-      // Добавляем участников через Meta
-      if (req.body.participants && Array.isArray(req.body.participants)) {
-        for (const participant of req.body.participants) {
-          await participantUtils.addParticipant(
-            req.tenantId,
-            dialog._id,
-            participant.userId || participant,
-            participant.role || 'member'
-          );
-        }
+      // Basic validation
+      if (!name || !createdBy) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Missing required fields: name, createdBy'
+        });
       }
 
-      // Получаем созданных участников
-      const participants = await participantUtils.getParticipants(
-        req.tenantId,
-        dialog._id
-      );
+      const dialog = await Dialog.create({
+        tenantId: req.tenantId,
+        name,
+        description,
+        avatar,
+        createdBy
+      });
 
       // Получаем метаданные диалога (если есть)
       const meta = await metaUtils.getEntityMeta(
@@ -264,13 +227,10 @@ export const dialogController = {
       );
 
       const dialogObj = dialog.toObject();
-      delete dialogObj.participants; // Убираем старое поле
 
       res.status(201).json({
         data: {
           ...dialogObj,
-          participants,
-          participantCount: participants.length,
           meta
         },
         message: 'Dialog created successfully'
@@ -283,157 +243,6 @@ export const dialogController = {
           details: error.errors
         });
       }
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: error.message
-      });
-    }
-  },
-
-  // Add participant to dialog
-  async addParticipant(req, res) {
-    try {
-      const { dialogId } = req.params;
-      const { userId, role } = req.body;
-
-      // Проверяем существование диалога
-      const dialog = await Dialog.findOne({
-        _id: dialogId,
-        tenantId: req.tenantId
-      });
-
-      if (!dialog) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: 'Dialog not found'
-        });
-      }
-
-      // Проверяем, не является ли уже участником
-      const isAlreadyParticipant = await participantUtils.isParticipant(
-        req.tenantId,
-        dialogId,
-        userId
-      );
-
-      if (isAlreadyParticipant) {
-        return res.status(409).json({
-          error: 'Conflict',
-          message: 'User is already a participant'
-        });
-      }
-
-      // Добавляем участника
-      await participantUtils.addParticipant(
-        req.tenantId,
-        dialogId,
-        userId,
-        role || 'member'
-      );
-
-      res.status(201).json({
-        message: 'Participant added successfully'
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: error.message
-      });
-    }
-  },
-
-  // Remove participant from dialog
-  async removeParticipant(req, res) {
-    try {
-      const { dialogId, userId } = req.params;
-
-      const removed = await participantUtils.removeParticipant(
-        req.tenantId,
-        dialogId,
-        userId
-      );
-
-      if (!removed) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: 'Participant not found'
-        });
-      }
-
-      res.json({
-        message: 'Participant removed successfully'
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: error.message
-      });
-    }
-  },
-
-  // Get dialog participants
-  async getParticipants(req, res) {
-    try {
-      const { dialogId } = req.params;
-
-      const participants = await participantUtils.getParticipants(
-        req.tenantId,
-        dialogId
-      );
-
-      // Получаем детали пользователей
-      const participantDetails = await Promise.all(
-        participants.map(async (p) => {
-          const user = await User.findById(p.userId).select('username email firstName lastName avatar');
-          return {
-            ...p,
-            user
-          };
-        })
-      );
-
-      res.json({
-        data: participantDetails
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: error.message
-      });
-    }
-  },
-
-  // Update participant role
-  async updateParticipantRole(req, res) {
-    try {
-      const { dialogId, userId } = req.params;
-      const { role } = req.body;
-
-      if (!['owner', 'admin', 'member'].includes(role)) {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: 'Invalid role. Must be: owner, admin, or member'
-        });
-      }
-
-      const updated = await participantUtils.updateParticipantRole(
-        req.tenantId,
-        dialogId,
-        userId,
-        role
-      );
-
-      if (!updated) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: 'Participant not found'
-        });
-      }
-
-      res.json({
-        message: 'Participant role updated successfully'
-      });
-    } catch (error) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
@@ -455,6 +264,9 @@ export const dialogController = {
           message: 'Dialog not found'
         });
       }
+
+      // Удаляем все метаданные диалога
+      await Meta.deleteMany({ entityType: 'dialog', entityId: req.params.id });
 
       res.json({
         message: 'Dialog deleted successfully'

@@ -2,7 +2,7 @@ import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import * as AdminJSMongoose from '@adminjs/mongoose';
 
-import { Tenant, User, Dialog, DialogParticipant, Message, Meta, ApiKey } from '../models/index.js';
+import { Tenant, User, Dialog, Message, Meta, ApiKey } from '../models/index.js';
 
 // Register the mongoose adapter
 AdminJS.registerAdapter({
@@ -145,10 +145,6 @@ const adminOptions = {
             reference: 'Tenant',
             isRequired: true,
           },
-          participants: {
-            isArray: true,
-            isVisible: { list: false, show: false, edit: false }
-          },
           description: {
             isVisible: { list: false, show: true, edit: true }
           },
@@ -202,59 +198,6 @@ const adminOptions = {
             }
           }
         },
-      }
-    },
-    {
-      resource: DialogParticipant,
-      options: {
-        navigation: {
-          name: 'Чаты',
-          icon: 'Users',
-        },
-        properties: {
-          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
-          dialogId: {
-            reference: 'Dialog',
-            isRequired: true,
-            isTitle: true,
-          },
-          userId: { 
-            isRequired: true,
-            description: 'ID пользователя (ObjectId или произвольная строка)'
-          },
-          tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
-          },
-          role: {
-            availableValues: [
-              { value: 'owner', label: 'Владелец' },
-              { value: 'admin', label: 'Администратор' },
-              { value: 'member', label: 'Участник' },
-            ],
-            isRequired: true,
-          },
-          isActive: { 
-            type: 'boolean',
-            isVisible: { list: true, show: true, edit: true }
-          },
-          joinedAt: { 
-            type: 'datetime',
-            isVisible: { list: true, show: true, edit: false } 
-          },
-          leftAt: { 
-            type: 'datetime',
-            isVisible: { list: true, show: true, edit: true } 
-          },
-          createdAt: { isVisible: { list: true, show: true, edit: false } },
-          updatedAt: { isVisible: { list: false, show: true, edit: false } },
-        },
-        listProperties: ['_id', 'dialogId', 'userId', 'role', 'isActive', 'joinedAt'],
-        filterProperties: ['userId', 'dialogId', 'tenantId', 'role', 'isActive'],
-        sort: {
-          sortBy: 'joinedAt',
-          direction: 'desc'
-        }
       }
     },
     {

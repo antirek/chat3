@@ -124,7 +124,7 @@ router.get('/', apiAuth, requirePermission('read'), dialogController.getAll);
  *           type: string
  *     responses:
  *       200:
- *         description: Dialog details with participants
+ *         description: Dialog details
  */
 router.get('/:id', apiAuth, requirePermission('read'), dialogController.getById);
 
@@ -153,138 +153,12 @@ router.get('/:id', apiAuth, requirePermission('read'), dialogController.getById)
  *                 type: string
  *               createdBy:
  *                 type: string
- *               participants:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     userId:
- *                       type: string
- *                     role:
- *                       type: string
- *                       enum: [owner, admin, member]
  *     responses:
  *       201:
  *         description: Dialog created
  */
 router.post('/', apiAuth, requirePermission('write'), dialogController.create);
 
-/**
- * @swagger
- * /api/dialogs/{dialogId}/participants:
- *   post:
- *     summary: Add participant to dialog
- *     tags: [Dialogs]
- *     security:
- *       - ApiKeyAuth: []
- *     parameters:
- *       - in: path
- *         name: dialogId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - userId
- *             properties:
- *               userId:
- *                 type: string
- *               role:
- *                 type: string
- *                 enum: [owner, admin, member]
- *                 default: member
- *     responses:
- *       201:
- *         description: Participant added
- */
-router.post('/:dialogId/participants', apiAuth, requirePermission('write'), dialogController.addParticipant);
-
-/**
- * @swagger
- * /api/dialogs/{dialogId}/participants:
- *   get:
- *     summary: Get dialog participants
- *     tags: [Dialogs]
- *     security:
- *       - ApiKeyAuth: []
- *     parameters:
- *       - in: path
- *         name: dialogId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: List of participants with user details
- */
-router.get('/:dialogId/participants', apiAuth, requirePermission('read'), dialogController.getParticipants);
-
-/**
- * @swagger
- * /api/dialogs/{dialogId}/participants/{userId}:
- *   delete:
- *     summary: Remove participant from dialog
- *     tags: [Dialogs]
- *     security:
- *       - ApiKeyAuth: []
- *     parameters:
- *       - in: path
- *         name: dialogId
- *         required: true
- *         schema:
- *           type: string
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Participant removed
- */
-router.delete('/:dialogId/participants/:userId', apiAuth, requirePermission('delete'), dialogController.removeParticipant);
-
-/**
- * @swagger
- * /api/dialogs/{dialogId}/participants/{userId}/role:
- *   put:
- *     summary: Update participant role
- *     tags: [Dialogs]
- *     security:
- *       - ApiKeyAuth: []
- *     parameters:
- *       - in: path
- *         name: dialogId
- *         required: true
- *         schema:
- *           type: string
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - role
- *             properties:
- *               role:
- *                 type: string
- *                 enum: [owner, admin, member]
- *     responses:
- *       200:
- *         description: Role updated
- */
-router.put('/:dialogId/participants/:userId/role', apiAuth, requirePermission('write'), dialogController.updateParticipantRole);
 
 /**
  * @swagger
