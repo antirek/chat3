@@ -8,6 +8,7 @@ import userRoutes from './routes/userRoutes.js';
 import dialogRoutes from './routes/dialogRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import messageStatusRoutes from './routes/messageStatusRoutes.js';
+import dialogMemberRoutes from './routes/dialogMemberRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,6 +41,8 @@ const startServer = async () => {
     app.use('/api/messages', messageStatusRoutes);
     app.use('/api/users', messageStatusRoutes);
     app.use('/api/dialogs', messageStatusRoutes);
+    app.use('/api/dialogs', dialogMemberRoutes);
+    app.use('/api/dialog-members', dialogMemberRoutes);
 
     // Quick links page for AdminJS
     app.get('/admin-links', (req, res) => {
@@ -135,6 +138,9 @@ const startServer = async () => {
                 <li><code>GET/PUT /api/messages/:id/status</code></li>
                 <li><code>GET /api/users/:id/unread</code></li>
                 <li><code>GET /api/dialogs/:id/unread</code></li>
+                <li><code>GET /api/dialogs/:id/members</code></li>
+                <li><code>POST/DELETE /api/dialogs/:id/members/:userId</code></li>
+                <li><code>GET /api/dialog-members</code></li>
               </ul>
               <p style="margin-bottom: 0; color: #666; font-size: 14px;">
                 💡 Все API запросы требуют заголовок <code>X-API-Key</code>
@@ -190,6 +196,9 @@ const startServer = async () => {
       console.log(`   PUT  /api/messages/:id/status`);
       console.log(`   GET  /api/users/:id/unread`);
       console.log(`   GET  /api/dialogs/:id/unread`);
+      console.log(`   GET  /api/dialogs/:id/members`);
+      console.log(`   POST/DELETE /api/dialogs/:id/members/:userId`);
+      console.log(`   GET  /api/dialog-members`);
       console.log(`\n⚠️  Don't forget to generate an API key first!\n`);
     });
   } catch (error) {

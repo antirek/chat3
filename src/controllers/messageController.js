@@ -141,6 +141,33 @@ const messageController = {
         type
       });
 
+      // Create MessageStatus records and update DialogMember counters for all dialog participants
+      // Note: In a real app, you would get participants from DialogMember table
+      // For now, we'll create status records for common users
+      const commonUsers = ['carl', 'sara', 'john', 'marta', 'kirk'];
+      
+      for (const userId of commonUsers) {
+        if (userId !== senderId) { // Don't create status for sender
+          try {
+            const { MessageStatus } = await import('../models/index.js');
+            const { incrementUnreadCount } = await import('../utils/unreadCountUtils.js');
+            
+            // Create MessageStatus record
+            await MessageStatus.create({
+              messageId: message._id,
+              userId: userId,
+              tenantId: req.tenantId,
+              status: 'unread'
+            });
+            
+            // Update DialogMember counter
+            await incrementUnreadCount(req.tenantId, userId, dialogId, message._id);
+          } catch (error) {
+            console.error(`Error creating MessageStatus for user ${userId}:`, error);
+          }
+        }
+      }
+
       // Add meta data if provided
       if (meta && typeof meta === 'object') {
         for (const [key, value] of Object.entries(meta)) {

@@ -18,21 +18,13 @@ const messageStatusSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['unread', 'delivered', 'read'],
-    default: 'unread',
+    default: 'sent',
     required: true
-  },
-  readAt: {
-    type: Date,
-    description: 'Время прочтения сообщения'
-  },
-  deliveredAt: {
-    type: Date,
-    description: 'Время доставки сообщения'
-  },
+  },  
   createdAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
+    required: true,
   },
   updatedAt: {
     type: Date,
@@ -48,6 +40,32 @@ messageStatusSchema.index({ tenantId: 1, userId: 1, status: 1 });
 messageStatusSchema.index({ messageId: 1, status: 1 });
 messageStatusSchema.index({ userId: 1, status: 1 });
 messageStatusSchema.index({ tenantId: 1, status: 1 });
+
+// Middleware для обновления счетчиков при изменении статуса
+messageStatusSchema.pre('save', async function(next) {
+  if (this.isModified('status')) {
+    try {
+      const { updateCountersOnStatusChange } = await import('../utils/unreadCountUtils.js');
+      
+      // Получаем старый статус из базы данных
+      const oldDoc = await this.constructor.findById(this._id);
+      const oldStatus = oldDoc ? oldDoc.status : 'unread';
+      
+      // Обновляем счетчики
+      await updateCountersOnStatusChange(
+        this.tenantId,
+        this.messageId,
+        this.userId,
+        oldStatus,
+        this.status
+      );
+    } catch (error) {
+      console.error('Error updating counters in pre-save:', error);
+      // Не прерываем сохранение из-за ошибки счетчиков
+    }
+  }
+  next();
+});
 
 // Включить виртуальные поля в JSON/Object
 messageStatusSchema.set('toJSON', { virtuals: true });

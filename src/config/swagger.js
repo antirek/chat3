@@ -190,6 +190,10 @@ const options = {
       {
         name: 'MessageStatus',
         description: 'Управление статусом прочтения сообщений'
+      },
+      {
+        name: 'DialogMember',
+        description: 'Управление участниками диалогов и счетчиками непрочитанных сообщений'
       }
     ]
   },
