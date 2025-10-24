@@ -144,12 +144,53 @@ const userDialogController = {
         ))
       }));
 
-      // Sort by last interaction time (most recent first)
-      dialogs.sort((a, b) => new Date(b.lastInteractionAt) - new Date(a.lastInteractionAt));
+      // Apply sorting
+      if (req.query.sort) {
+        // Parse sort parameter in format (field,direction)
+        const sortMatch = req.query.sort.match(/\(([^,]+),([^)]+)\)/);
+        if (sortMatch) {
+          const field = sortMatch[1];
+          const direction = sortMatch[2];
+          console.log('Sorting by:', field, direction);
+        
+        dialogs.sort((a, b) => {
+          let aVal, bVal;
+          
+          if (field === 'lastSeenAt') {
+            aVal = new Date(a.lastSeenAt || 0);
+            bVal = new Date(b.lastSeenAt || 0);
+          } else if (field === 'lastInteractionAt') {
+            aVal = new Date(a.lastInteractionAt || 0);
+            bVal = new Date(b.lastInteractionAt || 0);
+          } else if (field === 'unreadCount') {
+            aVal = a.unreadCount || 0;
+            bVal = b.unreadCount || 0;
+          } else {
+            // Default sorting by lastInteractionAt
+            aVal = new Date(a.lastInteractionAt || 0);
+            bVal = new Date(b.lastInteractionAt || 0);
+          }
+          
+          if (direction === 'desc') {
+            return bVal - aVal;
+          } else {
+            return aVal - bVal;
+          }
+        });
+        } else {
+          console.log('Invalid sort format:', req.query.sort);
+          // Fallback to default sorting
+          dialogs.sort((a, b) => new Date(b.lastInteractionAt) - new Date(a.lastInteractionAt));
+        }
+      } else {
+        // Sort by last interaction time (most recent first) - default
+        dialogs.sort((a, b) => new Date(b.lastInteractionAt) - new Date(a.lastInteractionAt));
+      }
 
       console.log('Returning dialogs:', dialogs.length, 'total:', total);
       console.log('Dialog IDs used:', dialogIds);
       console.log('Filter was applied:', dialogIds !== null);
+      console.log('Sort parameter:', req.query.sort);
       res.json({
         data: dialogs,
         pagination: {

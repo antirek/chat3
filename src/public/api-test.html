@@ -396,6 +396,47 @@
             background: #138496;
         }
 
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            padding-right: 20px;
+        }
+
+        .sortable-header:hover {
+            background-color: #f8f9fa;
+        }
+
+        .sort-indicator {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: #999;
+            font-weight: bold;
+        }
+
+        .sort-indicator.active {
+            color: #667eea;
+        }
+
+        .sort-indicator.asc::after {
+            content: '▲';
+            color: #667eea;
+        }
+
+        .sort-indicator.desc::after {
+            content: '▼';
+            color: #667eea;
+        }
+
+        .sort-indicator.none::after {
+            content: '◄';
+            transform: rotate(90deg);
+            color: #999;
+        }
+
         .modal {
             position: fixed;
             z-index: 1000;
@@ -540,6 +581,7 @@
         let totalMessagePages = 1;
         let totalMessages = 0;
         let currentFilter = null;
+        let currentSort = '';
 
         // Установка API ключа
         function setApiKey() {
@@ -618,6 +660,50 @@
             }
         });
 
+        // Переключение сортировки
+        function toggleSort(field) {
+            console.log('toggleSort called with field:', field);
+            console.log('Current sort:', currentSort);
+            
+            const indicator = document.getElementById('sortIndicator');
+            console.log('Indicator element:', indicator);
+            
+            if (!indicator) {
+                console.error('Sort indicator not found!');
+                return;
+            }
+            
+            const header = indicator.closest('.sortable-header');
+            console.log('Header element:', header);
+            
+            if (currentSort === `(${field},asc)`) {
+                // Переключаем на убывание
+                currentSort = `(${field},desc)`;
+                indicator.className = 'sort-indicator desc active';
+                if (header) header.title = 'Сортировка по убыванию (нажмите для сброса)';
+                console.log('Switched to desc:', currentSort);
+            } else if (currentSort === `(${field},desc)`) {
+                // Переключаем на сброс сортировки
+                currentSort = '';
+                indicator.className = 'sort-indicator none';
+                if (header) header.title = 'Нажмите для сортировки по возрастанию';
+                console.log('Switched to none:', currentSort);
+            } else {
+                // Переключаем на возрастание
+                currentSort = `(${field},asc)`;
+                indicator.className = 'sort-indicator asc active';
+                if (header) header.title = 'Сортировка по возрастанию (нажмите для убывания)';
+                console.log('Switched to asc:', currentSort);
+            }
+            
+            console.log('Final indicator className:', indicator.className);
+            console.log('Final header title:', header ? header.title : 'no header');
+            
+            // Сбрасываем на первую страницу и перезагружаем диалоги
+            currentPage = 1;
+            loadUserDialogs(currentUserId, 1);
+        }
+
         // Загрузка пользователей
         async function loadUsers() {
             const usersList = document.getElementById('usersList');
@@ -648,6 +734,17 @@
             currentUserId = userId;
             currentDialogId = null;
             currentPage = 1; // Сбрасываем на первую страницу
+            currentSort = ''; // Сбрасываем сортировку
+
+            // Сбрасываем индикатор сортировки
+            const indicator = document.getElementById('sortIndicator');
+            if (indicator) {
+                indicator.className = 'sort-indicator none';
+                const header = indicator.closest('.sortable-header');
+                if (header) {
+                    header.title = 'Нажмите для сортировки по возрастанию';
+                }
+            }
 
             // Обновляем активный элемент
             document.querySelectorAll('.user-item').forEach(item => item.classList.remove('active'));
@@ -759,7 +856,18 @@
             
             try {
                 currentFilter = null;
+                currentSort = '';
                 currentPage = 1;
+                
+                // Сбрасываем индикатор сортировки
+                const indicator = document.getElementById('sortIndicator');
+                if (indicator) {
+                    indicator.className = 'sort-indicator none';
+                    const header = indicator.closest('.sortable-header');
+                    if (header) {
+                        header.title = 'Нажмите для сортировки по возрастанию';
+                    }
+                }
                 
                 // Очищаем форму
                 document.getElementById('filterExample').value = '';
@@ -795,17 +903,21 @@
             dialogsList.innerHTML = '<div class="loading">Загрузка диалогов...</div>';
 
             try {
-                // Формируем URL с фильтром, если он есть
+                // Формируем URL с фильтром и сортировкой
                 let url = `/api/users/${userId}/dialogs?page=${page}&limit=10`;
                 if (currentFilter) {
                     const filterParam = encodeURIComponent(currentFilter);
                     url += `&filter=${filterParam}`;
                     console.log('Filter applied:', currentFilter);
                     console.log('Filter encoded:', filterParam);
-                    console.log('Full URL:', url);
-                } else {
-                    console.log('No filter applied');
                 }
+                if (currentSort) {
+                    const sortParam = encodeURIComponent(currentSort);
+                    url += `&sort=${sortParam}`;
+                    console.log('Sort applied:', currentSort);
+                    console.log('Sort encoded:', sortParam);
+                }
+                console.log('Full URL:', url);
                 
                 const response = await fetch(url, {
                     headers: {
@@ -840,7 +952,10 @@
                                     <th>Dialog ID</th>
                                     <th>Название</th>
                                     <th>Непрочитанные</th>
-                                    <th>Последний просмотр</th>
+                                    <th class="sortable-header" onclick="toggleSort('lastSeenAt')" title="${currentSort === '(lastSeenAt,asc)' ? 'Сортировка по возрастанию (нажмите для убывания)' : currentSort === '(lastSeenAt,desc)' ? 'Сортировка по убыванию (нажмите для сброса)' : 'Нажмите для сортировки по возрастанию'}">
+                    Последний просмотр
+                    <span class="sort-indicator ${currentSort === '(lastSeenAt,asc)' ? 'asc active' : currentSort === '(lastSeenAt,desc)' ? 'desc active' : 'none'}" id="sortIndicator"></span>
+                </th>
                                     <th>Инфо</th>
                                 </tr>
                             </thead>
