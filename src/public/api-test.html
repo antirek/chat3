@@ -664,18 +664,20 @@
         function toggleSort(field) {
             console.log('toggleSort called with field:', field);
             console.log('Current sort:', currentSort);
-            
-            const indicator = document.getElementById('sortIndicator');
+
+            // Определяем правильный индикатор в зависимости от поля
+            const indicatorId = field === 'unreadCount' ? 'sortIndicatorUnread' : 'sortIndicator';
+            const indicator = document.getElementById(indicatorId);
             console.log('Indicator element:', indicator);
-            
+
             if (!indicator) {
                 console.error('Sort indicator not found!');
                 return;
             }
-            
+
             const header = indicator.closest('.sortable-header');
             console.log('Header element:', header);
-            
+
             if (currentSort === `(${field},asc)`) {
                 // Переключаем на убывание
                 currentSort = `(${field},desc)`;
@@ -695,10 +697,10 @@
                 if (header) header.title = 'Сортировка по возрастанию (нажмите для убывания)';
                 console.log('Switched to asc:', currentSort);
             }
-            
+
             console.log('Final indicator className:', indicator.className);
             console.log('Final header title:', header ? header.title : 'no header');
-            
+
             // Сбрасываем на первую страницу и перезагружаем диалоги
             currentPage = 1;
             loadUserDialogs(currentUserId, 1);
@@ -736,15 +738,18 @@
             currentPage = 1; // Сбрасываем на первую страницу
             currentSort = ''; // Сбрасываем сортировку
 
-            // Сбрасываем индикатор сортировки
-            const indicator = document.getElementById('sortIndicator');
-            if (indicator) {
-                indicator.className = 'sort-indicator none';
-                const header = indicator.closest('.sortable-header');
-                if (header) {
-                    header.title = 'Нажмите для сортировки по возрастанию';
+            // Сбрасываем индикаторы сортировки для всех полей
+            const indicators = ['sortIndicator', 'sortIndicatorUnread'];
+            indicators.forEach(indicatorId => {
+                const indicator = document.getElementById(indicatorId);
+                if (indicator) {
+                    indicator.className = 'sort-indicator none';
+                    const header = indicator.closest('.sortable-header');
+                    if (header) {
+                        header.title = 'Нажмите для сортировки по возрастанию';
+                    }
                 }
-            }
+            });
 
             // Обновляем активный элемент
             document.querySelectorAll('.user-item').forEach(item => item.classList.remove('active'));
@@ -859,15 +864,18 @@
                 currentSort = '';
                 currentPage = 1;
                 
-                // Сбрасываем индикатор сортировки
-                const indicator = document.getElementById('sortIndicator');
-                if (indicator) {
-                    indicator.className = 'sort-indicator none';
-                    const header = indicator.closest('.sortable-header');
-                    if (header) {
-                        header.title = 'Нажмите для сортировки по возрастанию';
+                // Сбрасываем индикаторы сортировки для всех полей
+                const indicators = ['sortIndicator', 'sortIndicatorUnread'];
+                indicators.forEach(indicatorId => {
+                    const indicator = document.getElementById(indicatorId);
+                    if (indicator) {
+                        indicator.className = 'sort-indicator none';
+                        const header = indicator.closest('.sortable-header');
+                        if (header) {
+                            header.title = 'Нажмите для сортировки по возрастанию';
+                        }
                     }
-                }
+                });
                 
                 // Очищаем форму
                 document.getElementById('filterExample').value = '';
@@ -951,7 +959,10 @@
                                 <tr>
                                     <th>Dialog ID</th>
                                     <th>Название</th>
-                                    <th>Непрочитанные</th>
+                                    <th class="sortable-header" onclick="toggleSort('unreadCount')" title="${currentSort === '(unreadCount,asc)' ? 'Сортировка по возрастанию (нажмите для убывания)' : currentSort === '(unreadCount,desc)' ? 'Сортировка по убыванию (нажмите для сброса)' : 'Нажмите для сортировки по возрастанию'}">
+                    Непрочитанные
+                    <span class="sort-indicator ${currentSort === '(unreadCount,asc)' ? 'asc active' : currentSort === '(unreadCount,desc)' ? 'desc active' : 'none'}" id="sortIndicatorUnread"></span>
+                </th>
                                     <th class="sortable-header" onclick="toggleSort('lastSeenAt')" title="${currentSort === '(lastSeenAt,asc)' ? 'Сортировка по возрастанию (нажмите для убывания)' : currentSort === '(lastSeenAt,desc)' ? 'Сортировка по убыванию (нажмите для сброса)' : 'Нажмите для сортировки по возрастанию'}">
                     Последний просмотр
                     <span class="sort-indicator ${currentSort === '(lastSeenAt,asc)' ? 'asc active' : currentSort === '(lastSeenAt,desc)' ? 'desc active' : 'none'}" id="sortIndicator"></span>
