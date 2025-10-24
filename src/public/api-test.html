@@ -258,13 +258,13 @@
         }
 
         .pagination button {
-            padding: 8px 12px;
+            padding: 6px 10px;
             border: 1px solid #ddd;
             background: white;
             color: #333;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 11px;
             transition: all 0.2s;
         }
 
@@ -286,7 +286,7 @@
         }
 
         .pagination-info {
-            font-size: 14px;
+            font-size: 10px;
             color: #666;
             margin: 0 10px;
         }
@@ -607,6 +607,16 @@
                 closeDialogInfo();
             }
         }
+
+        // Закрытие модального окна по нажатию Esc
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('dialogInfoModal');
+                if (modal && modal.style.display === 'block') {
+                    closeDialogInfo();
+                }
+            }
+        });
 
         // Загрузка пользователей
         async function loadUsers() {
