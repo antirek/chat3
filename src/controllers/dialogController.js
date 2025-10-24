@@ -1,4 +1,4 @@
-import { Dialog, User, Meta } from '../models/index.js';
+import { Dialog, Meta } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 

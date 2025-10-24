@@ -2,7 +2,7 @@ import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import * as AdminJSMongoose from '@adminjs/mongoose';
 
-import { Tenant, User, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember } from '../models/index.js';
+import { Tenant, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember } from '../models/index.js';
 
 // Register the mongoose adapter
 AdminJS.registerAdapter({
@@ -91,47 +91,6 @@ const adminOptions = {
       }
     },
     {
-      resource: User,
-      options: {
-        navigation: {
-          name: 'Пользователи',
-          icon: 'User',
-        },
-        properties: {
-          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
-          username: { isTitle: true },
-          email: { isRequired: true },
-          password: { 
-            isVisible: { list: false, show: false, edit: true },
-            type: 'password'
-          },
-          tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
-          },
-          role: {
-            availableValues: [
-              { value: 'admin', label: 'Администратор' },
-              { value: 'user', label: 'Пользователь' },
-              { value: 'moderator', label: 'Модератор' },
-            ],
-          },
-          type: {
-            availableValues: [
-              { value: 'bot', label: 'Бот' },
-              { value: 'user', label: 'Пользователь' },
-            ],
-            isRequired: true,
-          },
-          createdAt: { isVisible: { list: true, show: true, edit: false } },
-          updatedAt: { isVisible: { list: true, show: true, edit: false } },
-          lastSeen: { isVisible: { list: true, show: true, edit: false } },
-        },
-        listProperties: ['_id', 'username', 'email', 'type', 'role', 'isActive', 'lastSeen'],
-        filterProperties: ['username', 'email', 'tenantId', 'type', 'role', 'isActive'],
-      }
-    },
-    {
       resource: Dialog,
       options: {
         navigation: {
@@ -156,14 +115,11 @@ const adminOptions = {
             position: 998,
             description: 'Участники диалога с информацией о непрочитанных сообщениях',
           },
-          createdBy: {
-            reference: 'User',
-          },
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
         listProperties: ['_id', 'name', 'createdAt'],
-        showProperties: ['_id', 'name', 'tenantId', 'createdBy', 'createdAt', 'updatedAt', 'meta', 'dialogMembers'],
+        showProperties: ['_id', 'name', 'tenantId', 'createdAt', 'updatedAt', 'meta', 'dialogMembers'],
         filterProperties: ['name', 'tenantId'],
         actions: {
           show: {
@@ -374,9 +330,6 @@ const adminOptions = {
             ],
             isRequired: true,
           },
-          createdBy: {
-            reference: 'User',
-          },
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
@@ -548,15 +501,6 @@ const adminOptions = {
                     • GET /api/tenants/:id - Получить организацию<br>
                     • PUT /api/tenants/:id - Обновить организацию<br>
                     • DELETE /api/tenants/:id - Удалить организацию
-                  </div>
-                  <br>
-                  <div><strong>Users:</strong></div>
-                  <div style="padding-left: 20px;">
-                    • GET /api/users - Список пользователей<br>
-                    • POST /api/users - Создать пользователя<br>
-                    • GET /api/users/:id - Получить пользователя<br>
-                    • PUT /api/users/:id - Обновить пользователя<br>
-                    • DELETE /api/users/:id - Удалить пользователя
                   </div>
                   <br>
                   <div><strong>Dialogs:</strong></div>

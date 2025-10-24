@@ -4,14 +4,17 @@ import connectDB from './config/database.js';
 import { admin, buildAdminRouter } from './admin/config.js';
 import swaggerSpec from './config/swagger.js';
 import tenantRoutes from './routes/tenantRoutes.js';
-import userRoutes from './routes/userRoutes.js';
 import dialogRoutes from './routes/dialogRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import messageStatusRoutes from './routes/messageStatusRoutes.js';
 import dialogMemberRoutes from './routes/dialogMemberRoutes.js';
+import userDialogRoutes from './routes/userDialogRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Serve static files from public directory
+app.use(express.static('src/public'));
 
 // Initialize database connection
 const startServer = async () => {
@@ -35,14 +38,18 @@ const startServer = async () => {
 
     // API Routes
     app.use('/api/tenants', tenantRoutes);
-    app.use('/api/users', userRoutes);
     app.use('/api/dialogs', dialogRoutes);
     app.use('/api/dialogs', messageRoutes);
     app.use('/api/messages', messageStatusRoutes);
-    app.use('/api/users', messageStatusRoutes);
     app.use('/api/dialogs', messageStatusRoutes);
     app.use('/api/dialogs', dialogMemberRoutes);
     app.use('/api/dialog-members', dialogMemberRoutes);
+    app.use('/api/users', userDialogRoutes);
+
+    // API Test page
+    app.get('/api-test', (req, res) => {
+      res.sendFile('api-test.html', { root: 'src/public' });
+    });
 
     // Quick links page for AdminJS
     app.get('/admin-links', (req, res) => {
@@ -99,6 +106,13 @@ const startServer = async () => {
             .link-btn.info:hover {
               box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6);
             }
+            .link-btn.success {
+              background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+              box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+            }
+            .link-btn.success:hover {
+              box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
+            }
             .info-box {
               background: #f8f9fa;
               padding: 20px;
@@ -123,6 +137,10 @@ const startServer = async () => {
                 <span class="emoji">⚙️</span> AdminJS Panel
               </a>
               
+              <a href="/api-test" target="_blank" class="link-btn success">
+                <span class="emoji">🧪</span> API Test Page
+              </a>
+              
               <a href="/" target="_blank" class="link-btn info">
                 <span class="emoji">🏠</span> API Root (Health Check)
               </a>
@@ -132,7 +150,6 @@ const startServer = async () => {
               <h3 style="margin-top: 0;">📊 API Endpoints:</h3>
               <ul style="line-height: 1.8;">
                 <li><code>GET/POST/PUT/DELETE /api/tenants</code></li>
-                <li><code>GET/POST/PUT/DELETE /api/users</code></li>
                 <li><code>GET/POST/DELETE /api/dialogs</code></li>
                 <li><code>GET/POST /api/dialogs/:id/messages</code></li>
                 <li><code>GET/PUT /api/messages/:id/status</code></li>
@@ -141,6 +158,8 @@ const startServer = async () => {
                 <li><code>GET /api/dialogs/:id/members</code></li>
                 <li><code>POST/DELETE /api/dialogs/:id/members/:userId</code></li>
                 <li><code>GET /api/dialog-members</code></li>
+                <li><code>GET /api/users/:userId/dialogs</code></li>
+                <li><code>GET /api/users/:userId/dialogs/detailed</code></li>
               </ul>
               <p style="margin-bottom: 0; color: #666; font-size: 14px;">
                 💡 Все API запросы требуют заголовок <code>X-API-Key</code>
@@ -186,8 +205,6 @@ const startServer = async () => {
       console.log(`\n🔑 API Endpoints:`);
       console.log(`   POST /api/tenants`);
       console.log(`   GET  /api/tenants`);
-      console.log(`   POST /api/users`);
-      console.log(`   GET  /api/users`);
       console.log(`   POST /api/dialogs`);
       console.log(`   GET  /api/dialogs`);
       console.log(`   GET  /api/dialogs/:id/messages`);
@@ -199,6 +216,8 @@ const startServer = async () => {
       console.log(`   GET  /api/dialogs/:id/members`);
       console.log(`   POST/DELETE /api/dialogs/:id/members/:userId`);
       console.log(`   GET  /api/dialog-members`);
+      console.log(`   GET  /api/users/:userId/dialogs`);
+      console.log(`   GET  /api/users/:userId/dialogs/detailed`);
       console.log(`\n⚠️  Don't forget to generate an API key first!\n`);
     });
   } catch (error) {

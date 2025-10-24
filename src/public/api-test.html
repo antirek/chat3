@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - Chat3</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 1px;
+            background: #ddd;
+        }
+
+        .panel {
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .users-panel {
+            width: 25%;
+            min-width: 200px;
+        }
+
+        .dialogs-panel {
+            width: 35%;
+            min-width: 300px;
+        }
+
+        .messages-panel {
+            width: 40%;
+            min-width: 400px;
+        }
+
+        .panel-header {
+            background: #667eea;
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 16px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .user-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-item:hover {
+            background: #f8f9fa;
+        }
+
+        .user-item.active {
+            background: #e3f2fd;
+            border-left: 4px solid #667eea;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .user-id {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .dialog-row {
+            cursor: pointer;
+        }
+
+        .dialog-row.active {
+            background: #e3f2fd;
+        }
+
+        .unread-badge {
+            background: #ff4444;
+            color: white;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .message-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .message-sender {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .message-time {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .message-content {
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .message-type {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+        }
+
+        .loading {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+        }
+
+        .error {
+            padding: 20px;
+            text-align: center;
+            color: #ff4444;
+            background: #ffe6e6;
+            margin: 10px;
+            border-radius: 4px;
+        }
+
+        .empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: #999;
+        }
+
+        .api-key-input {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .api-key-input input {
+            width: 300px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .api-key-input button {
+            margin-left: 10px;
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .api-key-input button:hover {
+            background: #5a6fd8;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+            gap: 10px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            color: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination .current-page {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #666;
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="api-key-input">
+        <input type="text" id="apiKey" placeholder="Введите API Key" value="chat3_289aa5811ec650729c0883f97ef190dcceb41bbbebb70d81a7573624733b59b2">
+        <button onclick="setApiKey()">Установить</button>
+    </div>
+
+    <div class="container">
+        <!-- Пользователи -->
+        <div class="panel users-panel">
+            <div class="panel-header">👥 Пользователи</div>
+            <div class="panel-content" id="usersList">
+                <div class="loading">Загрузка пользователей...</div>
+            </div>
+        </div>
+
+        <!-- Диалоги -->
+        <div class="panel dialogs-panel">
+            <div class="panel-header">💬 Диалоги</div>
+            <div class="panel-content" id="dialogsList">
+                <div class="empty">Выберите пользователя</div>
+            </div>
+        </div>
+
+        <!-- Сообщения -->
+        <div class="panel messages-panel">
+            <div class="panel-header">📝 Сообщения</div>
+            <div class="panel-content" id="messagesList">
+                <div class="empty">Выберите диалог</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let apiKey = '';
+        let currentUserId = null;
+        let currentDialogId = null;
+        let currentPage = 1;
+        let totalPages = 1;
+        let totalDialogs = 0;
+
+        // Установка API ключа
+        function setApiKey() {
+            apiKey = document.getElementById('apiKey').value.trim();
+            if (apiKey) {
+                loadUsers();
+            } else {
+                alert('Введите API ключ');
+            }
+        }
+
+        // Загрузка пользователей
+        async function loadUsers() {
+            const usersList = document.getElementById('usersList');
+            usersList.innerHTML = '<div class="loading">Загрузка пользователей...</div>';
+
+            // Используем предопределенных пользователей
+            const users = [
+                { userId: 'carl', username: 'Carl' },
+                { userId: 'marta', username: 'Marta' },
+                { userId: 'sara', username: 'Sara' },
+                { userId: 'kirk', username: 'Kirk' },
+                { userId: 'john', username: 'John' }
+            ];
+
+            usersList.innerHTML = users.map(user => `
+                <div class="user-item" onclick="selectUser('${user.userId}', '${user.username}')">
+                    <div class="user-avatar">${user.username.charAt(0).toUpperCase()}</div>
+                    <div class="user-info">
+                        <div class="user-name">${user.username}</div>
+                        <div class="user-id">${user.userId}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Выбор пользователя
+        async function selectUser(userId, username) {
+            currentUserId = userId;
+            currentDialogId = null;
+            currentPage = 1; // Сбрасываем на первую страницу
+
+            // Обновляем активный элемент
+            document.querySelectorAll('.user-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('.user-item').classList.add('active');
+
+            // Очищаем сообщения
+            document.getElementById('messagesList').innerHTML = '<div class="empty">Выберите диалог</div>';
+
+            // Загружаем диалоги пользователя
+            await loadUserDialogs(userId, 1);
+        }
+
+        // Загрузка диалогов пользователя
+        async function loadUserDialogs(userId, page = 1) {
+            const dialogsList = document.getElementById('dialogsList');
+            dialogsList.innerHTML = '<div class="loading">Загрузка диалогов...</div>';
+
+            try {
+                const response = await fetch(`/api/users/${userId}/dialogs?page=${page}&limit=10`, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const dialogs = data.data || [];
+                const pagination = data.pagination || {};
+
+                // Обновляем глобальные переменные пагинации
+                currentPage = pagination.page || 1;
+                totalPages = pagination.pages || 1;
+                totalDialogs = pagination.total || 0;
+
+                if (dialogs.length === 0) {
+                    dialogsList.innerHTML = '<div class="empty">Диалоги не найдены</div>';
+                    return;
+                }
+
+                dialogsList.innerHTML = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Dialog ID</th>
+                                    <th>Название</th>
+                                    <th>Непрочитанные</th>
+                                    <th>Последний просмотр</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${dialogs.map(dialog => `
+                                    <tr class="dialog-row" onclick="selectDialog('${dialog.dialogId}', '${dialog.dialogName}')">
+                                        <td>${dialog.dialogId}</td>
+                                        <td>${dialog.dialogName}</td>
+                                        <td>
+                                            ${dialog.unreadCount > 0 ? `<span class="unread-badge">${dialog.unreadCount}</span>` : '0'}
+                                        </td>
+                                        <td>${new Date(dialog.lastSeenAt).toLocaleString()}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    ${renderPagination()}
+                `;
+
+            } catch (error) {
+                dialogsList.innerHTML = `<div class="error">Ошибка загрузки диалогов: ${error.message}</div>`;
+            }
+        }
+
+        // Рендеринг пагинации
+        function renderPagination() {
+            if (totalPages <= 1) return '';
+
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            const pages = [];
+
+            // Кнопка "Предыдущая"
+            pages.push(`
+                <button onclick="changePage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>
+                    ← Предыдущая
+                </button>
+            `);
+
+            // Первая страница
+            if (startPage > 1) {
+                pages.push(`<button onclick="changePage(1)">1</button>`);
+                if (startPage > 2) {
+                    pages.push(`<span>...</span>`);
+                }
+            }
+
+            // Страницы вокруг текущей
+            for (let i = startPage; i <= endPage; i++) {
+                const isCurrent = i === currentPage;
+                pages.push(`
+                    <button onclick="changePage(${i})" class="${isCurrent ? 'current-page' : ''}">
+                        ${i}
+                    </button>
+                `);
+            }
+
+            // Последняя страница
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    pages.push(`<span>...</span>`);
+                }
+                pages.push(`<button onclick="changePage(${totalPages})">${totalPages}</button>`);
+            }
+
+            // Кнопка "Следующая"
+            pages.push(`
+                <button onclick="changePage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>
+                    Следующая →
+                </button>
+            `);
+
+            return `
+                <div class="pagination">
+                    ${pages.join('')}
+                    <div class="pagination-info">
+                        Страница ${currentPage} из ${totalPages} (всего ${totalDialogs} диалогов)
+                    </div>
+                </div>
+            `;
+        }
+
+        // Смена страницы
+        async function changePage(page) {
+            if (page < 1 || page > totalPages || page === currentPage) return;
+            
+            currentPage = page;
+            await loadUserDialogs(currentUserId, page);
+        }
+
+        // Выбор диалога
+        async function selectDialog(dialogId, dialogName) {
+            currentDialogId = dialogId;
+
+            // Обновляем активный элемент
+            document.querySelectorAll('.dialog-row').forEach(row => row.classList.remove('active'));
+            event.target.closest('.dialog-row').classList.add('active');
+
+            // Загружаем сообщения диалога
+            await loadDialogMessages(dialogId);
+        }
+
+        // Загрузка сообщений диалога
+        async function loadDialogMessages(dialogId) {
+            const messagesList = document.getElementById('messagesList');
+            messagesList.innerHTML = '<div class="loading">Загрузка сообщений...</div>';
+
+            try {
+                const response = await fetch(`/api/dialogs/${dialogId}/messages`, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const messages = data.data || [];
+
+                if (messages.length === 0) {
+                    messagesList.innerHTML = '<div class="empty">Сообщения не найдены</div>';
+                    return;
+                }
+
+                messagesList.innerHTML = messages.map(message => `
+                    <div class="message-item">
+                        <div class="message-header">
+                            <span class="message-sender">${message.senderId}</span>
+                            <span class="message-time">${new Date(message.createdAt).toLocaleString()}</span>
+                        </div>
+                        <div class="message-content">${message.content}</div>
+                        <div class="message-type">${message.type}</div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                messagesList.innerHTML = `<div class="error">Ошибка загрузки сообщений: ${error.message}</div>`;
+            }
+        }
+
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            // Автоматически устанавливаем API ключ из поля ввода
+            const apiKeyInput = document.getElementById('apiKey');
+            if (apiKeyInput.value.trim()) {
+                setApiKey();
+            }
+        });
+    </script>
+</body>
+</html>

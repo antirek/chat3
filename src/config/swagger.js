@@ -69,67 +69,6 @@ const options = {
             }
           }
         },
-        User: {
-          type: 'object',
-          required: ['username', 'email', 'password'],
-          properties: {
-            _id: {
-              type: 'string',
-              description: 'Уникальный идентификатор'
-            },
-            tenantId: {
-              type: 'string',
-              description: 'ID организации'
-            },
-            username: {
-              type: 'string',
-              description: 'Имя пользователя'
-            },
-            email: {
-              type: 'string',
-              format: 'email',
-              description: 'Email адрес'
-            },
-            firstName: {
-              type: 'string',
-              description: 'Имя'
-            },
-            lastName: {
-              type: 'string',
-              description: 'Фамилия'
-            },
-            avatar: {
-              type: 'string',
-              description: 'URL аватара'
-            },
-            role: {
-              type: 'string',
-              enum: ['admin', 'user', 'moderator'],
-              default: 'user',
-              description: 'Роль пользователя'
-            },
-            isActive: {
-              type: 'boolean',
-              default: true,
-              description: 'Статус активности'
-            },
-            lastSeen: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Последняя активность'
-            },
-            createdAt: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Дата создания'
-            },
-            updatedAt: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Дата обновления'
-            }
-          }
-        },
         Error: {
           type: 'object',
           properties: {
@@ -176,10 +115,6 @@ const options = {
         description: 'Управление организациями'
       },
       {
-        name: 'Users',
-        description: 'Управление пользователями'
-      },
-      {
         name: 'Dialogs',
         description: 'Управление диалогами и участниками'
       },
@@ -194,6 +129,10 @@ const options = {
       {
         name: 'DialogMember',
         description: 'Управление участниками диалогов и счетчиками непрочитанных сообщений'
+      },
+      {
+        name: 'UserDialogs',
+        description: 'Получение диалогов пользователя с пагинацией и сортировкой'
       }
     ]
   },

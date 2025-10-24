@@ -12,8 +12,9 @@ const metaSchema = new mongoose.Schema({
     required: true
   },
   entityId: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true
+    type: String,
+    required: true,
+    description: 'ID сущности (строка)'
   },
   key: {
     type: String,
@@ -30,8 +31,8 @@ const metaSchema = new mongoose.Schema({
     required: true
   },
   createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    type: String,
+    description: 'ID создателя (строка)'
   },
   createdAt: {
     type: Date,

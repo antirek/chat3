@@ -11,9 +11,9 @@ const dialogSchema = new mongoose.Schema({
     trim: true
   },
   createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    type: String,
+    required: true,
+    description: 'ID создателя диалога (строка)'
   },
   createdAt: {
     type: Date,

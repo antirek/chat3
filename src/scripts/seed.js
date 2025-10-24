@@ -1,5 +1,5 @@
 import connectDB from '../config/database.js';
-import { Tenant, User, Dialog, Message, Meta } from '../models/index.js';
+import { Tenant, Dialog, Message, Meta, DialogMember } from '../models/index.js';
 
 async function seed() {
   try {
@@ -9,10 +9,10 @@ async function seed() {
 
     // Clear existing data
     await Tenant.deleteMany({});
-    await User.deleteMany({});
     await Dialog.deleteMany({});
     await Message.deleteMany({});
     await Meta.deleteMany({});
+    await DialogMember.deleteMany({});
 
     console.log('✅ Cleared existing data');
 
@@ -31,20 +31,8 @@ async function seed() {
 
     console.log(`✅ Created system tenant: ${systemTenant.name}`);
 
-    // Create System Bot User
-    const systemBot = await User.create({
-      tenantId: systemTenant._id,
-      username: 'system_bot',
-      email: 'bot@system.chat3.internal',
-      password: 'system_bot_password_change_me',
-      firstName: 'System',
-      lastName: 'Bot',
-      role: 'admin',
-      type: 'bot',
-      isActive: true,
-    });
-
-    console.log(`✅ Created system bot: ${systemBot.username}`);
+    // System bot is now just a string identifier, not a User model
+    console.log(`✅ System bot identifier: system_bot`);
 
     // Create Demo Tenant
     const tenant = await Tenant.create({
@@ -60,44 +48,9 @@ async function seed() {
 
     console.log(`✅ Created tenant: ${tenant.name}`);
 
-    // Create Users
-    const users = await User.create([
-      {
-        tenantId: tenant._id,
-        username: 'admin',
-        email: 'admin@demo.com',
-        password: 'password123',
-        firstName: 'Админ',
-        lastName: 'Администраторов',
-        role: 'admin',
-        type: 'user',
-        isActive: true,
-      },
-      {
-        tenantId: tenant._id,
-        username: 'user1',
-        email: 'user1@demo.com',
-        password: 'password123',
-        firstName: 'Иван',
-        lastName: 'Иванов',
-        role: 'user',
-        type: 'user',
-        isActive: true,
-      },
-      {
-        tenantId: tenant._id,
-        username: 'user2',
-        email: 'user2@demo.com',
-        password: 'password123',
-        firstName: 'Мария',
-        lastName: 'Петрова',
-        role: 'user',
-        type: 'user',
-        isActive: true,
-      },
-    ]);
-
-    console.log(`✅ Created ${users.length} users`);
+    // Users are now just string identifiers, not User models
+    const userIds = ['carl', 'marta', 'sara', 'kirk', 'john'];
+    console.log(`✅ Using string user identifiers: ${userIds.join(', ')}`);
 
     // Create 100 Dialogs with different meta types and channelTypes
     const dialogNames = {
@@ -131,7 +84,7 @@ async function seed() {
       const dialog = await Dialog.create({
         tenantId: tenant._id,
         name,
-        createdBy: users[0]._id
+        createdBy: 'system_bot' // String identifier instead of ObjectId
       });
       
       dialogs.push({ 
@@ -146,6 +99,71 @@ async function seed() {
     console.log(`   - External: ${dialogs.filter(d => d.metaType === 'external').length}`);
     console.log(`   - WhatsApp: ${dialogs.filter(d => d.channelType === 'whatsapp').length}`);
     console.log(`   - Telegram: ${dialogs.filter(d => d.channelType === 'telegram').length}`);
+
+    // Create Dialog Members
+    const dialogMembers = [];
+
+    console.log('\n👥 Creating dialog members...');
+
+    // Для каждого диалога добавляем участников
+    dialogs.forEach((dialog, dialogIndex) => {
+      // Каждый пользователь участвует в разном количестве диалогов
+      // carl - в 50+ диалогах, marta - в 45+, sara - в 40+, kirk - в 35+, john - в 30+
+      const userParticipation = {
+        'carl': Math.floor(Math.random() * 20) + 50, // 50-70 диалогов
+        'marta': Math.floor(Math.random() * 15) + 45, // 45-60 диалогов  
+        'sara': Math.floor(Math.random() * 15) + 40, // 40-55 диалогов
+        'kirk': Math.floor(Math.random() * 10) + 35, // 35-45 диалогов
+        'john': Math.floor(Math.random() * 10) + 30  // 30-40 диалогов
+      };
+
+      // Определяем, какие пользователи участвуют в этом диалоге
+      const participants = [];
+      
+      userIds.forEach(userId => {
+        // Вероятность участия пользователя в диалоге
+        const participationChance = userParticipation[userId] / 100; // 0.3-0.7
+        if (Math.random() < participationChance) {
+          participants.push(userId);
+        }
+      });
+
+      // Если никто не участвует, добавляем хотя бы одного
+      if (participants.length === 0) {
+        participants.push(userIds[Math.floor(Math.random() * userIds.length)]);
+      }
+
+      // Создаем DialogMember записи для участников
+      participants.forEach(userId => {
+        const unreadCount = Math.floor(Math.random() * 5); // 0-4 непрочитанных
+        const lastSeenAt = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000); // Последние 7 дней
+        const lastMessageAt = new Date(Date.now() - Math.random() * 3 * 24 * 60 * 60 * 1000); // Последние 3 дня
+
+        dialogMembers.push({
+          userId,
+          tenantId: tenant._id,
+          dialogId: dialog._id,
+          unreadCount,
+          lastSeenAt,
+          lastMessageAt,
+          isActive: true
+        });
+      });
+    });
+
+    // Создаем DialogMember записи батчами
+    const batchSize = 100;
+    for (let i = 0; i < dialogMembers.length; i += batchSize) {
+      const batch = dialogMembers.slice(i, i + batchSize);
+      await DialogMember.insertMany(batch);
+    }
+
+    console.log(`✅ Created ${dialogMembers.length} dialog members`);
+    console.log(`   - Carl: ${dialogMembers.filter(m => m.userId === 'carl').length} dialogs`);
+    console.log(`   - Marta: ${dialogMembers.filter(m => m.userId === 'marta').length} dialogs`);
+    console.log(`   - Sara: ${dialogMembers.filter(m => m.userId === 'sara').length} dialogs`);
+    console.log(`   - Kirk: ${dialogMembers.filter(m => m.userId === 'kirk').length} dialogs`);
+    console.log(`   - John: ${dialogMembers.filter(m => m.userId === 'john').length} dialogs`);
 
     // Create Messages for all dialogs
     const messageTemplates = [
@@ -172,7 +190,7 @@ async function seed() {
     ];
 
     const messageTypes = ['text', 'text', 'text', 'text', 'text', 'system']; // Больше текстовых сообщений
-    const senderIds = ['carl', 'sara', 'john']; // Произвольные строки вместо ObjectId
+    const senderIds = ['carl', 'marta', 'sara', 'kirk', 'john']; // Произвольные строки вместо ObjectId
     const allMessages = [];
 
     // Создаем сообщения для каждого диалога
@@ -206,15 +224,15 @@ async function seed() {
     console.log(`✅ Created ${messages.length} messages across ${dialogs.length} dialogs`);
     console.log(`   - Average messages per dialog: ${Math.round(messages.length / dialogs.length)}`);
     console.log(`   - Messages range: 1-25 per dialog`);
-    console.log(`   - Sender IDs: carl, sara, john (произвольные строки)`);
+    console.log(`   - Sender IDs: carl, marta, sara, kirk, john (произвольные строки)`);
 
     // Create Meta
     const metaEntries = [
-      // System bot meta
+      // System bot meta (now using string identifier)
       {
         tenantId: systemTenant._id,
         entityType: 'user',
-        entityId: systemBot._id,
+        entityId: 'system_bot',
         key: 'isBot',
         value: true,
         dataType: 'boolean',
@@ -222,7 +240,7 @@ async function seed() {
       {
         tenantId: systemTenant._id,
         entityType: 'user',
-        entityId: systemBot._id,
+        entityId: 'system_bot',
         key: 'botType',
         value: 'system',
         dataType: 'string',
@@ -230,7 +248,7 @@ async function seed() {
       {
         tenantId: systemTenant._id,
         entityType: 'user',
-        entityId: systemBot._id,
+        entityId: 'system_bot',
         key: 'capabilities',
         value: ['notifications', 'system_messages', 'auto_reply'],
         dataType: 'array',
@@ -247,11 +265,47 @@ async function seed() {
       {
         tenantId: tenant._id,
         entityType: 'user',
-        entityId: users[0]._id,
+        entityId: 'carl',
         key: 'theme',
         value: 'dark',
         dataType: 'string',
-        createdBy: users[0]._id,
+        createdBy: 'carl',
+      },
+      {
+        tenantId: tenant._id,
+        entityType: 'user',
+        entityId: 'marta',
+        key: 'theme',
+        value: 'light',
+        dataType: 'string',
+        createdBy: 'marta',
+      },
+      {
+        tenantId: tenant._id,
+        entityType: 'user',
+        entityId: 'sara',
+        key: 'theme',
+        value: 'auto',
+        dataType: 'string',
+        createdBy: 'sara',
+      },
+      {
+        tenantId: tenant._id,
+        entityType: 'user',
+        entityId: 'kirk',
+        key: 'theme',
+        value: 'dark',
+        dataType: 'string',
+        createdBy: 'kirk',
+      },
+      {
+        tenantId: tenant._id,
+        entityType: 'user',
+        entityId: 'john',
+        key: 'theme',
+        value: 'light',
+        dataType: 'string',
+        createdBy: 'john',
       },
     ];
 
@@ -322,7 +376,7 @@ async function seed() {
       });
 
       // Members - случайный набор из доступных имен
-      const availableMembers = ['john', 'sara', 'carl', 'marta', 'kirk'];
+      const availableMembers = ['carl', 'marta', 'sara', 'kirk', 'john'];
       const memberCount = Math.floor(Math.random() * 4) + 2; // 2-5 участников
       const shuffledMembers = availableMembers.sort(() => 0.5 - Math.random());
       const selectedMembers = shuffledMembers.slice(0, memberCount);
@@ -369,20 +423,19 @@ async function seed() {
     console.log(`✅ Created ${meta.length} meta entries`);
     console.log(`   - Bot metadata: 3`);
     console.log(`   - Tenant metadata: 1`);
-    console.log(`   - User metadata: 1`);
+    console.log(`   - User metadata: 5 (carl, marta, sara, kirk, john themes)`);
     console.log(`   - Dialog metadata: ${dialogs.length * 7} (7 per dialog: type, channelType, welcomeMessage, maxParticipants, features, securityLevel, members)`);
     console.log(`   - Message metadata: ${messages.length * 2} (2 per message: channelType, channelId)`);
 
     console.log('\n🎉 Database seeding completed successfully!');
     console.log('\n📊 Summary:');
     console.log(`   - Tenants: ${await Tenant.countDocuments()} (1 system + 1 demo)`);
-    console.log(`   - Users: ${await User.countDocuments()} (1 system bot + 3 demo users)`);
-    console.log(`   - Dialogs: ${await Dialog.countDocuments()} (70 internal + 30 external = 100 total, без участников)`);
+    console.log(`   - Users: String identifiers (carl, marta, sara, kirk, john)`);
+    console.log(`   - Dialogs: ${await Dialog.countDocuments()} (70 internal + 30 external = 100 total)`);
     console.log(`   - Messages: ${await Message.countDocuments()} (${messages.length} total across ${dialogs.length} dialogs)`);
-    console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/user/tenant + ${dialogs.length * 7} dialog + ${messages.length * 2} message)`);
+    console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/tenant + ${dialogs.length * 7} dialog + ${messages.length * 2} message)`);
     console.log('\n🤖 System Bot:');
-    console.log(`   - Username: ${systemBot.username}`);
-    console.log(`   - Email: ${systemBot.email}`);
+    console.log(`   - Identifier: system_bot`);
     console.log(`   - Tenant: ${systemTenant.name} (${systemTenant.domain})`);
     console.log(`   - Capabilities: notifications, system_messages, auto_reply`);
     console.log('\n💬 Dialogs breakdown:');
@@ -398,6 +451,7 @@ async function seed() {
     console.log(`   - GET /api/dialogs?filter=(meta.members,in,[john]) → диалоги с john`);
     console.log(`   - GET /api/dialogs?filter=(meta.members,in,[sara,carl]) → диалоги с sara или carl`);
     console.log(`   - GET /api/dialogs?filter=(meta.members,nin,[kirk]) → диалоги без kirk`);
+    console.log(`   - GET /api/dialogs?filter=(meta.members,in,[marta]) → диалоги с marta`);
     console.log('\n💬 Message filters:');
     console.log(`   - GET /api/messages?filter=(meta.channelType,eq,whatsapp) → сообщения из WhatsApp`);
     console.log(`   - GET /api/messages?filter=(meta.channelType,eq,telegram) → сообщения из Telegram`);
