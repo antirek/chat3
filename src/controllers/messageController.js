@@ -236,6 +236,32 @@ const messageController = {
         message: error.message
       });
     }
+  },
+
+  // Get message by ID
+  async getMessageById(req, res) {
+    try {
+      const { messageId } = req.params;
+
+      const message = await Message.findOne({
+        _id: messageId,
+        tenantId: req.tenantId
+      });
+
+      if (!message) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Message not found'
+        });
+      }
+
+      res.json(message);
+    } catch (error) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
   }
 };
 

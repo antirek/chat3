@@ -375,20 +375,6 @@ async function seed() {
         dataType: 'string',
       });
 
-      // Members - случайный набор из доступных имен
-      const availableMembers = ['carl', 'marta', 'sara', 'kirk', 'john'];
-      const memberCount = Math.floor(Math.random() * 4) + 2; // 2-5 участников
-      const shuffledMembers = availableMembers.sort(() => 0.5 - Math.random());
-      const selectedMembers = shuffledMembers.slice(0, memberCount);
-      
-      metaEntries.push({
-        tenantId: tenant._id,
-        entityType: 'dialog',
-        entityId: dialog._id,
-        key: 'members',
-        value: selectedMembers,
-        dataType: 'array',
-      });
     });
 
     // Add meta for messages
@@ -424,7 +410,7 @@ async function seed() {
     console.log(`   - Bot metadata: 3`);
     console.log(`   - Tenant metadata: 1`);
     console.log(`   - User metadata: 5 (carl, marta, sara, kirk, john themes)`);
-    console.log(`   - Dialog metadata: ${dialogs.length * 7} (7 per dialog: type, channelType, welcomeMessage, maxParticipants, features, securityLevel, members)`);
+    console.log(`   - Dialog metadata: ${dialogs.length * 6} (6 per dialog: type, channelType, welcomeMessage, maxParticipants, features, securityLevel)`);
     console.log(`   - Message metadata: ${messages.length * 2} (2 per message: channelType, channelId)`);
 
     console.log('\n🎉 Database seeding completed successfully!');
@@ -433,7 +419,7 @@ async function seed() {
     console.log(`   - Users: String identifiers (carl, marta, sara, kirk, john)`);
     console.log(`   - Dialogs: ${await Dialog.countDocuments()} (70 internal + 30 external = 100 total)`);
     console.log(`   - Messages: ${await Message.countDocuments()} (${messages.length} total across ${dialogs.length} dialogs)`);
-    console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/tenant + ${dialogs.length * 7} dialog + ${messages.length * 2} message)`);
+    console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/tenant + ${dialogs.length * 6} dialog + ${messages.length * 2} message)`);
     console.log('\n🤖 System Bot:');
     console.log(`   - Identifier: system_bot`);
     console.log(`   - Tenant: ${systemTenant.name} (${systemTenant.domain})`);
@@ -447,11 +433,10 @@ async function seed() {
     console.log(`   - GET /api/dialogs?filter={"meta":{"channelType":"whatsapp"}} → 50 dialogs`);
     console.log(`   - GET /api/dialogs?filter={"meta":{"channelType":"telegram"}} → 50 dialogs`);
     console.log(`   - GET /api/dialogs?filter={"meta":{"type":"internal","channelType":"whatsapp"}} → 35 dialogs`);
-    console.log('\n👥 Members filters:');
-    console.log(`   - GET /api/dialogs?filter=(meta.members,in,[john]) → диалоги с john`);
-    console.log(`   - GET /api/dialogs?filter=(meta.members,in,[sara,carl]) → диалоги с sara или carl`);
-    console.log(`   - GET /api/dialogs?filter=(meta.members,nin,[kirk]) → диалоги без kirk`);
-    console.log(`   - GET /api/dialogs?filter=(meta.members,in,[marta]) → диалоги с marta`);
+    console.log('\n👥 Dialog Members:');
+    console.log(`   - DialogMember records: ${await DialogMember.countDocuments()} (participants stored in DialogMember model)`);
+    console.log(`   - Use /api/users/{userId}/dialogs to get user's dialogs`);
+    console.log(`   - Use /api/dialogs/{dialogId}/members to get dialog participants`);
     console.log('\n💬 Message filters:');
     console.log(`   - GET /api/messages?filter=(meta.channelType,eq,whatsapp) → сообщения из WhatsApp`);
     console.log(`   - GET /api/messages?filter=(meta.channelType,eq,telegram) → сообщения из Telegram`);

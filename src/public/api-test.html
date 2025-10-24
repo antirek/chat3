@@ -186,6 +186,7 @@
         .message-content {
             color: #333;
             line-height: 1.4;
+            font-size: 13px;
         }
 
         .message-type {
@@ -633,6 +634,34 @@
                 
             } catch (error) {
                 content.textContent = `Ошибка загрузки информации о диалоге: ${error.message}`;
+            }
+        }
+
+        // Показать информацию о сообщении
+        async function showMessageInfo(messageId) {
+            const modal = document.getElementById('dialogInfoModal');
+            const content = document.getElementById('dialogInfoContent');
+            
+            // Показываем модальное окно
+            modal.style.display = 'block';
+            content.textContent = 'Загрузка...';
+            
+            try {
+                const response = await fetch(`/api/messages/${messageId}`, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const messageData = await response.json();
+                content.textContent = JSON.stringify(messageData, null, 2);
+                
+            } catch (error) {
+                content.textContent = `Ошибка загрузки информации о сообщении: ${error.message}`;
             }
         }
 
@@ -1176,7 +1205,10 @@
                             <div class="message-item">
                                 <div class="message-header">
                                     <span class="message-sender">${message.senderId}</span>
-                                    <span class="message-time">${new Date(message.createdAt).toLocaleString()}</span>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span class="message-time">${new Date(message.createdAt).toLocaleString()}</span>
+                                        <button class="info-button" onclick="showMessageInfo('${message._id}')" title="Информация о сообщении">Инфо</button>
+                                    </div>
                                 </div>
                                 <div class="message-content">${message.content}</div>
                                 <div class="message-type">${message.type}</div>

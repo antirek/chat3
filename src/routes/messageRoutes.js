@@ -206,4 +206,5 @@ router.get('/:dialogId/messages', apiAuth, requirePermission('read'), messageCon
  */
 router.post('/:dialogId/messages', apiAuth, requirePermission('write'), messageController.createMessage);
 
+
 export default router;
