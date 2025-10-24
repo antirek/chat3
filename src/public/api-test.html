@@ -581,18 +581,18 @@
             <div class="filter-form" id="filterForm" style="display: none;">
                 <select id="filterExample" onchange="updateFilterInput()">
                     <option value="">Выберите пример фильтра</option>
-                    <option value="(meta.channelType,eq,whatsapp)">Тип канала = whatsapp</option>
-                    <option value="(meta.channelType,ne,telegram)">Тип канала ≠ telegram</option>
-                    <option value="(meta.type,eq,internal)">Тип диалога = internal</option>
-                    <option value="(meta.type,ne,external)">Тип диалога ≠ external</option>
-                    <option value="(meta.securityLevel,eq,high)">Уровень безопасности = high</option>
-                    <option value="(meta.securityLevel,in,[high,medium])">Уровень безопасности в [high,medium]</option>
-                    <option value="(meta.maxParticipants,gt,50)">Макс. участников > 50</option>
-                    <option value="(meta.maxParticipants,gte,100)">Макс. участников ≥ 100</option>
-            <option value="(meta.channelType,regex,^whats)">Тип канала начинается с 'whats'</option>
-            <option value="(meta.channelType,eq,whatsapp)&(meta.securityLevel,in,[high,medium])">WhatsApp + высокий/средний уровень безопасности</option>
-            <option value="(meta.type,eq,internal)&(meta.maxParticipants,eq,50)">Внутренний + 50 участников</option>
-            <option value="(meta.channelType,eq,telegram)&(meta.securityLevel,eq,high)">Telegram + высокий уровень безопасности</option>
+                    <option value="(meta.channelType,eq,whatsapp)">meta. Тип канала = whatsapp</option>
+                    <option value="(meta.channelType,ne,telegram)">meta. Тип канала ≠ telegram</option>
+                    <option value="(meta.type,eq,internal)">meta. Тип диалога = internal</option>
+                    <option value="(meta.type,ne,external)">meta. Тип диалога ≠ external</option>
+                    <option value="(meta.securityLevel,eq,high)">meta. Уровень безопасности = high</option>
+                    <option value="(meta.securityLevel,in,[high,medium])">meta. Уровень безопасности в [high,medium]</option>
+                    <option value="(meta.maxParticipants,gt,50)">meta. Макс. участников > 50</option>
+                    <option value="(meta.maxParticipants,gte,100)">meta. Макс. участников ≥ 100</option>
+            <option value="(meta.channelType,regex,^whats)">meta. Тип канала начинается с 'whats'</option>
+            <option value="(meta.channelType,eq,whatsapp)&(meta.securityLevel,in,[high,medium])">meta. WhatsApp + высокий/средний уровень безопасности</option>
+            <option value="(meta.type,eq,internal)&(meta.maxParticipants,eq,50)">meta. Внутренний + 50 участников</option>
+            <option value="(meta.channelType,eq,telegram)&(meta.securityLevel,eq,high)">meta. Telegram + высокий уровень безопасности</option>
             <option value="custom">Пользовательский фильтр</option>
                 </select>
                 <input type="text" id="filterValue" placeholder="Введите или выберите фильтр" />
@@ -610,18 +610,18 @@
             <div class="filter-form" id="messageFilterForm" style="display: none;">
                 <select id="messageFilterExample" onchange="updateMessageFilterInput()">
                     <option value="">Выберите пример фильтра</option>
-                    <option value="(senderId,eq,carl)">Отправитель = carl</option>
-                    <option value="(senderId,ne,sara)">Отправитель ≠ sara</option>
-                    <option value="(type,eq,text)">Тип = text</option>
-                    <option value="(type,ne,system)">Тип ≠ system</option>
-                    <option value="(content,regex,привет)">Содержимое содержит 'привет'</option>
-                    <option value="(content,regex,сообщение)">Содержимое содержит 'сообщение'</option>
-                    <option value="(createdAt,gt,2025-10-24)">Создано после 24.10.2025</option>
-                    <option value="(createdAt,lt,2025-10-25)">Создано до 25.10.2025</option>
-                    <option value="(meta.channelType,eq,whatsapp)">Канал = whatsapp</option>
-                    <option value="(meta.channelType,eq,telegram)">Канал = telegram</option>
-                    <option value="(senderId,in,[carl,marta,sara])">Отправитель в [carl,marta,sara]</option>
-                    <option value="(type,in,[text,system])">Тип в [text,system]</option>
+                    <option value="(senderId,eq,carl)">props. Отправитель = carl</option>
+                    <option value="(senderId,ne,sara)">props. Отправитель ≠ sara</option>
+                    <option value="(type,eq,text)">props. Тип = text</option>
+                    <option value="(type,ne,system)">props. Тип ≠ system</option>
+                    <option value="(content,regex,привет)">props. Содержимое содержит 'привет'</option>
+                    <option value="(content,regex,сообщение)">props. Содержимое содержит 'сообщение'</option>
+                    <option value="(createdAt,gt,2025-10-24)">props. Создано после 24.10.2025</option>
+                    <option value="(createdAt,lt,2025-10-25)">props. Создано до 25.10.2025</option>
+                    <option value="(meta.channelType,eq,whatsapp)">meta. Канал = whatsapp</option>
+                    <option value="(meta.channelType,eq,telegram)">meta. Канал = telegram</option>
+                    <option value="(senderId,in,[carl,marta,sara])">props. Отправитель в [carl,marta,sara]</option>
+                    <option value="(type,in,[text,system])">props. Тип в [text,system]</option>
                     <option value="">Пользовательский фильтр</option>
                 </select>
                 <input type="text" id="messageFilterValue" placeholder="Введите или выберите фильтр" />
