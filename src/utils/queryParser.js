@@ -11,6 +11,11 @@
  * Для meta фильтров:
  *   - (meta.type,eq,internal)
  *   - (meta.channelType,ne,telegram)
+ * 
+ * Для сортировки по полям участников:
+ *   - (member[carl].unreadCount,desc)
+ *   - (member[carl].lastSeenAt,desc)
+ *   - (member[carl].lastMessageAt,desc)
  */
 
 /**
@@ -216,11 +221,12 @@ export function parseFilters(filterString) {
 /**
  * Извлекает meta фильтры из общего фильтра
  * @param {object} filter - Фильтр объект
- * @returns {{ metaFilters: object, regularFilters: object }}
+ * @returns {{ metaFilters: object, regularFilters: object, memberFilters: object }}
  */
 export function extractMetaFilters(filter) {
   const metaFilters = {};
   const regularFilters = {};
+  const memberFilters = {};
 
   for (const [key, value] of Object.entries(filter)) {
     if (key === 'meta') {
@@ -230,11 +236,15 @@ export function extractMetaFilters(filter) {
       // Новый формат: { "meta.type": "internal" }
       const metaKey = key.substring(5); // Убираем "meta."
       metaFilters[metaKey] = value;
+    } else if (key === 'member') {
+      // Фильтр по участникам: { member: "carl" } или { member: { $in: ["carl", "marta"] } }
+      memberFilters[key] = value;
     } else if (key === '$and' && Array.isArray(value)) {
       // Обрабатываем $and массив
       for (const andCondition of value) {
-        const { metaFilters: nestedMeta } = extractMetaFilters(andCondition);
+        const { metaFilters: nestedMeta, memberFilters: nestedMember } = extractMetaFilters(andCondition);
         Object.assign(metaFilters, nestedMeta);
+        Object.assign(memberFilters, nestedMember);
       }
       // $and не добавляем в regularFilters
     } else {
@@ -242,13 +252,108 @@ export function extractMetaFilters(filter) {
     }
   }
 
-  return { metaFilters, regularFilters };
+  return { metaFilters, regularFilters, memberFilters };
+}
+
+/**
+ * Обрабатывает member фильтры и возвращает dialogIds
+ * @param {object} memberFilters - Фильтры по участникам
+ * @param {string} tenantId - ID тенанта
+ * @returns {Promise<Array>} Массив dialogIds
+ */
+export async function processMemberFilters(memberFilters, tenantId) {
+  if (!memberFilters || Object.keys(memberFilters).length === 0) {
+    return null;
+  }
+
+  const { DialogMember } = await import('../models/index.js');
+  
+  // Строим запрос к DialogMember
+  const memberQuery = {
+    tenantId: tenantId
+  };
+
+  // Обрабатываем фильтр member
+  if (memberFilters.member) {
+    const memberValue = memberFilters.member;
+    
+    if (typeof memberValue === 'string') {
+      // Простое равенство: member = "carl"
+      memberQuery.userId = memberValue;
+    } else if (typeof memberValue === 'object') {
+      // Сложные операторы: member = { $in: ["carl", "marta"] }
+      if (memberValue.$in) {
+        memberQuery.userId = { $in: memberValue.$in };
+      } else if (memberValue.$ne) {
+        memberQuery.userId = { $ne: memberValue.$ne };
+      } else if (memberValue.$nin) {
+        memberQuery.userId = { $nin: memberValue.$nin };
+      } else {
+        // Для других операторов используем как есть
+        memberQuery.userId = memberValue;
+      }
+    }
+  }
+
+  // Выполняем запрос
+  const members = await DialogMember.find(memberQuery).select('dialogId').lean();
+  
+  if (members.length === 0) {
+    // Если нет участников, возвращаем пустой массив (никаких диалогов)
+    return [];
+  }
+
+  return members.map(member => member.dialogId);
+}
+
+/**
+ * Парсит строку сортировки для полей участников
+ * @param {string} sortString - Строка сортировки вида "(member[carl].unreadCount,desc)"
+ * @returns {object} Объект с информацией о сортировке
+ */
+export function parseMemberSort(sortString) {
+  if (!sortString || typeof sortString !== 'string') {
+    return null;
+  }
+
+  // Убираем пробелы
+  sortString = sortString.trim();
+
+  // Проверяем формат: (member[userId].field,direction)
+  const memberSortRegex = /^\(member\[([^\]]+)\]\.([^,]+),([^)]+)\)$/;
+  const match = sortString.match(memberSortRegex);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, userId, field, direction] = match;
+  
+  // Валидируем направление сортировки
+  const validDirections = ['asc', 'desc', '1', '-1'];
+  const normalizedDirection = direction.toLowerCase();
+  
+  if (!validDirections.includes(normalizedDirection)) {
+    return null;
+  }
+
+  // Конвертируем направление в MongoDB формат
+  const mongoDirection = normalizedDirection === 'desc' || normalizedDirection === '-1' ? -1 : 1;
+
+  return {
+    userId: userId.trim(),
+    field: field.trim(),
+    direction: mongoDirection,
+    originalString: sortString
+  };
 }
 
 export default {
   parseFilter,
   parseFilters,
   extractMetaFilters,
+  processMemberFilters,
+  parseMemberSort,
   operatorToMongo,
 };
 

@@ -1,6 +1,6 @@
 import { Dialog, Meta, DialogMember } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
-import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
+import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort } from '../utils/queryParser.js';
 
 export const dialogController = {
   // Get all dialogs for current tenant
@@ -12,14 +12,14 @@ export const dialogController = {
 
       let dialogIds = null;
 
-      // Фильтрация по метаданным
+      // Фильтрация по метаданным и участникам
       if (req.query.filter) {
         try {
           // Парсим фильтры (поддержка как JSON, так и (field,operator,value) формата)
           const parsedFilters = parseFilters(req.query.filter);
           
-          // Извлекаем meta фильтры
-          const { metaFilters, regularFilters } = extractMetaFilters(parsedFilters);
+          // Извлекаем meta фильтры и member фильтры
+          const { metaFilters, regularFilters, memberFilters } = extractMetaFilters(parsedFilters);
           
           // Обрабатываем meta фильтры
           if (Object.keys(metaFilters).length > 0) {
@@ -75,6 +75,25 @@ export const dialogController = {
               }
             }
           }
+
+          // Обрабатываем member фильтры
+          if (Object.keys(memberFilters).length > 0) {
+            const memberDialogIds = await processMemberFilters(memberFilters, req.tenantId);
+            
+            if (memberDialogIds === null) {
+              // Нет member фильтров, пропускаем
+            } else if (memberDialogIds.length === 0) {
+              // Нет диалогов с такими участниками
+              dialogIds = [];
+            } else {
+              if (dialogIds === null) {
+                dialogIds = memberDialogIds;
+              } else {
+                // Пересечение с уже найденными dialogIds
+                dialogIds = dialogIds.filter(id => memberDialogIds.some(memberId => memberId.toString() === id.toString()));
+              }
+            }
+          }
           
           // Применяем обычные фильтры к query
           Object.assign(req.query, regularFilters);
@@ -106,15 +125,143 @@ export const dialogController = {
         query._id = { $in: dialogIds };
       }
 
-      const dialogs = await Dialog.find(query)
-        .skip(skip)
-        .limit(limit)
-        .select('-__v')
-        .populate('tenantId', 'name domain')
-        .populate('createdBy', 'username email');
+      // Проверяем, нужна ли сортировка по полям DialogMember
+      const sortField = req.query.sort;
+      const memberSortInfo = parseMemberSort(sortField);
+      const isDialogMemberSort = sortField && ['lastSeenAt', 'lastMessageAt', 'unreadCount'].includes(sortField);
+      const isMemberSpecificSort = memberSortInfo !== null;
+      const isUpdatedAtSort = sortField && sortField.includes('updatedAt');
+      
+      let dialogs;
+      
+      if (isUpdatedAtSort) {
+        // Простая сортировка по updatedAt диалога
+        const sortDirection = sortField.includes('desc') ? -1 : 1;
+        
+        dialogs = await Dialog.find(query)
+          .skip(skip)
+          .limit(limit)
+          .sort({ updatedAt: sortDirection })
+          .select('-__v')
+          .populate('tenantId', 'name domain')
+          .populate('createdBy', 'username email');
+      } else if (isMemberSpecificSort) {
+        // Используем агрегацию для сортировки по полям конкретного участника
+        const { userId, field, direction } = memberSortInfo;
+        
+        // Упрощенный подход: сначала получаем диалоги, затем сортируем
+        let baseQuery = { tenantId: req.tenantId };
+        
+        // Если есть ограничения по dialogIds, добавляем их
+        if (dialogIds !== null && dialogIds.length > 0) {
+          baseQuery._id = { $in: dialogIds };
+        }
+        
+        // Получаем диалоги с участниками
+        const dialogsWithMembers = await Dialog.find(baseQuery)
+          .populate('tenantId', 'name domain')
+          .populate('createdBy', 'username email')
+          .lean();
+        
+        // Получаем участников для каждого диалога
+        const dialogIdsForMembers = dialogsWithMembers.map(d => d._id);
+        const members = await DialogMember.find({ 
+          dialogId: { $in: dialogIdsForMembers },
+          userId: userId 
+        }).lean();
+        
+        // Создаем мапу участников по dialogId
+        const membersMap = {};
+        members.forEach(member => {
+          membersMap[member.dialogId.toString()] = member;
+        });
+        
+        // Добавляем участников к диалогам и сортируем
+        dialogsWithMembers.forEach(dialog => {
+          const member = membersMap[dialog._id.toString()];
+          if (member) {
+            dialog.members = [member];
+            dialog.sortField = member[field] || 0;
+          } else {
+            dialog.members = [];
+            dialog.sortField = 0;
+          }
+        });
+        
+        // Сортируем по sortField
+        dialogsWithMembers.sort((a, b) => {
+          const aVal = a.sortField || 0;
+          const bVal = b.sortField || 0;
+          return direction === -1 ? bVal - aVal : aVal - bVal;
+        });
+        
+        // Применяем пагинацию
+        dialogs = dialogsWithMembers.slice(skip, skip + limit);
+      } else if (isDialogMemberSort) {
+        // Используем агрегацию для сортировки по полям DialogMember (старый способ)
+        const sortDirection = req.query.sortDirection === 'asc' ? 1 : -1;
+        
+        const pipeline = [
+          { $match: query },
+          {
+            $lookup: {
+              from: 'dialogmembers',
+              localField: '_id',
+              foreignField: 'dialogId',
+              as: 'members'
+            }
+          },
+          { $unwind: '$members' },
+          {
+            $addFields: {
+              sortField: `$members.${sortField}`
+            }
+          },
+          { $sort: { sortField: sortDirection } },
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $lookup: {
+              from: 'tenants',
+              localField: 'tenantId',
+              foreignField: '_id',
+              as: 'tenantId'
+            }
+          },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'createdBy',
+              foreignField: '_id',
+              as: 'createdBy'
+            }
+          },
+          {
+            $project: {
+              __v: 0,
+              'members._id': 0,
+              'members.tenantId': 0,
+              'members.dialogId': 0,
+              'members.createdAt': 0,
+              'members.updatedAt': 0,
+              sortField: 0
+            }
+          }
+        ];
+        
+        dialogs = await Dialog.aggregate(pipeline);
+      } else {
+        // Обычный запрос
+        dialogs = await Dialog.find(query)
+          .skip(skip)
+          .limit(limit)
+          .select('-__v')
+          .populate('tenantId', 'name domain')
+          .populate('createdBy', 'username email');
+      }
 
-      // Добавляем метаданные для каждого диалога
-      const dialogsWithMeta = await Promise.all(
+      // Добавляем метаданные и участников для каждого диалога
+      const dialogsWithMetaAndMembers = await Promise.all(
         dialogs.map(async (dialog) => {
           // Получаем метаданные диалога
           const meta = await metaUtils.getEntityMeta(
@@ -122,12 +269,41 @@ export const dialogController = {
             'dialog',
             dialog._id
           );
+
+          // Получаем участников диалога
+          const members = await DialogMember.find({
+            dialogId: dialog._id,
+            tenantId: req.tenantId
+          })
+            .select('userId role joinedAt lastSeenAt lastMessageAt isActive unreadCount')
+            .sort({ joinedAt: 1 });
           
-          const dialogObj = dialog.toObject();
+          // Для агрегации dialog уже является объектом, для обычного запроса - Mongoose документ
+          const dialogObj = dialog.toObject ? dialog.toObject() : dialog;
+          
+          // Вычисляем общую статистику по диалогу
+          // const totalUnreadCount = members.reduce((total, member) => total + (member.unreadCount || 0), 0);
+          // const activeMembersCount = members.filter(member => member.isActive).length;
+          // const totalMembersCount = members.length;
+          
+          // Находим самого активного участника (с наибольшим количеством непрочитанных)
+          // const mostActiveMember = members.reduce((most, member) => {
+          //   return (member.unreadCount || 0) > (most.unreadCount || 0) ? member : most;
+          // }, members[0] || {});
           
           return {
             ...dialogObj,
-            meta
+            meta,
+            members
+            // dialogStats: {
+            //   totalUnreadCount,
+            //   activeMembersCount,
+            //   totalMembersCount,
+            //   mostActiveMember: mostActiveMember ? {
+            //     userId: mostActiveMember.userId,
+            //     unreadCount: mostActiveMember.unreadCount
+            //   } : null
+            // }
           };
         })
       );
@@ -135,7 +311,7 @@ export const dialogController = {
       const total = await Dialog.countDocuments(query);
 
       res.json({
-        data: dialogsWithMeta,
+        data: dialogsWithMetaAndMembers,
         pagination: {
           page,
           limit,
@@ -181,8 +357,18 @@ export const dialogController = {
         dialogId: dialog._id,
         tenantId: req.tenantId
       })
-        .select('userId role joinedAt lastSeenAt lastMessageAt isActive')
+        .select('userId role joinedAt lastSeenAt lastMessageAt isActive unreadCount')
         .sort({ joinedAt: 1 });
+
+      // Вычисляем общую статистику по диалогу
+      // const totalUnreadCount = members.reduce((total, member) => total + (member.unreadCount || 0), 0);
+      // const activeMembersCount = members.filter(member => member.isActive).length;
+      // const totalMembersCount = members.length;
+      
+      // Находим самого активного участника (с наибольшим количеством непрочитанных)
+      // const mostActiveMember = members.reduce((most, member) => {
+      //   return (member.unreadCount || 0) > (most.unreadCount || 0) ? member : most;
+      // }, members[0] || {});
 
       const dialogObj = dialog.toObject();
 
@@ -191,6 +377,15 @@ export const dialogController = {
           ...dialogObj,
           meta,
           members
+          // dialogStats: {
+          //   totalUnreadCount,
+          //   activeMembersCount,
+          //   totalMembersCount,
+          //   mostActiveMember: mostActiveMember ? {
+          //     userId: mostActiveMember.userId,
+          //     unreadCount: mostActiveMember.unreadCount
+          //   } : null
+          // }
         }
       });
     } catch (error) {
