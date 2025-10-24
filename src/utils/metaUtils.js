@@ -102,3 +102,36 @@ export async function getEntityMetaValue(tenantId, entityType, entityId, key, de
   }
 }
 
+// Построить MongoDB query для фильтрации по метаданным
+export async function buildMetaQuery(tenantId, entityType, metaFilters) {
+  try {
+    if (!metaFilters || Object.keys(metaFilters).length === 0) {
+      return null;
+    }
+
+    // Находим все entityId, которые соответствуют мета-фильтрам
+    const metaQuery = {
+      tenantId,
+      entityType
+    };
+
+    // Добавляем условия для каждого мета-фильтра
+    for (const [key, value] of Object.entries(metaFilters)) {
+      metaQuery.key = key;
+      metaQuery.value = value;
+    }
+
+    const metaRecords = await Meta.find(metaQuery).select('entityId').lean();
+    
+    if (metaRecords.length === 0) {
+      // Если нет записей, соответствующих мета-фильтрам, возвращаем условие, которое никогда не выполнится
+      return { _id: { $in: [] } };
+    }
+
+    const entityIds = metaRecords.map(record => record.entityId);
+    return { _id: { $in: entityIds } };
+  } catch (error) {
+    throw new Error(`Failed to build meta query: ${error.message}`);
+  }
+}
+
