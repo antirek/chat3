@@ -2,7 +2,7 @@ import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import * as AdminJSMongoose from '@adminjs/mongoose';
 
-import { Tenant, User, Dialog, Message, Meta, ApiKey, MessageStatus } from '../models/index.js';
+import { Tenant, User, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember } from '../models/index.js';
 
 // Register the mongoose adapter
 AdminJS.registerAdapter({
@@ -150,6 +150,12 @@ const adminOptions = {
             isVisible: { list: false, show: true, edit: false },
             position: 999,
           },
+          dialogMembers: {
+            type: 'textarea',
+            isVisible: { list: false, show: true, edit: false },
+            position: 998,
+            description: 'Участники диалога с информацией о непрочитанных сообщениях',
+          },
           createdBy: {
             reference: 'User',
           },
@@ -157,7 +163,7 @@ const adminOptions = {
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
         listProperties: ['_id', 'name', 'createdAt'],
-        showProperties: ['_id', 'name', 'tenantId', 'createdBy', 'createdAt', 'updatedAt', 'meta'],
+        showProperties: ['_id', 'name', 'tenantId', 'createdBy', 'createdAt', 'updatedAt', 'meta', 'dialogMembers'],
         filterProperties: ['name', 'tenantId'],
         actions: {
           show: {
@@ -186,6 +192,30 @@ const adminOptions = {
                   
                   // Добавляем в record как JSON строку для отображения
                   record.params.meta = JSON.stringify(metaObject, null, 2);
+                  
+                  // Загружаем участников диалога
+                  const { DialogMember } = await import('../models/index.js');
+                  const dialogMembers = await DialogMember.find({
+                    tenantId: record.params.tenantId,
+                    dialogId: record.params._id
+                  }).lean();
+                  
+                  console.log('Found dialog members:', dialogMembers.length);
+                  
+                  // Форматируем данные участников для отображения
+                  const membersData = dialogMembers.map(member => ({
+                    userId: member.userId,
+                    unreadCount: member.unreadCount,
+                    lastSeenAt: member.lastSeenAt,
+                    lastMessageAt: member.lastMessageAt,
+                    isActive: member.isActive,
+                    createdAt: member.createdAt
+                  }));
+                  
+                  console.log('Members data:', membersData);
+                  
+                  // Добавляем в record как JSON строку для отображения
+                  record.params.dialogMembers = JSON.stringify(membersData, null, 2);
                 } catch (error) {
                   console.error('Error loading dialog meta:', error);
                 }
@@ -231,11 +261,17 @@ const adminOptions = {
             isVisible: { list: false, show: true, edit: false },
             description: 'Meta теги сообщения (channelType, channelId)',
           },
+          messageStatuses: {
+            type: 'textarea',
+            isVisible: { list: false, show: true, edit: false },
+            position: 998,
+            description: 'Статусы прочтения сообщения для всех пользователей',
+          },
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
         listProperties: ['_id', 'content', 'dialogId', 'senderId', 'type', 'createdAt'],
-        showProperties: ['_id', 'content', 'tenantId', 'dialogId', 'senderId', 'type', 'meta', 'createdAt', 'updatedAt'],
+        showProperties: ['_id', 'content', 'tenantId', 'dialogId', 'senderId', 'type', 'meta', 'messageStatuses', 'createdAt', 'updatedAt'],
         filterProperties: ['dialogId', 'senderId', 'type'],
         actions: {
           show: {
@@ -264,6 +300,28 @@ const adminOptions = {
                   
                   // Добавляем в record как JSON строку для отображения
                   record.params.meta = JSON.stringify(metaObject, null, 2);
+                  
+                  // Загружаем статусы сообщения
+                  const { MessageStatus } = await import('../models/index.js');
+                  const messageStatuses = await MessageStatus.find({
+                    tenantId: record.params.tenantId,
+                    messageId: record.params._id
+                  }).lean();
+                  
+                  console.log('Found message statuses:', messageStatuses.length);
+                  
+                  // Форматируем данные статусов для отображения
+                  const statusesData = messageStatuses.map(status => ({
+                    userId: status.userId,
+                    status: status.status,
+                    createdAt: status.createdAt,
+                    updatedAt: status.updatedAt
+                  }));
+                  
+                  console.log('Statuses data:', statusesData);
+                  
+                  // Добавляем в record как JSON строку для отображения
+                  record.params.messageStatuses = JSON.stringify(statusesData, null, 2);
                 } catch (error) {
                   console.error('Error loading message meta:', error);
                 }
@@ -375,6 +433,61 @@ const adminOptions = {
         filterProperties: ['messageId', 'userId', 'tenantId', 'status'],
         sort: {
           sortBy: 'createdAt',
+          direction: 'desc'
+        }
+      }
+    },
+    {
+      resource: DialogMember,
+      options: {
+        navigation: {
+          name: 'Чаты',
+          icon: 'Users',
+        },
+        properties: {
+          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          userId: {
+            type: 'string',
+            isRequired: true,
+            description: 'ID пользователя (строка)',
+            isTitle: true,
+          },
+          tenantId: {
+            reference: 'Tenant',
+            isRequired: true,
+          },
+          dialogId: {
+            reference: 'Dialog',
+            isRequired: true,
+          },
+          unreadCount: {
+            type: 'number',
+            isRequired: true,
+            description: 'Количество непрочитанных сообщений',
+          },
+          lastSeenAt: {
+            type: 'datetime',
+            isVisible: { list: true, show: true, edit: false },
+            description: 'Время последнего просмотра диалога',
+          },
+          lastMessageAt: {
+            type: 'datetime',
+            isVisible: { list: true, show: true, edit: false },
+            description: 'Время последнего сообщения в диалоге',
+          },
+          isActive: {
+            type: 'boolean',
+            isVisible: { list: true, show: true, edit: true },
+            description: 'Активен ли участник в диалоге',
+          },
+          createdAt: { isVisible: { list: true, show: true, edit: false } },
+          updatedAt: { isVisible: { list: false, show: true, edit: false } },
+        },
+        listProperties: ['_id', 'userId', 'dialogId', 'unreadCount', 'lastSeenAt', 'lastMessageAt', 'isActive', 'createdAt'],
+        showProperties: ['_id', 'userId', 'tenantId', 'dialogId', 'unreadCount', 'lastSeenAt', 'lastMessageAt', 'isActive', 'createdAt', 'updatedAt'],
+        filterProperties: ['userId', 'dialogId', 'tenantId', 'isActive'],
+        sort: {
+          sortBy: 'lastSeenAt',
           direction: 'desc'
         }
       }
