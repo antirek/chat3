@@ -1,4 +1,4 @@
-import { Dialog, Meta } from '../models/index.js';
+import { Dialog, Meta, DialogMember } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 
@@ -176,12 +176,21 @@ export const dialogController = {
         dialog._id
       );
 
+      // Получаем участников диалога
+      const members = await DialogMember.find({
+        dialogId: dialog._id,
+        tenantId: req.tenantId
+      })
+        .select('userId role joinedAt lastSeenAt lastMessageAt isActive')
+        .sort({ joinedAt: 1 });
+
       const dialogObj = dialog.toObject();
 
       res.json({
         data: {
           ...dialogObj,
-          meta
+          meta,
+          members
         }
       });
     } catch (error) {

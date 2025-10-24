@@ -297,6 +297,61 @@
             overflow-y: auto;
         }
 
+        .messages-table-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .messages-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .messages-table th,
+        .messages-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .messages-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        .messages-table .message-row:hover {
+            background: #f8f9fa;
+        }
+
+        .messages-table .message-sender {
+            font-weight: bold;
+            color: #007bff;
+            min-width: 80px;
+        }
+
+        .messages-table .message-time {
+            font-size: 11px;
+            color: #666;
+            min-width: 120px;
+        }
+
+        .messages-table .message-content {
+            max-width: 200px;
+            word-wrap: break-word;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .messages-table .message-type {
+            font-size: 10px;
+            color: #666;
+            min-width: 60px;
+        }
+
         .messages-pagination {
             background: #f8f9fa;
             border-bottom: 1px solid #eee;
@@ -552,6 +607,27 @@
         <!-- Сообщения -->
         <div class="panel messages-panel">
             <div class="panel-header">📝 Сообщения</div>
+            <div class="filter-form" id="messageFilterForm" style="display: none;">
+                <select id="messageFilterExample" onchange="updateMessageFilterInput()">
+                    <option value="">Выберите пример фильтра</option>
+                    <option value="(senderId,eq,carl)">Отправитель = carl</option>
+                    <option value="(senderId,ne,sara)">Отправитель ≠ sara</option>
+                    <option value="(type,eq,text)">Тип = text</option>
+                    <option value="(type,ne,system)">Тип ≠ system</option>
+                    <option value="(content,like,привет)">Содержимое содержит 'привет'</option>
+                    <option value="(content,like,сообщение)">Содержимое содержит 'сообщение'</option>
+                    <option value="(createdAt,gt,2025-10-24)">Создано после 24.10.2025</option>
+                    <option value="(createdAt,lt,2025-10-25)">Создано до 25.10.2025</option>
+                    <option value="(meta.channelType,eq,whatsapp)">Канал = whatsapp</option>
+                    <option value="(meta.channelType,eq,telegram)">Канал = telegram</option>
+                    <option value="(senderId,in,[carl,marta,sara])">Отправитель в [carl,marta,sara]</option>
+                    <option value="(type,in,[text,system])">Тип в [text,system]</option>
+                    <option value="">Пользовательский фильтр</option>
+                </select>
+                <input type="text" id="messageFilterValue" placeholder="Введите или выберите фильтр" />
+                <button onclick="applyMessageFilter()">Применить</button>
+                <button onclick="clearMessageFilter()" class="secondary">Очистить</button>
+            </div>
             <div class="panel-content" id="messagesList">
                 <div class="empty">Выберите диалог</div>
             </div>
@@ -583,6 +659,8 @@
         let totalMessages = 0;
         let currentFilter = null;
         let currentSort = '';
+        let currentMessageSort = '';
+        let currentMessageFilter = null;
 
         // Установка API ключа
         function setApiKey() {
@@ -733,6 +811,50 @@
             // Сбрасываем на первую страницу и перезагружаем диалоги
             currentPage = 1;
             loadUserDialogs(currentUserId, 1);
+        }
+
+        // Сортировка сообщений
+        function toggleMessageSort(field) {
+            console.log('toggleMessageSort called with field:', field);
+            console.log('Current message sort:', currentMessageSort);
+
+            const indicator = document.getElementById('messageSortIndicator');
+            console.log('Message sort indicator element:', indicator);
+
+            if (!indicator) {
+                console.error('Message sort indicator not found!');
+                return;
+            }
+
+            const header = indicator.closest('.sortable-header');
+            console.log('Message sort header element:', header);
+
+            if (currentMessageSort === `(${field},asc)`) {
+                // Переключаем на убывание
+                currentMessageSort = `(${field},desc)`;
+                indicator.className = 'sort-indicator desc active';
+                if (header) header.title = 'Сортировка по убыванию (нажмите для сброса)';
+                console.log('Switched to desc:', currentMessageSort);
+            } else if (currentMessageSort === `(${field},desc)`) {
+                // Переключаем на сброс сортировки
+                currentMessageSort = '';
+                indicator.className = 'sort-indicator none';
+                if (header) header.title = 'Нажмите для сортировки по возрастанию';
+                console.log('Switched to none:', currentMessageSort);
+            } else {
+                // Переключаем на возрастание
+                currentMessageSort = `(${field},asc)`;
+                indicator.className = 'sort-indicator asc active';
+                if (header) header.title = 'Сортировка по возрастанию (нажмите для убывания)';
+                console.log('Switched to asc:', currentMessageSort);
+            }
+
+            console.log('Final message sort indicator className:', indicator.className);
+            console.log('Final message sort header title:', header ? header.title : 'no header');
+
+            // Сбрасываем на первую страницу и перезагружаем сообщения
+            currentMessagePage = 1;
+            loadDialogMessages(currentDialogId, 1);
         }
 
         // Загрузка пользователей
@@ -914,6 +1036,115 @@
                 // Загружаем диалоги без фильтра
                 if (currentUserId) {
                     await loadUserDialogs(currentUserId, 1);
+                }
+                
+                // Показываем успешную очистку
+                clearButton.textContent = '✓ Очищено';
+                setTimeout(() => {
+                    clearButton.textContent = originalText;
+                }, 2000);
+                
+            } catch (error) {
+                // Показываем ошибку
+                clearButton.textContent = '✗ Ошибка';
+                setTimeout(() => {
+                    clearButton.textContent = originalText;
+                }, 2000);
+                alert('Ошибка очистки фильтра: ' + error.message);
+            } finally {
+                clearButton.disabled = false;
+            }
+        }
+
+        // Функции для фильтра сообщений
+        function updateMessageFilterInput() {
+            const filterExample = document.getElementById('messageFilterExample').value;
+            const filterValue = document.getElementById('messageFilterValue');
+            
+            if (filterExample === '') {
+                // Для пользовательского фильтра очищаем поле и устанавливаем placeholder
+                filterValue.value = '';
+                filterValue.placeholder = 'Введите фильтр в формате (field,operator,value), например: (senderId,eq,carl)';
+            } else if (filterExample) {
+                // Подставляем выбранный пример в поле ввода
+                filterValue.value = filterExample;
+            }
+        }
+
+        async function applyMessageFilter() {
+            const applyButton = document.querySelector('button[onclick="applyMessageFilter()"]');
+            const filterValue = document.getElementById('messageFilterValue').value.trim();
+            
+            // Показываем состояние загрузки
+            const originalText = applyButton.textContent;
+            applyButton.textContent = 'Применяется...';
+            applyButton.disabled = true;
+            
+            try {
+                if (!filterValue) {
+                    alert('Введите фильтр');
+                    return;
+                }
+                
+                currentMessageFilter = filterValue;
+                currentMessagePage = 1; // Сбрасываем на первую страницу
+                
+                console.log('Message filter set to:', currentMessageFilter);
+                
+                // Загружаем сообщения с фильтром
+                if (currentDialogId) {
+                    await loadDialogMessages(currentDialogId, 1);
+                }
+                
+                // Показываем успешное применение
+                applyButton.textContent = '✓ Применено';
+                setTimeout(() => {
+                    applyButton.textContent = originalText;
+                }, 2000);
+                
+            } catch (error) {
+                // Показываем ошибку
+                applyButton.textContent = '✗ Ошибка';
+                setTimeout(() => {
+                    applyButton.textContent = originalText;
+                }, 2000);
+                alert('Ошибка применения фильтра: ' + error.message);
+            } finally {
+                applyButton.disabled = false;
+            }
+        }
+
+        async function clearMessageFilter() {
+            const clearButton = document.querySelector('button[onclick="clearMessageFilter()"]');
+            
+            // Показываем состояние загрузки
+            const originalText = clearButton.textContent;
+            clearButton.textContent = 'Очищается...';
+            clearButton.disabled = true;
+            
+            try {
+                currentMessageFilter = null;
+                currentMessageSort = '';
+                currentMessagePage = 1;
+                
+                // Сбрасываем индикаторы сортировки сообщений
+                const messageSortIndicator = document.getElementById('messageSortIndicator');
+                if (messageSortIndicator) {
+                    messageSortIndicator.className = 'sort-indicator none';
+                    const header = messageSortIndicator.closest('.sortable-header');
+                    if (header) {
+                        header.title = 'Нажмите для сортировки по возрастанию';
+                    }
+                }
+                
+                // Очищаем форму
+                document.getElementById('messageFilterExample').value = '';
+                document.getElementById('messageFilterValue').value = '';
+                document.getElementById('messageFilterValue').placeholder = 'Введите или выберите фильтр';
+                
+                // Загружаем сообщения без фильтра
+                if (currentDialogId) {
+                    await loadDialogMessages(currentDialogId, 1);
                 }
                 
                 // Показываем успешную очистку
@@ -1159,6 +1390,8 @@
         async function selectDialog(dialogId, dialogName) {
             currentDialogId = dialogId;
             currentMessagePage = 1; // Сбрасываем на первую страницу сообщений
+            currentMessageSort = ''; // Сбрасываем сортировку сообщений
+            currentMessageFilter = null; // Сбрасываем фильтр сообщений
 
             // Обновляем активный элемент
             document.querySelectorAll('.dialog-row').forEach(row => row.classList.remove('active'));
@@ -1171,10 +1404,25 @@
         // Загрузка сообщений диалога
         async function loadDialogMessages(dialogId, page = 1) {
             const messagesList = document.getElementById('messagesList');
+            const messageFilterForm = document.getElementById('messageFilterForm');
+            
+            // Показываем форму фильтра
+            if (messageFilterForm) {
+                messageFilterForm.style.display = 'flex';
+            }
+            
             messagesList.innerHTML = '<div class="loading">Загрузка сообщений...</div>';
 
             try {
-                const response = await fetch(`/api/dialogs/${dialogId}/messages?page=${page}&limit=10`, {
+                let url = `/api/dialogs/${dialogId}/messages?page=${page}&limit=10`;
+                if (currentMessageSort) {
+                    url += `&sort=${encodeURIComponent(currentMessageSort)}`;
+                }
+                if (currentMessageFilter) {
+                    url += `&filter=${encodeURIComponent(currentMessageFilter)}`;
+                }
+                
+                const response = await fetch(url, {
                     headers: {
                         'X-API-Key': apiKey
                     }
@@ -1200,20 +1448,34 @@
 
                 messagesList.innerHTML = `
                     ${renderMessagePagination()}
-                    <div class="message-container">
-                        ${messages.map(message => `
-                            <div class="message-item">
-                                <div class="message-header">
-                                    <span class="message-sender">${message.senderId}</span>
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <span class="message-time">${new Date(message.createdAt).toLocaleString()}</span>
-                                        <button class="info-button" onclick="showMessageInfo('${message._id}')" title="Информация о сообщении">Инфо</button>
-                                    </div>
-                                </div>
-                                <div class="message-content">${message.content}</div>
-                                <div class="message-type">${message.type}</div>
-                            </div>
-                        `).join('')}
+                    <div class="messages-table-container">
+                        <table class="messages-table">
+                            <thead>
+                                <tr>
+                                    <th>Отправитель</th>
+                                    <th class="sortable-header" onclick="toggleMessageSort('createdAt')" title="${currentMessageSort === '(createdAt,asc)' ? 'Сортировка по возрастанию (нажмите для убывания)' : currentMessageSort === '(createdAt,desc)' ? 'Сортировка по убыванию (нажмите для сброса)' : 'Нажмите для сортировки по возрастанию'}">
+                                        Время
+                                        <span class="sort-indicator ${currentMessageSort === '(createdAt,asc)' ? 'asc active' : currentMessageSort === '(createdAt,desc)' ? 'desc active' : 'none'}" id="messageSortIndicator"></span>
+                                    </th>
+                                    <th>Содержимое</th>
+                                    <th>Тип</th>
+                                    <th>Инфо</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${messages.map(message => `
+                                    <tr class="message-row">
+                                        <td class="message-sender">${message.senderId}</td>
+                                        <td class="message-time">${new Date(message.createdAt).toLocaleString()}</td>
+                                        <td class="message-content">${message.content}</td>
+                                        <td class="message-type">${message.type}</td>
+                                        <td>
+                                            <button class="info-button" onclick="showMessageInfo('${message._id}')" title="Информация о сообщении">Инфо</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
                     </div>
                 `;
 

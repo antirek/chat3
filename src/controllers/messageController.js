@@ -1,4 +1,4 @@
-import { Message, Dialog, Meta } from '../models/index.js';
+import { Message, Dialog, Meta, MessageStatus } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 
@@ -53,13 +53,37 @@ const messageController = {
         }
       }
 
+      // Apply sorting
+      let sortOptions = { createdAt: -1 }; // Default sort by newest first
+      if (req.query.sort) {
+        // Parse sort parameter in format (field,direction)
+        const sortMatch = req.query.sort.match(/\(([^,]+),([^)]+)\)/);
+        if (sortMatch) {
+          const field = sortMatch[1];
+          const direction = sortMatch[2];
+          console.log('Message sorting by:', field, direction);
+          
+          if (field === 'createdAt') {
+            sortOptions = { createdAt: direction === 'asc' ? 1 : -1 };
+          } else if (field === 'updatedAt') {
+            sortOptions = { updatedAt: direction === 'asc' ? 1 : -1 };
+          } else if (field === 'senderId') {
+            sortOptions = { senderId: direction === 'asc' ? 1 : -1 };
+          } else {
+            console.log('Unknown sort field:', field, 'using default');
+          }
+        } else {
+          console.log('Invalid sort format:', req.query.sort);
+        }
+      }
+
       const messages = await Message.find(query)
         .skip(skip)
         .limit(limit)
         .select('-__v')
         .populate('tenantId', 'name domain')
         .populate('dialogId', 'name')
-        .sort({ createdAt: -1 }); // Sort by newest first
+        .sort(sortOptions);
 
       // Add meta data for each message
       const messagesWithMeta = await Promise.all(
@@ -255,7 +279,30 @@ const messageController = {
         });
       }
 
-      res.json(message);
+      // Получаем статусы сообщения
+      const messageStatuses = await MessageStatus.find({
+        messageId: message._id,
+        tenantId: req.tenantId
+      })
+        .select('userId status readAt createdAt')
+        .sort({ createdAt: 1 });
+
+      // Получаем метаданные сообщения
+      const meta = await metaUtils.getEntityMeta(
+        req.tenantId,
+        'message',
+        message._id
+      );
+
+      const messageObj = message.toObject();
+
+      res.json({
+        data: {
+          ...messageObj,
+          statuses: messageStatuses,
+          meta
+        }
+      });
     } catch (error) {
       res.status(500).json({
         error: 'Internal Server Error',
