@@ -1023,12 +1023,22 @@
                     label: '👥 Sara + Kirk + John', 
                     filter: '(member,in,[sara,kirk,john])',
                     description: 'Диалоги с Sara, Kirk или John'
+                },
+                { 
+                    label: '👥 Carl & Marta', 
+                    filter: '(member,all,[carl,marta])',
+                    description: 'Диалоги с Carl И Marta (оба участника)'
+                },
+                { 
+                    label: '👥 Carl & Sara & Kirk', 
+                    filter: '(member,all,[carl,sara,kirk])',
+                    description: 'Диалоги с Carl, Sara И Kirk (все трое)'
                 }
             ];
 
             usersList.innerHTML = memberFilters.map(filter => `
                 <div class="user-item" onclick="selectMemberFilter('${filter.filter}', '${filter.label}')" title="${filter.description}">
-                    <div class="user-avatar">${filter.label.includes('+') ? '👥' : '👤'}</div>
+                    <div class="user-avatar">${filter.label.includes('+') || filter.label.includes('&') ? '👥' : '👤'}</div>
                     <div class="user-info">
                         <div class="user-name">${filter.label}</div>
                         <div class="user-id">${filter.description}</div>

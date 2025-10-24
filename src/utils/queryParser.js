@@ -133,6 +133,7 @@ function operatorToMongo(operator, value) {
     'ne': { $ne: value },          // Не равно
     'in': { $in: value },          // В массиве
     'nin': { $nin: value },        // Не в массиве
+    'all': { $all: value },        // Все элементы из массива (для member фильтров)
     'gt': { $gt: value },          // Больше
     'gte': { $gte: value },        // Больше или равно
     'lt': { $lt: value },          // Меньше
@@ -288,6 +289,10 @@ export async function processMemberFilters(memberFilters, tenantId) {
         memberQuery.userId = { $ne: memberValue.$ne };
       } else if (memberValue.$nin) {
         memberQuery.userId = { $nin: memberValue.$nin };
+      } else if (memberValue.$all) {
+        // Оператор $all требует специальной обработки
+        // Найдем диалоги, где присутствуют ВСЕ указанные участники
+        return await processAllMembersFilter(memberValue.$all, tenantId);
       } else {
         // Для других операторов используем как есть
         memberQuery.userId = memberValue;
@@ -304,6 +309,52 @@ export async function processMemberFilters(memberFilters, tenantId) {
   }
 
   return members.map(member => member.dialogId);
+}
+
+/**
+ * Обрабатывает фильтр $all для участников
+ * Находит диалоги, где присутствуют ВСЕ указанные участники
+ * @param {Array} userIds - Массив ID участников
+ * @param {string} tenantId - ID тенанта
+ * @returns {Array} Массив ID диалогов
+ */
+async function processAllMembersFilter(userIds, tenantId) {
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    return [];
+  }
+
+  const { DialogMember } = await import('../models/index.js');
+  
+  // Найдем всех участников для указанных пользователей
+  const allMembers = await DialogMember.find({
+    tenantId: tenantId,
+    userId: { $in: userIds }
+  }).select('dialogId userId').lean();
+  
+  if (allMembers.length === 0) {
+    return [];
+  }
+  
+  // Группируем по dialogId
+  const dialogMembers = {};
+  allMembers.forEach(member => {
+    if (!dialogMembers[member.dialogId]) {
+      dialogMembers[member.dialogId] = [];
+    }
+    dialogMembers[member.dialogId].push(member.userId);
+  });
+  
+  // Найдем диалоги, где присутствуют ВСЕ указанные участники
+  const resultDialogIds = [];
+  for (const [dialogId, members] of Object.entries(dialogMembers)) {
+    // Проверяем, что в диалоге присутствуют ВСЕ указанные участники
+    const hasAllMembers = userIds.every(userId => members.includes(userId));
+    if (hasAllMembers) {
+      resultDialogIds.push(dialogId);
+    }
+  }
+  
+  return resultDialogIds;
 }
 
 /**
