@@ -1,4 +1,7 @@
-import { DialogMember, Dialog, Message } from '../models/index.js';
+import mongoose from 'mongoose';
+import { DialogMember, Dialog, Message, Meta } from '../models/index.js';
+import * as metaUtils from '../utils/metaUtils.js';
+import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 
 const userDialogController = {
   // Get user's dialogs with pagination and sorting by last interaction
@@ -9,27 +12,124 @@ const userDialogController = {
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
 
+      let dialogIds = null;
+
+      // Фильтрация по метаданным
+      if (req.query.filter) {
+        console.log('Filter received:', req.query.filter);
+        try {
+          // Парсим фильтры (поддержка как JSON, так и (field,operator,value) формата)
+          const parsedFilters = parseFilters(req.query.filter);
+          console.log('Parsed filters:', parsedFilters);
+          
+          // Извлекаем meta фильтры
+          const { metaFilters, regularFilters } = extractMetaFilters(parsedFilters);
+          console.log('Meta filters:', metaFilters);
+          console.log('Regular filters:', regularFilters);
+          
+          // Обрабатываем meta фильтры
+          if (Object.keys(metaFilters).length > 0) {
+            const metaQuery = {
+              tenantId: new mongoose.Types.ObjectId(req.tenantId),
+              entityType: 'dialog'
+            };
+
+            // Проходим по всем meta фильтрам
+            for (const [key, condition] of Object.entries(metaFilters)) {
+              let foundDialogIds;
+              
+              // Обработка негативных операторов ($ne, $nin) требует специальной логики
+              const isNegativeOperator = typeof condition === 'object' && (condition.$ne !== undefined || condition.$nin !== undefined);
+              
+              if (isNegativeOperator) {
+                // Для негативных операторов:
+                // 1. Получаем все dialogId с этим ключом
+                const allWithKey = await Meta.find({
+                  ...metaQuery,
+                  key: key
+                }).select('entityId value').lean();
+                
+                // 2. Фильтруем по условию
+                if (condition.$ne !== undefined) {
+                  // $ne: не равно конкретному значению
+                  foundDialogIds = allWithKey
+                    .filter(m => m.value !== condition.$ne)
+                    .map(m => m.entityId.toString());
+                } else if (condition.$nin !== undefined) {
+                  // $nin: не в массиве значений
+                  foundDialogIds = allWithKey
+                    .filter(m => !condition.$nin.includes(m.value))
+                    .map(m => m.entityId.toString());
+                }
+              } else {
+                // Для позитивных операторов (eq, in, gt, etc.) используем обычный запрос
+                const metaRecords = await Meta.find({
+                  ...metaQuery,
+                  key: key,
+                  value: condition
+                }).select('entityId').lean();
+                
+                foundDialogIds = metaRecords.map(m => m.entityId.toString());
+              }
+              
+              // Объединяем с предыдущими результатами (AND логика)
+              if (dialogIds === null) {
+                dialogIds = foundDialogIds;
+              } else {
+                // Пересечение (AND логика между фильтрами)
+                dialogIds = dialogIds.filter(id => foundDialogIds.includes(id));
+              }
+            }
+          }
+          
+          // Применяем обычные фильтры к query
+          Object.assign(req.query, regularFilters);
+          
+        } catch (error) {
+          return res.status(400).json({
+            error: 'Bad Request',
+            message: `Invalid filter format. ${error.message}. Examples: {"meta":{"key":"value"}} or (meta.key,eq,value) or (meta.key,ne,value)&(meta.key2,in,[val1,val2])`
+          });
+        }
+      }
+
       // Get user's dialog memberships
-      const dialogMembers = await DialogMember.find({
+      const dialogMembersQuery = {
         userId: userId,
         tenantId: req.tenantId,
         isActive: true
-      })
+      };
+
+      // Если есть фильтрация по meta, ограничиваем выборку
+      if (dialogIds !== null) {
+        if (dialogIds.length === 0) {
+          // Нет диалогов с такими meta
+          return res.json({
+            data: [],
+            pagination: {
+              page,
+              limit,
+              total: 0,
+              pages: 0
+            }
+          });
+        }
+        dialogMembersQuery.dialogId = { $in: dialogIds };
+      }
+
+      const dialogMembers = await DialogMember.find(dialogMembersQuery)
         .populate('dialogId', 'name createdAt updatedAt')
         .sort({ lastSeenAt: -1 }) // Sort by last seen (most recent first)
-        .skip(skip)
-        .limit(limit)
         .lean();
 
       // Get total count for pagination
-      const total = await DialogMember.countDocuments({
-        userId: userId,
-        tenantId: req.tenantId,
-        isActive: true
-      });
+      const total = await DialogMember.countDocuments(dialogMembersQuery);
+
+      // Apply pagination to the results
+      const paginatedDialogMembers = dialogMembers.slice(skip, skip + limit);
 
       // Format response data
-      const dialogs = dialogMembers.map(member => ({
+      const dialogs = paginatedDialogMembers.map(member => ({
         dialogId: member.dialogId._id,
         dialogName: member.dialogId.name,
         unreadCount: member.unreadCount,
@@ -47,6 +147,9 @@ const userDialogController = {
       // Sort by last interaction time (most recent first)
       dialogs.sort((a, b) => new Date(b.lastInteractionAt) - new Date(a.lastInteractionAt));
 
+      console.log('Returning dialogs:', dialogs.length, 'total:', total);
+      console.log('Dialog IDs used:', dialogIds);
+      console.log('Filter was applied:', dialogIds !== null);
       res.json({
         data: dialogs,
         pagination: {
@@ -72,28 +175,121 @@ const userDialogController = {
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
 
+      let dialogIds = null;
+
+      // Фильтрация по метаданным
+      if (req.query.filter) {
+        try {
+          // Парсим фильтры (поддержка как JSON, так и (field,operator,value) формата)
+          const parsedFilters = parseFilters(req.query.filter);
+          
+          // Извлекаем meta фильтры
+          const { metaFilters, regularFilters } = extractMetaFilters(parsedFilters);
+          
+          // Обрабатываем meta фильтры
+          if (Object.keys(metaFilters).length > 0) {
+            const metaQuery = {
+              tenantId: new mongoose.Types.ObjectId(req.tenantId),
+              entityType: 'dialog'
+            };
+
+            // Проходим по всем meta фильтрам
+            for (const [key, condition] of Object.entries(metaFilters)) {
+              let foundDialogIds;
+              
+              // Обработка негативных операторов ($ne, $nin) требует специальной логики
+              const isNegativeOperator = typeof condition === 'object' && (condition.$ne !== undefined || condition.$nin !== undefined);
+              
+              if (isNegativeOperator) {
+                // Для негативных операторов:
+                // 1. Получаем все dialogId с этим ключом
+                const allWithKey = await Meta.find({
+                  ...metaQuery,
+                  key: key
+                }).select('entityId value').lean();
+                
+                // 2. Фильтруем по условию
+                if (condition.$ne !== undefined) {
+                  // $ne: не равно конкретному значению
+                  foundDialogIds = allWithKey
+                    .filter(m => m.value !== condition.$ne)
+                    .map(m => m.entityId.toString());
+                } else if (condition.$nin !== undefined) {
+                  // $nin: не в массиве значений
+                  foundDialogIds = allWithKey
+                    .filter(m => !condition.$nin.includes(m.value))
+                    .map(m => m.entityId.toString());
+                }
+              } else {
+                // Для позитивных операторов (eq, in, gt, etc.) используем обычный запрос
+                const metaRecords = await Meta.find({
+                  ...metaQuery,
+                  key: key,
+                  value: condition
+                }).select('entityId').lean();
+                
+                foundDialogIds = metaRecords.map(m => m.entityId.toString());
+              }
+              
+              // Объединяем с предыдущими результатами (AND логика)
+              if (dialogIds === null) {
+                dialogIds = foundDialogIds;
+              } else {
+                // Пересечение (AND логика между фильтрами)
+                dialogIds = dialogIds.filter(id => foundDialogIds.includes(id));
+              }
+            }
+          }
+          
+          // Применяем обычные фильтры к query
+          Object.assign(req.query, regularFilters);
+          
+        } catch (error) {
+          return res.status(400).json({
+            error: 'Bad Request',
+            message: `Invalid filter format. ${error.message}. Examples: {"meta":{"key":"value"}} or (meta.key,eq,value) or (meta.key,ne,value)&(meta.key2,in,[val1,val2])`
+          });
+        }
+      }
+
       // Get user's dialog memberships
-      const dialogMembers = await DialogMember.find({
+      const dialogMembersQuery = {
         userId: userId,
         tenantId: req.tenantId,
         isActive: true
-      })
+      };
+
+      // Если есть фильтрация по meta, ограничиваем выборку
+      if (dialogIds !== null) {
+        if (dialogIds.length === 0) {
+          // Нет диалогов с такими meta
+          return res.json({
+            data: [],
+            pagination: {
+              page,
+              limit,
+              total: 0,
+              pages: 0
+            }
+          });
+        }
+        dialogMembersQuery.dialogId = { $in: dialogIds };
+      }
+
+      const dialogMembers = await DialogMember.find(dialogMembersQuery)
         .populate('dialogId', 'name createdAt updatedAt')
         .sort({ lastSeenAt: -1 })
-        .skip(skip)
-        .limit(limit)
         .lean();
 
       // Get total count for pagination
-      const total = await DialogMember.countDocuments({
-        userId: userId,
-        tenantId: req.tenantId,
-        isActive: true
-      });
+      const total = await DialogMember.countDocuments(dialogMembersQuery);
+
+      // Apply pagination to the results
+      const paginatedDialogMembers = dialogMembers.slice(skip, skip + limit);
 
       // Get last message for each dialog
       const dialogsWithLastMessage = await Promise.all(
-        dialogMembers.map(async (member) => {
+        paginatedDialogMembers.map(async (member) => {
           const lastMessage = await Message.findOne({
             dialogId: member.dialogId._id,
             tenantId: req.tenantId
