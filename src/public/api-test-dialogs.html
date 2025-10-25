@@ -501,6 +501,14 @@
                         <option value="(member,in,[sara,kirk,john])">👥 Диалоги с Sara, Kirk или John</option>
                         <option value="(member,all,[carl,marta])">👥 Диалоги с Carl И Marta (оба участника)</option>
                         <option value="(member,all,[carl,sara,kirk])">👥 Диалоги с Carl, Sara И Kirk (все трое)</option>
+                        <option value="(member,eq,carl)&(meta.channelType,eq,whatsapp)">👤 Carl + WhatsApp</option>
+                        <option value="(member,eq,marta)&(meta.type,eq,internal)">👤 Marta + Внутренний</option>
+                        <option value="(member,eq,sara)&(meta.securityLevel,eq,high)">👤 Sara + Высокий уровень безопасности</option>
+                        <option value="(member,in,[carl,marta])&(meta.channelType,eq,telegram)">👥 Carl/Marta + Telegram</option>
+                        <option value="(member,eq,kirk)&(meta.maxParticipants,gte,50)">👤 Kirk + ≥50 участников</option>
+                        <option value="(member,eq,john)&(meta.channelType,eq,whatsapp)&(meta.securityLevel,eq,high)">👤 John + WhatsApp + Высокий уровень</option>
+                        <option value="(member,all,[carl,marta])&(meta.type,eq,internal)&(meta.maxParticipants,eq,50)">👥 Carl+Marta + Внутренний + 50 участников</option>
+                        <option value="(member,in,[sara,kirk])&(meta.channelType,in,[whatsapp,telegram])&(meta.securityLevel,in,[high,medium])">👥 Sara/Kirk + WhatsApp/Telegram + Высокий/Средний уровень</option>
                         <option value="custom">Пользовательский фильтр</option>
                     </select>
                     <div class="input-with-clear">
