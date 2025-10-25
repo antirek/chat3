@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - Chat3</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 40px;
+        }
+
+        .interfaces {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .interface-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .interface-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+
+        .interface-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .interface-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .interface-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .interface-features {
+            list-style: none;
+            text-align: left;
+        }
+
+        .interface-features li {
+            color: #555;
+            margin-bottom: 5px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .interface-features li:before {
+            content: "✓";
+            color: #28a745;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+
+        .api-info {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .api-info h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .api-info p {
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .api-endpoints {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .endpoint {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .interfaces {
+                grid-template-columns: 1fr;
+            }
+            
+            .api-endpoints {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🚀</div>
+        <h1 class="title">API Test - Chat3</h1>
+        <p class="subtitle">Выберите интерфейс для тестирования API</p>
+        
+        <div class="interfaces">
+            <a href="api-test-dialogs.html" class="interface-card">
+                <div class="interface-icon">💬</div>
+                <h2 class="interface-title">Диалоги + Сообщения</h2>
+                <p class="interface-description">
+                    Двухколоночный интерфейс для работы с диалогами и сообщениями
+                </p>
+                <ul class="interface-features">
+                    <li>Полная фильтрация диалогов</li>
+                    <li>Сортировка по полям</li>
+                    <li>Примеры фильтров по пользователям</li>
+                    <li>Оператор `all` для участников</li>
+                    <li>Мета-фильтры</li>
+                </ul>
+            </a>
+            
+            <a href="api-test-user-dialogs.html" class="interface-card">
+                <div class="interface-icon">📊</div>
+                <h2 class="interface-title">Пользователи + Диалоги + Сообщения</h2>
+                <p class="interface-description">
+                    Трехколоночный интерфейс для работы с конкретными пользователями
+                </p>
+                <ul class="interface-features">
+                    <li>Выбор конкретного пользователя</li>
+                    <li>Диалоги пользователя</li>
+                    <li>Непрочитанные сообщения</li>
+                    <li>Оптимизированные запросы</li>
+                    <li>Простой интерфейс</li>
+                </ul>
+            </a>
+        </div>
+        
+        <div class="api-info">
+            <h3>🔑 API Endpoints</h3>
+            <p>Оба интерфейса используют следующие основные endpoints:</p>
+            <div class="api-endpoints">
+                <div class="endpoint">GET /api/dialogs</div>
+                <div class="endpoint">GET /api/users/{userId}/dialogs</div>
+                <div class="endpoint">GET /api/dialogs/{id}/messages</div>
+                <div class="endpoint">POST /api/dialogs/{id}/messages</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
