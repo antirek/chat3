@@ -57,13 +57,13 @@
         }
 
         .dialogs-panel {
-            width: 40%;
+            width: 50%;
             min-width: 350px;
         }
 
         .messages-panel {
-            width: 60%;
-            min-width: 450px;
+            width: 50%;
+            min-width: 350px;
         }
 
         .panel {
@@ -89,13 +89,13 @@
         }
 
         .combined-form {
-            padding: 20px;
+            padding: 15px;
             border-bottom: 1px solid #e9ecef;
             background: #f8f9fa;
         }
 
         .form-section {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         .form-section:last-child {
@@ -104,18 +104,19 @@
 
         .form-section label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             font-weight: 500;
             color: #495057;
+            font-size: 12px;
         }
 
         .form-section select,
         .form-section input {
             width: 100%;
-            padding: 8px 12px;
+            padding: 6px 10px;
             border: 1px solid #ced4da;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 12px;
         }
 
         .input-with-clear {
@@ -150,16 +151,16 @@
 
         .form-actions {
             display: flex;
-            gap: 10px;
-            margin-top: 15px;
+            gap: 8px;
+            margin-top: 12px;
         }
 
         .form-actions button {
-            padding: 8px 16px;
+            padding: 6px 12px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 500;
             transition: all 0.2s;
         }
@@ -365,6 +366,98 @@
         table button:hover {
             background: #e9ecef;
         }
+
+        /* Модальное окно */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: none;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+        }
+
+        .modal-body {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .info-item {
+            margin-bottom: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            color: #6c757d;
+            word-break: break-word;
+        }
+
+        .json-content {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
     </style>
 </head>
 <body>
@@ -471,6 +564,8 @@
         let totalDialogs = 0;
         let currentDialogId = null;
         let currentMessagePage = 1;
+        let totalMessagePages = 1;
+        let totalMessages = 0;
         let currentMessageFilter = null;
         let currentMessageSort = null;
 
@@ -626,21 +721,23 @@
 
                 const data = await response.json();
                 console.log('Dialogs response:', data);
+                console.log('Pagination object:', data.pagination);
+                console.log('Total pages:', data.pagination.pages);
 
                 if (data.data && data.data.length > 0) {
                     currentPage = page;
-                    totalPages = data.pagination.totalPages;
+                    totalPages = data.pagination.pages;
                     totalDialogs = data.pagination.total;
                     
                     dialogsList.innerHTML = `
                         <div class="pagination">
                             <button onclick="changePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
-                            ${Array.from({ length: Math.min(5, data.pagination.totalPages) }, (_, i) => {
+                            ${Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                                 const pageNum = i + 1;
                                 return `<button onclick="changePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
                             }).join('')}
-                            <button onclick="changePage(${page + 1})" ${page >= data.pagination.totalPages ? 'disabled' : ''}>Следующая →</button>
-                            <span>Страница ${page} из ${data.pagination.totalPages} (всего ${data.pagination.total} диалогов)</span>
+                            <button onclick="changePage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>Следующая →</button>
+                            <span>Страница ${page} из ${totalPages} (всего ${totalDialogs} диалогов)</span>
                         </div>
                         <table>
                             <thead>
@@ -758,19 +855,22 @@
 
                 const data = await response.json();
                 console.log('Messages response:', data);
+                console.log('Messages pagination:', data.pagination);
 
                 if (data.data && data.data.length > 0) {
                     currentMessagePage = page;
+                    totalMessagePages = data.pagination.pages;
+                    totalMessages = data.pagination.total;
                     
                     messagesList.innerHTML = `
                         <div class="pagination">
                             <button onclick="changeMessagePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
-                            ${Array.from({ length: Math.min(5, data.pagination.totalPages) }, (_, i) => {
+                            ${Array.from({ length: Math.min(5, totalMessagePages) }, (_, i) => {
                                 const pageNum = i + 1;
                                 return `<button onclick="changeMessagePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
                             }).join('')}
-                            <button onclick="changeMessagePage(${page + 1})" ${page >= data.pagination.totalPages ? 'disabled' : ''}>Следующая →</button>
-                            <span>Страница ${page} из ${data.pagination.totalPages} (всего ${data.pagination.total} сообщений)</span>
+                            <button onclick="changeMessagePage(${page + 1})" ${page >= totalMessagePages ? 'disabled' : ''}>Следующая →</button>
+                            <span>Страница ${page} из ${totalMessagePages} (всего ${totalMessages} сообщений)</span>
                         </div>
                         <table>
                             <thead>
@@ -833,15 +933,109 @@
         }
 
         // Показать информацию о диалоге
-        function showDialogInfo(dialogId) {
+        async function showDialogInfo(dialogId) {
             console.log('Show dialog info for:', dialogId);
-            // Можно добавить модальное окно с детальной информацией
+            
+            try {
+                const response = await fetch(`/api/dialogs/${dialogId}`, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const dialog = await response.json();
+                console.log('Dialog data:', dialog);
+
+                // Найти диалог в текущем списке для получения дополнительной информации
+                const dialogRow = document.querySelector(`tr[onclick*="${dialogId}"]`);
+                let dialogName = 'Диалог';
+                if (dialogRow) {
+                    const nameCell = dialogRow.querySelector('td:first-child');
+                    if (nameCell) {
+                        dialogName = nameCell.textContent.trim();
+                    }
+                }
+
+                showModal(`Информация о диалоге: ${dialogName}`, formatDialogInfo(dialog));
+            } catch (error) {
+                console.error('Error loading dialog info:', error);
+                showModal('Ошибка', `Не удалось загрузить информацию о диалоге: ${error.message}`);
+            }
         }
 
         // Показать информацию о сообщении
-        function showMessageInfo(messageId) {
+        async function showMessageInfo(messageId) {
             console.log('Show message info for:', messageId);
-            // Можно добавить модальное окно с детальной информацией
+            
+            try {
+                // Найти кнопку "Инфо" которая была нажата
+                const clickedButton = event.target;
+                const messageRow = clickedButton.closest('tr');
+                
+                if (!messageRow) {
+                    showModal('Ошибка', 'Строка сообщения не найдена');
+                    return;
+                }
+
+                // Извлечь данные из строки таблицы
+                const cells = messageRow.querySelectorAll('td');
+                if (cells.length < 5) {
+                    showModal('Ошибка', 'Недостаточно данных о сообщении');
+                    return;
+                }
+
+                const sender = cells[0].textContent.trim();
+                const time = cells[1].textContent.trim();
+                const content = cells[2].textContent.trim();
+                const type = cells[3].textContent.trim();
+
+                const messageInfo = {
+                    id: messageId,
+                    sender: sender,
+                    time: time,
+                    content: content,
+                    type: type
+                };
+
+                showModal(`Информация о сообщении`, formatMessageInfo(messageInfo));
+            } catch (error) {
+                console.error('Error loading message info:', error);
+                showModal('Ошибка', `Не удалось загрузить информацию о сообщении: ${error.message}`);
+            }
+        }
+
+        // Показать модальное окно
+        function showModal(title, content) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalBody').innerHTML = content;
+            document.getElementById('infoModal').style.display = 'block';
+        }
+
+        // Закрыть модальное окно
+        function closeModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+
+        // Форматировать информацию о диалоге
+        function formatDialogInfo(dialog) {
+            return '<div class="json-content">' + JSON.stringify(dialog, null, 2) + '</div>';
+        }
+
+        // Форматировать информацию о сообщении
+        function formatMessageInfo(message) {
+            return '<div class="json-content">' + JSON.stringify(message, null, 2) + '</div>';
+        }
+
+        // Закрыть модальное окно при клике вне его
+        window.onclick = function(event) {
+            const modal = document.getElementById('infoModal');
+            if (event.target === modal) {
+                closeModal();
+            }
         }
 
         // Инициализация при загрузке страницы
@@ -853,5 +1047,18 @@
             }
         });
     </script>
+
+    <!-- Модальное окно для информации -->
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Информация</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Содержимое будет добавлено динамически -->
+            </div>
+        </div>
+    </div>
 </body>
 </html>
