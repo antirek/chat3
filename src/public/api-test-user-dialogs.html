@@ -528,6 +528,75 @@
             border: 1px solid #dee2e6;
             border-radius: 4px;
         }
+
+        /* Стили для формы добавления сообщения */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .form-actions button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .form-actions button[type="button"] {
+            background: #6c757d;
+            color: white;
+        }
+
+        .form-actions button[type="button"]:hover {
+            background: #5a6268;
+        }
+
+        .form-actions button[type="submit"] {
+            background: #667eea;
+            color: white;
+        }
+
+        .form-actions button[type="submit"]:hover {
+            background: #5a6fd8;
+        }
+
+        /* Стили для кнопок в колонке Действия */
+        td button {
+            margin-right: 5px;
+        }
+
+        td button:last-child {
+            margin-right: 0;
+        }
     </style>
 </head>
 <body>
@@ -654,6 +723,45 @@
             </div>
             <div class="modal-body" id="modalBody">
                 <!-- Содержимое будет добавлено динамически -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для добавления сообщения -->
+    <div id="addMessageModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Добавить сообщение</h2>
+                <span class="close" onclick="closeAddMessageModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="addMessageForm">
+                    <div class="form-group">
+                        <label for="messageSender">Отправитель:</label>
+                        <select id="messageSender" required>
+                            <option value="carl">Carl</option>
+                            <option value="marta">Marta</option>
+                            <option value="sara">Sara</option>
+                            <option value="kirk">Kirk</option>
+                            <option value="john">John</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="messageType">Тип сообщения:</label>
+                        <select id="messageType" required>
+                            <option value="text">Text</option>
+                            <option value="system">System</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="messageContent">Содержимое:</label>
+                        <textarea id="messageContent" rows="4" required>тест тест</textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeAddMessageModal()">Отмена</button>
+                        <button type="submit">Добавить</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -818,7 +926,7 @@
                                     <th>Название</th>
                                     <th onclick="toggleSort('unreadCount')" style="cursor: pointer;">Непрочитанные<span class="sort-indicator" id="sort-unreadCount">${getSortIndicator('unreadCount')}</span></th>
                                     <th onclick="toggleSort('lastSeenAt')" style="cursor: pointer;">Последний просмотр<span class="sort-indicator" id="sort-lastSeenAt">${getSortIndicator('lastSeenAt')}</span></th>
-                                    <th>Инфо</th>
+                                    <th>Действия</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -828,7 +936,10 @@
                                         <td>${dialog.dialogName || dialog.name}</td>
                                         <td>${dialog.unreadCount || 0}</td>
                                         <td>${formatLastSeen(dialog.lastSeenAt)}</td>
-                                        <td><button onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId || dialog._id}')">Инфо</button></td>
+                                        <td>
+                                            <button onclick="event.stopPropagation(); showAddMessageModal('${dialog.dialogId || dialog._id}', '${dialog.dialogName || dialog.name}')">Сообщения</button>
+                                            <button onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId || dialog._id}')">Инфо</button>
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1395,6 +1506,95 @@
                 loadDialogMessages(currentDialogId, 1);
             }
         }
+
+        // Функции для модального окна добавления сообщения
+        let currentDialogIdForMessage = null;
+        let currentDialogNameForMessage = null;
+
+        function showAddMessageModal(dialogId, dialogName) {
+            currentDialogIdForMessage = dialogId;
+            currentDialogNameForMessage = dialogName;
+            
+            // Обновляем заголовок модального окна
+            document.querySelector('#addMessageModal .modal-title').textContent = `Добавить сообщение в "${dialogName}"`;
+            
+            // Сбрасываем форму
+            document.getElementById('addMessageForm').reset();
+            document.getElementById('messageContent').value = 'тест тест';
+            
+            // Показываем модальное окно
+            document.getElementById('addMessageModal').style.display = 'block';
+        }
+
+        function closeAddMessageModal() {
+            document.getElementById('addMessageModal').style.display = 'none';
+            currentDialogIdForMessage = null;
+            currentDialogNameForMessage = null;
+        }
+
+        // Обработчик отправки формы
+        document.getElementById('addMessageForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!currentDialogIdForMessage) {
+                alert('Ошибка: не выбран диалог');
+                return;
+            }
+
+            const senderId = document.getElementById('messageSender').value;
+            const type = document.getElementById('messageType').value;
+            const content = document.getElementById('messageContent').value;
+
+            try {
+                const response = await fetch(`/api/dialogs/${currentDialogIdForMessage}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
+                    },
+                    body: JSON.stringify({
+                        senderId: senderId,
+                        type: type,
+                        content: content
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('Message added successfully:', result);
+                
+                alert('Сообщение успешно добавлено!');
+                closeAddMessageModal();
+                
+                // Обновляем список сообщений, если диалог открыт
+                if (currentDialogId === currentDialogIdForMessage) {
+                    loadDialogMessages(currentDialogId, currentMessagePage);
+                }
+                
+            } catch (error) {
+                console.error('Error adding message:', error);
+                alert(`Ошибка при добавлении сообщения: ${error.message}`);
+            }
+        });
+
+        // Закрытие модального окна по клику вне его
+        window.onclick = function(event) {
+            const addMessageModal = document.getElementById('addMessageModal');
+            if (event.target === addMessageModal) {
+                closeAddMessageModal();
+            }
+        }
+
+        // Закрытие модального окна по клавише Escape
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeAddMessageModal();
+            }
+        });
     </script>
 </body>
 </html>
