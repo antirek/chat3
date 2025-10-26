@@ -127,12 +127,12 @@
         }
 
         .pagination button {
-            padding: 6px 12px;
+            padding: 5px 10px;
             border: 1px solid #ced4da;
             background: white;
             cursor: pointer;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 12px;
         }
 
         .pagination button:hover:not(:disabled) {
@@ -153,7 +153,7 @@
         .pagination span {
             margin-left: 15px;
             color: #6c757d;
-            font-size: 14px;
+            font-size: 12px;
         }
 
         table {
@@ -162,9 +162,10 @@
         }
 
         th, td {
-            padding: 12px;
+            padding: 8px 10px;
             text-align: left;
             border-bottom: 1px solid #e9ecef;
+            font-size: 13px;
         }
 
         th {
@@ -173,6 +174,7 @@
             color: #495057;
             cursor: pointer;
             user-select: none;
+            font-size: 12px;
         }
 
         th:hover {
@@ -182,6 +184,16 @@
         .sort-indicator {
             margin-left: 5px;
             color: #6c757d;
+            font-size: 10px;
+            transition: color 0.2s;
+        }
+
+        .sort-indicator.active {
+            color: #667eea;
+        }
+
+        .sort-indicator:hover {
+            color: #495057;
         }
 
         tr:hover {
@@ -261,6 +273,179 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
+
+        table button {
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+
+        /* Форма фильтрации */
+        .filter-form {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .form-section {
+            margin-bottom: 12px;
+        }
+
+        .form-section label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .form-section select,
+        .form-section input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+            background: white;
+        }
+
+        .form-section select:focus,
+        .form-section input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .input-with-clear {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-with-clear input {
+            padding-right: 30px;
+        }
+
+        .clear-field {
+            position: absolute;
+            right: 8px;
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .clear-field:hover {
+            color: #dc3545;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .form-actions button {
+            padding: 6px 12px;
+            font-size: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        .form-actions button:hover {
+            background: #e9ecef;
+        }
+
+        .form-actions button.primary {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .form-actions button.primary:hover {
+            background: #5a6fd8;
+        }
+
+        /* Модальное окно */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 0;
+            border: none;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            margin: 0;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .json-content {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-x: auto;
+        }
     </style>
 </head>
 <body>
@@ -285,6 +470,35 @@
         <!-- Диалоги -->
         <div class="panel dialogs-panel">
             <div class="panel-header">💬 Диалоги</div>
+            <div class="filter-form" id="dialogsFilterForm" style="display: none;">
+                <div class="form-section">
+                    <label for="filterExample">🔍 Фильтр:</label>
+                    <select id="filterExample" onchange="selectFilterExample()">
+                        <option value="">Выберите пример фильтра</option>
+                        <option value="(meta.channelType,eq,whatsapp)">meta. Тип канала = whatsapp</option>
+                        <option value="(meta.channelType,eq,telegram)">meta. Тип канала = telegram</option>
+                        <option value="(meta.type,eq,internal)">meta. Тип диалога = internal</option>
+                        <option value="(meta.type,eq,external)">meta. Тип диалога = external</option>
+                        <option value="(meta.securityLevel,eq,high)">meta. Уровень безопасности = high</option>
+                        <option value="(meta.securityLevel,in,[high,medium])">meta. Уровень безопасности в [high,medium]</option>
+                        <option value="(meta.maxParticipants,gte,50)">meta. Макс. участников ≥ 50</option>
+                        <option value="(meta.maxParticipants,eq,50)">meta. Макс. участников = 50</option>
+                        <option value="(meta.channelType,regex,^whats)">meta. Тип канала начинается с 'whats'</option>
+                        <option value="(meta.channelType,eq,whatsapp)&(meta.securityLevel,in,[high,medium])">meta. WhatsApp + высокий/средний уровень безопасности</option>
+                        <option value="(meta.type,eq,internal)&(meta.maxParticipants,eq,50)">meta. Внутренний + 50 участников</option>
+                        <option value="(meta.channelType,eq,telegram)&(meta.securityLevel,eq,high)">meta. Telegram + высокий уровень безопасности</option>
+                        <option value="custom">Пользовательский фильтр</option>
+                    </select>
+                    <div class="input-with-clear">
+                        <input type="text" id="filterValue" placeholder="Введите или выберите фильтр" />
+                        <button class="clear-field" onclick="clearFilterField()" title="Очистить фильтр">✕</button>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button onclick="applyFilter()" class="primary">Применить</button>
+                    <button onclick="clearFilter()">Очистить</button>
+                </div>
+            </div>
             <div class="panel-content" id="dialogsList">
                 <div class="placeholder">Выберите пользователя</div>
             </div>
@@ -295,6 +509,19 @@
             <div class="panel-header">📝 Сообщения</div>
             <div class="panel-content" id="messagesList">
                 <div class="placeholder">Выберите диалог</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для информации -->
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Информация</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Содержимое будет добавлено динамически -->
             </div>
         </div>
     </div>
@@ -310,6 +537,8 @@
         let currentMessagePage = 1;
         let currentMessageFilter = null;
         let currentMessageSort = null;
+        let currentDialogFilter = null;
+        let currentDialogSort = null;
 
         // Установка API ключа
         function setApiKey() {
@@ -386,8 +615,12 @@
             // Обновляем UI
             updateUserUI(userName);
             
+            // Показываем форму фильтрации
+            document.getElementById('dialogsFilterForm').style.display = 'block';
+            
             // Загружаем диалоги пользователя
             currentPage = 1;
+            currentDialogFilter = null;
             await loadUserDialogs(userId, 1);
         }
 
@@ -407,6 +640,12 @@
 
             try {
                 let url = `/api/users/${userId}/dialogs?page=${page}&limit=10`;
+                if (currentDialogFilter) {
+                    url += `&filter=${encodeURIComponent(currentDialogFilter)}`;
+                }
+                if (currentDialogSort) {
+                    url += `&sort=${encodeURIComponent(currentDialogSort)}`;
+                }
                 console.log('Loading user dialogs:', url);
                 
                 const response = await fetch(url, {
@@ -424,37 +663,37 @@
 
                 if (data.data && data.data.length > 0) {
                     currentPage = page;
-                    totalPages = data.pagination.totalPages;
+                    totalPages = data.pagination.pages;
                     totalDialogs = data.pagination.total;
                     
                     dialogsList.innerHTML = `
                         <div class="pagination">
                             <button onclick="changePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
-                            ${Array.from({ length: Math.min(5, data.pagination.totalPages) }, (_, i) => {
+                            ${Array.from({ length: Math.min(5, data.pagination.pages) }, (_, i) => {
                                 const pageNum = i + 1;
                                 return `<button onclick="changePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
                             }).join('')}
-                            <button onclick="changePage(${page + 1})" ${page >= data.pagination.totalPages ? 'disabled' : ''}>Следующая →</button>
-                            <span>Страница ${page} из ${data.pagination.totalPages} (всего ${data.pagination.total} диалогов)</span>
+                            <button onclick="changePage(${page + 1})" ${page >= data.pagination.pages ? 'disabled' : ''}>Следующая →</button>
+                            <span>Страница ${page} из ${data.pagination.pages} (всего ${data.pagination.total} диалогов)</span>
                         </div>
                         <table>
                             <thead>
                                 <tr>
                                     <th>Dialog ID</th>
                                     <th>Название</th>
-                                    <th>Непрочитанные</th>
-                                    <th>Последний просмотр</th>
+                                    <th onclick="toggleSort('unreadCount')" style="cursor: pointer;">Непрочитанные<span class="sort-indicator" id="sort-unreadCount">${getSortIndicator('unreadCount')}</span></th>
+                                    <th onclick="toggleSort('lastSeenAt')" style="cursor: pointer;">Последний просмотр<span class="sort-indicator" id="sort-lastSeenAt">${getSortIndicator('lastSeenAt')}</span></th>
                                     <th>Инфо</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${data.data.map(dialog => `
-                                    <tr onclick="selectDialog('${dialog._id}', '${dialog.name}')" class="dialog-row">
-                                        <td>${dialog._id}</td>
-                                        <td>${dialog.name}</td>
+                                    <tr onclick="selectDialog('${dialog.dialogId || dialog._id}', '${dialog.dialogName || dialog.name}')" class="dialog-row">
+                                        <td>${dialog.dialogId || dialog._id}</td>
+                                        <td>${dialog.dialogName || dialog.name}</td>
                                         <td>${dialog.unreadCount || 0}</td>
                                         <td>${formatLastSeen(dialog.lastSeenAt)}</td>
-                                        <td><button onclick="event.stopPropagation(); showDialogInfo('${dialog._id}')">Инфо</button></td>
+                                        <td><button onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId || dialog._id}')">Инфо</button></td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -531,12 +770,12 @@
                     messagesList.innerHTML = `
                         <div class="pagination">
                             <button onclick="changeMessagePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
-                            ${Array.from({ length: Math.min(5, data.pagination.totalPages) }, (_, i) => {
+                            ${Array.from({ length: Math.min(5, data.pagination.pages) }, (_, i) => {
                                 const pageNum = i + 1;
                                 return `<button onclick="changeMessagePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
                             }).join('')}
-                            <button onclick="changeMessagePage(${page + 1})" ${page >= data.pagination.totalPages ? 'disabled' : ''}>Следующая →</button>
-                            <span>Страница ${page} из ${data.pagination.totalPages} (всего ${data.pagination.total} сообщений)</span>
+                            <button onclick="changeMessagePage(${page + 1})" ${page >= data.pagination.pages ? 'disabled' : ''}>Следующая →</button>
+                            <span>Страница ${page} из ${data.pagination.pages} (всего ${data.pagination.total} сообщений)</span>
                         </div>
                         <table>
                             <thead>
@@ -550,7 +789,7 @@
                             </thead>
                             <tbody>
                                 ${data.data.map(message => `
-                                    <tr>
+                                    <tr data-message-id="${message._id}">
                                         <td>${message.senderId}</td>
                                         <td>${formatMessageTime(message.createdAt)}</td>
                                         <td class="message-content">${message.content}</td>
@@ -587,15 +826,202 @@
         }
 
         // Показать информацию о диалоге
-        function showDialogInfo(dialogId) {
+        async function showDialogInfo(dialogId) {
             console.log('Show dialog info for:', dialogId);
-            // Можно добавить модальное окно с детальной информацией
+            
+            try {
+                const response = await fetch(`/api/dialogs/${dialogId}`, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Dialog data:', data);
+
+                if (data.data) {
+                    showModal('Информация о диалоге: ' + data.data.name, formatDialogInfo(data.data));
+                } else {
+                    showModal('Ошибка', 'Не удалось загрузить информацию о диалоге');
+                }
+            } catch (error) {
+                console.error('Error loading dialog info:', error);
+                showModal('Ошибка', 'Ошибка загрузки: ' + error.message);
+            }
         }
 
         // Показать информацию о сообщении
         function showMessageInfo(messageId) {
             console.log('Show message info for:', messageId);
-            // Можно добавить модальное окно с детальной информацией
+            
+            // Находим строку сообщения по ID
+            const messageRow = document.querySelector(`tr[data-message-id="${messageId}"]`);
+            if (!messageRow) {
+                showModal('Ошибка', 'Сообщение не найдено');
+                return;
+            }
+
+            // Извлекаем данные из строки таблицы
+            const cells = messageRow.querySelectorAll('td');
+            const message = {
+                id: messageId,
+                sender: cells[0].textContent,
+                time: cells[1].textContent,
+                content: cells[2].textContent,
+                type: cells[3].textContent
+            };
+
+            showModal('Информация о сообщении', formatMessageInfo(message));
+        }
+
+        // Показать модальное окно
+        function showModal(title, content) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalBody').innerHTML = content;
+            document.getElementById('infoModal').style.display = 'block';
+        }
+
+        // Закрыть модальное окно
+        function closeModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+
+        // Форматировать информацию о диалоге
+        function formatDialogInfo(dialog) {
+            return '<div class="json-content">' + JSON.stringify(dialog, null, 2) + '</div>';
+        }
+
+        // Форматировать информацию о сообщении
+        function formatMessageInfo(message) {
+            return '<div class="json-content">' + JSON.stringify(message, null, 2) + '</div>';
+        }
+
+        // Закрыть модальное окно при клике вне его
+        window.onclick = function(event) {
+            const modal = document.getElementById('infoModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Закрыть модальное окно по клавише Esc
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('infoModal');
+                if (modal.style.display === 'block') {
+                    closeModal();
+                }
+            }
+        });
+
+        // Функции для работы с фильтрами диалогов
+        function selectFilterExample() {
+            const select = document.getElementById('filterExample');
+            const input = document.getElementById('filterValue');
+            
+            if (select.value && select.value !== 'custom') {
+                input.value = select.value;
+            } else if (select.value === 'custom') {
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function clearFilterField() {
+            document.getElementById('filterValue').value = '';
+            document.getElementById('filterExample').value = '';
+        }
+
+        async function applyFilter() {
+            const filterValue = document.getElementById('filterValue').value.trim();
+            
+            if (!filterValue) {
+                alert('Пожалуйста, введите фильтр');
+                return;
+            }
+
+            if (!currentUserId) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
+
+            currentDialogFilter = filterValue;
+            currentPage = 1;
+            await loadUserDialogs(currentUserId, 1);
+        }
+
+        async function clearFilter() {
+            currentDialogFilter = null;
+            currentDialogSort = null;
+            document.getElementById('filterValue').value = '';
+            document.getElementById('filterExample').value = '';
+            
+            // Сброс индикаторов сортировки
+            document.querySelectorAll('.sort-indicator').forEach(indicator => {
+                indicator.textContent = '◄';
+                indicator.classList.remove('active');
+            });
+            
+            if (currentUserId) {
+                currentPage = 1;
+                await loadUserDialogs(currentUserId, 1);
+            }
+        }
+
+        // Функция получения индикатора сортировки
+        function getSortIndicator(field) {
+            if (!currentDialogSort || !currentDialogSort.includes(field)) {
+                return '◄';
+            } else if (currentDialogSort.includes('asc')) {
+                return '▲';
+            } else {
+                return '▼';
+            }
+        }
+
+        // Функция переключения сортировки
+        async function toggleSort(field) {
+            if (!currentUserId) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
+
+            // Определяем следующее состояние сортировки
+            let newSort = null;
+            const indicator = document.getElementById(`sort-${field}`);
+            
+            if (!currentDialogSort || !currentDialogSort.includes(field)) {
+                // Первый клик - сортировка по возрастанию
+                newSort = `(${field},asc)`;
+                indicator.textContent = '▲';
+                indicator.classList.add('active');
+            } else if (currentDialogSort.includes('asc')) {
+                // Второй клик - сортировка по убыванию
+                newSort = `(${field},desc)`;
+                indicator.textContent = '▼';
+                indicator.classList.add('active');
+            } else {
+                // Третий клик - сброс сортировки
+                newSort = null;
+                indicator.textContent = '◄';
+                indicator.classList.remove('active');
+            }
+
+            // Сбрасываем индикаторы других полей
+            document.querySelectorAll('.sort-indicator').forEach(ind => {
+                if (ind.id !== `sort-${field}`) {
+                    ind.textContent = '◄';
+                    ind.classList.remove('active');
+                }
+            });
+
+            currentDialogSort = newSort;
+            currentPage = 1;
+            await loadUserDialogs(currentUserId, 1);
         }
 
         // Инициализация при загрузке страницы

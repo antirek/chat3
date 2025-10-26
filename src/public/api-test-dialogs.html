@@ -1046,6 +1046,16 @@
             }
         }
 
+        // Закрыть модальное окно по клавише Esc
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('infoModal');
+                if (modal.style.display === 'block') {
+                    closeModal();
+                }
+            }
+        });
+
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
             // Автоматически устанавливаем API ключ из поля ввода
