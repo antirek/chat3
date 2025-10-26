@@ -85,7 +85,7 @@ const messageController = {
         .populate('dialogId', 'name')
         .sort(sortOptions);
 
-      // Add meta data for each message
+      // Add meta data and message statuses for each message
       const messagesWithMeta = await Promise.all(
         messages.map(async (message) => {
           // Get message meta data
@@ -95,11 +95,20 @@ const messageController = {
             message._id
           );
           
+          // Get message statuses sorted by date (newest first)
+          const messageStatuses = await MessageStatus.find({
+            messageId: message._id,
+            tenantId: req.tenantId
+          })
+            .select('userId status readAt createdAt')
+            .sort({ createdAt: -1 }); // Newest first
+          
           const messageObj = message.toObject();
           
           return {
             ...messageObj,
-            meta
+            meta,
+            messageStatuses
           };
         })
       );
@@ -279,13 +288,13 @@ const messageController = {
         });
       }
 
-      // Получаем статусы сообщения
+      // Получаем статусы сообщения (свежие в начале)
       const messageStatuses = await MessageStatus.find({
         messageId: message._id,
         tenantId: req.tenantId
       })
         .select('userId status readAt createdAt')
-        .sort({ createdAt: 1 });
+        .sort({ createdAt: -1 }); // Newest first
 
       // Получаем метаданные сообщения
       const meta = await metaUtils.getEntityMeta(
@@ -299,7 +308,7 @@ const messageController = {
       res.json({
         data: {
           ...messageObj,
-          statuses: messageStatuses,
+          messageStatuses: messageStatuses,
           meta
         }
       });
