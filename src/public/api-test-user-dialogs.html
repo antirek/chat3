@@ -277,6 +277,14 @@
         table button {
             padding: 4px 8px;
             font-size: 11px;
+            border: 1px solid #ced4da;
+            background: white;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        table button:hover {
+            background: #e9ecef;
         }
 
         /* Форма фильтрации */
@@ -854,6 +862,7 @@
             currentDialogId = dialogId;
             currentMessagePage = 1;
             currentMessageFilter = null;
+            currentMessageSort = null;
             
             // Показываем фильтр сообщений
             const messagesFilterForm = document.getElementById('messagesFilterForm');
@@ -909,7 +918,7 @@
                             <thead>
                                 <tr>
                                     <th>Отправитель</th>
-                                    <th>Время</th>
+                                    <th onclick="toggleMessageSort('createdAt')" style="cursor: pointer;">Время <span class="sort-indicator" id="sort-message-createdAt">${getMessageSortIndicator('createdAt')}</span></th>
                                     <th>Содержимое</th>
                                     <th>Тип</th>
                                     <th>Инфо</th>
@@ -1222,6 +1231,16 @@
             }
         }
 
+        function getMessageSortIndicator(field) {
+            if (!currentMessageSort || !currentMessageSort.includes(field)) {
+                return '◄';
+            } else if (currentMessageSort.includes('asc')) {
+                return '▲';
+            } else {
+                return '▼';
+            }
+        }
+
         // Функция переключения сортировки
         async function toggleSort(field) {
             if (!currentUserId) {
@@ -1261,6 +1280,47 @@
             currentDialogSort = newSort;
             currentPage = 1;
             await loadUserDialogs(currentUserId, 1);
+        }
+
+        // Переключение сортировки сообщений
+        async function toggleMessageSort(field) {
+            if (!currentDialogId) {
+                alert('Сначала выберите диалог');
+                return;
+            }
+
+            // Определяем следующее состояние сортировки
+            let newSort = null;
+            const indicator = document.getElementById(`sort-message-${field}`);
+            
+            if (!currentMessageSort || !currentMessageSort.includes(field)) {
+                // Первый клик - сортировка по возрастанию
+                newSort = `(${field},asc)`;
+                indicator.textContent = '▲';
+                indicator.classList.add('active');
+            } else if (currentMessageSort.includes('asc')) {
+                // Второй клик - сортировка по убыванию
+                newSort = `(${field},desc)`;
+                indicator.textContent = '▼';
+                indicator.classList.add('active');
+            } else {
+                // Третий клик - сброс сортировки
+                newSort = null;
+                indicator.textContent = '◄';
+                indicator.classList.remove('active');
+            }
+
+            // Сбрасываем индикаторы других полей сообщений
+            document.querySelectorAll('.sort-indicator').forEach(ind => {
+                if (ind.id.startsWith('sort-message-') && ind.id !== `sort-message-${field}`) {
+                    ind.textContent = '◄';
+                    ind.classList.remove('active');
+                }
+            });
+
+            currentMessageSort = newSort;
+            currentMessagePage = 1;
+            await loadDialogMessages(currentDialogId, 1);
         }
 
         // Инициализация при загрузке страницы
@@ -1304,6 +1364,15 @@
             input.value = '';
             select.value = '';
             currentMessageFilter = null;
+            currentMessageSort = null;
+            
+            // Сбрасываем индикаторы сортировки сообщений
+            document.querySelectorAll('.sort-indicator').forEach(ind => {
+                if (ind.id.startsWith('sort-message-')) {
+                    ind.textContent = '◄';
+                    ind.classList.remove('active');
+                }
+            });
             
             if (currentDialogId) {
                 currentMessagePage = 1;
