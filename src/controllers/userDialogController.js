@@ -84,6 +84,7 @@ const userDialogController = {
           
           // Применяем обычные фильтры к query
           Object.assign(req.query, regularFilters);
+          console.log('Regular filters applied:', regularFilters);
           
         } catch (error) {
           return res.status(400).json({
@@ -99,6 +100,35 @@ const userDialogController = {
         tenantId: req.tenantId,
         isActive: true
       };
+
+      // Применяем обычные фильтры (unreadCount, lastSeenAt, etc.)
+      if (req.query.unreadCount !== undefined) {
+        console.log('req.query.unreadCount:', req.query.unreadCount, 'type:', typeof req.query.unreadCount);
+        const unreadCount = parseInt(req.query.unreadCount);
+        console.log('Parsed unreadCount:', unreadCount, 'isNaN:', isNaN(unreadCount));
+        if (!isNaN(unreadCount)) {
+          dialogMembersQuery.unreadCount = unreadCount;
+          console.log('Applied unreadCount filter:', unreadCount);
+          console.log('dialogMembersQuery after unreadCount:', dialogMembersQuery);
+        }
+      }
+      
+      if (req.query.lastSeenAt !== undefined) {
+        // Поддержка операторов для lastSeenAt
+        const lastSeenAtValue = req.query.lastSeenAt;
+        if (lastSeenAtValue.startsWith('gt:')) {
+          dialogMembersQuery.lastSeenAt = { $gt: new Date(lastSeenAtValue.substring(3)) };
+        } else if (lastSeenAtValue.startsWith('gte:')) {
+          dialogMembersQuery.lastSeenAt = { $gte: new Date(lastSeenAtValue.substring(4)) };
+        } else if (lastSeenAtValue.startsWith('lt:')) {
+          dialogMembersQuery.lastSeenAt = { $lt: new Date(lastSeenAtValue.substring(3)) };
+        } else if (lastSeenAtValue.startsWith('lte:')) {
+          dialogMembersQuery.lastSeenAt = { $lte: new Date(lastSeenAtValue.substring(4)) };
+        } else {
+          dialogMembersQuery.lastSeenAt = new Date(lastSeenAtValue);
+        }
+        console.log('Applied lastSeenAt filter:', dialogMembersQuery.lastSeenAt);
+      }
 
       // Если есть фильтрация по meta, ограничиваем выборку
       if (dialogIds !== null) {
