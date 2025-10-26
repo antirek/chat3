@@ -1,5 +1,5 @@
 import connectDB from '../config/database.js';
-import { Tenant, Dialog, Message, Meta, DialogMember } from '../models/index.js';
+import { Tenant, Dialog, Message, Meta, DialogMember, MessageStatus } from '../models/index.js';
 
 async function seed() {
   try {
@@ -13,6 +13,7 @@ async function seed() {
     await Message.deleteMany({});
     await Meta.deleteMany({});
     await DialogMember.deleteMany({});
+    await MessageStatus.deleteMany({});
 
     console.log('✅ Cleared existing data');
 
@@ -226,6 +227,64 @@ async function seed() {
     console.log(`   - Messages range: 1-25 per dialog`);
     console.log(`   - Sender IDs: carl, marta, sara, kirk, john (произвольные строки)`);
 
+    // Create Message Statuses
+    console.log('\n📊 Creating message statuses...');
+    const messageStatuses = [];
+    const statusTypes = ['sent', 'delivered', 'read'];
+    const statusUserIds = ['carl', 'marta', 'sara', 'kirk', 'john'];
+
+    // Создаем статусы для 60% сообщений (случайно выбранных)
+    const messagesWithStatuses = messages.filter(() => Math.random() < 0.6);
+    
+    messagesWithStatuses.forEach((message, messageIndex) => {
+      // Для каждого сообщения создаем статусы для 2-4 случайных пользователей
+      const statusCount = Math.floor(Math.random() * 3) + 2; // 2-4 статуса
+      const selectedUsers = statusUserIds
+        .sort(() => Math.random() - 0.5)
+        .slice(0, statusCount);
+
+      selectedUsers.forEach((userId, userIndex) => {
+        // Время создания статуса - от времени сообщения до текущего времени
+        const messageTime = new Date(message.createdAt);
+        const now = new Date();
+        const statusTime = new Date(messageTime.getTime() + Math.random() * (now.getTime() - messageTime.getTime()));
+        
+        // Статус зависит от порядка пользователя (первый - sent, второй - delivered, остальные - read)
+        let status;
+        if (userIndex === 0) {
+          status = 'sent';
+        } else if (userIndex === 1) {
+          status = Math.random() < 0.7 ? 'delivered' : 'sent'; // 70% delivered, 30% sent
+        } else {
+          status = Math.random() < 0.8 ? 'read' : 'delivered'; // 80% read, 20% delivered
+        }
+
+        messageStatuses.push({
+          messageId: message._id,
+          userId,
+          tenantId: tenant._id,
+          status,
+          createdAt: statusTime,
+          updatedAt: statusTime
+        });
+      });
+    });
+
+    // Создаем статусы батчами
+    const statusBatchSize = 200;
+    for (let i = 0; i < messageStatuses.length; i += statusBatchSize) {
+      const batch = messageStatuses.slice(i, i + statusBatchSize);
+      await MessageStatus.insertMany(batch);
+    }
+
+    console.log(`✅ Created ${messageStatuses.length} message statuses`);
+    console.log(`   - Messages with statuses: ${messagesWithStatuses.length} out of ${messages.length}`);
+    console.log(`   - Average statuses per message: ${Math.round(messageStatuses.length / messagesWithStatuses.length)}`);
+    console.log(`   - Status distribution:`);
+    console.log(`     - sent: ${messageStatuses.filter(s => s.status === 'sent').length}`);
+    console.log(`     - delivered: ${messageStatuses.filter(s => s.status === 'delivered').length}`);
+    console.log(`     - read: ${messageStatuses.filter(s => s.status === 'read').length}`);
+
     // Create Meta
     const metaEntries = [
       // System bot meta (now using string identifier)
@@ -419,6 +478,7 @@ async function seed() {
     console.log(`   - Users: String identifiers (carl, marta, sara, kirk, john)`);
     console.log(`   - Dialogs: ${await Dialog.countDocuments()} (70 internal + 30 external = 100 total)`);
     console.log(`   - Messages: ${await Message.countDocuments()} (${messages.length} total across ${dialogs.length} dialogs)`);
+    console.log(`   - Message Statuses: ${await MessageStatus.countDocuments()} (${messageStatuses.length} total)`);
     console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/tenant + ${dialogs.length * 6} dialog + ${messages.length * 2} message)`);
     console.log('\n🤖 System Bot:');
     console.log(`   - Identifier: system_bot`);
@@ -442,6 +502,12 @@ async function seed() {
     console.log(`   - GET /api/messages?filter=(meta.channelType,eq,telegram) → сообщения из Telegram`);
     console.log(`   - GET /api/messages?filter=(meta.channelId,eq,W0000) → сообщения с ID W0000`);
     console.log(`   - GET /api/messages?filter=(meta.channelId,eq,TG0000) → сообщения с ID TG0000`);
+    console.log('\n📊 Message Statuses:');
+    console.log(`   - ${messageStatuses.length} total statuses created`);
+    console.log(`   - ${messagesWithStatuses.length} messages have statuses (60% of all messages)`);
+    console.log(`   - Status distribution: sent, delivered, read`);
+    console.log(`   - Each message has 2-4 statuses from different users`);
+    console.log(`   - Use /api/messages/{messageId} to see messageStatuses array`);
     console.log('\n');
 
     process.exit(0);
