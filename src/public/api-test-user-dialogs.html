@@ -446,6 +446,57 @@
             word-wrap: break-word;
             overflow-x: auto;
         }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .view-url-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: normal;
+            transition: background-color 0.2s;
+        }
+
+        .view-url-btn:hover {
+            background: #0056b3;
+        }
+
+        .url-info h4 {
+            margin: 15px 0 8px 0;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .url-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin-bottom: 10px;
+        }
+
+        .params-list div {
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .url-copy input {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -469,7 +520,10 @@
 
         <!-- Диалоги -->
         <div class="panel dialogs-panel">
-            <div class="panel-header">💬 Диалоги</div>
+            <div class="panel-header">
+                <span>💬 Диалоги</span>
+                <button id="viewUrlBtn" class="view-url-btn" onclick="showCurrentUrl()" title="Просмотреть текущий URL запроса">🔗 URL</button>
+            </div>
             <div class="filter-form" id="dialogsFilterForm" style="display: none;">
                 <div class="form-section">
                     <label for="filterExample">🔍 Фильтр:</label>
@@ -637,7 +691,10 @@
             // Обновляем заголовок колонки диалогов
             const dialogsHeader = document.querySelector('.dialogs-panel .panel-header');
             if (dialogsHeader) {
-                dialogsHeader.textContent = `💬 Диалоги пользователя ${userName}`;
+                dialogsHeader.innerHTML = `
+                    <span>💬 Диалоги пользователя ${userName}</span>
+                    <button id="viewUrlBtn" class="view-url-btn" onclick="showCurrentUrl()" title="Просмотреть текущий URL запроса">🔗 URL</button>
+                `;
             }
         }
 
@@ -896,6 +953,67 @@
         // Закрыть модальное окно
         function closeModal() {
             document.getElementById('infoModal').style.display = 'none';
+        }
+
+        // Функция показа текущего URL запроса
+        function showCurrentUrl() {
+            if (!currentUserId) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
+
+            // Строим URL запроса
+            let url = `/api/users/${currentUserId}/dialogs`;
+            const params = new URLSearchParams();
+            
+            // Добавляем параметры пагинации
+            params.append('page', currentPage || 1);
+            params.append('limit', 10);
+            
+            // Добавляем фильтр
+            if (currentDialogFilter) {
+                params.append('filter', currentDialogFilter);
+            }
+            
+            // Добавляем сортировку
+            if (currentDialogSort) {
+                params.append('sort', currentDialogSort);
+            }
+            
+            // Формируем полный URL
+            const fullUrl = url + (params.toString() ? '?' + params.toString() : '');
+            
+            // Показываем в модальном окне
+            showModal('Текущий URL запроса', `
+                <div class="url-info">
+                    <h4>API Endpoint:</h4>
+                    <div class="url-display">${fullUrl}</div>
+                    
+                    <h4>Параметры:</h4>
+                    <div class="params-list">
+                        <div><strong>page:</strong> ${currentPage || 1}</div>
+                        <div><strong>limit:</strong> 10</div>
+                        ${currentDialogFilter ? `<div><strong>filter:</strong> ${currentDialogFilter}</div>` : ''}
+                        ${currentDialogSort ? `<div><strong>sort:</strong> ${currentDialogSort}</div>` : ''}
+                    </div>
+                    
+                    <h4>Полный URL для копирования:</h4>
+                    <div class="url-copy">
+                        <input type="text" value="${window.location.origin}${fullUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
+                        <button onclick="copyToClipboard('${window.location.origin}${fullUrl}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
+                    </div>
+                </div>
+            `);
+        }
+
+        // Функция копирования в буфер обмена
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('URL скопирован в буфер обмена!');
+            }).catch(err => {
+                console.error('Ошибка копирования: ', err);
+                alert('Не удалось скопировать URL');
+            });
         }
 
         // Форматировать информацию о диалоге

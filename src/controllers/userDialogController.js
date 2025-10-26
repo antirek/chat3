@@ -196,14 +196,8 @@ const userDialogController = {
         .sort({ lastSeenAt: -1 }) // Sort by last seen (most recent first)
         .lean();
 
-      // Get total count for pagination
-      const total = await DialogMember.countDocuments(dialogMembersQuery);
-
-      // Apply pagination to the results
-      const paginatedDialogMembers = dialogMembers.slice(skip, skip + limit);
-
       // Format response data
-      const dialogs = paginatedDialogMembers.map(member => ({
+      const dialogs = dialogMembers.map(member => ({
         dialogId: member.dialogId._id,
         dialogName: member.dialogId.name,
         unreadCount: member.unreadCount,
@@ -218,7 +212,7 @@ const userDialogController = {
         ))
       }));
 
-      // Apply sorting
+      // Apply sorting BEFORE pagination
       if (req.query.sort) {
         // Parse sort parameter in format (field,direction)
         const sortMatch = req.query.sort.match(/\(([^,]+),([^)]+)\)/);
@@ -227,30 +221,30 @@ const userDialogController = {
           const direction = sortMatch[2];
           console.log('Sorting by:', field, direction);
         
-        dialogs.sort((a, b) => {
-          let aVal, bVal;
-          
-          if (field === 'lastSeenAt') {
-            aVal = new Date(a.lastSeenAt || 0);
-            bVal = new Date(b.lastSeenAt || 0);
-          } else if (field === 'lastInteractionAt') {
-            aVal = new Date(a.lastInteractionAt || 0);
-            bVal = new Date(b.lastInteractionAt || 0);
-          } else if (field === 'unreadCount') {
-            aVal = a.unreadCount || 0;
-            bVal = b.unreadCount || 0;
-          } else {
-            // Default sorting by lastInteractionAt
-            aVal = new Date(a.lastInteractionAt || 0);
-            bVal = new Date(b.lastInteractionAt || 0);
-          }
-          
-          if (direction === 'desc') {
-            return bVal - aVal;
-          } else {
-            return aVal - bVal;
-          }
-        });
+          dialogs.sort((a, b) => {
+            let aVal, bVal;
+            
+            if (field === 'lastSeenAt') {
+              aVal = new Date(a.lastSeenAt || 0);
+              bVal = new Date(b.lastSeenAt || 0);
+            } else if (field === 'lastInteractionAt') {
+              aVal = new Date(a.lastInteractionAt || 0);
+              bVal = new Date(b.lastInteractionAt || 0);
+            } else if (field === 'unreadCount') {
+              aVal = a.unreadCount || 0;
+              bVal = b.unreadCount || 0;
+            } else {
+              // Default sorting by lastInteractionAt
+              aVal = new Date(a.lastInteractionAt || 0);
+              bVal = new Date(b.lastInteractionAt || 0);
+            }
+            
+            if (direction === 'desc') {
+              return bVal - aVal;
+            } else {
+              return aVal - bVal;
+            }
+          });
         } else {
           console.log('Invalid sort format:', req.query.sort);
           // Fallback to default sorting
@@ -261,12 +255,18 @@ const userDialogController = {
         dialogs.sort((a, b) => new Date(b.lastInteractionAt) - new Date(a.lastInteractionAt));
       }
 
-      console.log('Returning dialogs:', dialogs.length, 'total:', total);
+      // Get total count for pagination (after sorting)
+      const total = dialogs.length;
+
+      // Apply pagination to the sorted results
+      const paginatedDialogs = dialogs.slice(skip, skip + limit);
+
+      console.log('Returning dialogs:', paginatedDialogs.length, 'total:', total);
       console.log('Dialog IDs used:', dialogIds);
       console.log('Filter was applied:', dialogIds !== null);
       console.log('Sort parameter:', req.query.sort);
       res.json({
-        data: dialogs,
+        data: paginatedDialogs,
         pagination: {
           page,
           limit,
