@@ -104,13 +104,57 @@ const userDialogController = {
       // Применяем обычные фильтры (unreadCount, lastSeenAt, etc.)
       if (req.query.unreadCount !== undefined) {
         console.log('req.query.unreadCount:', req.query.unreadCount, 'type:', typeof req.query.unreadCount);
-        const unreadCount = parseInt(req.query.unreadCount);
-        console.log('Parsed unreadCount:', unreadCount, 'isNaN:', isNaN(unreadCount));
-        if (!isNaN(unreadCount)) {
-          dialogMembersQuery.unreadCount = unreadCount;
-          console.log('Applied unreadCount filter:', unreadCount);
-          console.log('dialogMembersQuery after unreadCount:', dialogMembersQuery);
+        
+        // Поддержка операторов для unreadCount
+        const unreadCountValue = req.query.unreadCount;
+        
+        if (typeof unreadCountValue === 'object' && unreadCountValue !== null) {
+          // Объект с операторами MongoDB ($gte, $gt, $lte, $lt)
+          dialogMembersQuery.unreadCount = unreadCountValue;
+          console.log('Applied unreadCount object filter:', unreadCountValue);
+        } else if (typeof unreadCountValue === 'string') {
+          // Строка с префиксом оператора
+          if (unreadCountValue.startsWith('gte:')) {
+            const value = parseInt(unreadCountValue.substring(4));
+            if (!isNaN(value)) {
+              dialogMembersQuery.unreadCount = { $gte: value };
+              console.log('Applied unreadCount gte filter:', value);
+            }
+          } else if (unreadCountValue.startsWith('gt:')) {
+            const value = parseInt(unreadCountValue.substring(3));
+            if (!isNaN(value)) {
+              dialogMembersQuery.unreadCount = { $gt: value };
+              console.log('Applied unreadCount gt filter:', value);
+            }
+          } else if (unreadCountValue.startsWith('lte:')) {
+            const value = parseInt(unreadCountValue.substring(4));
+            if (!isNaN(value)) {
+              dialogMembersQuery.unreadCount = { $lte: value };
+              console.log('Applied unreadCount lte filter:', value);
+            }
+          } else if (unreadCountValue.startsWith('lt:')) {
+            const value = parseInt(unreadCountValue.substring(3));
+            if (!isNaN(value)) {
+              dialogMembersQuery.unreadCount = { $lt: value };
+              console.log('Applied unreadCount lt filter:', value);
+            }
+          } else {
+            // Точное равенство (eq)
+            const unreadCount = parseInt(unreadCountValue);
+            if (!isNaN(unreadCount)) {
+              dialogMembersQuery.unreadCount = unreadCount;
+              console.log('Applied unreadCount eq filter:', unreadCount);
+            }
+          }
+        } else {
+          // Число - точное равенство
+          const unreadCount = parseInt(unreadCountValue);
+          if (!isNaN(unreadCount)) {
+            dialogMembersQuery.unreadCount = unreadCount;
+            console.log('Applied unreadCount eq filter:', unreadCount);
+          }
         }
+        console.log('dialogMembersQuery after unreadCount:', dialogMembersQuery);
       }
       
       if (req.query.lastSeenAt !== undefined) {
