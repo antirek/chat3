@@ -455,6 +455,13 @@
             overflow-x: auto;
         }
 
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-style: italic;
+        }
+
         .panel-header {
             display: flex;
             justify-content: space-between;
@@ -992,27 +999,36 @@
         }
 
         // Показать информацию о сообщении
-        function showMessageInfo(messageId) {
+        async function showMessageInfo(messageId) {
             console.log('Show message info for:', messageId);
             
-            // Находим строку сообщения по ID
-            const messageRow = document.querySelector(`tr[data-message-id="${messageId}"]`);
-            if (!messageRow) {
-                showModal('Ошибка', 'Сообщение не найдено');
-                return;
+            // Показываем загрузку
+            showModal('Информация о сообщении', '<div class="loading">Загрузка информации о сообщении...</div>');
+            
+            try {
+                // Загружаем полную информацию о сообщении с сервера
+                const response = await fetch(`/api/messages/${messageId}`, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Message info response:', data);
+
+                if (data.data) {
+                    showModal('Информация о сообщении', formatMessageInfo(data.data));
+                } else {
+                    showModal('Ошибка', 'Данные сообщения не найдены');
+                }
+            } catch (error) {
+                console.error('Error loading message info:', error);
+                showModal('Ошибка', `Ошибка загрузки: ${error.message}`);
             }
-
-            // Извлекаем данные из строки таблицы
-            const cells = messageRow.querySelectorAll('td');
-            const message = {
-                id: messageId,
-                sender: cells[0].textContent,
-                time: cells[1].textContent,
-                content: cells[2].textContent,
-                type: cells[3].textContent
-            };
-
-            showModal('Информация о сообщении', formatMessageInfo(message));
         }
 
         // Показать модальное окно
