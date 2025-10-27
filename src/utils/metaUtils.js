@@ -110,18 +110,20 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters) {
     }
 
     // Находим все entityId, которые соответствуют мета-фильтрам
-    const metaQuery = {
-      tenantId,
-      entityType
-    };
-
+    const metaConditions = [];
+    
     // Добавляем условия для каждого мета-фильтра
     for (const [key, value] of Object.entries(metaFilters)) {
-      metaQuery.key = key;
-      metaQuery.value = value;
+      metaConditions.push({
+        tenantId,
+        entityType,
+        key,
+        value
+      });
     }
 
-    const metaRecords = await Meta.find(metaQuery).select('entityId').lean();
+    // Используем $and для объединения всех условий
+    const metaRecords = await Meta.find({ $and: metaConditions }).select('entityId').lean();
     
     if (metaRecords.length === 0) {
       // Если нет записей, соответствующих мета-фильтрам, возвращаем условие, которое никогда не выполнится

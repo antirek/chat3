@@ -285,6 +285,16 @@
             white-space: nowrap;
         }
 
+        .message-id {
+            font-family: monospace;
+            font-size: 11px;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #666;
+        }
+
         table button {
             padding: 3px 6px;
             font-size: 10px;
@@ -516,6 +526,11 @@
                         <option value="(dialogId,eq,68fe517229fdd8e9d313d3cc)">💬 Диалог = Аудиторы #5</option>
                         <option value="(dialogId,eq,68fe517229fdd8e9d313d3dd)">💬 Диалог = Юристы #5</option>
                         <option value="(dialogId,in,[68fe517229fdd8e9d313d3aa,68fe517229fdd8e9d313d3cc])">💬 Диалог в [Партнеры,Аудиторы]</option>
+                        <option value="(meta.channelType,eq,whatsapp)">📱 WhatsApp сообщения</option>
+                        <option value="(meta.channelType,eq,telegram)">📱 Telegram сообщения</option>
+                        <option value="(meta.channelId,eq,W0000)">📱 Канал W0000</option>
+                        <option value="(meta.channelId,eq,TG0000)">📱 Канал TG0000</option>
+                        <option value="(meta.channelType,in,[whatsapp,telegram])">📱 WhatsApp или Telegram</option>
                         <option value="(createdAt,gte,2025-10-24)">📅 Создано ≥ 24.10.2025</option>
                         <option value="(createdAt,gte,2025-10-22)">📅 Создано ≥ 22.10.2025</option>
                         <option value="(createdAt,lt,2025-10-21)">📅 Создано < 21.10.2025</option>
@@ -526,6 +541,12 @@
                         <option value="(dialogId,eq,68fe517229fdd8e9d313d3aa)&(senderId,eq,carl)">💬 Партнеры #5 + Carl</option>
                         <option value="(dialogId,eq,68fe517229fdd8e9d313d3cc)&(type,eq,text)">💬 Аудиторы #5 + text</option>
                         <option value="(dialogId,in,[68fe517229fdd8e9d313d3aa,68fe517229fdd8e9d313d3cc])&(senderId,eq,marta)">💬 Партнеры/Аудиторы + Marta</option>
+                        <option value="(meta.channelType,eq,whatsapp)&(senderId,eq,carl)">📱 WhatsApp + Carl</option>
+                        <option value="(meta.channelType,eq,telegram)&(type,eq,text)">📱 Telegram + text</option>
+                        <option value="(meta.channelId,eq,W0000)&(content,regex,привет)">📱 W0000 + "привет"</option>
+                        <option value="(meta.channelType,in,[whatsapp,telegram])&(senderId,in,[carl,sara])">📱 WhatsApp/Telegram + Carl/Sara</option>
+                        <option value="(dialogId,eq,68fe517229fdd8e9d313d3aa)&(meta.channelType,eq,whatsapp)">💬 Партнеры #5 + WhatsApp</option>
+                        <option value="(meta.channelId,eq,TG0000)&(type,eq,system)">📱 TG0000 + system</option>
                         <option value="custom">✏️ Пользовательский фильтр</option>
                     </select>
                 </div>
@@ -629,7 +650,7 @@
                 return;
             }
             console.log('API Key set:', apiKey);
-            loadDialogs();
+            loadMessages(1);
         }
 
         async function loadDialogs() {
@@ -665,16 +686,14 @@
         }
 
         async function loadMessages(page = 1) {
-            if (!currentMessageFilter) {
-                document.getElementById('messagesList').innerHTML = '<div class="no-data">Выберите фильтр для загрузки сообщений</div>';
-                return;
-            }
-
             try {
                 const params = new URLSearchParams();
                 params.append('page', page);
                 params.append('limit', 20);
-                params.append('filter', currentMessageFilter);
+                
+                if (currentMessageFilter) {
+                    params.append('filter', currentMessageFilter);
+                }
                 
                 if (currentMessageSort) {
                     params.append('sort', currentMessageSort);
@@ -742,6 +761,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th>ID сообщения</th>
                             <th>Диалог</th>
                             <th>Отправитель</th>
                             <th onclick="toggleMessageSort('createdAt')" style="cursor: pointer;">Время <span class="sort-indicator" id="sort-message-createdAt">${getMessageSortIndicator('createdAt')}</span></th>
@@ -753,6 +773,7 @@
                     <tbody>
                         ${messages.map(message => `
                             <tr data-message-id="${message._id}">
+                                <td class="message-id">${message._id}</td>
                                 <td>${getDialogName(message.dialogId)}</td>
                                 <td>${message.senderId}</td>
                                 <td>${formatMessageTime(message.createdAt)}</td>
@@ -1077,6 +1098,11 @@
             addButton.style.marginRight = '10px';
             addButton.onclick = showAddMessageModal;
             panelHeader.insertBefore(addButton, panelHeader.querySelector('.url-button'));
+            
+            // Загружаем сообщения при загрузке страницы
+            if (apiKey) {
+                loadMessages(1);
+            }
         });
     </script>
 </body>

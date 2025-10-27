@@ -12,19 +12,34 @@ const messageController = {
       const skip = (page - 1) * limit;
 
       // Build base query
-      const query = {
+      let query = {
         tenantId: req.tenantId
       };
 
-      // Apply simple filters if provided
+      // Apply filters if provided
       if (req.query.filter) {
         try {
           console.log('Filter string:', req.query.filter);
           const parsedFilters = parseFilters(req.query.filter);
           console.log('Parsed filters:', parsedFilters);
-          const { regularFilters } = extractMetaFilters(parsedFilters);
+          const { regularFilters, metaFilters } = extractMetaFilters(parsedFilters);
           console.log('Regular filters:', regularFilters);
+          console.log('Meta filters:', metaFilters);
+          
+          // Apply regular filters
           Object.assign(query, regularFilters);
+          
+          // Apply meta filters if any
+          if (Object.keys(metaFilters).length > 0) {
+            console.log('Applying meta filters:', metaFilters);
+            const metaQuery = await metaUtils.buildMetaQuery(req.tenantId, 'message', metaFilters);
+            console.log('Meta query result:', metaQuery);
+            if (metaQuery) {
+              query = { ...query, ...metaQuery };
+              console.log('Final query with meta filters:', query);
+            }
+          }
+          
           console.log('Final query:', query);
         } catch (error) {
           console.log('Filter parsing error:', error.message);
@@ -41,17 +56,33 @@ const messageController = {
 
       console.log('Found messages:', messages.length);
 
-      const filteredMessages = messages;
-
-      // Simplified - just return messages without meta and statuses for now
-      const messagesWithMeta = filteredMessages.map(message => {
-        const messageObj = message.toObject();
-        return {
-          ...messageObj,
-          meta: {},
-          messageStatuses: []
-        };
-      });
+      // Add meta data and message statuses for each message
+      const messagesWithMeta = await Promise.all(
+        messages.map(async (message) => {
+          // Get message meta data
+          const meta = await metaUtils.getEntityMeta(
+            req.tenantId,
+            'message',
+            message._id
+          );
+          
+          // Get message statuses sorted by date (newest first)
+          const messageStatuses = await MessageStatus.find({
+            messageId: message._id,
+            tenantId: req.tenantId
+          })
+            .select('userId status readAt createdAt')
+            .sort({ createdAt: -1 }); // Newest first
+          
+          const messageObj = message.toObject();
+          
+          return {
+            ...messageObj,
+            meta,
+            messageStatuses
+          };
+        })
+      );
 
       const total = await Message.countDocuments(query);
 
