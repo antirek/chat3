@@ -6,15 +6,25 @@ const messageController = {
   // Get all messages with filtering and pagination
   async getAll(req, res) {
     try {
-      console.log('getAll called with tenantId:', req.tenantId);
+      console.log('=== getAll called ===');
+      console.log('tenantId:', req.tenantId);
+      console.log('query:', req.query);
+      
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       const skip = (page - 1) * limit;
+
+      console.log('pagination:', { page, limit, skip });
 
       // Build base query
       let query = {
         tenantId: req.tenantId
       };
+
+      console.log('base query:', query);
+
+      // Initialize metaFilters variable
+      let metaFilters = {};
 
       // Apply filters if provided
       if (req.query.filter) {
@@ -22,9 +32,12 @@ const messageController = {
           console.log('Filter string:', req.query.filter);
           const parsedFilters = parseFilters(req.query.filter);
           console.log('Parsed filters:', parsedFilters);
-          const { regularFilters, metaFilters } = extractMetaFilters(parsedFilters);
+          const { regularFilters, metaFilters: extractedMetaFilters } = extractMetaFilters(parsedFilters);
           console.log('Regular filters:', regularFilters);
-          console.log('Meta filters:', metaFilters);
+          console.log('Meta filters:', extractedMetaFilters);
+          
+          // Assign metaFilters to the outer scope
+          metaFilters = extractedMetaFilters;
           
           // Apply regular filters
           Object.assign(query, regularFilters);
@@ -55,6 +68,26 @@ const messageController = {
         .limit(limit);
 
       console.log('Found messages:', messages.length);
+
+      // Дополнительная проверка: проверим мета-теги найденных сообщений
+      if (Object.keys(metaFilters).length > 0) {
+        console.log('Verifying meta filters for found messages...');
+        for (const message of messages) {
+          const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', message._id);
+          console.log(`Message ${message._id} meta:`, messageMeta);
+          
+          // Проверяем каждый мета-фильтр
+          for (const [key, expectedValue] of Object.entries(metaFilters)) {
+            const actualValue = messageMeta[key];
+            if (actualValue !== expectedValue) {
+              console.error(`❌ META FILTER MISMATCH for message ${message._id}:`);
+              console.error(`   Expected ${key}=${expectedValue}, got ${key}=${actualValue}`);
+            } else {
+              console.log(`✅ Meta filter OK for message ${message._id}: ${key}=${actualValue}`);
+            }
+          }
+        }
+      }
 
       // Add meta data and message statuses for each message
       const messagesWithMeta = await Promise.all(

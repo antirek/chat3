@@ -109,30 +109,41 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters) {
       return null;
     }
 
-    // Находим все entityId, которые соответствуют мета-фильтрам
-    const metaConditions = [];
+    console.log('buildMetaQuery called with:', { tenantId, entityType, metaFilters });
+
+    // Для каждого мета-фильтра находим соответствующие entityId
+    const allEntityIds = new Set();
     
-    // Добавляем условия для каждого мета-фильтра
     for (const [key, value] of Object.entries(metaFilters)) {
-      metaConditions.push({
+      console.log(`Looking for ${key}=${value}`);
+      
+      const metaRecords = await Meta.find({
         tenantId,
         entityType,
         key,
         value
+      }).select('entityId').lean();
+      
+      console.log(`Found ${metaRecords.length} records for ${key}=${value}`);
+      
+      if (metaRecords.length === 0) {
+        // Если нет записей для этого фильтра, возвращаем пустой результат
+        console.log(`No records found for ${key}=${value}, returning empty result`);
+        return { _id: { $in: [] } };
+      }
+      
+      // Добавляем entityId в множество
+      metaRecords.forEach(record => {
+        allEntityIds.add(record.entityId);
       });
     }
-
-    // Используем $and для объединения всех условий
-    const metaRecords = await Meta.find({ $and: metaConditions }).select('entityId').lean();
     
-    if (metaRecords.length === 0) {
-      // Если нет записей, соответствующих мета-фильтрам, возвращаем условие, которое никогда не выполнится
-      return { _id: { $in: [] } };
-    }
-
-    const entityIds = metaRecords.map(record => record.entityId);
+    const entityIds = Array.from(allEntityIds);
+    console.log('Final entity IDs:', entityIds);
+    
     return { _id: { $in: entityIds } };
   } catch (error) {
+    console.error('Error in buildMetaQuery:', error);
     throw new Error(`Failed to build meta query: ${error.message}`);
   }
 }
