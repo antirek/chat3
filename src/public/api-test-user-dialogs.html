@@ -589,6 +589,60 @@
             background: #5a6fd8;
         }
 
+        /* Стили для мета-тегов */
+        .meta-tag-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .meta-key {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .meta-value {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .remove-meta-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            min-width: 40px;
+        }
+
+        .remove-meta-btn:hover {
+            background: #c82333;
+        }
+
+        .add-meta-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .add-meta-btn:hover {
+            background: #218838;
+        }
+
         /* Стили для кнопок в колонке Действия */
         td button {
             margin-right: 5px;
@@ -756,6 +810,19 @@
                     <div class="form-group">
                         <label for="messageContent">Содержимое:</label>
                         <textarea id="messageContent" rows="4" required>тест тест</textarea>
+                    </div>
+                    
+                    <!-- Секция мета-тегов -->
+                    <div class="form-group">
+                        <label>Мета-теги:</label>
+                        <div id="metaTagsContainer">
+                            <div class="meta-tag-row">
+                                <input type="text" class="meta-key" placeholder="Ключ (например: channelType)" pattern="[a-zA-Z0-9_]+" title="Только латинские буквы, цифры и подчеркивание">
+                                <input type="text" class="meta-value" placeholder="Значение (например: whatsapp)">
+                                <button type="button" class="remove-meta-btn" onclick="removeMetaTagRow(this)" style="display: none;">✕</button>
+                            </div>
+                        </div>
+                        <button type="button" onclick="addMetaTagRow()" class="add-meta-btn">+ Добавить мета-тег</button>
                     </div>
                     <div class="form-actions">
                         <button type="button" onclick="closeAddMessageModal()">Отмена</button>
@@ -1522,6 +1589,16 @@
             document.getElementById('addMessageForm').reset();
             document.getElementById('messageContent').value = 'тест тест';
             
+            // Сбрасываем мета-теги (оставляем только одну пустую строку)
+            const container = document.getElementById('metaTagsContainer');
+            container.innerHTML = `
+                <div class="meta-tag-row">
+                    <input type="text" class="meta-key" placeholder="Ключ (например: channelType)" pattern="[a-zA-Z0-9_]+" title="Только латинские буквы, цифры и подчеркивание">
+                    <input type="text" class="meta-value" placeholder="Значение (например: whatsapp)">
+                    <button type="button" class="remove-meta-btn" onclick="removeMetaTagRow(this)" style="display: none;">✕</button>
+                </div>
+            `;
+            
             // Показываем модальное окно
             document.getElementById('addMessageModal').style.display = 'block';
         }
@@ -1530,6 +1607,54 @@
             document.getElementById('addMessageModal').style.display = 'none';
             currentDialogIdForMessage = null;
             currentDialogNameForMessage = null;
+        }
+
+        // Функции для работы с мета-тегами
+        function addMetaTagRow() {
+            const container = document.getElementById('metaTagsContainer');
+            const newRow = document.createElement('div');
+            newRow.className = 'meta-tag-row';
+            newRow.innerHTML = `
+                <input type="text" class="meta-key" placeholder="Ключ (например: channelType)" pattern="[a-zA-Z0-9_]+" title="Только латинские буквы, цифры и подчеркивание">
+                <input type="text" class="meta-value" placeholder="Значение (например: whatsapp)">
+                <button type="button" class="remove-meta-btn" onclick="removeMetaTagRow(this)">✕</button>
+            `;
+            container.appendChild(newRow);
+            updateRemoveButtons();
+        }
+
+        function removeMetaTagRow(button) {
+            const row = button.closest('.meta-tag-row');
+            row.remove();
+            updateRemoveButtons();
+        }
+
+        function updateRemoveButtons() {
+            const rows = document.querySelectorAll('.meta-tag-row');
+            rows.forEach((row, index) => {
+                const removeBtn = row.querySelector('.remove-meta-btn');
+                if (rows.length === 1) {
+                    removeBtn.style.display = 'none';
+                } else {
+                    removeBtn.style.display = 'block';
+                }
+            });
+        }
+
+        function collectMetaTags() {
+            const metaTags = {};
+            const rows = document.querySelectorAll('.meta-tag-row');
+            
+            rows.forEach(row => {
+                const keyInput = row.querySelector('.meta-key');
+                const valueInput = row.querySelector('.meta-value');
+                
+                if (keyInput.value.trim() && valueInput.value.trim()) {
+                    metaTags[keyInput.value.trim()] = valueInput.value.trim();
+                }
+            });
+            
+            return Object.keys(metaTags).length > 0 ? metaTags : null;
         }
 
         // Обработчик отправки формы
@@ -1544,6 +1669,7 @@
             const senderId = document.getElementById('messageSender').value;
             const type = document.getElementById('messageType').value;
             const content = document.getElementById('messageContent').value;
+            const meta = collectMetaTags();
 
             try {
                 const response = await fetch(`/api/dialogs/${currentDialogIdForMessage}/messages`, {
@@ -1555,7 +1681,8 @@
                     body: JSON.stringify({
                         senderId: senderId,
                         type: type,
-                        content: content
+                        content: content,
+                        meta: meta
                     })
                 });
 
