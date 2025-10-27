@@ -80,6 +80,25 @@
             font-weight: 600;
             color: #495057;
             font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .url-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: normal;
+            transition: background-color 0.2s;
+        }
+
+        .url-button:hover {
+            background: #5a6fd8;
         }
 
         .panel-content {
@@ -473,7 +492,10 @@
     <div class="container">
         <!-- Диалоги -->
         <div class="panel dialogs-panel">
-            <div class="panel-header">💬 Диалоги</div>
+            <div class="panel-header">
+                <span>💬 Диалоги</span>
+                <button onclick="showCurrentUrl()" class="url-button" title="Показать URL запроса">🔗 URL</button>
+            </div>
             
             <div class="combined-form" id="combinedForm">
                 <div class="form-section">
@@ -1067,6 +1089,68 @@
                 setApiKey();
             }
         });
+
+        // Функция для показа текущего URL запроса
+        function showCurrentUrl() {
+            // Строим URL запроса
+            let url = `/api/dialogs`;
+            const params = new URLSearchParams();
+            
+            // Добавляем параметры пагинации
+            params.append('page', currentPage || 1);
+            params.append('limit', 10);
+            
+            // Добавляем фильтр
+            if (currentFilter) {
+                params.append('filter', currentFilter);
+            }
+            
+            // Добавляем дополнительный фильтр
+            if (currentAdditionalFilter) {
+                params.append('filter', currentAdditionalFilter);
+            }
+            
+            // Добавляем сортировку
+            if (currentSort) {
+                params.append('sort', currentSort);
+            }
+            
+            // Формируем полный URL
+            const fullUrl = url + (params.toString() ? '?' + params.toString() : '');
+            
+            // Показываем в модальном окне
+            showModal('Текущий URL запроса диалогов', `
+                <div class="url-info">
+                    <h4>API Endpoint:</h4>
+                    <div class="url-display">${fullUrl}</div>
+                    
+                    <h4>Параметры:</h4>
+                    <div class="params-list">
+                        <div><strong>page:</strong> ${currentPage || 1}</div>
+                        <div><strong>limit:</strong> 10</div>
+                        ${currentFilter ? `<div><strong>filter:</strong> ${currentFilter}</div>` : ''}
+                        ${currentAdditionalFilter ? `<div><strong>additional filter:</strong> ${currentAdditionalFilter}</div>` : ''}
+                        ${currentSort ? `<div><strong>sort:</strong> ${currentSort}</div>` : ''}
+                    </div>
+                    
+                    <h4>Полный URL для копирования:</h4>
+                    <div class="url-copy">
+                        <input type="text" value="${window.location.origin}${fullUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
+                        <button onclick="copyToClipboard('${window.location.origin}${fullUrl}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
+                    </div>
+                </div>
+            `);
+        }
+
+        // Функция для копирования в буфер обмена
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert('URL скопирован в буфер обмена!');
+            }, function(err) {
+                console.error('Ошибка копирования: ', err);
+                alert('Ошибка копирования в буфер обмена');
+            });
+        }
     </script>
 
     <!-- Модальное окно для информации -->

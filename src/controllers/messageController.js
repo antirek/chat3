@@ -25,6 +25,21 @@ const messageController = {
 
       // Initialize metaFilters variable
       let metaFilters = {};
+      
+      // Parse sort parameter
+      let sortOptions = { createdAt: -1 }; // Default sort by newest first
+      if (req.query.sort) {
+        console.log('Sort parameter:', req.query.sort);
+        // Parse sort string like "(createdAt,asc)" or "(createdAt,desc)"
+        const sortMatch = req.query.sort.match(/\(([^,]+),([^)]+)\)/);
+        if (sortMatch) {
+          const field = sortMatch[1];
+          const direction = sortMatch[2];
+          console.log(`Sorting by ${field} ${direction}`);
+          sortOptions = { [field]: direction === 'asc' ? 1 : -1 };
+        }
+      }
+      console.log('Sort options:', sortOptions);
 
       // Apply filters if provided
       if (req.query.filter) {
@@ -63,7 +78,7 @@ const messageController = {
       // Get messages with pagination
       const messages = await Message.find(query)
         .select('dialogId senderId content type createdAt updatedAt')
-        .sort({ createdAt: -1 })
+        .sort(sortOptions)
         .skip(skip)
         .limit(limit);
 

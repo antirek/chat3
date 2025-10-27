@@ -901,11 +901,6 @@
         }
 
         function showCurrentMessageUrl() {
-            if (!currentMessageFilter) {
-                alert('Сначала выберите фильтр сообщений');
-                return;
-            }
-
             // Строим URL запроса
             let url = `/api/messages`;
             const params = new URLSearchParams();
