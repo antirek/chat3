@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - Сообщения - Chat3</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .api-key-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .api-key-section input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 400px;
+        }
+
+        .api-key-section button {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .api-key-section button:hover {
+            background: #5a6fd8;
+        }
+
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .messages-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: #667eea;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .url-button {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: normal;
+            transition: background-color 0.2s;
+        }
+
+        .url-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .filter-form {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            background: #f8f9fa;
+        }
+
+        .form-section {
+            margin-bottom: 15px;
+        }
+
+        .form-section label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+            font-size: 12px;
+        }
+
+        .form-section select,
+        .form-section input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .input-with-clear {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-with-clear input {
+            flex: 1;
+            padding-right: 30px;
+        }
+
+        .clear-field {
+            position: absolute;
+            right: 8px;
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .clear-field:hover {
+            color: #666;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .form-actions button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .form-actions button[type="button"] {
+            background: #6c757d;
+            color: white;
+        }
+
+        .form-actions button[type="button"]:hover {
+            background: #5a6268;
+        }
+
+        .form-actions button[type="submit"] {
+            background: #667eea;
+            color: white;
+        }
+
+        .form-actions button[type="submit"]:hover {
+            background: #5a6fd8;
+        }
+
+        .pagination {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .pagination button {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #e9ecef;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination span {
+            font-size: 11px;
+            color: #666;
+            margin-left: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 11px;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #e9ecef;
+        }
+
+        .sort-indicator {
+            margin-left: 5px;
+            font-size: 10px;
+            color: #667eea;
+        }
+
+        .sort-indicator.active {
+            color: #667eea;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .message-content {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        table button {
+            padding: 3px 6px;
+            font-size: 10px;
+            border: 1px solid #ced4da;
+            background: white;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        table button:hover {
+            background: #e9ecef;
+        }
+
+        .no-data {
+            padding: 40px;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+
+        .loading {
+            padding: 20px;
+            text-align: center;
+            color: #667eea;
+        }
+
+        /* Модальное окно */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            background: #667eea;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .json-content {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .url-info h4 {
+            margin: 15px 0 8px 0;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .url-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin-bottom: 10px;
+        }
+
+        .params-list {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 12px;
+        }
+
+        .params-list div {
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .url-copy input {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+        /* Стили для формы добавления сообщения */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .form-actions button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .form-actions button[type="button"] {
+            background: #6c757d;
+            color: white;
+        }
+
+        .form-actions button[type="button"]:hover {
+            background: #5a6268;
+        }
+
+        .form-actions button[type="submit"] {
+            background: #667eea;
+            color: white;
+        }
+
+        .form-actions button[type="submit"]:hover {
+            background: #5a6fd8;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="api-key-section">
+            <label for="apiKey" style="font-weight: 600; color: #333;">API Key:</label>
+            <input type="text" id="apiKey" placeholder="Введите API Key" value="chat3_cc803bc772e170d543ce3c48417452af8372e3d8a57886af32520c69db370768">
+            <button onclick="setApiKey()">Установить</button>
+        </div>
+        <a href="index.html" class="back-link">← Назад к выбору интерфейса</a>
+    </div>
+
+    <div class="container">
+        <div class="messages-panel">
+            <div class="panel-header">
+                <h2>📝 Сообщения</h2>
+                <button onclick="showCurrentMessageUrl()" class="url-button" title="Показать URL запроса">🔗 URL</button>
+            </div>
+
+            <div class="filter-form" id="messagesFilterForm">
+                <div class="form-section">
+                    <label for="messageFilterExample">🔍 Фильтр сообщений:</label>
+                    <select id="messageFilterExample" onchange="selectMessageFilterExample()">
+                        <option value="">Выберите пример фильтра</option>
+                        <option value="(content,regex,встретимся)">📝 Содержит "встретимся"</option>
+                        <option value="(content,regex,спасибо)">📝 Содержит "спасибо"</option>
+                        <option value="(content,regex,привет)">📝 Содержит "привет"</option>
+                        <option value="(content,regex,хорошо)">📝 Содержит "хорошо"</option>
+                        <option value="(content,regex,интересно)">📝 Содержит "интересно"</option>
+                        <option value="(content,regex,отлично)">📝 Содержит "отлично"</option>
+                        <option value="(type,eq,text)">📝 Тип = text</option>
+                        <option value="(type,eq,system)">📝 Тип = system</option>
+                        <option value="(type,in,[text,system])">📝 Тип в [text,system]</option>
+                        <option value="(senderId,eq,carl)">👤 Отправитель = carl</option>
+                        <option value="(senderId,eq,sara)">👤 Отправитель = sara</option>
+                        <option value="(senderId,in,[carl,marta])">👥 Отправитель в [carl,marta]</option>
+                        <option value="(dialogId,eq,68fe517229fdd8e9d313d3aa)">💬 Диалог = Партнеры #5</option>
+                        <option value="(dialogId,eq,68fe517229fdd8e9d313d3cc)">💬 Диалог = Аудиторы #5</option>
+                        <option value="(dialogId,eq,68fe517229fdd8e9d313d3dd)">💬 Диалог = Юристы #5</option>
+                        <option value="(dialogId,in,[68fe517229fdd8e9d313d3aa,68fe517229fdd8e9d313d3cc])">💬 Диалог в [Партнеры,Аудиторы]</option>
+                        <option value="(createdAt,gte,2025-10-24)">📅 Создано ≥ 24.10.2025</option>
+                        <option value="(createdAt,gte,2025-10-22)">📅 Создано ≥ 22.10.2025</option>
+                        <option value="(createdAt,lt,2025-10-21)">📅 Создано < 21.10.2025</option>
+                        <option value="(content,regex,встретимся)&(type,eq,system)">📝 "встретимся" + system</option>
+                        <option value="(senderId,eq,carl)&(type,eq,system)">👤 Carl + system</option>
+                        <option value="(content,regex,спасибо)&(createdAt,gte,2025-10-24)">📝 "спасибо" + ≥24.10</option>
+                        <option value="(senderId,in,[carl,sara])&(type,eq,text)&(content,regex,привет)">👥 Carl/Sara + text + "привет"</option>
+                        <option value="(dialogId,eq,68fe517229fdd8e9d313d3aa)&(senderId,eq,carl)">💬 Партнеры #5 + Carl</option>
+                        <option value="(dialogId,eq,68fe517229fdd8e9d313d3cc)&(type,eq,text)">💬 Аудиторы #5 + text</option>
+                        <option value="(dialogId,in,[68fe517229fdd8e9d313d3aa,68fe517229fdd8e9d313d3cc])&(senderId,eq,marta)">💬 Партнеры/Аудиторы + Marta</option>
+                        <option value="custom">✏️ Пользовательский фильтр</option>
+                    </select>
+                </div>
+                <div class="form-section">
+                    <div class="input-with-clear">
+                        <input type="text" id="messageFilterInput" placeholder="Введите или выберите фильтр сообщений">
+                        <button type="button" class="clear-field" onclick="clearMessageFilterField()">✕</button>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="clearMessageFilter()">Очистить</button>
+                    <button type="submit" onclick="applyMessageFilter()">Применить</button>
+                </div>
+            </div>
+
+            <div class="pagination" id="messagesPagination">
+                <button onclick="changeMessagePage(1)" disabled>← Предыдущая</button>
+                <button class="active" onclick="changeMessagePage(1)">1</button>
+                <button onclick="changeMessagePage(2)" disabled>Следующая →</button>
+                <span>Страница 1 из 1 (всего 0 сообщений)</span>
+            </div>
+
+            <div id="messagesList">
+                <div class="no-data">Выберите фильтр для загрузки сообщений</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для информации -->
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Информация</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Содержимое будет добавлено динамически -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для добавления сообщения -->
+    <div id="addMessageModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Добавить сообщение</h2>
+                <span class="close" onclick="closeAddMessageModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="addMessageForm">
+                    <div class="form-group">
+                        <label for="messageDialog">Диалог:</label>
+                        <select id="messageDialog" required>
+                            <option value="">Выберите диалог</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="messageSender">Отправитель:</label>
+                        <select id="messageSender" required>
+                            <option value="carl">Carl</option>
+                            <option value="marta">Marta</option>
+                            <option value="sara">Sara</option>
+                            <option value="kirk">Kirk</option>
+                            <option value="john">John</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="messageType">Тип сообщения:</label>
+                        <select id="messageType" required>
+                            <option value="text">Text</option>
+                            <option value="system">System</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="messageContent">Содержимое:</label>
+                        <textarea id="messageContent" rows="4" required>тест тест</textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeAddMessageModal()">Отмена</button>
+                        <button type="submit">Добавить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Глобальные переменные
+        let apiKey = '';
+        let currentMessagePage = 1;
+        let totalMessagePages = 1;
+        let totalMessages = 0;
+        let currentMessageFilter = null;
+        let currentMessageSort = null;
+        let dialogs = [];
+
+        function setApiKey() {
+            apiKey = document.getElementById('apiKey').value.trim();
+            if (!apiKey) {
+                alert('Введите API ключ');
+                return;
+            }
+            console.log('API Key set:', apiKey);
+            loadDialogs();
+        }
+
+        async function loadDialogs() {
+            try {
+                const response = await fetch('/api/dialogs?limit=100', {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                dialogs = data.data || [];
+                
+                // Заполняем dropdown диалогов
+                const dialogSelect = document.getElementById('messageDialog');
+                dialogSelect.innerHTML = '<option value="">Выберите диалог</option>';
+                dialogs.forEach(dialog => {
+                    const option = document.createElement('option');
+                    option.value = dialog._id;
+                    option.textContent = dialog.name;
+                    dialogSelect.appendChild(option);
+                });
+
+                console.log('Loaded dialogs:', dialogs.length);
+            } catch (error) {
+                console.error('Error loading dialogs:', error);
+                alert(`Ошибка загрузки диалогов: ${error.message}`);
+            }
+        }
+
+        async function loadMessages(page = 1) {
+            if (!currentMessageFilter) {
+                document.getElementById('messagesList').innerHTML = '<div class="no-data">Выберите фильтр для загрузки сообщений</div>';
+                return;
+            }
+
+            try {
+                const params = new URLSearchParams();
+                params.append('page', page);
+                params.append('limit', 20);
+                params.append('filter', currentMessageFilter);
+                
+                if (currentMessageSort) {
+                    params.append('sort', currentMessageSort);
+                }
+
+                const response = await fetch(`/api/messages?${params.toString()}`, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Messages response:', data);
+
+                currentMessagePage = page;
+                totalMessagePages = data.pagination?.pages || 1;
+                totalMessages = data.pagination?.total || 0;
+
+                updateMessagesPagination();
+                updateMessagesList(data.data || []);
+            } catch (error) {
+                console.error('Error loading messages:', error);
+                document.getElementById('messagesList').innerHTML = '<div class="no-data">Ошибка загрузки сообщений</div>';
+            }
+        }
+
+        function updateMessagesPagination() {
+            const pagination = document.getElementById('messagesPagination');
+            const buttons = [];
+            
+            // Предыдущая страница
+            buttons.push(`<button onclick="changeMessagePage(${currentMessagePage - 1})" ${currentMessagePage <= 1 ? 'disabled' : ''}>← Предыдущая</button>`);
+            
+            // Номера страниц
+            const startPage = Math.max(1, currentMessagePage - 2);
+            const endPage = Math.min(totalMessagePages, currentMessagePage + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const activeClass = i === currentMessagePage ? 'active' : '';
+                buttons.push(`<button class="${activeClass}" onclick="changeMessagePage(${i})">${i}</button>`);
+            }
+            
+            // Следующая страница
+            buttons.push(`<button onclick="changeMessagePage(${currentMessagePage + 1})" ${currentMessagePage >= totalMessagePages ? 'disabled' : ''}>Следующая →</button>`);
+            
+            // Информация о страницах
+            buttons.push(`<span>Страница ${currentMessagePage} из ${totalMessagePages} (всего ${totalMessages} сообщений)</span>`);
+            
+            pagination.innerHTML = buttons.join('');
+        }
+
+        function updateMessagesList(messages) {
+            const messagesList = document.getElementById('messagesList');
+            
+            if (!messages || messages.length === 0) {
+                messagesList.innerHTML = '<div class="no-data">Сообщения не найдены</div>';
+                return;
+            }
+
+            messagesList.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Диалог</th>
+                            <th>Отправитель</th>
+                            <th onclick="toggleMessageSort('createdAt')" style="cursor: pointer;">Время <span class="sort-indicator" id="sort-message-createdAt">${getMessageSortIndicator('createdAt')}</span></th>
+                            <th>Содержимое</th>
+                            <th>Тип</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${messages.map(message => `
+                            <tr data-message-id="${message._id}">
+                                <td>${getDialogName(message.dialogId)}</td>
+                                <td>${message.senderId}</td>
+                                <td>${formatMessageTime(message.createdAt)}</td>
+                                <td class="message-content">${message.content}</td>
+                                <td>${message.type}</td>
+                                <td>
+                                    <button onclick="event.stopPropagation(); showMessageInfo('${message._id}')">Инфо</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function getDialogName(dialogId) {
+            const dialog = dialogs.find(d => d._id === dialogId);
+            return dialog ? dialog.name : dialogId;
+        }
+
+        function formatMessageTime(timestamp) {
+            if (!timestamp) return '-';
+            const date = new Date(timestamp);
+            return date.toLocaleString('ru-RU');
+        }
+
+        function changeMessagePage(page) {
+            if (page < 1 || page > totalMessagePages) return;
+            loadMessages(page);
+        }
+
+        function selectMessageFilterExample() {
+            const select = document.getElementById('messageFilterExample');
+            const input = document.getElementById('messageFilterInput');
+            
+            if (select.value && select.value !== 'custom') {
+                input.value = select.value;
+            } else if (select.value === 'custom') {
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function clearMessageFilterField() {
+            document.getElementById('messageFilterInput').value = '';
+            document.getElementById('messageFilterExample').selectedIndex = 0;
+        }
+
+        function applyMessageFilter() {
+            const filterValue = document.getElementById('messageFilterInput').value.trim();
+            
+            if (!filterValue) {
+                alert('Введите фильтр сообщений');
+                return;
+            }
+
+            currentMessageFilter = filterValue;
+            currentMessagePage = 1;
+            loadMessages(1);
+        }
+
+        function clearMessageFilter() {
+            document.getElementById('messageFilterInput').value = '';
+            document.getElementById('messageFilterExample').selectedIndex = 0;
+            currentMessageFilter = null;
+            currentMessageSort = null;
+            
+            // Reset message sort indicators
+            document.querySelectorAll('.sort-indicator').forEach(ind => {
+                if (ind.id.startsWith('sort-message-')) {
+                    ind.textContent = '◄';
+                    ind.classList.remove('active');
+                }
+            });
+            
+            document.getElementById('messagesList').innerHTML = '<div class="no-data">Выберите фильтр для загрузки сообщений</div>';
+            document.getElementById('messagesPagination').innerHTML = `
+                <button onclick="changeMessagePage(1)" disabled>← Предыдущая</button>
+                <button class="active" onclick="changeMessagePage(1)">1</button>
+                <button onclick="changeMessagePage(2)" disabled>Следующая →</button>
+                <span>Страница 1 из 1 (всего 0 сообщений)</span>
+            `;
+        }
+
+        function toggleMessageSort(field) {
+            let newSort = null;
+            const indicator = document.getElementById(`sort-message-${field}`);
+            
+            if (!currentMessageSort || !currentMessageSort.includes(field)) {
+                newSort = `(${field},asc)`;
+                indicator.textContent = '▲';
+                indicator.classList.add('active');
+            } else if (currentMessageSort.includes('asc')) {
+                newSort = `(${field},desc)`;
+                indicator.textContent = '▼';
+                indicator.classList.add('active');
+            } else {
+                newSort = null;
+                indicator.textContent = '◄';
+                indicator.classList.remove('active');
+            }
+
+            // Reset other message sort indicators
+            document.querySelectorAll('.sort-indicator').forEach(ind => {
+                if (ind.id.startsWith('sort-message-') && ind.id !== `sort-message-${field}`) {
+                    ind.textContent = '◄';
+                    ind.classList.remove('active');
+                }
+            });
+
+            currentMessageSort = newSort;
+            currentMessagePage = 1;
+            loadMessages(1);
+        }
+
+        function getMessageSortIndicator(field) {
+            if (!currentMessageSort || !currentMessageSort.includes(field)) {
+                return '◄';
+            } else if (currentMessageSort.includes('asc')) {
+                return '▲';
+            } else {
+                return '▼';
+            }
+        }
+
+        function showCurrentMessageUrl() {
+            if (!currentMessageFilter) {
+                alert('Сначала выберите фильтр сообщений');
+                return;
+            }
+
+            // Строим URL запроса
+            let url = `/api/messages`;
+            const params = new URLSearchParams();
+            
+            // Добавляем параметры пагинации
+            params.append('page', currentMessagePage || 1);
+            params.append('limit', 20);
+            
+            // Добавляем фильтр сообщений
+            if (currentMessageFilter) {
+                params.append('filter', currentMessageFilter);
+            }
+            
+            // Добавляем сортировку сообщений
+            if (currentMessageSort) {
+                params.append('sort', currentMessageSort);
+            }
+            
+            // Формируем полный URL
+            const fullUrl = url + (params.toString() ? '?' + params.toString() : '');
+            
+            // Показываем в модальном окне
+            showModal('Текущий URL запроса сообщений', `
+                <div class="url-info">
+                    <h4>API Endpoint:</h4>
+                    <div class="url-display">${fullUrl}</div>
+                    
+                    <h4>Параметры:</h4>
+                    <div class="params-list">
+                        <div><strong>page:</strong> ${currentMessagePage || 1}</div>
+                        <div><strong>limit:</strong> 20</div>
+                        ${currentMessageFilter ? `<div><strong>filter:</strong> ${currentMessageFilter}</div>` : ''}
+                        ${currentMessageSort ? `<div><strong>sort:</strong> ${currentMessageSort}</div>` : ''}
+                    </div>
+                    
+                    <h4>Полный URL для копирования:</h4>
+                    <div class="url-copy">
+                        <input type="text" value="${window.location.origin}${fullUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
+                        <button onclick="copyToClipboard('${window.location.origin}${fullUrl}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
+                    </div>
+                </div>
+            `);
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('URL скопирован в буфер обмена!');
+            }).catch(err => {
+                console.error('Ошибка копирования:', err);
+                alert('Ошибка копирования в буфер обмена');
+            });
+        }
+
+        // Модальные окна
+        function showModal(title, content) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalBody').innerHTML = content;
+            document.getElementById('infoModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+
+        async function showMessageInfo(messageId) {
+            console.log('Show message info for:', messageId);
+            
+            // Показываем загрузку
+            showModal('Информация о сообщении', '<div class="loading">Загрузка информации о сообщении...</div>');
+            
+            try {
+                // Загружаем полную информацию о сообщении с сервера
+                const response = await fetch(`/api/messages/${messageId}`, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Message info response:', data);
+
+                if (data.data) {
+                    showModal('Информация о сообщении', formatMessageInfo(data.data));
+                } else {
+                    showModal('Ошибка', 'Данные сообщения не найдены');
+                }
+            } catch (error) {
+                console.error('Error loading message info:', error);
+                showModal('Ошибка', `Ошибка загрузки: ${error.message}`);
+            }
+        }
+
+        function formatMessageInfo(message) {
+            return '<div class="json-content">' + JSON.stringify(message, null, 2) + '</div>';
+        }
+
+        // Функции для модального окна добавления сообщения
+        let currentDialogIdForMessage = null;
+
+        function showAddMessageModal() {
+            // Показываем модальное окно
+            document.getElementById('addMessageModal').style.display = 'block';
+        }
+
+        function closeAddMessageModal() {
+            document.getElementById('addMessageModal').style.display = 'none';
+            currentDialogIdForMessage = null;
+        }
+
+        // Обработчик отправки формы
+        document.getElementById('addMessageForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const dialogId = document.getElementById('messageDialog').value;
+            const senderId = document.getElementById('messageSender').value;
+            const type = document.getElementById('messageType').value;
+            const content = document.getElementById('messageContent').value;
+
+            if (!dialogId) {
+                alert('Выберите диалог');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/dialogs/${dialogId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
+                    },
+                    body: JSON.stringify({
+                        senderId: senderId,
+                        type: type,
+                        content: content
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('Message added successfully:', result);
+                
+                alert('Сообщение успешно добавлено!');
+                closeAddMessageModal();
+                
+                // Обновляем список сообщений, если есть активный фильтр
+                if (currentMessageFilter) {
+                    loadMessages(currentMessagePage);
+                }
+                
+            } catch (error) {
+                console.error('Error adding message:', error);
+                alert(`Ошибка при добавлении сообщения: ${error.message}`);
+            }
+        });
+
+        // Закрытие модальных окон по клику вне их
+        window.onclick = function(event) {
+            const infoModal = document.getElementById('infoModal');
+            const addMessageModal = document.getElementById('addMessageModal');
+            
+            if (event.target === infoModal) {
+                closeModal();
+            }
+            if (event.target === addMessageModal) {
+                closeAddMessageModal();
+            }
+        }
+
+        // Закрытие модальных окон по клавише Escape
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+                closeAddMessageModal();
+            }
+        });
+
+        // Добавляем кнопку "Добавить сообщение" в заголовок
+        document.addEventListener('DOMContentLoaded', function() {
+            const panelHeader = document.querySelector('.panel-header');
+            const addButton = document.createElement('button');
+            addButton.textContent = '➕ Добавить';
+            addButton.className = 'url-button';
+            addButton.style.marginRight = '10px';
+            addButton.onclick = showAddMessageModal;
+            panelHeader.insertBefore(addButton, panelHeader.querySelector('.url-button'));
+        });
+    </script>
+</body>
+</html>

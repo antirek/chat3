@@ -3,6 +3,75 @@ import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 
 const messageController = {
+  // Get all messages with filtering and pagination
+  async getAll(req, res) {
+    try {
+      console.log('getAll called with tenantId:', req.tenantId);
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const skip = (page - 1) * limit;
+
+      // Build base query
+      const query = {
+        tenantId: req.tenantId
+      };
+
+      // Apply simple filters if provided
+      if (req.query.filter) {
+        try {
+          console.log('Filter string:', req.query.filter);
+          const parsedFilters = parseFilters(req.query.filter);
+          console.log('Parsed filters:', parsedFilters);
+          const { regularFilters } = extractMetaFilters(parsedFilters);
+          console.log('Regular filters:', regularFilters);
+          Object.assign(query, regularFilters);
+          console.log('Final query:', query);
+        } catch (error) {
+          console.log('Filter parsing error:', error.message);
+          // Continue without filters if parsing fails
+        }
+      }
+
+      // Get messages with pagination
+      const messages = await Message.find(query)
+        .select('dialogId senderId content type createdAt updatedAt')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      console.log('Found messages:', messages.length);
+
+      const filteredMessages = messages;
+
+      // Simplified - just return messages without meta and statuses for now
+      const messagesWithMeta = filteredMessages.map(message => {
+        const messageObj = message.toObject();
+        return {
+          ...messageObj,
+          meta: {},
+          messageStatuses: []
+        };
+      });
+
+      const total = await Message.countDocuments(query);
+
+      res.json({
+        data: messagesWithMeta,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      });
+    } catch (error) {
+      console.error('Error in getAll:', error);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
   // Get messages for a specific dialog
   async getDialogMessages(req, res) {
     try {

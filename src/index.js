@@ -41,8 +41,8 @@ const startServer = async () => {
     app.use('/api/tenants', tenantRoutes);
     app.use('/api/dialogs', dialogRoutes);
     app.use('/api/dialogs', messageRoutes);
-    app.use('/api/messages', messageStatusRoutes);
     app.use('/api/messages', messageInfoRoutes);
+    app.use('/api/messages', messageStatusRoutes);
     app.use('/api/dialogs', messageStatusRoutes);
     app.use('/api/dialogs', dialogMemberRoutes);
     app.use('/api/dialog-members', dialogMemberRoutes);
