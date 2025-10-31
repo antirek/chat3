@@ -833,6 +833,53 @@
         </div>
     </div>
 
+    <!-- Модальное окно для добавления реакции -->
+    <div id="reactionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Добавить реакцию</h2>
+                <span class="close" onclick="closeReactionModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <!-- Секция существующих реакций -->
+                <div id="existingReactionsSection" style="margin-bottom: 25px;">
+                    <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Существующие реакции:</h3>
+                    <div id="existingReactionsList" style="max-height: 200px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 6px; padding: 10px; background: #f8f9fa;">
+                        <div class="loading">Загрузка реакций...</div>
+                    </div>
+                </div>
+
+                <!-- Форма добавления реакции -->
+                <form id="addReactionForm">
+                    <div class="form-group">
+                        <label for="reactionUser">Пользователь:</label>
+                        <select id="reactionUser" required>
+                            <option value="carl">Carl</option>
+                            <option value="marta">Marta</option>
+                            <option value="sara">Sara</option>
+                            <option value="kirk">Kirk</option>
+                            <option value="john">John</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Добавить реакцию:</label>
+                        <div class="reactions-container" style="display: flex; gap: 15px; justify-content: center; padding: 20px 0;">
+                            <button type="button" class="reaction-btn" onclick="addReaction('👍')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">👍</button>
+                            <button type="button" class="reaction-btn" onclick="addReaction('❤️')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">❤️</button>
+                            <button type="button" class="reaction-btn" onclick="addReaction('😂')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">😂</button>
+                            <button type="button" class="reaction-btn" onclick="addReaction('🔥')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">🔥</button>
+                            <button type="button" class="reaction-btn" onclick="addReaction('🎉')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">🎉</button>
+                        </div>
+                        <input type="hidden" id="selectedReaction" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeReactionModal()">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Глобальные переменные
         let apiKey = '';
@@ -1116,7 +1163,10 @@
                                         <td>${formatMessageTime(message.createdAt)}</td>
                                         <td class="message-content">${message.content}</td>
                                         <td>${message.type}</td>
-                                        <td><button onclick="showMessageInfo('${message._id}')">Инфо</button></td>
+                                        <td>
+                                            <button onclick="showMessageInfo('${message._id}')">Инфо</button>
+                                            <button onclick="showReactionModal('${message._id}')" style="margin-left: 5px;">Реакции</button>
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1708,11 +1758,144 @@
             }
         });
 
+        // Переменная для хранения текущего messageId для реакции
+        let currentMessageIdForReaction = null;
+
+        // Загрузка существующих реакций
+        async function loadExistingReactions(messageId) {
+            const reactionsList = document.getElementById('existingReactionsList');
+            
+            try {
+                const response = await fetch(`/api/messages/${messageId}/reactions`, {
+                    method: 'GET',
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const reactions = data.data?.reactions || [];
+                
+                if (reactions.length === 0) {
+                    reactionsList.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px;">Реакций пока нет</div>';
+                    return;
+                }
+
+                // Форматируем список реакций
+                reactionsList.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #dee2e6;">
+                                <th style="text-align: left; padding: 8px; color: #495057; font-weight: 600;">Реакция</th>
+                                <th style="text-align: left; padding: 8px; color: #495057; font-weight: 600;">Пользователь</th>
+                                <th style="text-align: left; padding: 8px; color: #495057; font-weight: 600;">Время</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${reactions.map(reaction => `
+                                <tr style="border-bottom: 1px solid #e9ecef;">
+                                    <td style="padding: 8px; font-size: 20px;">${reaction.reaction}</td>
+                                    <td style="padding: 8px; color: #495057;">${reaction.userId}</td>
+                                    <td style="padding: 8px; color: #6c757d; font-size: 12px;">${formatMessageTime(reaction.createdAt)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading reactions:', error);
+                reactionsList.innerHTML = `<div style="color: #dc3545; padding: 10px;">Ошибка загрузки реакций: ${error.message}</div>`;
+            }
+        }
+
+        // Открытие модального окна для добавления реакции
+        async function showReactionModal(messageId) {
+            currentMessageIdForReaction = messageId;
+            
+            // Сбрасываем форму
+            document.getElementById('reactionUser').value = 'carl';
+            document.getElementById('selectedReaction').value = '';
+            
+            // Показываем модальное окно
+            document.getElementById('reactionModal').style.display = 'block';
+            
+            // Загружаем существующие реакции
+            await loadExistingReactions(messageId);
+        }
+
+        // Закрытие модального окна реакций
+        function closeReactionModal() {
+            document.getElementById('reactionModal').style.display = 'none';
+            currentMessageIdForReaction = null;
+        }
+
+        // Добавление реакции
+        async function addReaction(reaction) {
+            if (!currentMessageIdForReaction) {
+                alert('Ошибка: не выбран сообщение');
+                return;
+            }
+
+            const userId = document.getElementById('reactionUser').value;
+
+            if (!userId) {
+                alert('Пожалуйста, выберите пользователя');
+                return;
+            }
+
+            if (!reaction) {
+                alert('Пожалуйста, выберите реакцию');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/messages/${currentMessageIdForReaction}/reactions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
+                    },
+                    body: JSON.stringify({
+                        userId: userId,
+                        reaction: reaction
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Reaction added:', data);
+                
+                // Обновляем список реакций
+                await loadExistingReactions(currentMessageIdForReaction);
+                
+                // Обновляем список сообщений, если диалог открыт
+                if (currentDialogId) {
+                    loadDialogMessages(currentDialogId, currentMessagePage);
+                }
+                
+            } catch (error) {
+                console.error('Error adding reaction:', error);
+                alert(`Ошибка при добавлении реакции: ${error.message}`);
+            }
+        }
+
         // Закрытие модального окна по клику вне его
         window.onclick = function(event) {
             const addMessageModal = document.getElementById('addMessageModal');
+            const reactionModal = document.getElementById('reactionModal');
             if (event.target === addMessageModal) {
                 closeAddMessageModal();
+            }
+            if (event.target === reactionModal) {
+                closeReactionModal();
             }
         }
 
@@ -1720,8 +1903,20 @@
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closeAddMessageModal();
+                closeReactionModal();
             }
         });
+
+        // Добавляем стили для кнопок реакций при наведении
+        const style = document.createElement('style');
+        style.textContent = `
+            .reaction-btn:hover {
+                border-color: #667eea !important;
+                background-color: #f0f0ff !important;
+                transform: scale(1.1);
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
