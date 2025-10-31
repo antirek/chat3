@@ -1,5 +1,6 @@
 import connectDB from '../config/database.js';
-import { Tenant, Dialog, Message, Meta, DialogMember, MessageStatus, Event } from '../models/index.js';
+import { Tenant, Dialog, Message, Meta, DialogMember, MessageStatus, Event, MessageReaction } from '../models/index.js';
+import * as reactionUtils from '../utils/reactionUtils.js';
 
 async function seed() {
   try {
@@ -14,6 +15,7 @@ async function seed() {
     await Meta.deleteMany({});
     await DialogMember.deleteMany({});
     await MessageStatus.deleteMany({});
+    await MessageReaction.deleteMany({});
     await Event.deleteMany({});
 
     console.log('✅ Cleared existing data');
@@ -473,6 +475,93 @@ async function seed() {
     console.log(`   - Dialog metadata: ${dialogs.length * 6} (6 per dialog: type, channelType, welcomeMessage, maxParticipants, features, securityLevel)`);
     console.log(`   - Message metadata: ${messages.length * 2} (2 per message: channelType, channelId)`);
 
+    // Create Message Reactions
+    console.log('\n👍 Creating message reactions...');
+    const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '💯', '✨', '🎉', '👏'];
+    const reactionUserIds = ['carl', 'marta', 'sara', 'kirk', 'john'];
+    const allReactions = [];
+
+    // Для каждого сообщения генерируем реакции
+    messages.forEach((message, messageIndex) => {
+      // Количество реакций на сообщение: от 0 до 8 (случайно)
+      // 70% сообщений имеют реакции
+      const hasReactions = Math.random() < 0.7;
+      if (!hasReactions) return;
+
+      const reactionCount = Math.floor(Math.random() * 9); // 0-8 реакций
+      
+      // Выбираем случайных пользователей для реакций (без повторений)
+      const availableUsers = [...reactionUserIds];
+      const selectedUsers = availableUsers
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.min(reactionCount, availableUsers.length));
+
+      selectedUsers.forEach((userId, userIndex) => {
+        // Время реакции - от времени сообщения до текущего времени
+        const messageTime = new Date(message.createdAt);
+        const now = new Date();
+        const reactionTime = new Date(messageTime.getTime() + Math.random() * (now.getTime() - messageTime.getTime()));
+        
+        // Выбираем случайную реакцию
+        const reaction = reactions[Math.floor(Math.random() * reactions.length)];
+
+        allReactions.push({
+          tenantId: tenant._id,
+          messageId: message._id,
+          userId: userId,
+          reaction: reaction,
+          createdAt: reactionTime,
+          updatedAt: reactionTime
+        });
+      });
+    });
+
+    // Создаем реакции батчами
+    const reactionBatchSize = 200;
+    for (let i = 0; i < allReactions.length; i += reactionBatchSize) {
+      const batch = allReactions.slice(i, i + reactionBatchSize);
+      await MessageReaction.insertMany(batch);
+    }
+
+    console.log(`✅ Created ${allReactions.length} message reactions`);
+    
+    // Подсчитываем статистику по реакциям
+    const reactionsByType = {};
+    allReactions.forEach(r => {
+      reactionsByType[r.reaction] = (reactionsByType[r.reaction] || 0) + 1;
+    });
+
+    console.log(`   - Messages with reactions: ${messages.filter((m, i) => {
+      const messageReactions = allReactions.filter(r => r.messageId.toString() === m._id.toString());
+      return messageReactions.length > 0;
+    }).length} out of ${messages.length}`);
+    console.log(`   - Average reactions per message: ${allReactions.length > 0 ? Math.round(allReactions.length / messages.filter((m, i) => {
+      const messageReactions = allReactions.filter(r => r.messageId.toString() === m._id.toString());
+      return messageReactions.length > 0;
+    }).length * 10) / 10 : 0}`);
+    console.log(`   - Reaction distribution:`);
+    Object.entries(reactionsByType)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([reaction, count]) => {
+        console.log(`     - ${reaction}: ${count}`);
+      });
+
+    // Обновляем счетчики реакций в Message.reactionCounts
+    console.log('\n🔄 Updating reaction counts in messages...');
+    const messagesWithReactions = [...new Set(allReactions.map(r => r.messageId.toString()))];
+    let updatedCount = 0;
+    
+    for (const messageId of messagesWithReactions) {
+      try {
+        await reactionUtils.updateReactionCounts(tenant._id, messageId);
+        updatedCount++;
+      } catch (error) {
+        console.error(`Error updating reaction counts for message ${messageId}:`, error.message);
+      }
+    }
+
+    console.log(`✅ Updated reaction counts for ${updatedCount} messages`);
+
     console.log('\n🎉 Database seeding completed successfully!');
     console.log('\n📊 Summary:');
     console.log(`   - Tenants: ${await Tenant.countDocuments()} (1 system + 1 demo)`);
@@ -480,6 +569,7 @@ async function seed() {
     console.log(`   - Dialogs: ${await Dialog.countDocuments()} (70 internal + 30 external = 100 total)`);
     console.log(`   - Messages: ${await Message.countDocuments()} (${messages.length} total across ${dialogs.length} dialogs)`);
     console.log(`   - Message Statuses: ${await MessageStatus.countDocuments()} (${messageStatuses.length} total)`);
+    console.log(`   - Message Reactions: ${await MessageReaction.countDocuments()} (${allReactions.length} total)`);
     console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/tenant + ${dialogs.length * 6} dialog + ${messages.length * 2} message)`);
     console.log('\n🤖 System Bot:');
     console.log(`   - Identifier: system_bot`);
@@ -509,6 +599,16 @@ async function seed() {
     console.log(`   - Status distribution: sent, delivered, read`);
     console.log(`   - Each message has 2-4 statuses from different users`);
     console.log(`   - Use /api/messages/{messageId} to see messageStatuses array`);
+    console.log('\n👍 Message Reactions:');
+    console.log(`   - ${allReactions.length} total reactions created`);
+    console.log(`   - ${messages.filter((m, i) => {
+      const messageReactions = allReactions.filter(r => r.messageId.toString() === m._id.toString());
+      return messageReactions.length > 0;
+    }).length} messages have reactions (70% of all messages)`);
+    console.log(`   - Reaction types: ${reactions.join(', ')}`);
+    console.log(`   - Each message has 0-8 reactions from different users`);
+    console.log(`   - Use /api/messages/{messageId}/reactions to see reactions`);
+    console.log(`   - Reaction counts are cached in Message.reactionCounts`);
     console.log('\n');
 
     process.exit(0);

@@ -22,6 +22,9 @@ const eventSchema = new mongoose.Schema({
       'dialog.member.update',
       'message.status.create',
       'message.status.update',
+      'message.reaction.add',
+      'message.reaction.update',
+      'message.reaction.remove',
       'tenant.create',
       'tenant.update',
       'tenant.delete'
@@ -31,7 +34,7 @@ const eventSchema = new mongoose.Schema({
   entityType: {
     type: String,
     required: true,
-    enum: ['dialog', 'message', 'dialogMember', 'messageStatus', 'tenant'],
+    enum: ['dialog', 'message', 'dialogMember', 'messageStatus', 'messageReaction', 'tenant'],
     index: true
   },
   entityId: {
@@ -86,6 +89,9 @@ eventSchema.virtual('description').get(function() {
     'dialog.member.update': 'Обновлен участник диалога',
     'message.status.create': 'Создан статус сообщения',
     'message.status.update': 'Обновлен статус сообщения',
+    'message.reaction.add': 'Добавлена реакция на сообщение',
+    'message.reaction.update': 'Обновлена реакция на сообщение',
+    'message.reaction.remove': 'Удалена реакция на сообщение',
     'tenant.create': 'Создан tenant',
     'tenant.update': 'Обновлен tenant',
     'tenant.delete': 'Удален tenant'

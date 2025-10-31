@@ -386,6 +386,12 @@ const messageController = {
         message._id
       );
 
+      // Ограничиваем контент до 4096 символов для события
+      const MAX_CONTENT_LENGTH = 4096;
+      const eventContent = content.length > MAX_CONTENT_LENGTH 
+        ? content.substring(0, MAX_CONTENT_LENGTH) 
+        : content;
+
       // Создаем событие message.create (после сохранения мета-тегов)
       await eventUtils.createEvent({
         tenantId: req.tenantId,
@@ -398,7 +404,7 @@ const messageController = {
           dialogId: dialogId,
           dialogName: dialog.name,
           messageType: type,
-          contentLength: content.length,
+          content: eventContent, // Контент сообщения (до 4096 символов)
           meta: messageMeta // Добавляем мета-теги сообщения
         },
         metadata: eventUtils.extractMetadataFromRequest(req)

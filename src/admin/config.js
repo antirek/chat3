@@ -2,7 +2,7 @@ import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import * as AdminJSMongoose from '@adminjs/mongoose';
 
-import { Tenant, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember, Event } from '../models/index.js';
+import { Tenant, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember, Event, MessageReaction } from '../models/index.js';
 
 // Register the mongoose adapter
 AdminJS.registerAdapter({
@@ -468,6 +468,9 @@ const adminOptions = {
               { value: 'dialog.member.update', label: '👥 Member: Update' },
               { value: 'message.status.create', label: '✅ Status: Create' },
               { value: 'message.status.update', label: '✅ Status: Update' },
+              { value: 'message.reaction.add', label: '👍 Reaction: Add' },
+              { value: 'message.reaction.update', label: '👍 Reaction: Update' },
+              { value: 'message.reaction.remove', label: '👍 Reaction: Remove' },
               { value: 'tenant.create', label: '🏢 Tenant: Create' },
               { value: 'tenant.update', label: '🏢 Tenant: Update' },
               { value: 'tenant.delete', label: '🏢 Tenant: Delete' },
@@ -480,6 +483,7 @@ const adminOptions = {
               { value: 'message', label: 'Message' },
               { value: 'dialogMember', label: 'Dialog Member' },
               { value: 'messageStatus', label: 'Message Status' },
+              { value: 'messageReaction', label: 'Message Reaction' },
               { value: 'tenant', label: 'Tenant' },
             ],
             isRequired: true,
@@ -635,6 +639,45 @@ const adminOptions = {
               return response;
             }
           }
+        }
+      }
+    },
+    {
+      resource: MessageReaction,
+      options: {
+        navigation: {
+          name: 'Чаты',
+          icon: 'Heart',
+        },
+        properties: {
+          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          messageId: {
+            reference: 'Message',
+            isRequired: true,
+          },
+          userId: {
+            type: 'string',
+            isRequired: true,
+            isTitle: true,
+          },
+          reaction: {
+            type: 'string',
+            isRequired: true,
+            description: 'Тип реакции: эмодзи (👍, ❤️, 😂) или текст (custom:text)'
+          },
+          tenantId: {
+            reference: 'Tenant',
+            isRequired: true,
+          },
+          createdAt: { isVisible: { list: true, show: true, edit: false } },
+          updatedAt: { isVisible: { list: false, show: true, edit: false } },
+        },
+        listProperties: ['_id', 'messageId', 'userId', 'reaction', 'createdAt'],
+        showProperties: ['_id', 'messageId', 'userId', 'tenantId', 'reaction', 'createdAt', 'updatedAt'],
+        filterProperties: ['messageId', 'userId', 'tenantId', 'reaction'],
+        sort: {
+          sortBy: 'createdAt',
+          direction: 'desc'
         }
       }
     },

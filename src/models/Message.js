@@ -23,6 +23,11 @@ const messageSchema = new mongoose.Schema({
     type: String,
     default: 'text'
   },
+  reactionCounts: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
+    description: 'Агрегированные счетчики реакций: { "👍": 5, "❤️": 3 }'
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -9,6 +9,7 @@ import dialogRoutes from './routes/dialogRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import messageStatusRoutes from './routes/messageStatusRoutes.js';
 import messageInfoRoutes from './routes/messageInfoRoutes.js';
+import messageReactionRoutes from './routes/messageReactionRoutes.js';
 import dialogMemberRoutes from './routes/dialogMemberRoutes.js';
 import userDialogRoutes from './routes/userDialogRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
@@ -50,6 +51,7 @@ const startServer = async () => {
     app.use('/api/dialogs', messageRoutes);
     app.use('/api/messages', messageInfoRoutes);
     app.use('/api/messages', messageStatusRoutes);
+    app.use('/api/messages', messageReactionRoutes);
     app.use('/api/dialogs', messageStatusRoutes);
     app.use('/api/dialogs', dialogMemberRoutes);
     app.use('/api/dialog-members', dialogMemberRoutes);

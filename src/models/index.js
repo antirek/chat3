@@ -6,6 +6,7 @@ import ApiKey from './ApiKey.js';
 import MessageStatus from './MessageStatus.js';
 import DialogMember from './DialogMember.js';
 import Event from './Event.js';
+import MessageReaction from './MessageReaction.js';
 
 export {
   Tenant,
@@ -15,6 +16,7 @@ export {
   ApiKey,
   MessageStatus,
   DialogMember,
-  Event
+  Event,
+  MessageReaction
 };
 

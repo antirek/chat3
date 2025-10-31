@@ -47,6 +47,9 @@
 | | `dialog.member.update` | Обновлен участник | `PUT /api/dialogs/:id/members/:userId` | `dialogMember` |
 | **Статусы** | `message.status.create` | Создан статус сообщения | `PUT /api/messages/:id/status` (новый) | `messageStatus` |
 | | `message.status.update` | Обновлен статус сообщения | `PUT /api/messages/:id/status` (существующий) | `messageStatus` |
+| **Реакции** | `message.reaction.add` | Добавлена реакция на сообщение | `POST /api/messages/:id/reactions` | `messageReaction` |
+| | `message.reaction.update` | Обновлена реакция на сообщение | `POST /api/messages/:id/reactions` (существующая) | `messageReaction` |
+| | `message.reaction.remove` | Удалена реакция на сообщение | `DELETE /api/messages/:id/reactions/:reaction` | `messageReaction` |
 | **Tenant** | `tenant.create` | Создан tenant | `POST /api/tenants` | `tenant` |
 | | `tenant.update` | Обновлен tenant | `PUT /api/tenants/:id` | `tenant` |
 | | `tenant.delete` | Удален tenant | `DELETE /api/tenants/:id` | `tenant` |
@@ -79,7 +82,7 @@
   "dialogId": "6541a1b2c3d4e5f6g7h8i9j0",
   "dialogName": "Общий чат",
   "messageType": "text",
-  "contentLength": 125,
+  "content": "Текст сообщения (до 4096 символов)",
   "meta": {
     "channelType": "whatsapp",
     "channelId": "123456789",
@@ -88,7 +91,10 @@
 }
 ```
 
-**Примечание:** Поле `meta` содержит все мета-теги сообщения (если они были установлены при создании).
+**Примечание:** 
+- Поле `content` содержит текст сообщения (ограничено до 4096 символов)
+- Поле `meta` содержит все мета-теги сообщения (если они были установлены при создании)
+- Если сообщение длиннее 4096 символов, оно автоматически обрезается, используйте `entityId` для получения полного контента из API
 
 #### `dialog.member.add`
 ```json
@@ -120,6 +126,43 @@
   "oldStatus": "unread",
   "newStatus": "read",
   "dialogId": "6541a1b2c3d4e5f6g7h8i9j0"
+}
+```
+
+#### `message.reaction.add`
+```json
+{
+  "messageId": "6541a1b2c3d4e5f6g7h8i9j0",
+  "reaction": "👍",
+  "reactionCounts": {
+    "👍": 5,
+    "❤️": 3
+  }
+}
+```
+
+#### `message.reaction.update`
+```json
+{
+  "messageId": "6541a1b2c3d4e5f6g7h8i9j0",
+  "reaction": "❤️",
+  "oldReaction": "👍",
+  "reactionCounts": {
+    "👍": 4,
+    "❤️": 4
+  }
+}
+```
+
+#### `message.reaction.remove`
+```json
+{
+  "messageId": "6541a1b2c3d4e5f6g7h8i9j0",
+  "reaction": "👍",
+  "reactionCounts": {
+    "👍": 4,
+    "❤️": 3
+  }
 }
 ```
 
@@ -668,7 +711,11 @@ channel.start_consuming()
     "dialogId": "6541a1b2c3d4e5f6g7h8i9j2",
     "dialogName": "Общий чат",
     "messageType": "text",
-    "contentLength": 125
+    "content": "Текст сообщения (до 4096 символов)",
+    "meta": {
+      "channelType": "whatsapp",
+      "channelId": "123456789"
+    }
   },
   "metadata": {
     "ipAddress": "192.168.1.100",
@@ -679,6 +726,8 @@ channel.start_consuming()
   "createdAt": "2025-10-31T16:00:00.000Z"
 }
 ```
+
+**Примечание:** Поле `content` в `data` ограничено до 4096 символов. Если сообщение длиннее, оно автоматически обрезается. Для получения полного контента используйте `entityId` и запрос к API.
 
 ### Отказоустойчивость
 

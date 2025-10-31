@@ -199,6 +199,9 @@ chat3/
 
 - `GET/POST/PUT/DELETE /api/tenants` - Управление организациями
 - `GET/POST/PUT/DELETE /api/users` - Управление пользователями
+- `GET /api/messages/:id/reactions` - Получить реакции на сообщение 🆕
+- `POST /api/messages/:id/reactions` - Добавить/обновить реакцию 🆕
+- `DELETE /api/messages/:id/reactions/:reaction` - Удалить реакцию 🆕
 - `GET /api/events` - События системы (аудит) 🆕
   - `/api/events/entity/:type/:id` - События сущности
   - `/api/events/type/:eventType` - События по типу
