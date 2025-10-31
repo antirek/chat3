@@ -324,15 +324,21 @@ const messageController = {
       });
 
       // Create MessageStatus records and update DialogMember counters for all dialog participants
-      // Note: In a real app, you would get participants from DialogMember table
-      // For now, we'll create status records for common users
-      const commonUsers = ['carl', 'sara', 'john', 'marta', 'kirk'];
+      // Получаем реальных участников диалога из DialogMember
+      const { DialogMember } = await import('../models/index.js');
+      const { incrementUnreadCount } = await import('../utils/unreadCountUtils.js');
       
-      for (const userId of commonUsers) {
+      const dialogMembers = await DialogMember.find({
+        tenantId: req.tenantId,
+        dialogId: dialogId,
+        isActive: true
+      }).select('userId').lean();
+      
+      for (const member of dialogMembers) {
+        const userId = member.userId;
         if (userId !== senderId) { // Don't create status for sender
           try {
             const { MessageStatus } = await import('../models/index.js');
-            const { incrementUnreadCount } = await import('../utils/unreadCountUtils.js');
             
             // Create MessageStatus record
             await MessageStatus.create({
@@ -342,7 +348,7 @@ const messageController = {
               status: 'unread'
             });
             
-            // Update DialogMember counter
+            // Update DialogMember counter (только для существующих участников)
             await incrementUnreadCount(req.tenantId, userId, dialogId, message._id);
           } catch (error) {
             console.error(`Error creating MessageStatus for user ${userId}:`, error);

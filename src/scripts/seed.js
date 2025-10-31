@@ -1,5 +1,5 @@
 import connectDB from '../config/database.js';
-import { Tenant, Dialog, Message, Meta, DialogMember, MessageStatus, Event, MessageReaction } from '../models/index.js';
+import { Tenant, Dialog, Message, Meta, DialogMember, MessageStatus, Event, MessageReaction, Update } from '../models/index.js';
 import * as reactionUtils from '../utils/reactionUtils.js';
 
 async function seed() {
@@ -17,6 +17,7 @@ async function seed() {
     await MessageStatus.deleteMany({});
     await MessageReaction.deleteMany({});
     await Event.deleteMany({});
+    await Update.deleteMany({});
 
     console.log('✅ Cleared existing data');
 

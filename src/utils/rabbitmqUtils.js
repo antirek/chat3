@@ -20,6 +20,11 @@ const EXCHANGE_TYPE = 'topic'; // topic exchange для гибкой маршр�
 const QUEUE_NAME = 'chat3_events'; // Имя очереди для всех событий
 const QUEUE_TTL = 3600000; // TTL 1 час в миллисекундах
 
+// Exchange для updates
+const UPDATES_EXCHANGE_NAME = 'chat3_updates';
+const UPDATES_EXCHANGE_TYPE = 'topic';
+const UPDATES_QUEUE_TTL = 3600000; // TTL 1 час в миллисекундах
+
 /**
  * Инициализация подключения к RabbitMQ
  */
@@ -48,11 +53,17 @@ export async function initRabbitMQ() {
     // Привязываем очередь к exchange с routing key '#' (все события)
     await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, '#');
     
+    // Создаем exchange для updates
+    await channel.assertExchange(UPDATES_EXCHANGE_NAME, UPDATES_EXCHANGE_TYPE, {
+      durable: true
+    });
+    
     isConnected = true;
     console.log('✅ RabbitMQ connected successfully');
     console.log(`   Exchange: ${EXCHANGE_NAME} (${EXCHANGE_TYPE})`);
     console.log(`   Queue: ${QUEUE_NAME} (TTL: 1 hour)`);
     console.log(`   Routing: All events (#) -> ${QUEUE_NAME}`);
+    console.log(`   Updates Exchange: ${UPDATES_EXCHANGE_NAME} (${UPDATES_EXCHANGE_TYPE})`);
     console.log(`   User: ${RABBITMQ_USER}`);
     
     // Обработчики ошибок и закрытия соединения
@@ -243,11 +254,94 @@ export function getDefaultQueueName() {
   return QUEUE_NAME;
 }
 
+/**
+ * Создает или получает очередь для пользователя user_{userId}_updates
+ */
+export async function ensureUserUpdatesQueue(userId) {
+  if (!isConnected || !channel) {
+    throw new Error('RabbitMQ is not connected');
+  }
+
+  const queueName = `user_${userId}_updates`;
+
+  try {
+    // Создаем очередь с TTL 1 час
+    await channel.assertQueue(queueName, {
+      durable: true,
+      arguments: {
+        'x-message-ttl': UPDATES_QUEUE_TTL
+      }
+    });
+
+    // Привязываем очередь к exchange updates с routing key user.{userId}.*
+    await channel.bindQueue(queueName, UPDATES_EXCHANGE_NAME, `user.${userId}.*`);
+
+    return queueName;
+  } catch (error) {
+    console.error(`Error creating user updates queue for ${userId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Публикация update в RabbitMQ
+ * @param {Object} update - Update для публикации
+ * @param {string} routingKey - Routing key (например, user.{userId}.dialogupdate)
+ * @returns {Promise<boolean>} - true если успешно опубликовано
+ */
+export async function publishUpdate(update, routingKey) {
+  // Если RabbitMQ недоступен, просто возвращаем false
+  if (!isConnected || !channel) {
+    return false;
+  }
+
+  try {
+    // Извлекаем userId из routing key или update
+    const userId = update.userId || routingKey.split('.')[1];
+    
+    // Убеждаемся, что очередь для пользователя существует
+    await ensureUserUpdatesQueue(userId);
+
+    const message = JSON.stringify(update);
+    
+    const published = channel.publish(
+      UPDATES_EXCHANGE_NAME,
+      routingKey,
+      Buffer.from(message),
+      {
+        persistent: true,
+        contentType: 'application/json',
+        timestamp: Date.now(),
+        headers: {
+          updateType: update.updateType,
+          userId: update.userId,
+          dialogId: update.dialogId?.toString(),
+          entityId: update.entityId?.toString(),
+          eventType: update.eventType
+        }
+      }
+    );
+    
+    if (published) {
+      console.log(`📤 Update published to RabbitMQ: ${routingKey}`);
+      return true;
+    } else {
+      console.warn(`⚠️  Failed to publish update to RabbitMQ (buffer full): ${routingKey}`);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error publishing update to RabbitMQ:', error.message);
+    return false;
+  }
+}
+
 export default {
   initRabbitMQ,
   closeRabbitMQ,
   publishEvent,
+  publishUpdate,
   createQueue,
+  ensureUserUpdatesQueue,
   isRabbitMQConnected,
   getRabbitMQInfo,
   getDefaultQueueName

@@ -7,6 +7,7 @@ import MessageStatus from './MessageStatus.js';
 import DialogMember from './DialogMember.js';
 import Event from './Event.js';
 import MessageReaction from './MessageReaction.js';
+import Update from './Update.js';
 
 export {
   Tenant,
@@ -17,6 +18,7 @@ export {
   MessageStatus,
   DialogMember,
   Event,
-  MessageReaction
+  MessageReaction,
+  Update
 };
 

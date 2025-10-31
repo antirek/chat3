@@ -1,5 +1,6 @@
 import { Event } from '../models/index.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
+import * as updateUtils from './updateUtils.js';
 
 /**
  * Создает событие в системе
@@ -41,6 +42,48 @@ export async function createEvent({
     rabbitmqUtils.publishEvent(event.toObject()).catch(err => {
       console.error('Failed to publish event to RabbitMQ:', err.message);
     });
+
+    // Генерируем updates для участников диалога (асинхронно, не ждем результата)
+    const shouldUpdate = updateUtils.shouldCreateUpdate(eventType);
+    
+    if (shouldUpdate.dialog) {
+      // Для диалоговых событий нужен dialogId
+      let dialogId;
+      
+      if (entityType === 'dialog') {
+        dialogId = entityId;
+      } else if (entityType === 'dialogMember') {
+        // Для событий dialog.member.* dialogId должен быть в data
+        dialogId = data.dialogId || entityId;
+      }
+      
+      if (dialogId) {
+        updateUtils.createDialogUpdate(tenantId, dialogId, event._id, eventType).catch(err => {
+          console.error('Failed to create DialogUpdate:', err.message);
+        });
+      }
+    }
+    
+    if (shouldUpdate.message) {
+      // Для событий сообщений нужен dialogId из data
+      let dialogId;
+      let messageId;
+      
+      if (entityType === 'message') {
+        dialogId = data.dialogId || entityId;
+        messageId = entityId;
+      } else if (entityType === 'messageReaction' || entityType === 'messageStatus') {
+        // Для событий реакций и статусов messageId и dialogId должны быть в data
+        dialogId = data.dialogId;
+        messageId = data.messageId;
+      }
+      
+      if (dialogId && messageId) {
+        updateUtils.createMessageUpdate(tenantId, dialogId, messageId, event._id, eventType).catch(err => {
+          console.error('Failed to create MessageUpdate:', err.message);
+        });
+      }
+    }
 
     return event;
   } catch (error) {

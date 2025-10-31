@@ -10,8 +10,9 @@ import { DialogMember, MessageStatus } from '../models/index.js';
  * @param {String} userId - ID пользователя
  * @param {String} dialogId - ID диалога
  * @param {String} messageId - ID сообщения
+ * @param {Boolean} createIfNotExists - Создать участника, если его нет (по умолчанию false)
  */
-export async function incrementUnreadCount(tenantId, userId, dialogId, messageId = null) {
+export async function incrementUnreadCount(tenantId, userId, dialogId, messageId = null, createIfNotExists = false) {
   try {
     const filter = {
       userId,
@@ -25,11 +26,21 @@ export async function incrementUnreadCount(tenantId, userId, dialogId, messageId
       updatedAt: new Date()
     };
 
-    await DialogMember.findOneAndUpdate(
+    const options = { new: true };
+    if (createIfNotExists) {
+      options.upsert = true;
+    }
+
+    const result = await DialogMember.findOneAndUpdate(
       filter,
       updateData,
-      { upsert: true, new: true }
+      options
     );
+
+    if (!result && !createIfNotExists) {
+      console.warn(`⚠️  User ${userId} is not a member of dialog ${dialogId}, skipping unread count increment`);
+      return;
+    }
 
     console.log(`✅ Incremented unread count for user ${userId} in dialog ${dialogId}`);
   } catch (error) {

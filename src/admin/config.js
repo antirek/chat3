@@ -2,7 +2,7 @@ import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import * as AdminJSMongoose from '@adminjs/mongoose';
 
-import { Tenant, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember, Event, MessageReaction } from '../models/index.js';
+import { Tenant, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember, Event, MessageReaction, Update } from '../models/index.js';
 
 // Register the mongoose adapter
 AdminJS.registerAdapter({
@@ -678,6 +678,144 @@ const adminOptions = {
         sort: {
           sortBy: 'createdAt',
           direction: 'desc'
+        }
+      }
+    },
+    {
+      resource: Update,
+      options: {
+        navigation: {
+          name: 'Система',
+          icon: 'Sync',
+        },
+        properties: {
+          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          userId: {
+            type: 'string',
+            isRequired: true,
+            isTitle: true,
+          },
+          updateType: {
+            availableValues: [
+              { value: 'DialogUpdate', label: '📝 Dialog Update' },
+              { value: 'MessageUpdate', label: '💬 Message Update' },
+            ],
+            isRequired: true,
+          },
+          dialogId: {
+            reference: 'Dialog',
+            isRequired: true,
+          },
+          entityId: {
+            type: 'string',
+            isRequired: true,
+            description: 'ID сущности (Dialog или Message)',
+          },
+          eventId: {
+            reference: 'Event',
+            isRequired: true,
+          },
+          eventType: {
+            type: 'string',
+            isRequired: true,
+          },
+          tenantId: {
+            reference: 'Tenant',
+            isRequired: true,
+          },
+          data: {
+            type: 'textarea',
+            isVisible: { list: false, show: true, edit: false },
+            description: 'Данные объекта (Dialog или Message)',
+            position: 100,
+          },
+          'data._id': {
+            isVisible: false, // Скрыть автоматически развернутые поля
+          },
+          'data.tenantId': {
+            isVisible: false,
+          },
+          'data.name': {
+            isVisible: false,
+          },
+          'data.createdBy': {
+            isVisible: false,
+          },
+          'data.content': {
+            isVisible: false,
+          },
+          'data.senderId': {
+            isVisible: false,
+          },
+          'data.type': {
+            isVisible: false,
+          },
+          'data.meta': {
+            isVisible: false,
+          },
+          'data.reactionCounts': {
+            isVisible: false,
+          },
+          'data.dialogId': {
+            isVisible: false,
+          },
+          published: {
+            type: 'boolean',
+            isVisible: { list: true, show: true, edit: false },
+          },
+          publishedAt: {
+            type: 'datetime',
+            isVisible: { list: false, show: true, edit: false },
+          },
+          createdAt: { isVisible: { list: true, show: true, edit: false } },
+          updatedAt: { isVisible: { list: false, show: true, edit: false } },
+        },
+        listProperties: ['_id', 'userId', 'updateType', 'dialogId', 'eventType', 'published', 'createdAt'],
+        showProperties: ['_id', 'userId', 'updateType', 'dialogId', 'entityId', 'eventId', 'eventType', 'tenantId', 'data', 'published', 'publishedAt', 'createdAt', 'updatedAt'],
+        filterProperties: ['userId', 'updateType', 'dialogId', 'eventType', 'published', 'tenantId'],
+        sort: {
+          sortBy: 'createdAt',
+          direction: 'desc'
+        },
+        actions: {
+          new: {
+            isVisible: false, // Запретить создание updates вручную
+          },
+          edit: {
+            isVisible: false, // Запретить редактирование updates
+          },
+          show: {
+            after: async (response, request, context) => {
+              const { record } = context;
+              if (record && record.params) {
+                try {
+                  // Собираем развернутые поля data.* обратно в объект data
+                  if (!record.params.data || record.params.data === '{}' || record.params.data === '') {
+                    const dataObj = {};
+                    Object.keys(record.params).forEach(key => {
+                      if (key.startsWith('data.') && record.params[key] !== undefined && record.params[key] !== null) {
+                        const dataKey = key.replace('data.', '');
+                        dataObj[dataKey] = record.params[key];
+                      }
+                    });
+                    if (Object.keys(dataObj).length > 0) {
+                      record.params.data = JSON.stringify(dataObj, null, 2);
+                    }
+                  } else {
+                    // Если data уже есть, форматируем его как JSON
+                    const dataValue = typeof record.params.data === 'string' 
+                      ? JSON.parse(record.params.data) 
+                      : record.params.data;
+                    record.params.data = JSON.stringify(dataValue, null, 2);
+                  }
+                } catch (error) {
+                  console.error('Error formatting update data:', error);
+                  // Если ошибка парсинга, оставляем как есть
+                }
+              }
+              return response;
+            }
+          }
         }
       }
     },
