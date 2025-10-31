@@ -1,5 +1,6 @@
 import { Dialog, Meta, DialogMember } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
+import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort } from '../utils/queryParser.js';
 
 export const dialogController = {
@@ -421,6 +422,20 @@ export const dialogController = {
         createdBy
       });
 
+      // Создаем событие dialog.create
+      await eventUtils.createEvent({
+        tenantId: req.tenantId,
+        eventType: 'dialog.create',
+        entityType: 'dialog',
+        entityId: dialog._id,
+        actorId: createdBy,
+        actorType: 'user',
+        data: {
+          dialogName: name
+        },
+        metadata: eventUtils.extractMetadataFromRequest(req)
+      });
+
       // Получаем метаданные диалога (если есть)
       const meta = await metaUtils.getEntityMeta(
         req.tenantId,
@@ -466,6 +481,25 @@ export const dialogController = {
           message: 'Dialog not found'
         });
       }
+
+      // Создаем событие dialog.delete
+      await eventUtils.createEvent({
+        tenantId: req.tenantId,
+        eventType: 'dialog.delete',
+        entityType: 'dialog',
+        entityId: dialog._id,
+        actorId: req.apiKey?.name || 'unknown',
+        actorType: 'api',
+        data: {
+          dialogName: dialog.name,
+          deletedDialog: {
+            name: dialog.name,
+            createdBy: dialog.createdBy,
+            createdAt: dialog.createdAt
+          }
+        },
+        metadata: eventUtils.extractMetadataFromRequest(req)
+      });
 
       // Удаляем все метаданные диалога
       await Meta.deleteMany({ entityType: 'dialog', entityId: req.params.id });

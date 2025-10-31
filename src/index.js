@@ -3,6 +3,7 @@ import swaggerUi from 'swagger-ui-express';
 import connectDB from './config/database.js';
 import { admin, buildAdminRouter } from './admin/config.js';
 import swaggerSpec from './config/swagger.js';
+import * as rabbitmqUtils from './utils/rabbitmqUtils.js';
 import tenantRoutes from './routes/tenantRoutes.js';
 import dialogRoutes from './routes/dialogRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
@@ -10,6 +11,7 @@ import messageStatusRoutes from './routes/messageStatusRoutes.js';
 import messageInfoRoutes from './routes/messageInfoRoutes.js';
 import dialogMemberRoutes from './routes/dialogMemberRoutes.js';
 import userDialogRoutes from './routes/userDialogRoutes.js';
+import eventRoutes from './routes/eventRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,6 +24,11 @@ const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
+
+    // Initialize RabbitMQ (non-blocking, continues even if RabbitMQ is unavailable)
+    rabbitmqUtils.initRabbitMQ().catch(err => {
+      console.warn('⚠️  RabbitMQ initialization failed, continuing without it:', err.message);
+    });
 
     // Setup AdminJS FIRST (before body-parser middleware)
     const adminRouter = buildAdminRouter(app);
@@ -47,6 +54,7 @@ const startServer = async () => {
     app.use('/api/dialogs', dialogMemberRoutes);
     app.use('/api/dialog-members', dialogMemberRoutes);
     app.use('/api/users', userDialogRoutes);
+    app.use('/api/events', eventRoutes);
 
     // API Test page
     app.get('/api-test', (req, res) => {
@@ -190,10 +198,12 @@ const startServer = async () => {
         adminPanel: `http://localhost:${PORT}${admin.options.rootPath}`,
         apiDocs: `http://localhost:${PORT}/api-docs`,
         quickLinks: `http://localhost:${PORT}/admin-links`,
+        rabbitmq: rabbitmqUtils.getRabbitMQInfo(),
         endpoints: {
           tenants: `http://localhost:${PORT}/api/tenants`,
           users: `http://localhost:${PORT}/api/users`,
-          dialogs: `http://localhost:${PORT}/api/dialogs`
+          dialogs: `http://localhost:${PORT}/api/dialogs`,
+          events: `http://localhost:${PORT}/api/events`
         }
       });
     });

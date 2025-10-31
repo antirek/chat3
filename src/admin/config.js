@@ -2,7 +2,7 @@ import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import * as AdminJSMongoose from '@adminjs/mongoose';
 
-import { Tenant, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember } from '../models/index.js';
+import { Tenant, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember, Event } from '../models/index.js';
 
 // Register the mongoose adapter
 AdminJS.registerAdapter({
@@ -442,6 +442,199 @@ const adminOptions = {
         sort: {
           sortBy: 'lastSeenAt',
           direction: 'desc'
+        }
+      }
+    },
+    {
+      resource: Event,
+      options: {
+        navigation: {
+          name: 'Система',
+          icon: 'Activity',
+        },
+        properties: {
+          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          eventType: { 
+            isTitle: true,
+            availableValues: [
+              { value: 'dialog.create', label: '📝 Dialog: Create' },
+              { value: 'dialog.update', label: '📝 Dialog: Update' },
+              { value: 'dialog.delete', label: '🗑️ Dialog: Delete' },
+              { value: 'message.create', label: '💬 Message: Create' },
+              { value: 'message.update', label: '💬 Message: Update' },
+              { value: 'message.delete', label: '💬 Message: Delete' },
+              { value: 'dialog.member.add', label: '👥 Member: Add' },
+              { value: 'dialog.member.remove', label: '👥 Member: Remove' },
+              { value: 'dialog.member.update', label: '👥 Member: Update' },
+              { value: 'message.status.create', label: '✅ Status: Create' },
+              { value: 'message.status.update', label: '✅ Status: Update' },
+              { value: 'tenant.create', label: '🏢 Tenant: Create' },
+              { value: 'tenant.update', label: '🏢 Tenant: Update' },
+              { value: 'tenant.delete', label: '🏢 Tenant: Delete' },
+            ],
+            isRequired: true,
+          },
+          entityType: {
+            availableValues: [
+              { value: 'dialog', label: 'Dialog' },
+              { value: 'message', label: 'Message' },
+              { value: 'dialogMember', label: 'Dialog Member' },
+              { value: 'messageStatus', label: 'Message Status' },
+              { value: 'tenant', label: 'Tenant' },
+            ],
+            isRequired: true,
+          },
+          entityId: { 
+            isRequired: true,
+            description: 'ID сущности (ObjectId)',
+          },
+          tenantId: {
+            reference: 'Tenant',
+            isRequired: true,
+          },
+          actorId: {
+            type: 'string',
+            description: 'ID пользователя, который инициировал событие',
+          },
+          actorType: {
+            availableValues: [
+              { value: 'user', label: '👤 User' },
+              { value: 'system', label: '⚙️ System' },
+              { value: 'bot', label: '🤖 Bot' },
+              { value: 'api', label: '🔌 API' },
+            ],
+          },
+          data: { 
+            type: 'textarea',
+            isVisible: { list: false, show: true, edit: false },
+            description: 'Дополнительные данные события (JSON)',
+            position: 100,
+          },
+          'data.dialogId': {
+            isVisible: false, // Скрыть автоматически развернутые поля
+          },
+          'data.dialogName': {
+            isVisible: false,
+          },
+          'data.messageType': {
+            isVisible: false,
+          },
+          'data.contentLength': {
+            isVisible: false,
+          },
+          'data.userId': {
+            isVisible: false,
+          },
+          'data.oldStatus': {
+            isVisible: false,
+          },
+          'data.newStatus': {
+            isVisible: false,
+          },
+          'data.messageId': {
+            isVisible: false,
+          },
+          metadata: {
+            type: 'textarea',
+            isVisible: { list: false, show: true, edit: false },
+            description: 'Метаданные: IP, User-Agent, API Key ID',
+            position: 101,
+          },
+          'metadata.ipAddress': {
+            isVisible: false, // Скрыть автоматически развернутые поля
+          },
+          'metadata.userAgent': {
+            isVisible: false,
+          },
+          'metadata.apiKeyId': {
+            isVisible: false,
+          },
+          'metadata.source': {
+            isVisible: false,
+          },
+          description: {
+            isVisible: { list: true, show: true, edit: false },
+            description: 'Читаемое описание события (виртуальное поле)',
+          },
+          createdAt: { 
+            isVisible: { list: true, show: true, edit: false },
+            description: 'Время создания события',
+          },
+        },
+        listProperties: ['eventType', 'description', 'entityType', 'actorId', 'actorType', 'createdAt'],
+        showProperties: ['_id', 'eventType', 'description', 'entityType', 'entityId', 'tenantId', 'actorId', 'actorType', 'data', 'metadata', 'createdAt'],
+        filterProperties: ['eventType', 'entityType', 'entityId', 'tenantId', 'actorId', 'actorType'],
+        sort: {
+          sortBy: 'createdAt',
+          direction: 'desc'
+        },
+        actions: {
+          new: {
+            isVisible: false, // Запретить создание событий вручную
+          },
+          edit: {
+            isVisible: false, // Запретить редактирование событий
+          },
+          delete: {
+            isVisible: true,
+            isAccessible: true,
+          },
+          bulkDelete: {
+            isVisible: true,
+            isAccessible: true,
+          },
+          show: {
+            after: async (response, request, context) => {
+              const { record } = context;
+              if (record && record.params) {
+                try {
+                  // Собираем развернутые поля data.* обратно в объект data
+                  if (!record.params.data || record.params.data === '{}' || record.params.data === '') {
+                    const dataObj = {};
+                    Object.keys(record.params).forEach(key => {
+                      if (key.startsWith('data.') && record.params[key] !== undefined && record.params[key] !== null) {
+                        const dataKey = key.replace('data.', '');
+                        dataObj[dataKey] = record.params[key];
+                      }
+                    });
+                    if (Object.keys(dataObj).length > 0) {
+                      record.params.data = JSON.stringify(dataObj, null, 2);
+                    }
+                  } else {
+                    // Если data уже есть, форматируем его как JSON
+                    const dataValue = typeof record.params.data === 'string' 
+                      ? JSON.parse(record.params.data) 
+                      : record.params.data;
+                    record.params.data = JSON.stringify(dataValue, null, 2);
+                  }
+                  
+                  // Собираем развернутые поля metadata.* обратно в объект metadata
+                  if (!record.params.metadata || record.params.metadata === '{}' || record.params.metadata === '') {
+                    const metadataObj = {};
+                    Object.keys(record.params).forEach(key => {
+                      if (key.startsWith('metadata.') && record.params[key] !== undefined && record.params[key] !== null) {
+                        const metaKey = key.replace('metadata.', '');
+                        metadataObj[metaKey] = record.params[key];
+                      }
+                    });
+                    if (Object.keys(metadataObj).length > 0) {
+                      record.params.metadata = JSON.stringify(metadataObj, null, 2);
+                    }
+                  } else {
+                    // Если metadata уже есть, форматируем его как JSON
+                    const metadataValue = typeof record.params.metadata === 'string'
+                      ? JSON.parse(record.params.metadata)
+                      : record.params.metadata;
+                    record.params.metadata = JSON.stringify(metadataValue, null, 2);
+                  }
+                } catch (error) {
+                  console.error('Error formatting event data/metadata:', error);
+                  // Если ошибка парсинга, оставляем как есть
+                }
+              }
+              return response;
+            }
+          }
         }
       }
     },

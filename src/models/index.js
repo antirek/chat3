@@ -5,6 +5,7 @@ import Meta from './Meta.js';
 import ApiKey from './ApiKey.js';
 import MessageStatus from './MessageStatus.js';
 import DialogMember from './DialogMember.js';
+import Event from './Event.js';
 
 export {
   Tenant,
@@ -13,6 +14,7 @@ export {
   Meta,
   ApiKey,
   MessageStatus,
-  DialogMember
+  DialogMember,
+  Event
 };
 

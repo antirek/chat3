@@ -1,4 +1,5 @@
 import { MessageStatus, Message, Dialog } from '../models/index.js';
+import * as eventUtils from '../utils/eventUtils.js';
 
 const messageStatusController = {
   // Get message status for a specific message
@@ -90,6 +91,12 @@ const messageStatusController = {
         updateData.deliveredAt = new Date();
       }
 
+      const oldStatus = await MessageStatus.findOne({
+        messageId: messageId,
+        userId: userId,
+        tenantId: req.tenantId
+      });
+
       const messageStatus = await MessageStatus.findOneAndUpdate(
         {
           messageId: messageId,
@@ -103,6 +110,24 @@ const messageStatusController = {
           runValidators: true 
         }
       ).select('-__v');
+
+      // Создаем событие message.status.update
+      await eventUtils.createEvent({
+        tenantId: req.tenantId,
+        eventType: oldStatus ? 'message.status.update' : 'message.status.create',
+        entityType: 'messageStatus',
+        entityId: messageStatus._id,
+        actorId: userId,
+        actorType: 'user',
+        data: {
+          messageId,
+          userId,
+          oldStatus: oldStatus?.status || null,
+          newStatus: status,
+          dialogId: message.dialogId
+        },
+        metadata: eventUtils.extractMetadataFromRequest(req)
+      });
 
       res.json({
         data: messageStatus,

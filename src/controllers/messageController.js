@@ -1,5 +1,6 @@
 import { Message, Dialog, Meta, MessageStatus } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
+import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 
 const messageController = {
@@ -378,18 +379,38 @@ const messageController = {
         }
       }
 
-      // Get message with meta data
-      const messageWithMeta = await Message.findById(message._id)
-        .select('-__v')
-        .populate('tenantId', 'name domain')
-        .populate('dialogId', 'name');
-
+      // Получаем мета-теги сообщения для события
       const messageMeta = await metaUtils.getEntityMeta(
         req.tenantId,
         'message',
         message._id
       );
 
+      // Создаем событие message.create (после сохранения мета-тегов)
+      await eventUtils.createEvent({
+        tenantId: req.tenantId,
+        eventType: 'message.create',
+        entityType: 'message',
+        entityId: message._id,
+        actorId: senderId,
+        actorType: 'user',
+        data: {
+          dialogId: dialogId,
+          dialogName: dialog.name,
+          messageType: type,
+          contentLength: content.length,
+          meta: messageMeta // Добавляем мета-теги сообщения
+        },
+        metadata: eventUtils.extractMetadataFromRequest(req)
+      });
+
+      // Get message with meta data
+      const messageWithMeta = await Message.findById(message._id)
+        .select('-__v')
+        .populate('tenantId', 'name domain')
+        .populate('dialogId', 'name');
+
+      // messageMeta уже загружено выше для события, используем его
       const messageObj = messageWithMeta.toObject();
 
       res.status(201).json({
