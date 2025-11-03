@@ -6,51 +6,6 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/dialogs/{dialogId}/members/{userId}/unread-count:
- *   get:
- *     summary: Get unread message count for a user in a specific dialog
- *     tags: [DialogMember]
- *     security:
- *       - ApiKeyAuth: []
- *     parameters:
- *       - in: path
- *         name: dialogId
- *         required: true
- *         schema:
- *           type: string
- *         description: Dialog ID
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     responses:
- *       200:
- *         description: Unread count retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: object
- *                   properties:
- *                     userId:
- *                       type: string
- *                     dialogId:
- *                       type: string
- *                     unreadCount:
- *                       type: integer
- *       401:
- *         description: Unauthorized - Invalid API key
- *       403:
- *         description: Forbidden - Insufficient permissions
- */
-router.get('/:dialogId/members/:userId/unread-count', apiAuth, requirePermission('read'), dialogMemberController.getUserDialogUnreadCount);
-
-/**
- * @swagger
  * /api/dialogs/{dialogId}/members:
  *   post:
  *     summary: Add a member to a dialog

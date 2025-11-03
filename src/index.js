@@ -12,7 +12,7 @@ import messageInfoRoutes from './routes/messageInfoRoutes.js';
 import messageReactionRoutes from './routes/messageReactionRoutes.js';
 import dialogMemberRoutes from './routes/dialogMemberRoutes.js';
 import userDialogRoutes from './routes/userDialogRoutes.js';
-import eventRoutes from './routes/eventRoutes.js';
+import metaRoutes from './routes/metaRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,7 +54,7 @@ const startServer = async () => {
     app.use('/api/messages', messageReactionRoutes);
     app.use('/api/dialogs', dialogMemberRoutes);
     app.use('/api/users', userDialogRoutes);
-    app.use('/api/events', eventRoutes);
+    app.use('/api/meta', metaRoutes);
 
     // API Test page
     app.get('/api-test', (req, res) => {
@@ -163,12 +163,10 @@ const startServer = async () => {
                 <li><code>GET/POST/DELETE /api/dialogs</code></li>
                 <li><code>GET/POST /api/dialogs/:id/messages</code></li>
                 <li><code>PUT /api/messages/:id/status</code></li>
-                <li><code>GET /api/dialogs/:id/members/:userId/unread-count</code></li>
                 <li><code>POST/DELETE /api/dialogs/:id/members/:userId</code></li>
-                <li><code>GET /api/users/:id/dialogs</code></li>
-                <li><code>GET /api/users/:id/dialogs/detailed</code></li>
+                <li><code>GET /api/users/:id/dialogs?includeLastMessage=true</code></li>
                 <li><code>GET/POST/DELETE /api/messages/:id/reactions</code></li>
-                <li><code>GET /api/events</code></li>
+                <li><code>GET/PUT/DELETE /api/meta/:entityType/:entityId/:key</code></li>
               </ul>
               <p style="margin-bottom: 0; color: #666; font-size: 14px;">
                 💡 Все API запросы требуют заголовок <code>X-API-Key</code>
@@ -202,7 +200,7 @@ const startServer = async () => {
           tenants: `http://localhost:${PORT}/api/tenants`,
           users: `http://localhost:${PORT}/api/users`,
           dialogs: `http://localhost:${PORT}/api/dialogs`,
-          events: `http://localhost:${PORT}/api/events`
+          meta: `http://localhost:${PORT}/api/meta`
         }
       });
     });
@@ -219,10 +217,8 @@ const startServer = async () => {
       console.log(`   GET  /api/dialogs/:id/messages`);
       console.log(`   POST /api/dialogs/:id/messages`);
       console.log(`   PUT  /api/messages/:id/status`);
-      console.log(`   GET  /api/dialogs/:id/members/:userId/unread-count`);
       console.log(`   POST/DELETE /api/dialogs/:id/members/:userId`);
-      console.log(`   GET  /api/users/:userId/dialogs`);
-      console.log(`   GET  /api/users/:userId/dialogs/detailed`);
+      console.log(`   GET  /api/users/:userId/dialogs?includeLastMessage=true`);
       console.log(`\n⚠️  Don't forget to generate an API key first!\n`);
     });
   } catch (error) {

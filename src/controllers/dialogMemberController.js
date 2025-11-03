@@ -3,32 +3,6 @@ import * as unreadCountUtils from '../utils/unreadCountUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 
 const dialogMemberController = {
-  // Get unread count for a user in a specific dialog
-  async getUserDialogUnreadCount(req, res) {
-    try {
-      const { userId, dialogId } = req.params;
-
-      const unreadCount = await unreadCountUtils.getUnreadCount(
-        req.tenantId,
-        userId,
-        dialogId
-      );
-
-      res.json({
-        data: {
-          userId,
-          dialogId,
-          unreadCount
-        }
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: error.message
-      });
-    }
-  },
-
   // Add member to dialog
   async addDialogMember(req, res) {
     try {
