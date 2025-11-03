@@ -50,9 +50,7 @@
 | **Реакции** | `message.reaction.add` | Добавлена реакция на сообщение | `POST /api/messages/:id/reactions` | `messageReaction` |
 | | `message.reaction.update` | Обновлена реакция на сообщение | `POST /api/messages/:id/reactions` (существующая) | `messageReaction` |
 | | `message.reaction.remove` | Удалена реакция на сообщение | `DELETE /api/messages/:id/reactions/:reaction` | `messageReaction` |
-| **Tenant** | `tenant.create` | Создан tenant | `POST /api/tenants` | `tenant` |
-| | `tenant.update` | Обновлен tenant | `PUT /api/tenants/:id` | `tenant` |
-| | `tenant.delete` | Удален tenant | `DELETE /api/tenants/:id` | `tenant` |
+
 
 ### Примеры данных событий
 

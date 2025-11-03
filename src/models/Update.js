@@ -78,3 +78,6 @@ const Update = mongoose.model('Update', updateSchema);
 
 export default Update;
 
+
+
+
