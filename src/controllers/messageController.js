@@ -12,7 +12,7 @@ const messageController = {
       console.log('query:', req.query);
       
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 20;
+      const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
 
       console.log('pagination:', { page, limit, skip });

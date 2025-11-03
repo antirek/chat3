@@ -77,6 +77,23 @@ const router = express.Router();
  *                       meta:
  *                         type: object
  *                         description: Message meta data (channelType, channelId)
+ *                       statuses:
+ *                         type: array
+ *                         description: Array of message statuses sorted by date (newest first)
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             userId:
+ *                               type: string
+ *                             status:
+ *                               type: string
+ *                               enum: [sent, delivered, read]
+ *                             readAt:
+ *                               type: string
+ *                               format: date-time
+ *                             createdAt:
+ *                               type: string
+ *                               format: date-time
  *                       createdAt:
  *                         type: string
  *                         format: date-time

@@ -23,7 +23,7 @@ const router = express.Router();
  *         name: limit
  *         schema:
  *           type: integer
- *           default: 20
+ *           default: 10
  *         description: Number of messages per page
  *       - in: query
  *         name: filter
