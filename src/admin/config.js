@@ -312,6 +312,7 @@ const adminOptions = {
               { value: 'message', label: 'Сообщение' },
               { value: 'tenant', label: 'Тенант' },
               { value: 'system', label: 'Система' },
+              { value: 'dialogMember', label: 'Участник диалога' },
             ],
             isRequired: true,
           },
@@ -695,13 +696,6 @@ const adminOptions = {
             isRequired: true,
             isTitle: true,
           },
-          updateType: {
-            availableValues: [
-              { value: 'DialogUpdate', label: '📝 Dialog Update' },
-              { value: 'MessageUpdate', label: '💬 Message Update' },
-            ],
-            isRequired: true,
-          },
           dialogId: {
             reference: 'Dialog',
             isRequired: true,
@@ -770,9 +764,9 @@ const adminOptions = {
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: false, show: true, edit: false } },
         },
-        listProperties: ['_id', 'userId', 'updateType', 'dialogId', 'eventType', 'published', 'createdAt'],
-        showProperties: ['_id', 'userId', 'updateType', 'dialogId', 'entityId', 'eventId', 'eventType', 'tenantId', 'data', 'published', 'publishedAt', 'createdAt', 'updatedAt'],
-        filterProperties: ['userId', 'updateType', 'dialogId', 'eventType', 'published', 'tenantId'],
+        listProperties: ['_id', 'userId', 'dialogId', 'eventType', 'published', 'createdAt'],
+        showProperties: ['_id', 'userId', 'dialogId', 'entityId', 'eventId', 'eventType', 'tenantId', 'data', 'published', 'publishedAt', 'createdAt', 'updatedAt'],
+        filterProperties: ['userId', 'dialogId', 'eventType', 'published', 'tenantId'],
         sort: {
           sortBy: 'createdAt',
           direction: 'desc'

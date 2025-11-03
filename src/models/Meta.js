@@ -8,7 +8,7 @@ const metaSchema = new mongoose.Schema({
   },
   entityType: {
     type: String,
-    enum: ['user', 'dialog', 'message', 'tenant', 'system'],
+    enum: ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember'],
     required: true
   },
   entityId: {

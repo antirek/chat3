@@ -313,7 +313,6 @@ export async function publishUpdate(update, routingKey) {
         contentType: 'application/json',
         timestamp: Date.now(),
         headers: {
-          updateType: update.updateType,
           userId: update.userId,
           dialogId: update.dialogId?.toString(),
           entityId: update.entityId?.toString(),

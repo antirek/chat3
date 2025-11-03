@@ -25,11 +25,10 @@
   _id: ObjectId,
   tenantId: ObjectId,           // Tenant к которому относится update
   userId: String,               // ID пользователя-получателя update
-  updateType: String,           // 'DialogUpdate' | 'MessageUpdate'
   dialogId: ObjectId,          // ID диалога
   entityId: ObjectId,          // ID сущности (Dialog или Message)
   eventId: ObjectId,           // ID исходного события
-  eventType: String,           // Тип исходного события
+  eventType: String,           // Тип исходного события (определяет тип Update)
   data: Object,                // Полные данные объекта для пользователя
   published: Boolean,          // Отправлен ли в RabbitMQ
   publishedAt: Date,           // Время публикации
@@ -37,6 +36,10 @@
   updatedAt: Date             // Время обновления
 }
 ```
+
+**Примечание**: Тип Update (DialogUpdate или MessageUpdate) определяется из поля `eventType`:
+- События `dialog.*` → DialogUpdate
+- События `message.*` → MessageUpdate
 
 ## Генерация Updates
 
@@ -65,9 +68,19 @@
     "maxParticipants": 50,
     "features": ["file_sharing", "voice_calls"],
     "securityLevel": "high"
+  },
+  "dialogMemberMeta": {
+    "role": "admin",
+    "permissions": ["send", "delete"],
+    "notificationSettings": {
+      "sound": true,
+      "vibrate": false
+    }
   }
 }
 ```
+
+**Примечание**: Поле `dialogMemberMeta` содержит мета теги конкретного участника диалога (DialogMember) и уникально для каждого участника в каждом DialogUpdate.
 
 ### MessageUpdate
 
@@ -163,12 +176,16 @@ async function subscribeToUserUpdates(userId) {
     if (msg) {
       const update = JSON.parse(msg.content.toString());
       
-      console.log(`📥 Received ${update.updateType}:`, update.data);
+      // Определяем тип update из eventType
+      const isDialogUpdate = update.eventType.startsWith('dialog.');
+      const isMessageUpdate = update.eventType.startsWith('message.');
+      
+      console.log(`📥 Received ${update.eventType}:`, update.data);
       
       // Обработка update
-      if (update.updateType === 'DialogUpdate') {
+      if (isDialogUpdate) {
         handleDialogUpdate(update.data);
-      } else if (update.updateType === 'MessageUpdate') {
+      } else if (isMessageUpdate) {
         handleMessageUpdate(update.data);
       }
       
@@ -199,11 +216,17 @@ import json
 
 def callback(ch, method, properties, body):
     update = json.loads(body)
-    print(f"Received {update['updateType']}: {update['data']}")
+    event_type = update['eventType']
     
-    if update['updateType'] == 'DialogUpdate':
+    # Определяем тип update из eventType
+    is_dialog_update = event_type.startswith('dialog.')
+    is_message_update = event_type.startswith('message.')
+    
+    print(f"Received {event_type}: {update['data']}")
+    
+    if is_dialog_update:
         handle_dialog_update(update['data'])
-    elif update['updateType'] == 'MessageUpdate':
+    elif is_message_update:
         handle_message_update(update['data'])
     
     ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -249,11 +272,10 @@ channel.start_consuming()
 
 ```javascript
 {
-  updateType: 'DialogUpdate' | 'MessageUpdate',
   userId: 'carl',
   dialogId: '6904cad5da30b5d60761e0fd',
   entityId: '6904cad5da30b5d60761e0fc',
-  eventType: 'dialog.create',
+  eventType: 'dialog.create',  // Определяет тип Update (dialog.* → DialogUpdate, message.* → MessageUpdate)
   contentType: 'application/json',
   timestamp: 1698765432000
 }
@@ -266,7 +288,6 @@ channel.start_consuming()
   "_id": "6904cad5da30b5d60761e100",
   "tenantId": "6904cad5da30b5d60761e0bb",
   "userId": "carl",
-  "updateType": "MessageUpdate",
   "dialogId": "6904cad5da30b5d60761e0fd",
   "entityId": "6904cad5da30b5d60761e0fc",
   "eventId": "6904cad5da30b5d60761e0ff",

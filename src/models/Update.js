@@ -13,12 +13,6 @@ const updateSchema = new mongoose.Schema({
     description: 'ID пользователя-получателя update',
     index: true
   },
-  updateType: {
-    type: String,
-    required: true,
-    enum: ['DialogUpdate', 'MessageUpdate'],
-    index: true
-  },
   dialogId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Dialog',
@@ -69,7 +63,7 @@ const updateSchema = new mongoose.Schema({
 
 // Составные индексы для частых запросов
 updateSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
-updateSchema.index({ tenantId: 1, userId: 1, updateType: 1, createdAt: -1 });
+updateSchema.index({ tenantId: 1, userId: 1, eventType: 1, createdAt: -1 });
 updateSchema.index({ tenantId: 1, dialogId: 1, createdAt: -1 });
 updateSchema.index({ tenantId: 1, eventId: 1 });
 updateSchema.index({ tenantId: 1, published: 1, createdAt: -1 });

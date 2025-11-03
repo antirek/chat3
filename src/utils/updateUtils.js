@@ -17,43 +17,50 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
     }
 
     // Получаем метаданные диалога
-    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId.toString());
 
-    // Получаем всех участников диалога
+    // Получаем всех участников диалога (полные объекты для получения _id)
     const dialogMembers = await DialogMember.find({
       tenantId: tenantId,
       dialogId: dialogId,
       isActive: true
-    }).select('userId').lean();
+    }).lean();
 
     if (dialogMembers.length === 0) {
       console.log(`No active members found for dialog ${dialogId}`);
       return;
     }
 
-    // Формируем данные диалога для update
-    const dialogData = {
-      _id: dialog._id,
-      tenantId: dialog.tenantId,
-      name: dialog.name,
-      createdBy: dialog.createdBy,
-      createdAt: dialog.createdAt,
-      updatedAt: dialog.updatedAt,
-      meta: dialogMeta
-    };
+    // Создаем updates для каждого участника с его мета тегами
+    const updates = await Promise.all(
+      dialogMembers.map(async (member) => {
+        // Получаем мета теги DialogMember для этого участника
+        const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', member._id.toString());
 
-    // Создаем updates для каждого участника
-    const updates = dialogMembers.map(member => ({
-      tenantId: new mongoose.Types.ObjectId(tenantId),
-      userId: member.userId,
-      updateType: 'DialogUpdate',
-      dialogId: dialogId,
-      entityId: dialogId,
-      eventId: eventId,
-      eventType: eventType,
-      data: dialogData,
-      published: false
-    }));
+        // Формируем данные диалога для update с мета тегами участника
+        const dialogData = {
+          _id: dialog._id,
+          tenantId: dialog.tenantId,
+          name: dialog.name,
+          createdBy: dialog.createdBy,
+          createdAt: dialog.createdAt,
+          updatedAt: dialog.updatedAt,
+          meta: dialogMeta,
+          dialogMemberMeta: memberMeta
+        };
+
+        return {
+          tenantId: new mongoose.Types.ObjectId(tenantId),
+          userId: member.userId,
+          dialogId: dialogId,
+          entityId: dialogId,
+          eventId: eventId,
+          eventType: eventType,
+          data: dialogData,
+          published: false
+        };
+      })
+    );
 
     // Сохраняем updates в БД
     const savedUpdates = await Update.insertMany(updates);
@@ -121,7 +128,6 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
     const updates = dialogMembers.map(member => ({
       tenantId: new mongoose.Types.ObjectId(tenantId),
       userId: member.userId,
-      updateType: 'MessageUpdate',
       dialogId: dialogId,
       entityId: messageId,
       eventId: eventId,
@@ -153,8 +159,15 @@ async function publishUpdate(update) {
   try {
     const updateObj = update.toObject ? update.toObject() : update;
     
+    // Определяем тип update из eventType
+    const updateType = getUpdateTypeFromEventType(updateObj.eventType);
+    if (!updateType) {
+      console.error(`Cannot determine update type for eventType: ${updateObj.eventType}`);
+      return;
+    }
+    
     // Публикуем в exchange chat3_updates с routing key user.{userId}.{updateType}
-    const routingKey = `user.${updateObj.userId}.${updateObj.updateType.toLowerCase()}`;
+    const routingKey = `user.${updateObj.userId}.${updateType.toLowerCase()}`;
     
     await rabbitmqUtils.publishUpdate(updateObj, routingKey);
 
@@ -172,6 +185,38 @@ async function publishUpdate(update) {
     console.error(`Error publishing update ${update._id}:`, error);
     throw error;
   }
+}
+
+/**
+ * Определяет тип update из типа события
+ */
+export function getUpdateTypeFromEventType(eventType) {
+  const dialogUpdateEvents = [
+    'dialog.create',
+    'dialog.update',
+    'dialog.delete',
+    'dialog.member.add',
+    'dialog.member.remove'
+  ];
+
+  const messageUpdateEvents = [
+    'message.create',
+    'message.update',
+    'message.delete',
+    'message.reaction.add',
+    'message.reaction.update',
+    'message.reaction.remove',
+    'message.status.create',
+    'message.status.update'
+  ];
+
+  if (dialogUpdateEvents.includes(eventType)) {
+    return 'DialogUpdate';
+  }
+  if (messageUpdateEvents.includes(eventType)) {
+    return 'MessageUpdate';
+  }
+  return null;
 }
 
 /**
