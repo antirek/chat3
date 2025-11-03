@@ -158,17 +158,95 @@ async function seed() {
 
     // Создаем DialogMember записи батчами
     const batchSize = 100;
+    const savedDialogMembers = [];
     for (let i = 0; i < dialogMembers.length; i += batchSize) {
       const batch = dialogMembers.slice(i, i + batchSize);
-      await DialogMember.insertMany(batch);
+      const savedBatch = await DialogMember.insertMany(batch);
+      savedDialogMembers.push(...savedBatch);
     }
 
-    console.log(`✅ Created ${dialogMembers.length} dialog members`);
-    console.log(`   - Carl: ${dialogMembers.filter(m => m.userId === 'carl').length} dialogs`);
-    console.log(`   - Marta: ${dialogMembers.filter(m => m.userId === 'marta').length} dialogs`);
-    console.log(`   - Sara: ${dialogMembers.filter(m => m.userId === 'sara').length} dialogs`);
-    console.log(`   - Kirk: ${dialogMembers.filter(m => m.userId === 'kirk').length} dialogs`);
-    console.log(`   - John: ${dialogMembers.filter(m => m.userId === 'john').length} dialogs`);
+    console.log(`✅ Created ${savedDialogMembers.length} dialog members`);
+    console.log(`   - Carl: ${savedDialogMembers.filter(m => m.userId === 'carl').length} dialogs`);
+    console.log(`   - Marta: ${savedDialogMembers.filter(m => m.userId === 'marta').length} dialogs`);
+    console.log(`   - Sara: ${savedDialogMembers.filter(m => m.userId === 'sara').length} dialogs`);
+    console.log(`   - Kirk: ${savedDialogMembers.filter(m => m.userId === 'kirk').length} dialogs`);
+    console.log(`   - John: ${savedDialogMembers.filter(m => m.userId === 'john').length} dialogs`);
+
+    // Create meta tags for DialogMembers
+    console.log('\n🏷️  Creating DialogMember meta tags...');
+    const dialogMemberMetaEntries = [];
+    const roles = ['admin', 'member', 'moderator'];
+    
+    savedDialogMembers.forEach((member, index) => {
+      // Role: случайная роль, но чаще 'member'
+      const roleWeights = [0.1, 0.8, 0.1]; // 10% admin, 80% member, 10% moderator
+      const randomRole = Math.random();
+      let role;
+      if (randomRole < roleWeights[0]) {
+        role = 'admin';
+      } else if (randomRole < roleWeights[0] + roleWeights[1]) {
+        role = 'member';
+      } else {
+        role = 'moderator';
+      }
+
+      dialogMemberMetaEntries.push({
+        tenantId: tenant._id,
+        entityType: 'dialogMember',
+        entityId: member._id.toString(),
+        key: 'role',
+        value: role,
+        dataType: 'string',
+        createdBy: member.userId,
+      });
+
+      // Muted: 20% участников имеют muted = true
+      const isMuted = Math.random() < 0.2;
+      dialogMemberMetaEntries.push({
+        tenantId: tenant._id,
+        entityType: 'dialogMember',
+        entityId: member._id.toString(),
+        key: 'muted',
+        value: isMuted,
+        dataType: 'boolean',
+        createdBy: member.userId,
+      });
+
+      // notifySound: 80% участников имеют notifySound = true
+      const notifySound = Math.random() < 0.8;
+      dialogMemberMetaEntries.push({
+        tenantId: tenant._id,
+        entityType: 'dialogMember',
+        entityId: member._id.toString(),
+        key: 'notifySound',
+        value: notifySound,
+        dataType: 'boolean',
+        createdBy: member.userId,
+      });
+    });
+
+    // Создаем мета теги батчами
+    const metaBatchSize = 200;
+    for (let i = 0; i < dialogMemberMetaEntries.length; i += metaBatchSize) {
+      const batch = dialogMemberMetaEntries.slice(i, i + metaBatchSize);
+      await Meta.insertMany(batch);
+    }
+
+    console.log(`✅ Created ${dialogMemberMetaEntries.length} DialogMember meta entries`);
+    console.log(`   - Total DialogMembers: ${savedDialogMembers.length}`);
+    console.log(`   - Meta entries per DialogMember: 3 (role, muted, notifySound)`);
+    console.log(`   - Role distribution:`);
+    const roleCounts = dialogMemberMetaEntries
+      .filter(m => m.key === 'role')
+      .reduce((acc, m) => {
+        acc[m.value] = (acc[m.value] || 0) + 1;
+        return acc;
+      }, {});
+    Object.entries(roleCounts).forEach(([role, count]) => {
+      console.log(`     - ${role}: ${count}`);
+    });
+    console.log(`   - Muted: ${dialogMemberMetaEntries.filter(m => m.key === 'muted' && m.value === true).length} members`);
+    console.log(`   - NotifySound enabled: ${dialogMemberMetaEntries.filter(m => m.key === 'notifySound' && m.value === true).length} members`);
 
     // Create Messages for all dialogs
     const messageTemplates = [
@@ -475,6 +553,7 @@ async function seed() {
     console.log(`   - User metadata: 5 (carl, marta, sara, kirk, john themes)`);
     console.log(`   - Dialog metadata: ${dialogs.length * 6} (6 per dialog: type, channelType, welcomeMessage, maxParticipants, features, securityLevel)`);
     console.log(`   - Message metadata: ${messages.length * 2} (2 per message: channelType, channelId)`);
+    console.log(`   - DialogMember metadata: ${dialogMemberMetaEntries.length} (3 per member: role, muted, notifySound)`);
 
     // Create Message Reactions
     console.log('\n👍 Creating message reactions...');
@@ -571,7 +650,7 @@ async function seed() {
     console.log(`   - Messages: ${await Message.countDocuments()} (${messages.length} total across ${dialogs.length} dialogs)`);
     console.log(`   - Message Statuses: ${await MessageStatus.countDocuments()} (${messageStatuses.length} total)`);
     console.log(`   - Message Reactions: ${await MessageReaction.countDocuments()} (${allReactions.length} total)`);
-    console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/tenant + ${dialogs.length * 6} dialog + ${messages.length * 2} message)`);
+    console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/tenant + ${dialogs.length * 6} dialog + ${messages.length * 2} message + ${dialogMemberMetaEntries.length} dialogMember)`);
     console.log('\n🤖 System Bot:');
     console.log(`   - Identifier: system_bot`);
     console.log(`   - Tenant: ${systemTenant.name} (${systemTenant.domain})`);

@@ -183,6 +183,102 @@ const adminOptions = {
       }
     },
     {
+      resource: DialogMember,
+      options: {
+        navigation: {
+          name: 'Чаты',
+          icon: 'Users',
+        },
+        properties: {
+          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          userId: {
+            type: 'string',
+            isRequired: true,
+            description: 'ID пользователя (строка)',
+            isTitle: true,
+          },
+          tenantId: {
+            reference: 'Tenant',
+            isRequired: true,
+          },
+          dialogId: {
+            reference: 'Dialog',
+            isRequired: true,
+          },
+          unreadCount: {
+            type: 'number',
+            isRequired: true,
+            description: 'Количество непрочитанных сообщений',
+          },
+          lastSeenAt: {
+            type: 'datetime',
+            isVisible: { list: true, show: true, edit: false },
+            description: 'Время последнего просмотра диалога',
+          },
+          lastMessageAt: {
+            type: 'datetime',
+            isVisible: { list: true, show: true, edit: false },
+            description: 'Время последнего сообщения в диалоге',
+          },
+          isActive: {
+            type: 'boolean',
+            isVisible: { list: true, show: true, edit: true },
+            description: 'Активен ли участник в диалоге',
+          },
+          meta: {
+            type: 'textarea',
+            isVisible: { list: false, show: true, edit: false },
+            position: 999,
+            description: 'Meta теги участника диалога (role, muted, notifySound)',
+          },
+          createdAt: { isVisible: { list: true, show: true, edit: false } },
+          updatedAt: { isVisible: { list: false, show: true, edit: false } },
+        },
+        listProperties: ['_id', 'userId', 'dialogId', 'unreadCount', 'lastSeenAt', 'lastMessageAt', 'isActive', 'createdAt'],
+        showProperties: ['_id', 'userId', 'tenantId', 'dialogId', 'unreadCount', 'lastSeenAt', 'lastMessageAt', 'isActive', 'meta', 'createdAt', 'updatedAt'],
+        filterProperties: ['userId', 'dialogId', 'tenantId', 'isActive'],
+        sort: {
+          sortBy: 'lastSeenAt',
+          direction: 'desc'
+        },
+        actions: {
+          show: {
+            after: async (response, request, context) => {
+              const { record } = context;
+              if (record && record.params._id && record.params.tenantId) {
+                try {
+                  console.log('Loading meta for DialogMember:', record.params._id);
+                  
+                  // Загружаем метаданные DialogMember
+                  const metaRecords = await Meta.find({
+                    tenantId: record.params.tenantId,
+                    entityType: 'dialogMember',
+                    entityId: record.params._id.toString()
+                  }).lean();
+                  
+                  console.log('Found meta records for DialogMember:', metaRecords.length);
+                  
+                  // Преобразуем в объект {key: value}
+                  const metaObject = {};
+                  metaRecords.forEach(m => {
+                    metaObject[m.key] = m.value;
+                  });
+                  
+                  console.log('DialogMember meta object:', metaObject);
+                  
+                  // Добавляем в record как JSON строку для отображения
+                  record.params.meta = JSON.stringify(metaObject, null, 2);
+                } catch (error) {
+                  console.error('Error loading DialogMember meta:', error);
+                }
+              }
+              return response;
+            }
+          }
+        }
+      }
+    },
+    {
       resource: Message,
       options: {
         navigation: {
@@ -289,56 +385,6 @@ const adminOptions = {
       }
     },
     {
-      resource: Meta,
-      options: {
-        navigation: {
-          name: 'Чаты',
-          icon: 'Tag',
-        },
-        properties: {
-          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
-          key: { 
-            isTitle: true,
-            isRequired: true,
-          },
-          tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
-          },
-          entityType: {
-            availableValues: [
-              { value: 'user', label: 'Пользователь' },
-              { value: 'dialog', label: 'Диалог' },
-              { value: 'message', label: 'Сообщение' },
-              { value: 'tenant', label: 'Тенант' },
-              { value: 'system', label: 'Система' },
-              { value: 'dialogMember', label: 'Участник диалога' },
-            ],
-            isRequired: true,
-          },
-          entityId: { isRequired: true },
-          value: { 
-            type: 'mixed',
-            isRequired: true,
-          },
-          dataType: {
-            availableValues: [
-              { value: 'string', label: 'Строка' },
-              { value: 'number', label: 'Число' },
-              { value: 'boolean', label: 'Булево' },
-              { value: 'object', label: 'Объект' },
-              { value: 'array', label: 'Массив' },
-            ],
-            isRequired: true,
-          },
-          createdAt: { isVisible: { list: true, show: true, edit: false } },
-          updatedAt: { isVisible: { list: true, show: true, edit: false } },
-        },
-        listProperties: ['_id', 'key', 'entityType', 'dataType', 'createdAt'],
-        filterProperties: ['key', 'entityType', 'entityId', 'tenantId'],
-      }
-    },
-    {
       resource: MessageStatus,
       options: {
         navigation: {
@@ -392,65 +438,99 @@ const adminOptions = {
       }
     },
     {
-      resource: DialogMember,
+      resource: MessageReaction,
       options: {
         navigation: {
           name: 'Чаты',
-          icon: 'Users',
+          icon: 'Heart',
         },
         properties: {
           _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          messageId: {
+            reference: 'Message',
+            isRequired: true,
+          },
           userId: {
             type: 'string',
             isRequired: true,
-            description: 'ID пользователя (строка)',
             isTitle: true,
+          },
+          reaction: {
+            type: 'string',
+            isRequired: true,
+            description: 'Тип реакции: эмодзи (👍, ❤️, 😂) или текст (custom:text)'
           },
           tenantId: {
             reference: 'Tenant',
             isRequired: true,
           },
-          dialogId: {
-            reference: 'Dialog',
-            isRequired: true,
-          },
-          unreadCount: {
-            type: 'number',
-            isRequired: true,
-            description: 'Количество непрочитанных сообщений',
-          },
-          lastSeenAt: {
-            type: 'datetime',
-            isVisible: { list: true, show: true, edit: false },
-            description: 'Время последнего просмотра диалога',
-          },
-          lastMessageAt: {
-            type: 'datetime',
-            isVisible: { list: true, show: true, edit: false },
-            description: 'Время последнего сообщения в диалоге',
-          },
-          isActive: {
-            type: 'boolean',
-            isVisible: { list: true, show: true, edit: true },
-            description: 'Активен ли участник в диалоге',
-          },
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: false, show: true, edit: false } },
         },
-        listProperties: ['_id', 'userId', 'dialogId', 'unreadCount', 'lastSeenAt', 'lastMessageAt', 'isActive', 'createdAt'],
-        showProperties: ['_id', 'userId', 'tenantId', 'dialogId', 'unreadCount', 'lastSeenAt', 'lastMessageAt', 'isActive', 'createdAt', 'updatedAt'],
-        filterProperties: ['userId', 'dialogId', 'tenantId', 'isActive'],
+        listProperties: ['_id', 'messageId', 'userId', 'reaction', 'createdAt'],
+        showProperties: ['_id', 'messageId', 'userId', 'tenantId', 'reaction', 'createdAt', 'updatedAt'],
+        filterProperties: ['messageId', 'userId', 'tenantId', 'reaction'],
         sort: {
-          sortBy: 'lastSeenAt',
+          sortBy: 'createdAt',
           direction: 'desc'
         }
+      }
+    },
+    {
+      resource: Meta,
+      options: {
+        navigation: {
+          name: 'Чаты',
+          icon: 'Tag',
+        },
+        properties: {
+          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          key: { 
+            isTitle: true,
+            isRequired: true,
+          },
+          tenantId: {
+            reference: 'Tenant',
+            isRequired: true,
+          },
+          entityType: {
+            availableValues: [
+              { value: 'user', label: 'Пользователь' },
+              { value: 'dialog', label: 'Диалог' },
+              { value: 'message', label: 'Сообщение' },
+              { value: 'tenant', label: 'Тенант' },
+              { value: 'system', label: 'Система' },
+              { value: 'dialogMember', label: 'Участник диалога' },
+            ],
+            isRequired: true,
+          },
+          entityId: { isRequired: true },
+          value: { 
+            type: 'mixed',
+            isRequired: true,
+          },
+          dataType: {
+            availableValues: [
+              { value: 'string', label: 'Строка' },
+              { value: 'number', label: 'Число' },
+              { value: 'boolean', label: 'Булево' },
+              { value: 'object', label: 'Объект' },
+              { value: 'array', label: 'Массив' },
+            ],
+            isRequired: true,
+          },
+          createdAt: { isVisible: { list: true, show: true, edit: false } },
+          updatedAt: { isVisible: { list: true, show: true, edit: false } },
+        },
+        listProperties: ['_id', 'key', 'entityType', 'dataType', 'createdAt'],
+        filterProperties: ['key', 'entityType', 'entityId', 'tenantId'],
       }
     },
     {
       resource: Event,
       options: {
         navigation: {
-          name: 'Система',
+          name: 'Журналы',
           icon: 'Activity',
         },
         properties: {
@@ -644,49 +724,10 @@ const adminOptions = {
       }
     },
     {
-      resource: MessageReaction,
-      options: {
-        navigation: {
-          name: 'Чаты',
-          icon: 'Heart',
-        },
-        properties: {
-          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
-          messageId: {
-            reference: 'Message',
-            isRequired: true,
-          },
-          userId: {
-            type: 'string',
-            isRequired: true,
-            isTitle: true,
-          },
-          reaction: {
-            type: 'string',
-            isRequired: true,
-            description: 'Тип реакции: эмодзи (👍, ❤️, 😂) или текст (custom:text)'
-          },
-          tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
-          },
-          createdAt: { isVisible: { list: true, show: true, edit: false } },
-          updatedAt: { isVisible: { list: false, show: true, edit: false } },
-        },
-        listProperties: ['_id', 'messageId', 'userId', 'reaction', 'createdAt'],
-        showProperties: ['_id', 'messageId', 'userId', 'tenantId', 'reaction', 'createdAt', 'updatedAt'],
-        filterProperties: ['messageId', 'userId', 'tenantId', 'reaction'],
-        sort: {
-          sortBy: 'createdAt',
-          direction: 'desc'
-        }
-      }
-    },
-    {
       resource: Update,
       options: {
         navigation: {
-          name: 'Система',
+          name: 'Журналы',
           icon: 'Sync',
         },
         properties: {

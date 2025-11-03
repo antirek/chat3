@@ -358,8 +358,25 @@ export const dialogController = {
         dialogId: dialog._id,
         tenantId: req.tenantId
       })
-        .select('userId role joinedAt lastSeenAt lastMessageAt isActive unreadCount')
-        .sort({ joinedAt: 1 });
+        .select('userId lastSeenAt lastMessageAt isActive unreadCount')
+        .sort({ lastSeenAt: -1 })
+        .lean();
+
+      // Получаем мета теги для каждого участника
+      const membersWithMeta = await Promise.all(
+        members.map(async (member) => {
+          const memberMeta = await metaUtils.getEntityMeta(
+            req.tenantId,
+            'dialogMember',
+            member._id.toString()
+          );
+          
+          return {
+            ...member,
+            meta: memberMeta
+          };
+        })
+      );
 
       // Вычисляем общую статистику по диалогу
       // const totalUnreadCount = members.reduce((total, member) => total + (member.unreadCount || 0), 0);
@@ -377,7 +394,7 @@ export const dialogController = {
         data: {
           ...dialogObj,
           meta,
-          members
+          members: membersWithMeta
           // dialogStats: {
           //   totalUnreadCount,
           //   activeMembersCount,
