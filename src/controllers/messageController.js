@@ -128,7 +128,7 @@ const messageController = {
           return {
             ...messageObj,
             meta,
-            messageStatuses
+            statuses: messageStatuses
           };
         })
       );
@@ -257,7 +257,7 @@ const messageController = {
           return {
             ...messageObj,
             meta,
-            messageStatuses
+            statuses: messageStatuses
           };
         })
       );

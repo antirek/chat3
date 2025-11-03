@@ -52,9 +52,7 @@ const startServer = async () => {
     app.use('/api/messages', messageInfoRoutes);
     app.use('/api/messages', messageStatusRoutes);
     app.use('/api/messages', messageReactionRoutes);
-    app.use('/api/dialogs', messageStatusRoutes);
     app.use('/api/dialogs', dialogMemberRoutes);
-    app.use('/api/dialog-members', dialogMemberRoutes);
     app.use('/api/users', userDialogRoutes);
     app.use('/api/events', eventRoutes);
 
@@ -164,14 +162,13 @@ const startServer = async () => {
                 <li><code>GET/POST/PUT/DELETE /api/tenants</code></li>
                 <li><code>GET/POST/DELETE /api/dialogs</code></li>
                 <li><code>GET/POST /api/dialogs/:id/messages</code></li>
-                <li><code>GET/PUT /api/messages/:id/status</code></li>
-                <li><code>GET /api/users/:id/unread</code></li>
-                <li><code>GET /api/dialogs/:id/unread</code></li>
-                <li><code>GET /api/dialogs/:id/members</code></li>
+                <li><code>PUT /api/messages/:id/status</code></li>
+                <li><code>GET /api/dialogs/:id/members/:userId/unread-count</code></li>
                 <li><code>POST/DELETE /api/dialogs/:id/members/:userId</code></li>
-                <li><code>GET /api/dialog-members</code></li>
-                <li><code>GET /api/users/:userId/dialogs</code></li>
-                <li><code>GET /api/users/:userId/dialogs/detailed</code></li>
+                <li><code>GET /api/users/:id/dialogs</code></li>
+                <li><code>GET /api/users/:id/dialogs/detailed</code></li>
+                <li><code>GET/POST/DELETE /api/messages/:id/reactions</code></li>
+                <li><code>GET /api/events</code></li>
               </ul>
               <p style="margin-bottom: 0; color: #666; font-size: 14px;">
                 💡 Все API запросы требуют заголовок <code>X-API-Key</code>
@@ -217,19 +214,13 @@ const startServer = async () => {
       console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
       console.log(`🔗 Quick Links: http://localhost:${PORT}/admin-links`);
       console.log(`\n🔑 API Endpoints:`);
-      console.log(`   POST /api/tenants`);
-      console.log(`   GET  /api/tenants`);
       console.log(`   POST /api/dialogs`);
       console.log(`   GET  /api/dialogs`);
       console.log(`   GET  /api/dialogs/:id/messages`);
       console.log(`   POST /api/dialogs/:id/messages`);
-      console.log(`   GET  /api/messages/:id/status`);
       console.log(`   PUT  /api/messages/:id/status`);
-      console.log(`   GET  /api/users/:id/unread`);
-      console.log(`   GET  /api/dialogs/:id/unread`);
-      console.log(`   GET  /api/dialogs/:id/members`);
+      console.log(`   GET  /api/dialogs/:id/members/:userId/unread-count`);
       console.log(`   POST/DELETE /api/dialogs/:id/members/:userId`);
-      console.log(`   GET  /api/dialog-members`);
       console.log(`   GET  /api/users/:userId/dialogs`);
       console.log(`   GET  /api/users/:userId/dialogs/detailed`);
       console.log(`\n⚠️  Don't forget to generate an API key first!\n`);
