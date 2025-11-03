@@ -41,7 +41,13 @@ const messageSchema = new mongoose.Schema({
 });
 
 // Indexes
+// Compound index for getDialogMessages() - получение сообщений конкретного диалога с сортировкой
 messageSchema.index({ tenantId: 1, dialogId: 1, createdAt: -1 });
+
+// Index for getAll() - глобальный поиск сообщений по tenant с сортировкой
+messageSchema.index({ tenantId: 1, createdAt: -1 });
+
+// Index for filtering by sender
 messageSchema.index({ senderId: 1 });
 
 const Message = mongoose.model('Message', messageSchema);

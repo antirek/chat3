@@ -3,6 +3,41 @@ import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 
+/**
+ * Helper function to enrich messages with meta data and statuses
+ * @param {Array} messages - Array of message documents
+ * @param {String} tenantId - Tenant ID
+ * @returns {Promise<Array>} - Array of enriched messages with meta and statuses
+ */
+async function enrichMessagesWithMetaAndStatuses(messages, tenantId) {
+  return await Promise.all(
+    messages.map(async (message) => {
+      // Get message meta data
+      const meta = await metaUtils.getEntityMeta(
+        tenantId,
+        'message',
+        message._id
+      );
+      
+      // Get message statuses sorted by date (newest first)
+      const messageStatuses = await MessageStatus.find({
+        messageId: message._id,
+        tenantId: tenantId
+      })
+        .select('userId status readAt createdAt')
+        .sort({ createdAt: -1 }); // Newest first
+      
+      const messageObj = message.toObject();
+      
+      return {
+        ...messageObj,
+        meta,
+        statuses: messageStatuses
+      };
+    })
+  );
+}
+
 const messageController = {
   // Get all messages with filtering and pagination
   async getAll(req, res) {
@@ -106,32 +141,7 @@ const messageController = {
       }
 
       // Add meta data and message statuses for each message
-      const messagesWithMeta = await Promise.all(
-        messages.map(async (message) => {
-          // Get message meta data
-          const meta = await metaUtils.getEntityMeta(
-            req.tenantId,
-            'message',
-            message._id
-          );
-          
-          // Get message statuses sorted by date (newest first)
-          const messageStatuses = await MessageStatus.find({
-            messageId: message._id,
-            tenantId: req.tenantId
-          })
-            .select('userId status readAt createdAt')
-            .sort({ createdAt: -1 }); // Newest first
-          
-          const messageObj = message.toObject();
-          
-          return {
-            ...messageObj,
-            meta,
-            statuses: messageStatuses
-          };
-        })
-      );
+      const messagesWithMeta = await enrichMessagesWithMetaAndStatuses(messages, req.tenantId);
 
       const total = await Message.countDocuments(query);
 
@@ -235,32 +245,7 @@ const messageController = {
         .sort(sortOptions);
 
       // Add meta data and message statuses for each message
-      const messagesWithMeta = await Promise.all(
-        messages.map(async (message) => {
-          // Get message meta data
-          const meta = await metaUtils.getEntityMeta(
-            req.tenantId,
-            'message',
-            message._id
-          );
-          
-          // Get message statuses sorted by date (newest first)
-          const messageStatuses = await MessageStatus.find({
-            messageId: message._id,
-            tenantId: req.tenantId
-          })
-            .select('userId status readAt createdAt')
-            .sort({ createdAt: -1 }); // Newest first
-          
-          const messageObj = message.toObject();
-          
-          return {
-            ...messageObj,
-            meta,
-            statuses: messageStatuses
-          };
-        })
-      );
+      const messagesWithMeta = await enrichMessagesWithMetaAndStatuses(messages, req.tenantId);
 
       const total = await Message.countDocuments(query);
 
