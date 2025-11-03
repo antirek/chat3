@@ -77,7 +77,7 @@ const router = express.Router();
  *                       meta:
  *                         type: object
  *                         description: Message meta data
- *                       messageStatuses:
+ *                       statuses:
  *                         type: array
  *                         description: Array of message statuses sorted by date (newest first)
  *                         items:
@@ -160,7 +160,7 @@ router.get('/', apiAuth, requirePermission('read'), messageController.getAll);
  *                       type: string
  *                     meta:
  *                       type: object
- *                     messageStatuses:
+ *                     statuses:
  *                       type: array
  *                       items:
  *                         type: object

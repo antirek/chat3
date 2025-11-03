@@ -489,7 +489,7 @@ const messageController = {
       res.json({
         data: {
           ...messageObj,
-          messageStatuses: messageStatuses,
+          statuses: messageStatuses,
           meta
         }
       });
