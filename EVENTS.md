@@ -164,194 +164,14 @@
 }
 ```
 
-## API Endpoints
+## Доступ к событиям
 
-### Получить все события
+События создаются автоматически при операциях в системе и **не доступны через REST API**. 
 
-```bash
-GET /api/events
-```
-
-**Query параметры:**
-- `page` - номер страницы (по умолчанию: 1)
-- `limit` - событий на странице (по умолчанию: 50)
-- `eventType` - фильтр по типу события
-- `entityType` - фильтр по типу сущности
-- `entityId` - фильтр по ID сущности
-- `actorId` - фильтр по ID актора
-- `actorType` - фильтр по типу актора
-- `startDate` - начальная дата (ISO 8601)
-- `endDate` - конечная дата (ISO 8601)
-- `sort` - сортировка в формате `(field,direction)`
-
-**Примеры:**
-
-```bash
-# Все события
-GET /api/events
-
-# События создания диалогов
-GET /api/events?eventType=dialog.create
-
-# События пользователя carl
-GET /api/events?actorId=carl
-
-# События за последнюю неделю
-GET /api/events?startDate=2025-10-24T00:00:00Z&endDate=2025-10-31T23:59:59Z
-
-# События по типу сущности
-GET /api/events?entityType=message
-
-# С сортировкой по возрастанию
-GET /api/events?sort=(createdAt,asc)
-```
-
-### Получить событие по ID
-
-```bash
-GET /api/events/:id
-```
-
-### Получить события для конкретной сущности
-
-```bash
-GET /api/events/entity/:entityType/:entityId
-```
-
-**Пример:**
-```bash
-# Все события диалога
-GET /api/events/entity/dialog/6541a1b2c3d4e5f6g7h8i9j0
-
-# Все события сообщения
-GET /api/events/entity/message/6541a1b2c3d4e5f6g7h8i9j0
-```
-
-### Получить события по типу
-
-```bash
-GET /api/events/type/:eventType
-```
-
-**Примеры:**
-```bash
-# Все создания диалогов
-GET /api/events/type/dialog.create
-
-# Все обновления статусов
-GET /api/events/type/message.status.update
-```
-
-### Получить события пользователя (актора)
-
-```bash
-GET /api/events/actor/:actorId
-```
-
-**Примеры:**
-```bash
-# Все действия пользователя carl
-GET /api/events/actor/carl
-
-# Все действия с фильтром по типу
-GET /api/events/actor/carl?eventType=message.create
-```
-
-### Получить статистику по событиям
-
-```bash
-GET /api/events/stats
-```
-
-**Query параметры:**
-- `startDate` - начальная дата
-- `endDate` - конечная дата
-
-**Пример ответа:**
-```json
-{
-  "data": [
-    {
-      "eventType": "message.create",
-      "count": 156,
-      "lastEvent": "2025-10-31T15:30:00.000Z"
-    },
-    {
-      "eventType": "dialog.create",
-      "count": 45,
-      "lastEvent": "2025-10-31T14:20:00.000Z"
-    },
-    {
-      "eventType": "message.status.update",
-      "count": 892,
-      "lastEvent": "2025-10-31T15:45:00.000Z"
-    }
-  ]
-}
-```
-
-### Удалить старые события
-
-```bash
-DELETE /api/events/cleanup
-```
-
-**Request body:**
-```json
-{
-  "beforeDate": "2025-10-01T00:00:00Z"
-}
-```
-
-**Требуется право:** `delete`
-
-## Примеры использования
-
-### JavaScript (fetch)
-
-```javascript
-const apiKey = 'your_api_key';
-
-// Получить последние события
-fetch('http://localhost:3000/api/events?limit=10', {
-  headers: { 'X-API-Key': apiKey }
-})
-  .then(res => res.json())
-  .then(data => console.log(data));
-
-// Получить события создания сообщений
-fetch('http://localhost:3000/api/events?eventType=message.create', {
-  headers: { 'X-API-Key': apiKey }
-})
-  .then(res => res.json())
-  .then(data => console.log(data));
-
-// Получить статистику
-fetch('http://localhost:3000/api/events/stats', {
-  headers: { 'X-API-Key': apiKey }
-})
-  .then(res => res.json())
-  .then(data => console.log(data));
-```
-
-### cURL
-
-```bash
-# Получить события диалога
-curl -H "X-API-Key: your_api_key" \
-  "http://localhost:3000/api/events/entity/dialog/6541a1b2c3d4e5f6g7h8i9j0"
-
-# Получить статистику за последний месяц
-curl -H "X-API-Key: your_api_key" \
-  "http://localhost:3000/api/events/stats?startDate=2025-10-01&endDate=2025-10-31"
-
-# Удалить старые события
-curl -X DELETE \
-  -H "X-API-Key: your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{"beforeDate":"2025-09-01T00:00:00Z"}' \
-  "http://localhost:3000/api/events/cleanup"
-```
+Для доступа к событиям используйте:
+1. **AdminJS** (`http://localhost:3000/admin`) - просмотр событий через веб-интерфейс администратора
+2. **RabbitMQ** - подписка на события через очередь `chat3_events`
+3. **MongoDB** - прямые запросы к коллекции `events`
 
 ## Индексы MongoDB
 
@@ -370,70 +190,15 @@ curl -X DELETE \
 
 ### 1. Регулярная очистка
 
-Рекомендуется периодически удалять старые события для экономии места:
+Рекомендуется периодически удалять старые события для экономии места через AdminJS или прямые запросы к MongoDB.
 
-```javascript
-// Удалять события старше 90 дней
-const ninetyDaysAgo = new Date();
-ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+### 2. Мониторинг через RabbitMQ
 
-await fetch('http://localhost:3000/api/events/cleanup', {
-  method: 'DELETE',
-  headers: {
-    'X-API-Key': apiKey,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    beforeDate: ninetyDaysAgo.toISOString()
-  })
-});
-```
+Подписывайтесь на очередь `chat3_events` для real-time мониторинга событий.
 
-### 2. Использование статистики
+### 3. Аудит через AdminJS
 
-Используйте статистику для анализа активности:
-
-```javascript
-// Получить статистику за сегодня
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-
-const stats = await fetch(
-  `http://localhost:3000/api/events/stats?startDate=${today.toISOString()}`,
-  { headers: { 'X-API-Key': apiKey } }
-).then(res => res.json());
-
-console.log('Активность сегодня:', stats.data);
-```
-
-### 3. Аудит действий пользователя
-
-Отслеживайте действия конкретного пользователя:
-
-```javascript
-// Все действия пользователя за последний час
-const oneHourAgo = new Date();
-oneHourAgo.setHours(oneHourAgo.getHours() - 1);
-
-const userEvents = await fetch(
-  `http://localhost:3000/api/events/actor/carl?startDate=${oneHourAgo.toISOString()}`,
-  { headers: { 'X-API-Key': apiKey } }
-).then(res => res.json());
-```
-
-### 4. История сущности
-
-Просмотр всех изменений конкретной сущности:
-
-```javascript
-// История диалога
-const dialogHistory = await fetch(
-  'http://localhost:3000/api/events/entity/dialog/6541a1b2c3d4e5f6g7h8i9j0',
-  { headers: { 'X-API-Key': apiKey } }
-).then(res => res.json());
-
-console.log('История диалога:', dialogHistory.data);
-```
+Используйте AdminJS для просмотра и анализа событий в веб-интерфейсе.
 
 ## Типы акторов
 

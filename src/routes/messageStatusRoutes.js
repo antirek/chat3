@@ -6,8 +6,8 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/messages/{messageId}/status:
- *   put:
+ * /api/messages/{messageId}/status/{userId}/{status}:
+ *   post:
  *     summary: Update message status (mark as read/delivered)
  *     tags: [MessageStatus]
  *     security:
@@ -19,28 +19,21 @@ const router = express.Router();
  *         schema:
  *           type: string
  *         description: Message ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - userId
- *               - status
- *             properties:
- *               userId:
- *                 type: string
- *                 description: User ID
- *                 example: "carl"
- *               status:
- *                 type: string
- *                 enum: [unread, delivered, read]
- *                 description: New status
- *                 example: "read"
- *             example:
- *               userId: "carl"
- *               status: "read"
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *         example: "carl"
+ *       - in: path
+ *         name: status
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [unread, delivered, read]
+ *         description: New status
+ *         example: "read"
  *     responses:
  *       200:
  *         description: Message status updated successfully
@@ -75,7 +68,7 @@ const router = express.Router();
  *                 message:
  *                   type: string
  *       400:
- *         description: Bad Request - Missing required fields or invalid status
+ *         description: Bad Request - Invalid status
  *       404:
  *         description: Message not found
  *       401:
@@ -83,6 +76,6 @@ const router = express.Router();
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-router.put('/:messageId/status', apiAuth, requirePermission('write'), messageStatusController.updateMessageStatus);
+router.post('/:messageId/status/:userId/:status', apiAuth, requirePermission('write'), messageStatusController.updateMessageStatus);
 
 export default router;

@@ -162,8 +162,9 @@ const startServer = async () => {
                 <li><code>GET/POST/PUT/DELETE /api/tenants</code></li>
                 <li><code>GET/POST/DELETE /api/dialogs</code></li>
                 <li><code>GET/POST /api/dialogs/:id/messages</code></li>
-                <li><code>PUT /api/messages/:id/status</code></li>
-                <li><code>POST/DELETE /api/dialogs/:id/members/:userId</code></li>
+                <li><code>POST /api/messages/:id/status/:userId/:status</code></li>
+                <li><code>POST /api/dialogs/:id/members/:userId/add</code></li>
+                <li><code>POST /api/dialogs/:id/members/:userId/remove</code></li>
                 <li><code>GET /api/users/:id/dialogs?includeLastMessage=true</code></li>
                 <li><code>GET/POST/DELETE /api/messages/:id/reactions</code></li>
                 <li><code>GET/PUT/DELETE /api/meta/:entityType/:entityId/:key</code></li>
@@ -216,8 +217,9 @@ const startServer = async () => {
       console.log(`   GET  /api/dialogs`);
       console.log(`   GET  /api/dialogs/:id/messages`);
       console.log(`   POST /api/dialogs/:id/messages`);
-      console.log(`   PUT  /api/messages/:id/status`);
-      console.log(`   POST/DELETE /api/dialogs/:id/members/:userId`);
+      console.log(`   POST /api/messages/:id/status/:userId/:status`);
+      console.log(`   POST /api/dialogs/:id/members/:userId/add`);
+      console.log(`   POST /api/dialogs/:id/members/:userId/remove`);
       console.log(`   GET  /api/users/:userId/dialogs?includeLastMessage=true`);
       console.log(`\n⚠️  Don't forget to generate an API key first!\n`);
     });

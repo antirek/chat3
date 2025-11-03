@@ -6,15 +6,7 @@ const dialogMemberController = {
   // Add member to dialog
   async addDialogMember(req, res) {
     try {
-      const { dialogId } = req.params;
-      const { userId } = req.body;
-
-      if (!userId) {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: 'Missing required field: userId'
-        });
-      }
+      const { dialogId, userId } = req.params;
 
       const member = await unreadCountUtils.addDialogMember(
         req.tenantId,

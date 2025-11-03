@@ -6,7 +6,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/dialogs/{dialogId}/members:
+ * /api/dialogs/{dialogId}/members/{userId}/add:
  *   post:
  *     summary: Add a member to a dialog
  *     tags: [DialogMember]
@@ -19,19 +19,13 @@ const router = express.Router();
  *         schema:
  *           type: string
  *         description: Dialog ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - userId
- *             properties:
- *               userId:
- *                 type: string
- *                 description: User ID to add to dialog
- *                 example: "carl"
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID to add to dialog
+ *         example: "carl"
  *     responses:
  *       201:
  *         description: Member added to dialog successfully
@@ -49,19 +43,17 @@ const router = express.Router();
  *                       type: string
  *                 message:
  *                   type: string
- *       400:
- *         description: Bad Request - Missing required fields
  *       401:
  *         description: Unauthorized - Invalid API key
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-router.post('/:dialogId/members', apiAuth, requirePermission('write'), dialogMemberController.addDialogMember);
+router.post('/:dialogId/members/:userId/add', apiAuth, requirePermission('write'), dialogMemberController.addDialogMember);
 
 /**
  * @swagger
- * /api/dialogs/{dialogId}/members/{userId}:
- *   delete:
+ * /api/dialogs/{dialogId}/members/{userId}/remove:
+ *   post:
  *     summary: Remove a member from a dialog
  *     tags: [DialogMember]
  *     security:
@@ -78,7 +70,8 @@ router.post('/:dialogId/members', apiAuth, requirePermission('write'), dialogMem
  *         required: true
  *         schema:
  *           type: string
- *         description: User ID
+ *         description: User ID to remove from dialog
+ *         example: "carl"
  *     responses:
  *       200:
  *         description: Member removed from dialog successfully
@@ -94,6 +87,6 @@ router.post('/:dialogId/members', apiAuth, requirePermission('write'), dialogMem
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-router.delete('/:dialogId/members/:userId', apiAuth, requirePermission('delete'), dialogMemberController.removeDialogMember);
+router.post('/:dialogId/members/:userId/remove', apiAuth, requirePermission('write'), dialogMemberController.removeDialogMember);
 
 export default router;

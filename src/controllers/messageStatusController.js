@@ -5,17 +5,9 @@ const messageStatusController = {
   // Update message status (mark as read/delivered)
   async updateMessageStatus(req, res) {
     try {
-      const { messageId } = req.params;
-      const { userId, status } = req.body;
+      const { messageId, userId, status } = req.params;
 
       // Basic validation
-      if (!userId || !status) {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: 'Missing required fields: userId, status'
-        });
-      }
-
       if (!['unread', 'delivered', 'read'].includes(status)) {
         return res.status(400).json({
           error: 'Bad Request',
