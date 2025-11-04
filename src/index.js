@@ -147,12 +147,12 @@ const startServer = async () => {
                 <span class="emoji">⚙️</span> AdminJS Panel
               </a>
               
-              <a href="/api-test" target="_blank" class="link-btn success">
-                <span class="emoji">🧪</span> API Test Page
+              <a href="/" target="_blank" class="link-btn success">
+                <span class="emoji">🧪</span> API Test Suite (Главная)
               </a>
               
-              <a href="/" target="_blank" class="link-btn info">
-                <span class="emoji">🏠</span> API Root (Health Check)
+              <a href="/health" target="_blank" class="link-btn info">
+                <span class="emoji">💚</span> Health Check
               </a>
             </div>
 
@@ -189,8 +189,13 @@ const startServer = async () => {
       `);
     });
 
-    // Basic health check endpoint
+    // Main page - API Test Suite
     app.get('/', (req, res) => {
+      res.sendFile('api-test.html', { root: 'src/public' });
+    });
+
+    // API health check endpoint
+    app.get('/health', (req, res) => {
       res.json({
         message: 'Chat3 API is running',
         adminPanel: `http://localhost:${PORT}${admin.options.rootPath}`,
@@ -209,9 +214,11 @@ const startServer = async () => {
     // Start server
     app.listen(PORT, () => {
       console.log(`\n🚀 Server is running on http://localhost:${PORT}`);
+      console.log(`\n🧪 Main page: http://localhost:${PORT} (API Test Suite)`);
       console.log(`📊 Admin panel: http://localhost:${PORT}${admin.options.rootPath} (без авторизации)`);
       console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
       console.log(`🔗 Quick Links: http://localhost:${PORT}/admin-links`);
+      console.log(`💚 Health Check: http://localhost:${PORT}/health`);
       console.log(`\n🔑 API Endpoints:`);
       console.log(`   POST /api/dialogs`);
       console.log(`   GET  /api/dialogs`);

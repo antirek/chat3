@@ -58,17 +58,17 @@
         }
 
         .users-panel {
-            width: 18.75%;
-            min-width: 200px;
+            width: 13%;
+            min-width: 150px;
         }
 
         .dialogs-panel {
-            width: 33.81%;
-            min-width: 300px;
+            width: 40%;
+            min-width: 400px;
         }
 
         .messages-panel {
-            width: 47.44%;
+            width: 47%;
             min-width: 400px;
         }
 
@@ -1056,7 +1056,7 @@
                             <tbody>
                                 ${data.data.map(dialog => `
                                     <tr onclick="selectDialog('${dialog.dialogId || dialog._id}', '${dialog.dialogName || dialog.name}')" class="dialog-row">
-                                        <td>${dialog.dialogId || dialog._id}</td>
+                                        <td title="${dialog.dialogId || dialog._id}">${shortenDialogId(dialog.dialogId || dialog._id)}</td>
                                         <td>${dialog.dialogName || dialog.name}</td>
                                         <td>${dialog.unreadCount || 0}</td>
                                         <td>${formatLastSeen(dialog.lastSeenAt)}</td>
@@ -1095,6 +1095,16 @@
             
             const date = new Date(lastSeenAt);
             return date.toLocaleString();
+        }
+
+        // Функция для сокращения dialogId
+        function shortenDialogId(dialogId) {
+            if (!dialogId) return '-';
+            if (dialogId.startsWith('dlg_')) {
+                // Показываем dlg_ + первые 4 символа после префикса + ...
+                return `dlg_${dialogId.substring(4, 8)}...`;
+            }
+            return dialogId;
         }
 
         // Выбор диалога
