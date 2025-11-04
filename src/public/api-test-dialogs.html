@@ -793,11 +793,11 @@
                             </thead>
                             <tbody>
                                 ${data.data.map(dialog => `
-                                    <tr onclick="selectDialog('${dialog._id}', '${dialog.name}')" class="dialog-row">
+                                    <tr onclick="selectDialog('${dialog.dialogId}', '${dialog.name}')" class="dialog-row">
                                         <td>${dialog.name}</td>
                                         <td>${formatUpdatedAt(dialog.updatedAt)}</td>
                                         <td>${formatMembers(dialog.members)}</td>
-                                        <td><button onclick="event.stopPropagation(); showDialogInfo('${dialog._id}')">Инфо</button></td>
+                                        <td><button onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">Инфо</button></td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -933,7 +933,7 @@
                                         <td>${formatMessageTime(message.createdAt)}</td>
                                         <td class="message-content">${message.content}</td>
                                         <td>${message.type}</td>
-                                        <td><button onclick="showMessageInfo('${message._id}')">Инфо</button></td>
+                                        <td><button onclick="showMessageInfo('${message.messageId}')">Инфо</button></td>
                                     </tr>
                                 `).join('')}
                             </tbody>

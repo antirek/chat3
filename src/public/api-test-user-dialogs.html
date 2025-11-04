@@ -1175,8 +1175,8 @@
                                         <td class="message-content">${message.content}</td>
                                         <td>${message.type}</td>
                                         <td>
-                                            <button onclick="showMessageInfo('${message._id}')">Инфо</button>
-                                            <button onclick="showReactionModal('${message._id}')" style="margin-left: 5px;">Реакции</button>
+                                            <button onclick="showMessageInfo('${message.messageId}')">Инфо</button>
+                                            <button onclick="showReactionModal('${message.messageId}')" style="margin-left: 5px;">Реакции</button>
                                         </td>
                                     </tr>
                                 `).join('')}

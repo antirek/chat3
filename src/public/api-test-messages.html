@@ -793,7 +793,7 @@
                                 <td class="message-content">${message.content}</td>
                                 <td>${message.type}</td>
                                 <td>
-                                    <button onclick="event.stopPropagation(); showMessageInfo('${message._id}')">Инфо</button>
+                                    <button onclick="event.stopPropagation(); showMessageInfo('${message.messageId}')">Инфо</button>
                                 </td>
                             </tr>
                         `).join('')}
