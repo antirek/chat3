@@ -1,0 +1,66 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs
+controller_debug.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Git
+.git
+.gitignore
+
+# Docker files (не нужны внутри образа)
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Documentation
+*.md
+!README.md
+
+# Test files
+test
+tests
+*.test.js
+*.spec.js
+
+# Coverage
+coverage
+.nyc_output
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Build artifacts
+dist
+build
+
+# Screenshots
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Other
+.github
+
