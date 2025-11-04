@@ -235,7 +235,7 @@ chat3/
 - **Функции**: Выбор пользователя → просмотр его диалогов → просмотр сообщений
 - **API**: Использует `/api/users/{userId}/dialogs` endpoint
 
-![Трехколоночный интерфейс](api-test-user-dialogs-screenshot.png)
+![Chat3 API Test Suite - Трехколоночный интерфейс](chat3-screenshot.png)
 
 #### 2. Двухколоночный интерфейс (Диалоги + Сообщения)
 - **URL**: http://localhost:3000/api-test-dialogs.html
