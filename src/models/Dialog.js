@@ -18,13 +18,11 @@ const dialogSchema = new mongoose.Schema({
     trim: true,
     lowercase: true,
     match: /^dlg_[a-z0-9]{20}$/,
-    index: true,
     default: generateDialogId
   },
   tenantId: {
     type: String,
     required: true,
-    index: true,
     match: /^tnt_[a-z0-9]+$/
   },
   name: {

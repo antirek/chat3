@@ -18,13 +18,11 @@ const messageSchema = new mongoose.Schema({
     trim: true,
     lowercase: true,
     match: /^msg_[a-z0-9]{20}$/,
-    index: true,
     default: generateMessageId
   },
   tenantId: {
     type: String,
     required: true,
-    index: true,
     match: /^tnt_[a-z0-9]+$/
   },
   dialogId: {

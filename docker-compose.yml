@@ -9,7 +9,8 @@ services:
     container_name: chat3-api
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3002:3000"
+    command: "npm run start:server"
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -21,16 +22,6 @@ services:
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-rmpassword}
       - RABBITMQ_VHOST=${RABBITMQ_VHOST:-/}
       - RABBITMQ_EXCHANGE=${RABBITMQ_EXCHANGE:-chat3_events}
-    networks:
-      - chat3-network
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/admin', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   # Update Worker
   chat3-worker:
@@ -39,20 +30,8 @@ services:
       dockerfile: Dockerfile
     container_name: chat3-worker
     restart: unless-stopped
-    command: ["node", "src/workers/updateWorker.js"]
+    command: "npm run start:updateWorker"
     environment:
       - NODE_ENV=production
       - MONGODB_URI=${MONGODB_URI:-mongodb://host.docker.internal:27017/chat3}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://rmuser:rmpassword@host.docker.internal:5672/}
-    networks:
-      - chat3-network
-    depends_on:
-      chat3-api:
-        condition: service_healthy
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-networks:
-  chat3-network:
-    driver: bridge
-

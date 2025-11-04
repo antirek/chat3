@@ -4,7 +4,8 @@
   "description": "Node.js project",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start:server": "node src/index.js",
+    "start:updateWorker": "node src/workers/updateWorker.js",
     "dev": "node --watch src/index.js",
     "seed": "node src/scripts/seed.js",
     "generate-key": "node src/scripts/generateApiKey.js",

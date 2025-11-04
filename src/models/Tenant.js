@@ -21,7 +21,6 @@ const tenantSchema = new mongoose.Schema({
     trim: true,
     lowercase: true,
     match: /^tnt_[a-z0-9]+$/,
-    index: true,
     default: generateTenantId
   },
   name: {
