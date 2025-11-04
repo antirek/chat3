@@ -14,9 +14,9 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/chat3}
-      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://rmuser:rmpassword@rabbitmq:5672/}
-      - RABBITMQ_EXCHANGE=${RABBITMQ_EXCHANGE:-chat3_events}
+      - MONGODB_URI=mongodb://192.168.0.42:27017/chat3
+      - RABBITMQ_URL=amqp://rmuser:rmpassword@192.168.0.42:5672/
+      - RABBITMQ_EXCHANGE=chat3_events
 
   # Update Worker
   chat3-worker:
@@ -28,5 +28,5 @@ services:
     command: "npm run start:updateWorker"
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/chat3}
-      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://rmuser:rmpassword@rabbitmq:5672/}
+      - MONGODB_URI=mongodb://192.168.0.42:27017/chat3
+      - RABBITMQ_URL=amqp://rmuser:rmpassword@192.168.0.42:5672/
