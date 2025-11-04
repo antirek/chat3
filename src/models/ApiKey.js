@@ -13,10 +13,9 @@ const apiKeySchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  tenantId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Tenant',
-    required: true
+  description: {
+    type: String,
+    trim: true
   },
   isActive: {
     type: Boolean,
@@ -63,7 +62,7 @@ apiKeySchema.methods.updateLastUsed = async function() {
 };
 
 // Indexes
-apiKeySchema.index({ tenantId: 1, isActive: 1 });
+apiKeySchema.index({ isActive: 1 });
 apiKeySchema.index({ expiresAt: 1 });
 
 const ApiKey = mongoose.model('ApiKey', apiKeySchema);

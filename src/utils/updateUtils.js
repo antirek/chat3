@@ -50,7 +50,7 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
         };
 
         return {
-          tenantId: new mongoose.Types.ObjectId(tenantId),
+          tenantId: tenantId, // tenantId is now a String (tnt_XXXXXXXX)
           userId: member.userId,
           dialogId: dialogId,
           entityId: dialogId,
@@ -126,7 +126,7 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
 
     // Создаем updates для каждого участника
     const updates = dialogMembers.map(member => ({
-      tenantId: new mongoose.Types.ObjectId(tenantId),
+      tenantId: tenantId, // tenantId is now a String (tnt_XXXXXXXX)
       userId: member.userId,
       dialogId: dialogId,
       entityId: messageId,

@@ -34,6 +34,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .back-link {
@@ -657,7 +658,9 @@
     <div class="header">
         <div class="api-key-section">
             <label for="apiKey" style="font-weight: 600; color: #333;">API Key:</label>
-            <input type="text" id="apiKey" placeholder="Введите API Key" value="chat3_8874e1410885600282e77dc0af05dff784ef472fe01398d5b719ca3f778a6514">
+            <input type="text" id="apiKey" placeholder="Введите API Key" value="chat3_edabb7b0fb722074c0d2efcc262f386fa23708adef9115392d79b4e5774e3d28">
+            <label for="tenantId" style="font-weight: 600; color: #333; margin-left: 10px;">Tenant ID:</label>
+            <input type="text" id="tenantId" placeholder="Tenant ID" value="tnt_default" style="width: 150px;">
             <button onclick="setApiKey()">Установить</button>
         </div>
         <a href="index.html" class="back-link">← Назад к выбору интерфейса</a>
@@ -883,6 +886,7 @@
     <script>
         // Глобальные переменные
         let apiKey = '';
+        let tenantId = '';
         let currentUserId = null;
         let currentDialogId = null;
         let currentPage = 1;
@@ -897,12 +901,17 @@
         // Установка API ключа
         function setApiKey() {
             const apiKeyInput = document.getElementById('apiKey');
+            const tenantIdInput = document.getElementById('tenantId');
             apiKey = apiKeyInput.value.trim();
+            tenantId = tenantIdInput.value.trim() || 'tnt_default';
             
             if (!apiKey) {
                 alert('Пожалуйста, введите API ключ');
                 return;
             }
+            
+            console.log('API Key set:', apiKey);
+            console.log('Tenant ID set:', tenantId);
             
             // Загружаем пользователей
             loadUsers();
@@ -1007,7 +1016,8 @@
                 
                 const response = await fetch(url, {
                     headers: {
-                        'X-API-Key': apiKey
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
                     }
                 });
 
@@ -1122,7 +1132,8 @@
                 
                 const response = await fetch(url, {
                     headers: {
-                        'X-API-Key': apiKey
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
                     }
                 });
 
@@ -1726,7 +1737,8 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-API-Key': apiKey
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
                     },
                     body: JSON.stringify({
                         senderId: senderId,
@@ -1857,7 +1869,8 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-API-Key': apiKey
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
                     },
                     body: JSON.stringify({
                         userId: userId,

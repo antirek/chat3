@@ -1,10 +1,31 @@
 import mongoose from 'mongoose';
 
+// Function to generate messageId
+function generateMessageId() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = 'msg_';
+  for (let i = 0; i < 20; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 const messageSchema = new mongoose.Schema({
+  messageId: {
+    type: String,
+    required: false, // Генерируется автоматически
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: /^msg_[a-z0-9]{20}$/,
+    index: true,
+    default: generateMessageId
+  },
   tenantId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Tenant',
-    required: true
+    type: String,
+    required: true,
+    index: true,
+    match: /^tnt_[a-z0-9]+$/
   },
   dialogId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -41,6 +62,8 @@ const messageSchema = new mongoose.Schema({
 });
 
 // Indexes
+messageSchema.index({ messageId: 1 }, { unique: true });
+
 // Compound index for getDialogMessages() - получение сообщений конкретного диалога с сортировкой
 messageSchema.index({ tenantId: 1, dialogId: 1, createdAt: -1 });
 

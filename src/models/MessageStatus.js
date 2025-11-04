@@ -12,9 +12,10 @@ const messageStatusSchema = new mongoose.Schema({
     description: 'ID пользователя (строка, не ObjectId)'
   },
   tenantId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Tenant',
-    required: true
+    type: String,
+    required: true,
+    index: true,
+    match: /^tnt_[a-z0-9]+$/
   },
   status: {
     type: String,

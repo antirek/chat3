@@ -1,8 +1,9 @@
 import ApiKey from '../models/ApiKey.js';
+import Tenant from '../models/Tenant.js';
 
 export const apiAuth = async (req, res, next) => {
   try {
-    // Get API key from header
+    // 1. Get API key from header
     const apiKey = req.headers['x-api-key'];
 
     if (!apiKey) {
@@ -12,8 +13,8 @@ export const apiAuth = async (req, res, next) => {
       });
     }
 
-    // Find and validate API key
-    const key = await ApiKey.findOne({ key: apiKey }).populate('tenantId');
+    // 2. Find and validate API key (без привязки к tenant)
+    const key = await ApiKey.findOne({ key: apiKey });
 
     if (!key) {
       return res.status(401).json({
@@ -32,10 +33,31 @@ export const apiAuth = async (req, res, next) => {
     // Update last used timestamp
     await key.updateLastUsed();
 
-    // Attach key info to request
+    // 3. Get tenantId from X-TENANT-ID header or use default
+    let tenantId = req.headers['x-tenant-id'];
+    
+    if (!tenantId) {
+      tenantId = 'tnt_default';
+    }
+
+    // Normalize tenantId (lowercase, trim)
+    tenantId = tenantId.toLowerCase().trim();
+
+    // 4. Validate tenant exists
+    const tenant = await Tenant.findOne({ tenantId: tenantId, isActive: true });
+    
+    if (!tenant) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: `Tenant '${tenantId}' not found or inactive`
+      });
+    }
+
+    // 5. Attach info to request
     req.apiKey = key;
-    req.tenantId = key.tenantId ? key.tenantId._id : key.tenantId;
-    req.tenant = key.tenantId;
+    req.tenantId = tenant.tenantId; // String ID (tnt_XXXXXXXX)
+    req.tenant = tenant; // Full tenant object
+    req.tenantObjectId = tenant._id; // MongoDB ObjectId для обратной совместимости
 
     next();
   } catch (error) {

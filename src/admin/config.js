@@ -22,6 +22,10 @@ const adminOptions = {
         },
         properties: {
           _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          tenantId: { 
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            type: 'string'
+          },
           name: { isTitle: true },
           domain: { isRequired: true },
           type: {
@@ -38,8 +42,9 @@ const adminOptions = {
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
-        listProperties: ['_id', 'name', 'domain', 'type', 'isActive', 'createdAt'],
-        showProperties: ['_id', 'name', 'domain', 'type', 'isActive', 'settings', 'createdAt', 'updatedAt'],
+        listProperties: ['_id', 'tenantId', 'name', 'domain', 'type', 'isActive', 'createdAt'],
+        showProperties: ['_id', 'tenantId', 'name', 'domain', 'type', 'isActive', 'settings', 'createdAt', 'updatedAt'],
+        filterProperties: ['tenantId', 'name', 'domain', 'type', 'isActive'],
       }
     },
     {
@@ -55,12 +60,12 @@ const adminOptions = {
             isTitle: true,
             isRequired: true,
           },
+          description: {
+            type: 'textarea',
+            isVisible: { list: false, show: true, edit: true }
+          },
           key: {
             isVisible: { list: false, show: true, edit: false },
-            isRequired: true,
-          },
-          tenantId: {
-            reference: 'Tenant',
             isRequired: true,
           },
           permissions: {
@@ -86,8 +91,9 @@ const adminOptions = {
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: false, show: true, edit: false } },
         },
-        listProperties: ['_id', 'name', 'tenantId', 'permissions', 'isActive', 'lastUsedAt', 'createdAt'],
-        filterProperties: ['name', 'tenantId', 'isActive'],
+        listProperties: ['_id', 'name', 'permissions', 'isActive', 'lastUsedAt', 'createdAt'],
+        filterProperties: ['name', 'isActive'],
+        showProperties: ['_id', 'name', 'description', 'key', 'permissions', 'isActive', 'expiresAt', 'lastUsedAt', 'createdAt', 'updatedAt'],
       }
     },
     {
@@ -101,8 +107,14 @@ const adminOptions = {
           _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
           name: { isTitle: true },
           tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            components: {
+              list: false,
+              show: false,
+              edit: false,
+              filter: false
+            }
           },
           meta: {
             type: 'textarea',
@@ -120,6 +132,7 @@ const adminOptions = {
         },
         listProperties: ['_id', 'name', 'createdAt'],
         showProperties: ['_id', 'name', 'tenantId', 'createdAt', 'updatedAt', 'meta', 'dialogMembers'],
+        editProperties: ['name'],
         filterProperties: ['name', 'tenantId'],
         actions: {
           show: {
@@ -198,8 +211,14 @@ const adminOptions = {
             isTitle: true,
           },
           tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            components: {
+              list: false,
+              show: false,
+              edit: false,
+              filter: false
+            }
           },
           dialogId: {
             reference: 'Dialog',
@@ -236,6 +255,7 @@ const adminOptions = {
         },
         listProperties: ['_id', 'userId', 'dialogId', 'unreadCount', 'lastSeenAt', 'lastMessageAt', 'isActive', 'createdAt'],
         showProperties: ['_id', 'userId', 'tenantId', 'dialogId', 'unreadCount', 'lastSeenAt', 'lastMessageAt', 'isActive', 'meta', 'createdAt', 'updatedAt'],
+        editProperties: ['userId', 'dialogId', 'unreadCount', 'isActive'],
         filterProperties: ['userId', 'dialogId', 'tenantId', 'isActive'],
         sort: {
           sortBy: 'lastSeenAt',
@@ -292,8 +312,14 @@ const adminOptions = {
             type: 'textarea',
           },
           tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            components: {
+              list: false,
+              show: false,
+              edit: false,
+              filter: false
+            }
           },
           dialogId: {
             reference: 'Dialog',
@@ -324,6 +350,7 @@ const adminOptions = {
         },
         listProperties: ['_id', 'content', 'dialogId', 'senderId', 'type', 'createdAt'],
         showProperties: ['_id', 'content', 'tenantId', 'dialogId', 'senderId', 'type', 'meta', 'messageStatuses', 'createdAt', 'updatedAt'],
+        editProperties: ['content', 'dialogId', 'senderId', 'type'],
         filterProperties: ['dialogId', 'senderId', 'type'],
         actions: {
           show: {
@@ -404,8 +431,14 @@ const adminOptions = {
             description: 'ID пользователя (строка)',
           },
           tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            components: {
+              list: false,
+              show: false,
+              edit: false,
+              filter: false
+            }
           },
           status: {
             availableValues: [
@@ -430,6 +463,7 @@ const adminOptions = {
         },
         listProperties: ['_id', 'messageId', 'userId', 'status', 'readAt', 'deliveredAt', 'createdAt'],
         showProperties: ['_id', 'messageId', 'userId', 'tenantId', 'status', 'readAt', 'deliveredAt', 'createdAt', 'updatedAt'],
+        editProperties: ['messageId', 'userId', 'status'],
         filterProperties: ['messageId', 'userId', 'tenantId', 'status'],
         sort: {
           sortBy: 'createdAt',
@@ -461,14 +495,21 @@ const adminOptions = {
             description: 'Тип реакции: эмодзи (👍, ❤️, 😂) или текст (custom:text)'
           },
           tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            components: {
+              list: false,
+              show: false,
+              edit: false,
+              filter: false
+            }
           },
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: false, show: true, edit: false } },
         },
         listProperties: ['_id', 'messageId', 'userId', 'reaction', 'createdAt'],
         showProperties: ['_id', 'messageId', 'userId', 'tenantId', 'reaction', 'createdAt', 'updatedAt'],
+        editProperties: ['userId', 'messageId', 'reaction'],
         filterProperties: ['messageId', 'userId', 'tenantId', 'reaction'],
         sort: {
           sortBy: 'createdAt',
@@ -490,8 +531,14 @@ const adminOptions = {
             isRequired: true,
           },
           tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            components: {
+              list: false,
+              show: false,
+              edit: false,
+              filter: false
+            }
           },
           entityType: {
             availableValues: [
@@ -523,6 +570,7 @@ const adminOptions = {
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
         listProperties: ['_id', 'key', 'entityType', 'dataType', 'createdAt'],
+        editProperties: ['entityType', 'entityId', 'key', 'value', 'dataType'],
         filterProperties: ['key', 'entityType', 'entityId', 'tenantId'],
       }
     },
@@ -574,8 +622,14 @@ const adminOptions = {
             description: 'ID сущности (ObjectId)',
           },
           tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            components: {
+              list: false,
+              show: false,
+              edit: false,
+              filter: false
+            }
           },
           actorId: {
             type: 'string',
@@ -648,6 +702,7 @@ const adminOptions = {
         },
         listProperties: ['eventType', 'description', 'entityType', 'actorId', 'actorType', 'createdAt'],
         showProperties: ['_id', 'eventType', 'description', 'entityType', 'entityId', 'tenantId', 'actorId', 'actorType', 'data', 'metadata', 'createdAt'],
+        editProperties: [],
         filterProperties: ['eventType', 'entityType', 'entityId', 'tenantId', 'actorId', 'actorType'],
         sort: {
           sortBy: 'createdAt',
@@ -755,8 +810,14 @@ const adminOptions = {
             isRequired: true,
           },
           tenantId: {
-            reference: 'Tenant',
-            isRequired: true,
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            components: {
+              list: false,
+              show: false,
+              edit: false,
+              filter: false
+            }
           },
           data: {
             type: 'textarea',
@@ -807,6 +868,7 @@ const adminOptions = {
         },
         listProperties: ['_id', 'userId', 'dialogId', 'eventType', 'published', 'createdAt'],
         showProperties: ['_id', 'userId', 'dialogId', 'entityId', 'eventId', 'eventType', 'tenantId', 'data', 'published', 'publishedAt', 'createdAt', 'updatedAt'],
+        editProperties: ['userId', 'dialogId', 'entityId', 'eventId', 'eventType'],
         filterProperties: ['userId', 'dialogId', 'eventType', 'published', 'tenantId'],
         sort: {
           sortBy: 'createdAt',

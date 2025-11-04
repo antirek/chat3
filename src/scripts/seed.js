@@ -21,37 +21,24 @@ async function seed() {
 
     console.log('✅ Cleared existing data');
 
-    // Create System Tenant
-    const systemTenant = await Tenant.create({
-      name: 'System',
-      domain: 'system.chat3.internal',
-      type: 'system',
-      isActive: true,
-      settings: {
-        isSystem: true,
-        maxUsers: 1000,
-        features: ['all'],
-      },
-    });
-
-    console.log(`✅ Created system tenant: ${systemTenant.name}`);
-
-    // System bot is now just a string identifier, not a User model
-    console.log(`✅ System bot identifier: system_bot`);
-
-    // Create Demo Tenant
-    const tenant = await Tenant.create({
-      name: 'Demo Company',
-      domain: 'demo.chat3.com',
+    // Create Default Tenant (используется когда X-TENANT-ID не указан)
+    const defaultTenant = await Tenant.create({
+      tenantId: 'tnt_default',
+      name: 'Default Tenant',
+      domain: 'default.chat3.com',
       type: 'client',
       isActive: true,
       settings: {
-        maxUsers: 100,
+        isDefault: true,
+        maxUsers: 1000,
         features: ['chat', 'video', 'files'],
       },
     });
 
-    console.log(`✅ Created tenant: ${tenant.name}`);
+    console.log(`✅ Created default tenant: ${defaultTenant.name} (${defaultTenant.tenantId})`);
+
+    // Используем только default tenant для всех тестовых данных
+    const tenant = defaultTenant;
 
     // Users are now just string identifiers, not User models
     const userIds = ['carl', 'marta', 'sara', 'kirk', 'john'];
@@ -87,7 +74,7 @@ async function seed() {
       const name = i < 20 ? nameBase : `${nameBase} #${Math.floor(i / 20) + 1}`;
       
       const dialog = await Dialog.create({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         name,
         createdBy: 'system_bot' // String identifier instead of ObjectId
       });
@@ -146,7 +133,7 @@ async function seed() {
 
         dialogMembers.push({
           userId,
-          tenantId: tenant._id,
+          tenantId: tenant.tenantId,
           dialogId: dialog._id,
           unreadCount,
           lastSeenAt,
@@ -191,7 +178,7 @@ async function seed() {
       }
 
       dialogMemberMetaEntries.push({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'dialogMember',
         entityId: member._id.toString(),
         key: 'role',
@@ -203,7 +190,7 @@ async function seed() {
       // Muted: 20% участников имеют muted = true
       const isMuted = Math.random() < 0.2;
       dialogMemberMetaEntries.push({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'dialogMember',
         entityId: member._id.toString(),
         key: 'muted',
@@ -215,7 +202,7 @@ async function seed() {
       // notifySound: 80% участников имеют notifySound = true
       const notifySound = Math.random() < 0.8;
       dialogMemberMetaEntries.push({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'dialogMember',
         entityId: member._id.toString(),
         key: 'notifySound',
@@ -292,7 +279,7 @@ async function seed() {
           : `${randomTemplate} (сообщение ${i + 1})`;
         
         allMessages.push({
-          tenantId: tenant._id,
+          tenantId: tenant.tenantId,
           dialogId: dialog._id,
           senderId: randomSenderId, // Используем произвольную строку
           content: messageContent,
@@ -344,7 +331,7 @@ async function seed() {
         messageStatuses.push({
           messageId: message._id,
           userId,
-          tenantId: tenant._id,
+          tenantId: tenant.tenantId,
           status,
           createdAt: statusTime,
           updatedAt: statusTime
@@ -371,7 +358,7 @@ async function seed() {
     const metaEntries = [
       // System bot meta (now using string identifier)
       {
-        tenantId: systemTenant._id,
+        tenantId: defaultTenant.tenantId,
         entityType: 'user',
         entityId: 'system_bot',
         key: 'isBot',
@@ -379,7 +366,7 @@ async function seed() {
         dataType: 'boolean',
       },
       {
-        tenantId: systemTenant._id,
+        tenantId: defaultTenant.tenantId,
         entityType: 'user',
         entityId: 'system_bot',
         key: 'botType',
@@ -387,7 +374,7 @@ async function seed() {
         dataType: 'string',
       },
       {
-        tenantId: systemTenant._id,
+        tenantId: defaultTenant.tenantId,
         entityType: 'user',
         entityId: 'system_bot',
         key: 'capabilities',
@@ -396,15 +383,15 @@ async function seed() {
       },
       // Demo tenant meta
       {
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'tenant',
-        entityId: tenant._id,
+        entityId: tenant.tenantId,
         key: 'plan',
         value: 'premium',
         dataType: 'string',
       },
       {
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'user',
         entityId: 'carl',
         key: 'theme',
@@ -413,7 +400,7 @@ async function seed() {
         createdBy: 'carl',
       },
       {
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'user',
         entityId: 'marta',
         key: 'theme',
@@ -422,7 +409,7 @@ async function seed() {
         createdBy: 'marta',
       },
       {
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'user',
         entityId: 'sara',
         key: 'theme',
@@ -431,7 +418,7 @@ async function seed() {
         createdBy: 'sara',
       },
       {
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'user',
         entityId: 'kirk',
         key: 'theme',
@@ -440,7 +427,7 @@ async function seed() {
         createdBy: 'kirk',
       },
       {
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'user',
         entityId: 'john',
         key: 'theme',
@@ -454,7 +441,7 @@ async function seed() {
     dialogs.forEach((dialog, index) => {
       // Meta type (internal/external)
       metaEntries.push({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'dialog',
         entityId: dialog._id,
         key: 'type',
@@ -464,7 +451,7 @@ async function seed() {
 
       // Channel type (whatsapp/telegram)
       metaEntries.push({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'dialog',
         entityId: dialog._id,
         key: 'channelType',
@@ -474,7 +461,7 @@ async function seed() {
 
       // Welcome message
       metaEntries.push({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'dialog',
         entityId: dialog._id,
         key: 'welcomeMessage',
@@ -484,7 +471,7 @@ async function seed() {
 
       // Max participants
       metaEntries.push({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'dialog',
         entityId: dialog._id,
         key: 'maxParticipants',
@@ -498,7 +485,7 @@ async function seed() {
         : ['file_sharing', 'voice_calls'];
       
       metaEntries.push({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'dialog',
         entityId: dialog._id,
         key: 'features',
@@ -508,7 +495,7 @@ async function seed() {
 
       // Security level
       metaEntries.push({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'dialog',
         entityId: dialog._id,
         key: 'securityLevel',
@@ -526,7 +513,7 @@ async function seed() {
       
       // Channel type
       metaEntries.push({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'message',
         entityId: message._id,
         key: 'channelType',
@@ -536,7 +523,7 @@ async function seed() {
 
       // Channel ID
       metaEntries.push({
-        tenantId: tenant._id,
+        tenantId: tenant.tenantId,
         entityType: 'message',
         entityId: message._id,
         key: 'channelId',
@@ -586,7 +573,7 @@ async function seed() {
         const reaction = reactions[Math.floor(Math.random() * reactions.length)];
 
         allReactions.push({
-          tenantId: tenant._id,
+          tenantId: tenant.tenantId,
           messageId: message._id,
           userId: userId,
           reaction: reaction,
@@ -633,7 +620,7 @@ async function seed() {
     
     for (const messageId of messagesWithReactions) {
       try {
-        await reactionUtils.updateReactionCounts(tenant._id, messageId);
+        await reactionUtils.updateReactionCounts(tenant.tenantId, messageId);
         updatedCount++;
       } catch (error) {
         console.error(`Error updating reaction counts for message ${messageId}:`, error.message);
@@ -644,7 +631,7 @@ async function seed() {
 
     console.log('\n🎉 Database seeding completed successfully!');
     console.log('\n📊 Summary:');
-    console.log(`   - Tenants: ${await Tenant.countDocuments()} (1 system + 1 demo)`);
+    console.log(`   - Tenants: ${await Tenant.countDocuments()} (1 default tenant: ${tenant.tenantId})`);
     console.log(`   - Users: String identifiers (carl, marta, sara, kirk, john)`);
     console.log(`   - Dialogs: ${await Dialog.countDocuments()} (70 internal + 30 external = 100 total)`);
     console.log(`   - Messages: ${await Message.countDocuments()} (${messages.length} total across ${dialogs.length} dialogs)`);
@@ -653,7 +640,7 @@ async function seed() {
     console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/tenant + ${dialogs.length * 6} dialog + ${messages.length * 2} message + ${dialogMemberMetaEntries.length} dialogMember)`);
     console.log('\n🤖 System Bot:');
     console.log(`   - Identifier: system_bot`);
-    console.log(`   - Tenant: ${systemTenant.name} (${systemTenant.domain})`);
+    console.log(`   - Tenant: ${tenant.name} (${tenant.tenantId})`);
     console.log(`   - Capabilities: notifications, system_messages, auto_reply`);
     console.log('\n💬 Dialogs breakdown:');
     console.log(`   - By type: 70 internal + 30 external = 100 total`);

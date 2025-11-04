@@ -2,9 +2,10 @@ import mongoose from 'mongoose';
 
 const metaSchema = new mongoose.Schema({
   tenantId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Tenant',
-    required: true
+    type: String,
+    required: true,
+    index: true,
+    match: /^tnt_[a-z0-9]+$/
   },
   entityType: {
     type: String,

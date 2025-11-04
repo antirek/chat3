@@ -2,10 +2,10 @@ import mongoose from 'mongoose';
 
 const updateSchema = new mongoose.Schema({
   tenantId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Tenant',
+    type: String,
     required: true,
-    index: true
+    index: true,
+    match: /^tnt_[a-z0-9]+$/
   },
   userId: {
     type: String,

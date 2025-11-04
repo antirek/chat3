@@ -1,25 +1,15 @@
 import connectDB from '../config/database.js';
-import { ApiKey, Tenant } from '../models/index.js';
+import { ApiKey } from '../models/index.js';
 
 async function generateApiKey() {
   try {
     await connectDB();
 
-    // Get tenant ID from command line or use first tenant
-    let tenantId = process.argv[2];
-
-    if (!tenantId) {
-      const tenant = await Tenant.findOne();
-      if (!tenant) {
-        console.error('❌ No tenants found. Please create a tenant first.');
-        process.exit(1);
-      }
-      tenantId = tenant._id;
-      console.log(`📋 Using tenant: ${tenant.name} (${tenant.domain})`);
-    }
-
     // Get name from command line or use default
-    const name = process.argv[3] || 'Default API Key';
+    const name = process.argv[2] || 'Default API Key';
+
+    // Get description from command line
+    const description = process.argv[3] || '';
 
     // Get permissions from command line or use all
     const permissionsArg = process.argv[4];
@@ -31,11 +21,11 @@ async function generateApiKey() {
     // Generate key
     const key = ApiKey.generateKey();
 
-    // Create API key in database
+    // Create API key in database (системный, без привязки к tenant)
     const apiKey = await ApiKey.create({
       key,
       name,
-      tenantId,
+      description,
       permissions,
       isActive: true
     });
@@ -43,14 +33,16 @@ async function generateApiKey() {
     console.log('\n✅ API Key generated successfully!\n');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(`📝 Name:        ${apiKey.name}`);
+    console.log(`📄 Description: ${apiKey.description || '(none)'}`);
     console.log(`🔑 API Key:     ${apiKey.key}`);
-    console.log(`🏢 Tenant ID:   ${apiKey.tenantId}`);
     console.log(`🔐 Permissions: ${apiKey.permissions.join(', ')}`);
     console.log(`✓  Active:      ${apiKey.isActive}`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-    console.log('💡 Usage examples:\n');
-    console.log('   curl -H "X-API-Key: ' + apiKey.key + '" http://localhost:3000/api/users');
+    console.log('💡 Usage examples (without tenant - uses tnt_default):\n');
+    console.log('   curl -H "X-API-Key: ' + apiKey.key + '" http://localhost:3000/api/dialogs');
     console.log('   curl -H "X-API-Key: ' + apiKey.key + '" http://localhost:3000/api/tenants\n');
+    console.log('💡 Usage with specific tenant:\n');
+    console.log('   curl -H "X-API-Key: ' + apiKey.key + '" -H "X-TENANT-ID: tnt_demo1234" http://localhost:3000/api/dialogs\n');
     console.log('📚 Try it in Swagger: http://localhost:3000/api-docs\n');
 
     process.exit(0);
@@ -63,19 +55,22 @@ async function generateApiKey() {
 // Usage info
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log(`
-Usage: npm run generate-api-key [tenantId] [name] [permissions]
+Usage: npm run generate-key [name] [description] [permissions]
 
 Arguments:
-  tenantId     Optional. MongoDB ObjectId of the tenant. Uses first tenant if not specified.
   name         Optional. Name for the API key. Default: "Default API Key"
+  description  Optional. Description for the API key.
   permissions  Optional. Comma-separated list: read,write,delete. Default: all permissions
 
+Note: API keys are now system-wide and not tied to a specific tenant.
+      Tenant is determined by X-TENANT-ID header at request time.
+
 Examples:
-  npm run generate-api-key
-  npm run generate-api-key 507f1f77bcf86cd799439011
-  npm run generate-api-key 507f1f77bcf86cd799439011 "My API Key"
-  npm run generate-api-key 507f1f77bcf86cd799439011 "Read Only Key" read
-  npm run generate-api-key 507f1f77bcf86cd799439011 "Full Access" read,write,delete
+  npm run generate-key
+  npm run generate-key "My API Key"
+  npm run generate-key "Production Key" "Used for production API"
+  npm run generate-key "Read Only Key" "Read access" read
+  npm run generate-key "Full Access" "All permissions" read,write,delete
   `);
   process.exit(0);
 }

@@ -1,6 +1,29 @@
 import mongoose from 'mongoose';
 
+/**
+ * Генерирует уникальный tenantId в формате tnt_XXXXXXXX
+ * где XXXXXXXX - 8 символов (английские буквы + цифры)
+ */
+function generateTenantId() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = 'tnt_';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 const tenantSchema = new mongoose.Schema({
+  tenantId: {
+    type: String,
+    required: false, // Генерируется автоматически
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: /^tnt_[a-z0-9]+$/,
+    index: true,
+    default: generateTenantId
+  },
   name: {
     type: String,
     required: true,
@@ -41,7 +64,7 @@ const tenantSchema = new mongoose.Schema({
 });
 
 // Indexes
-// domain index is created automatically by unique: true
+// tenantId, domain indexes are created automatically by unique: true
 tenantSchema.index({ isActive: 1 });
 tenantSchema.index({ type: 1 });
 

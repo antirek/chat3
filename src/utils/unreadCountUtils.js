@@ -230,7 +230,7 @@ export async function updateCountersOnStatusChange(tenantId, messageId, userId, 
  */
 export async function addDialogMember(tenantId, userId, dialogId) {
   try {
-    await DialogMember.create({
+    const member = await DialogMember.create({
       userId,
       tenantId,
       dialogId,
@@ -240,6 +240,7 @@ export async function addDialogMember(tenantId, userId, dialogId) {
     });
 
     console.log(`✅ Added member ${userId} to dialog ${dialogId}`);
+    return member;
   } catch (error) {
     console.error('Error adding dialog member:', error);
     throw error;
