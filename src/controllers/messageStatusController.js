@@ -75,8 +75,7 @@ const messageStatusController = {
           oldStatus: oldStatus?.status || null,
           newStatus: status,
           dialogId: message.dialogId
-        },
-        metadata: eventUtils.extractMetadataFromRequest(req)
+        }
       });
 
       res.json({

@@ -55,12 +55,6 @@ const eventSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     description: 'Дополнительные данные события (что изменилось, старые/новые значения и т.д.)'
   },
-  metadata: {
-    ipAddress: String,
-    userAgent: String,
-    apiKeyId: mongoose.Schema.Types.ObjectId,
-    source: String
-  },
   createdAt: {
     type: Date,
     default: Date.now,

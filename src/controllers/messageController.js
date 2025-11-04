@@ -397,8 +397,7 @@ const messageController = {
           messageType: type,
           content: eventContent, // Контент сообщения (до 4096 символов)
           meta: messageMeta // Добавляем мета-теги сообщения
-        },
-        metadata: eventUtils.extractMetadataFromRequest(req)
+        }
       });
 
       // Get message with meta data

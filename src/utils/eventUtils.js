@@ -11,7 +11,6 @@ import * as rabbitmqUtils from './rabbitmqUtils.js';
  * @param {string} params.actorId - ID пользователя, который инициировал событие
  * @param {string} params.actorType - Тип актора (user, system, bot, api)
  * @param {Object} params.data - Дополнительные данные события
- * @param {Object} params.metadata - Метаданные (IP, User-Agent и т.д.)
  * @returns {Promise<Event>} Созданное событие
  */
 export async function createEvent({
@@ -21,8 +20,7 @@ export async function createEvent({
   entityId,
   actorId,
   actorType = 'user',
-  data = {},
-  metadata = {}
+  data = {}
 }) {
   try {
     const event = await Event.create({
@@ -32,8 +30,7 @@ export async function createEvent({
       entityId,
       actorId,
       actorType,
-      data,
-      metadata
+      data
     });
 
     // Отправляем событие в RabbitMQ (асинхронно, не ждем результата)
@@ -239,20 +236,6 @@ export async function getEventStats(tenantId, options = {}) {
   ]);
 }
 
-/**
- * Извлекает метаданные из request для события
- * @param {Object} req - Express request объект
- * @returns {Object} Метаданные
- */
-export function extractMetadataFromRequest(req) {
-  return {
-    ipAddress: req.ip || req.connection.remoteAddress,
-    userAgent: req.get('user-agent'),
-    apiKeyId: req.apiKey?._id,
-    source: 'api'
-  };
-}
-
 export default {
   createEvent,
   getEntityEvents,
@@ -260,7 +243,6 @@ export default {
   getUserEvents,
   getAllEvents,
   deleteOldEvents,
-  getEventStats,
-  extractMetadataFromRequest
+  getEventStats
 };
 

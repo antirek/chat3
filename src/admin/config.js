@@ -685,24 +685,6 @@ const adminOptions = {
           'data.messageId': {
             isVisible: false,
           },
-          metadata: {
-            type: 'textarea',
-            isVisible: { list: false, show: true, edit: false },
-            description: 'Метаданные: IP, User-Agent, API Key ID',
-            position: 101,
-          },
-          'metadata.ipAddress': {
-            isVisible: false, // Скрыть автоматически развернутые поля
-          },
-          'metadata.userAgent': {
-            isVisible: false,
-          },
-          'metadata.apiKeyId': {
-            isVisible: false,
-          },
-          'metadata.source': {
-            isVisible: false,
-          },
           description: {
             isVisible: { list: true, show: true, edit: false },
             description: 'Читаемое описание события (виртуальное поле)',
@@ -713,7 +695,7 @@ const adminOptions = {
           },
         },
         listProperties: ['eventType', 'description', 'entityType', 'actorId', 'actorType', 'createdAt'],
-        showProperties: ['_id', 'eventType', 'description', 'entityType', 'entityId', 'tenantId', 'actorId', 'actorType', 'data', 'metadata', 'createdAt'],
+        showProperties: ['_id', 'eventType', 'description', 'entityType', 'entityId', 'tenantId', 'actorId', 'actorType', 'data', 'createdAt'],
         editProperties: [],
         filterProperties: ['eventType', 'entityType', 'entityId', 'tenantId', 'actorId', 'actorType'],
         sort: {
@@ -759,28 +741,8 @@ const adminOptions = {
                       : record.params.data;
                     record.params.data = JSON.stringify(dataValue, null, 2);
                   }
-                  
-                  // Собираем развернутые поля metadata.* обратно в объект metadata
-                  if (!record.params.metadata || record.params.metadata === '{}' || record.params.metadata === '') {
-                    const metadataObj = {};
-                    Object.keys(record.params).forEach(key => {
-                      if (key.startsWith('metadata.') && record.params[key] !== undefined && record.params[key] !== null) {
-                        const metaKey = key.replace('metadata.', '');
-                        metadataObj[metaKey] = record.params[key];
-                      }
-                    });
-                    if (Object.keys(metadataObj).length > 0) {
-                      record.params.metadata = JSON.stringify(metadataObj, null, 2);
-                    }
-                  } else {
-                    // Если metadata уже есть, форматируем его как JSON
-                    const metadataValue = typeof record.params.metadata === 'string'
-                      ? JSON.parse(record.params.metadata)
-                      : record.params.metadata;
-                    record.params.metadata = JSON.stringify(metadataValue, null, 2);
-                  }
                 } catch (error) {
-                  console.error('Error formatting event data/metadata:', error);
+                  console.error('Error formatting event data:', error);
                   // Если ошибка парсинга, оставляем как есть
                 }
               }

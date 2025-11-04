@@ -449,8 +449,7 @@ export const dialogController = {
         actorType: 'user',
         data: {
           dialogName: name
-        },
-        metadata: eventUtils.extractMetadataFromRequest(req)
+        }
       });
 
       // Получаем метаданные диалога (если есть)
@@ -514,8 +513,7 @@ export const dialogController = {
             createdBy: dialog.createdBy,
             createdAt: dialog.createdAt
           }
-        },
-        metadata: eventUtils.extractMetadataFromRequest(req)
+        }
       });
 
       // Удаляем все метаданные диалога

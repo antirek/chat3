@@ -165,8 +165,7 @@ const messageReactionController = {
           reaction: reaction,
           oldReaction: oldReaction,
           reactionCounts: updatedMessage.reactionCounts
-        },
-        metadata: eventUtils.extractMetadataFromRequest(req)
+        }
       });
 
       res.status(existingReaction ? 200 : 201).json({
@@ -267,8 +266,7 @@ const messageReactionController = {
           messageId: messageId,
           reaction: reactionToDelete.reaction,
           reactionCounts: updatedMessage.reactionCounts
-        },
-        metadata: eventUtils.extractMetadataFromRequest(req)
+        }
       });
 
       res.json({

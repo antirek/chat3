@@ -35,8 +35,7 @@ const dialogMemberController = {
         data: {
           userId,
           dialogId
-        },
-        metadata: eventUtils.extractMetadataFromRequest(req)
+        }
       });
 
       res.status(201).json({
@@ -100,8 +99,7 @@ const dialogMemberController = {
               lastSeenAt: member.lastSeenAt,
               unreadCount: member.unreadCount
             }
-          },
-          metadata: eventUtils.extractMetadataFromRequest(req)
+          }
         });
       }
 

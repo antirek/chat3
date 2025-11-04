@@ -14,13 +14,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - MONGODB_URI=${MONGODB_URI:-mongodb://host.docker.internal:27017/chat3}
-      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://rmuser:rmpassword@host.docker.internal:5672/}
-      - RABBITMQ_HOST=${RABBITMQ_HOST:-host.docker.internal}
-      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
-      - RABBITMQ_USER=${RABBITMQ_USER:-rmuser}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-rmpassword}
-      - RABBITMQ_VHOST=${RABBITMQ_VHOST:-/}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/chat3}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://rmuser:rmpassword@rabbitmq:5672/}
       - RABBITMQ_EXCHANGE=${RABBITMQ_EXCHANGE:-chat3_events}
 
   # Update Worker
@@ -33,5 +28,5 @@ services:
     command: "npm run start:updateWorker"
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=${MONGODB_URI:-mongodb://host.docker.internal:27017/chat3}
-      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://rmuser:rmpassword@host.docker.internal:5672/}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/chat3}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://rmuser:rmpassword@rabbitmq:5672/}
