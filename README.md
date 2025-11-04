@@ -81,6 +81,8 @@ npm start
 
 ## Запуск
 
+### Основной API сервер
+
 ```bash
 # Убедитесь что MongoDB запущен
 # mongod
@@ -97,6 +99,30 @@ npm start
 # Для разработки с автоперезагрузкой
 npm run dev
 ```
+
+### Update Worker (обработка событий)
+
+Update Worker - это отдельный процесс, который обрабатывает события из RabbitMQ и создает персонализированные обновления для пользователей.
+
+```bash
+# Запустить воркер
+./start-worker.sh
+
+# Или напрямую
+node src/workers/updateWorker.js
+```
+
+**Важно:** Для полноценной работы системы необходимо запустить:
+1. MongoDB
+2. RabbitMQ
+3. API сервер (`npm start` или `./start.sh`)
+4. Update Worker (`./start-worker.sh`)
+
+Worker автоматически:
+- Подписывается на exchange `chat3_events`
+- Получает все события из RabbitMQ
+- Создает персонализированные updates для участников диалогов
+- Публикует updates в exchange `chat3_updates`
 
 ## Доступ к админ-панели
 

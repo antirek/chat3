@@ -31,6 +31,16 @@ graph TB
         MODELS[Models]
     end
     
+    subgraph "Message Queue"
+        RABBIT[RabbitMQ]
+        EXCHANGE_EVENTS[chat3_events Exchange]
+        EXCHANGE_UPDATES[chat3_updates Exchange]
+    end
+    
+    subgraph "Workers"
+        UPDATE_WORKER[Update Worker]
+    end
+    
     UI1 --> API
     UI2 --> API
     UI3 --> API
@@ -43,16 +53,23 @@ graph TB
     MODELS --> MONGO
     
     MW --> CTRL
+    
+    CTRL --> EXCHANGE_EVENTS
+    EXCHANGE_EVENTS --> UPDATE_WORKER
+    UPDATE_WORKER --> MONGO
+    UPDATE_WORKER --> EXCHANGE_UPDATES
 ```
 
 ## Технологический стек
 
 - **Backend**: Node.js, Express.js
 - **База данных**: MongoDB с Mongoose ODM
+- **Очередь сообщений**: RabbitMQ
 - **Аутентификация**: API Key-based
 - **Документация API**: Swagger/OpenAPI
 - **Frontend**: Vanilla JavaScript, HTML5, CSS3
 - **Тестирование**: Встроенные HTML интерфейсы для тестирования API
+- **Воркеры**: Node.js background workers
 
 ## Архитектурные принципы
 
@@ -71,6 +88,12 @@ graph TB
 - Фильтрация по метаданным и обычным полям
 - Комбинированные фильтры с логическими операторами
 
+### 4. Event-Driven Architecture
+- Асинхронная обработка событий через RabbitMQ
+- Отделение создания событий от обработки updates
+- Масштабируемость через независимые воркеры
+- Надежность через персистентность событий в MongoDB
+
 ## Структура проекта
 
 ```mermaid
@@ -87,6 +110,7 @@ graph TD
         UTILS[utils/]
         PUBLIC[public/]
         SCRIPTS[scripts/]
+        WORKERS[workers/]
     end
     
     subgraph "Configuration"
@@ -133,6 +157,10 @@ graph TD
         SCRIPTS --> GEN_KEY[generateApiKey.js]
     end
     
+    subgraph "Workers"
+        WORKERS --> UPDATE_WORKER_FILE[updateWorker.js]
+    end
+    
     ROOT --> SRC
     SRC --> CONFIG
     SRC --> CTRL
@@ -142,6 +170,7 @@ graph TD
     SRC --> UTILS
     SRC --> PUBLIC
     SRC --> SCRIPTS
+    SRC --> WORKERS
 ```
 
 ### Детальная структура файлов
@@ -177,9 +206,11 @@ src/
 │   ├── api-test-dialogs.html      # Двухколоночный интерфейс
 │   ├── api-test-user-dialogs.html # Трехколоночный интерфейс
 │   └── index.html                 # Стартовая страница
-└── scripts/         # Скрипты
-    ├── seed.js              # Заполнение тестовыми данными
-    └── generateApiKey.js    # Генерация API ключей
+├── scripts/         # Скрипты
+│   ├── seed.js              # Заполнение тестовыми данными
+│   └── generateApiKey.js    # Генерация API ключей
+└── workers/         # Фоновые воркеры
+    └── updateWorker.js      # Обработчик событий для создания updates
 ```
 
 ## Ключевые компоненты
@@ -273,6 +304,33 @@ erDiagram
         date updatedAt
     }
     
+    EVENT {
+        ObjectId _id PK
+        ObjectId tenantId FK
+        string eventType
+        string entityType
+        ObjectId entityId
+        string actorId
+        string actorType
+        object data
+        object metadata
+        date createdAt
+    }
+    
+    UPDATE {
+        ObjectId _id PK
+        ObjectId tenantId FK
+        string userId
+        ObjectId dialogId
+        ObjectId entityId
+        ObjectId eventId FK
+        string eventType
+        object data
+        boolean published
+        date publishedAt
+        date createdAt
+    }
+    
     TENANT ||--o{ DIALOG : "owns"
     TENANT ||--o{ USER : "owns"
     TENANT ||--o{ DIALOG_MEMBER : "owns"
@@ -280,15 +338,22 @@ erDiagram
     TENANT ||--o{ MESSAGE_STATUS : "owns"
     TENANT ||--o{ META : "owns"
     TENANT ||--o{ API_KEY : "owns"
+    TENANT ||--o{ EVENT : "owns"
+    TENANT ||--o{ UPDATE : "owns"
     
     DIALOG ||--o{ DIALOG_MEMBER : "has"
     DIALOG ||--o{ MESSAGE : "contains"
+    DIALOG ||--o{ UPDATE : "generates"
     
     MESSAGE ||--o{ MESSAGE_STATUS : "has"
+    MESSAGE ||--o{ UPDATE : "generates"
     
     USER ||--o{ DIALOG_MEMBER : "participates"
     USER ||--o{ MESSAGE : "sends"
     USER ||--o{ MESSAGE_STATUS : "receives"
+    USER ||--o{ UPDATE : "receives"
+    
+    EVENT ||--o{ UPDATE : "triggers"
 ```
 
 #### Dialog (Диалог)
@@ -310,6 +375,18 @@ erDiagram
 - Гибкая система хранения дополнительных данных
 - Привязка к любым сущностям (диалоги, сообщения, пользователи)
 - Поддержка различных типов данных
+
+#### Event (Событие)
+- Аудит всех действий в системе
+- Хранится в MongoDB для персистентности
+- Публикуется в RabbitMQ для асинхронной обработки
+- Содержит полную информацию о действии (actor, entity, data)
+
+#### Update (Обновление)
+- Персонализированные обновления для пользователей
+- Создаются воркером на основе событий
+- Публикуются в RabbitMQ для доставки клиентам
+- Содержат полные данные для обновления UI без дополнительных запросов
 
 ### 2. API Endpoints
 
@@ -356,6 +433,91 @@ sort=(field,direction)
 sort=(member[carl].unreadCount,desc)
 sort=(updatedAt,asc)
 ```
+
+### 5. Event-Driven Architecture и Updates
+
+#### Поток обработки событий
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant MongoDB
+    participant RabbitMQ
+    participant Worker
+    
+    Client->>API: POST /api/dialogs/:id/messages
+    API->>MongoDB: Сохранить сообщение
+    API->>MongoDB: Создать событие
+    API->>RabbitMQ: Опубликовать событие
+    API-->>Client: 201 Created
+    
+    RabbitMQ->>Worker: Доставить событие
+    Worker->>MongoDB: Получить участников диалога
+    Worker->>MongoDB: Создать updates для участников
+    Worker->>RabbitMQ: Опубликовать updates
+    
+    Note over RabbitMQ,Client: Клиенты подписываются на updates
+```
+
+#### Компоненты Event-Driven системы
+
+**1. Event Creation (Создание событий)**
+- Контроллеры создают события при изменении данных
+- События сохраняются в MongoDB
+- События публикуются в RabbitMQ exchange `chat3_events`
+
+**2. Update Worker (Воркер обработки)**
+- Отдельный процесс, подписанный на `chat3_events`
+- Обрабатывает события и создает персонализированные updates
+- Публикует updates в exchange `chat3_updates`
+- Запуск: `./start-worker.sh`
+
+**3. Update Delivery (Доставка обновлений)**
+- Updates публикуются с routing key `user.{userId}.{updateType}`
+- Клиенты подписываются на свои updates
+- Два типа updates: `DialogUpdate` и `MessageUpdate`
+
+#### Типы событий
+
+**Dialog Events:**
+- `dialog.create` - Создание диалога
+- `dialog.update` - Обновление диалога
+- `dialog.delete` - Удаление диалога
+- `dialog.member.add` - Добавление участника
+- `dialog.member.remove` - Удаление участника
+
+**Message Events:**
+- `message.create` - Создание сообщения
+- `message.update` - Обновление сообщения
+- `message.delete` - Удаление сообщения
+- `message.reaction.add` - Добавление реакции
+- `message.reaction.update` - Обновление реакции
+- `message.reaction.remove` - Удаление реакции
+- `message.status.create` - Создание статуса
+- `message.status.update` - Обновление статуса
+
+#### Преимущества архитектуры
+
+**1. Разделение ответственности**
+- API сервер не блокируется на создании updates
+- Воркер может обрабатывать события независимо
+- Легко добавить новые типы обработчиков
+
+**2. Масштабируемость**
+- Можно запустить несколько воркеров
+- RabbitMQ обеспечивает балансировку нагрузки
+- Горизонтальное масштабирование без изменения кода
+
+**3. Надежность**
+- События сохраняются в MongoDB
+- RabbitMQ обеспечивает гарантированную доставку
+- Возможность переобработки при ошибках
+
+**4. Отказоустойчивость**
+- API продолжает работать при недоступности RabbitMQ
+- События сохраняются и могут быть обработаны позже
+- Воркер автоматически переподключается к RabbitMQ
 
 ## Особенности реализации
 
