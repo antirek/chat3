@@ -193,14 +193,15 @@ const userDialogController = {
       }
 
       const dialogMembers = await DialogMember.find(dialogMembersQuery)
-        .populate('dialogId', 'name createdAt updatedAt')
+        .populate('dialogId', 'dialogId name createdAt updatedAt')
         .sort({ lastSeenAt: -1 }) // Sort by last seen (most recent first)
         .lean();
 
       // Format response data
       const dialogs = dialogMembers.map(member => ({
-        dialogId: member.dialogId._id,
+        dialogId: member.dialogId.dialogId,
         dialogName: member.dialogId.name,
+        dialogObjectId: member.dialogId._id, // Сохраняем ObjectId для поиска сообщений
         unreadCount: member.unreadCount,
         lastSeenAt: member.lastSeenAt,
         lastMessageAt: member.lastMessageAt,
@@ -268,15 +269,18 @@ const userDialogController = {
         finalDialogs = await Promise.all(
           paginatedDialogs.map(async (dialog) => {
             const lastMessage = await Message.findOne({
-              dialogId: dialog.dialogId,
+              dialogId: dialog.dialogObjectId, // Используем ObjectId для поиска
               tenantId: req.tenantId
             })
               .sort({ createdAt: -1 })
               .select('content senderId type createdAt')
               .lean();
 
+            // Удаляем временное поле dialogObjectId из ответа
+            const { dialogObjectId, ...dialogWithoutObjectId } = dialog;
+
             return {
-              ...dialog,
+              ...dialogWithoutObjectId,
               lastMessage: lastMessage ? {
                 content: lastMessage.content,
                 senderId: lastMessage.senderId,
@@ -286,6 +290,12 @@ const userDialogController = {
             };
           })
         );
+      } else {
+        // Удаляем временное поле dialogObjectId из всех диалогов
+        finalDialogs = paginatedDialogs.map(dialog => {
+          const { dialogObjectId, ...dialogWithoutObjectId } = dialog;
+          return dialogWithoutObjectId;
+        });
       }
 
       console.log('Returning dialogs:', finalDialogs.length, 'total:', total);

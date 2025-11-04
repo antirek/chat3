@@ -11,7 +11,7 @@ const messageReactionController = {
 
       // Проверяем, что сообщение существует и принадлежит tenant
       const message = await Message.findOne({
-        _id: messageId,
+        messageId: messageId,
         tenantId: req.tenantId
       });
 
@@ -88,7 +88,7 @@ const messageReactionController = {
 
       // Проверяем, что сообщение существует и принадлежит tenant
       const message = await Message.findOne({
-        _id: messageId,
+        messageId: messageId,
         tenantId: req.tenantId
       });
 
@@ -149,7 +149,7 @@ const messageReactionController = {
       }
 
       // Получаем обновленное сообщение для получения актуальных счетчиков
-      const updatedMessage = await Message.findById(messageId);
+      const updatedMessage = await Message.findOne({ messageId: messageId });
 
       // Создаем событие
       await eventUtils.createEvent({
@@ -212,7 +212,7 @@ const messageReactionController = {
 
       // Проверяем, что сообщение существует
       const message = await Message.findOne({
-        _id: messageId,
+        messageId: messageId,
         tenantId: req.tenantId
       });
 
@@ -252,7 +252,7 @@ const messageReactionController = {
       await reactionUtils.decrementReactionCount(req.tenantId, messageId, reactionToDelete.reaction);
 
       // Получаем обновленное сообщение для получения актуальных счетчиков
-      const updatedMessage = await Message.findById(messageId);
+      const updatedMessage = await Message.findOne({ messageId: messageId });
 
       // Создаем событие
       await eventUtils.createEvent({

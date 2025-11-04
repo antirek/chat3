@@ -1,5 +1,6 @@
 import connectDB from '../config/database.js';
-import { Tenant, Dialog, Message, Meta, DialogMember, MessageStatus, Event, MessageReaction, Update } from '../models/index.js';
+import { Tenant, Dialog, Message, Meta, DialogMember, 
+  MessageStatus, Event, MessageReaction, Update } from '../models/index.js';
 import * as reactionUtils from '../utils/reactionUtils.js';
 
 async function seed() {
@@ -329,7 +330,7 @@ async function seed() {
         }
 
         messageStatuses.push({
-          messageId: message._id,
+          messageId: message.messageId,
           userId,
           tenantId: tenant.tenantId,
           status,
@@ -443,7 +444,7 @@ async function seed() {
       metaEntries.push({
         tenantId: tenant.tenantId,
         entityType: 'dialog',
-        entityId: dialog._id,
+        entityId: dialog.dialogId,
         key: 'type',
         value: dialog.metaType,
         dataType: 'string',
@@ -453,7 +454,7 @@ async function seed() {
       metaEntries.push({
         tenantId: tenant.tenantId,
         entityType: 'dialog',
-        entityId: dialog._id,
+        entityId: dialog.dialogId,
         key: 'channelType',
         value: dialog.channelType,
         dataType: 'string',
@@ -463,7 +464,7 @@ async function seed() {
       metaEntries.push({
         tenantId: tenant.tenantId,
         entityType: 'dialog',
-        entityId: dialog._id,
+        entityId: dialog.dialogId,
         key: 'welcomeMessage',
         value: `Добро пожаловать в "${dialog.name}"!`,
         dataType: 'string',
@@ -473,7 +474,7 @@ async function seed() {
       metaEntries.push({
         tenantId: tenant.tenantId,
         entityType: 'dialog',
-        entityId: dialog._id,
+        entityId: dialog.dialogId,
         key: 'maxParticipants',
         value: dialog.metaType === 'internal' ? 50 : 10,
         dataType: 'number',
@@ -487,7 +488,7 @@ async function seed() {
       metaEntries.push({
         tenantId: tenant.tenantId,
         entityType: 'dialog',
-        entityId: dialog._id,
+        entityId: dialog.dialogId,
         key: 'features',
         value: features,
         dataType: 'array',
@@ -497,7 +498,7 @@ async function seed() {
       metaEntries.push({
         tenantId: tenant.tenantId,
         entityType: 'dialog',
-        entityId: dialog._id,
+        entityId: dialog.dialogId,
         key: 'securityLevel',
         value: dialog.metaType === 'internal' ? 'high' : 'medium',
         dataType: 'string',
@@ -515,7 +516,7 @@ async function seed() {
       metaEntries.push({
         tenantId: tenant.tenantId,
         entityType: 'message',
-        entityId: message._id,
+        entityId: message.messageId,
         key: 'channelType',
         value: channelType,
         dataType: 'string',
@@ -525,7 +526,7 @@ async function seed() {
       metaEntries.push({
         tenantId: tenant.tenantId,
         entityType: 'message',
-        entityId: message._id,
+        entityId: message.messageId,
         key: 'channelId',
         value: channelId,
         dataType: 'string',
@@ -574,7 +575,7 @@ async function seed() {
 
         allReactions.push({
           tenantId: tenant.tenantId,
-          messageId: message._id,
+          messageId: message.messageId,
           userId: userId,
           reaction: reaction,
           createdAt: reactionTime,
@@ -615,7 +616,7 @@ async function seed() {
 
     // Обновляем счетчики реакций в Message.reactionCounts
     console.log('\n🔄 Updating reaction counts in messages...');
-    const messagesWithReactions = [...new Set(allReactions.map(r => r.messageId.toString()))];
+    const messagesWithReactions = [...new Set(allReactions.map(r => r.messageId))];
     let updatedCount = 0;
     
     for (const messageId of messagesWithReactions) {

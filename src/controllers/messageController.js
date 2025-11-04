@@ -16,12 +16,12 @@ async function enrichMessagesWithMetaAndStatuses(messages, tenantId) {
       const meta = await metaUtils.getEntityMeta(
         tenantId,
         'message',
-        message._id
+        message.messageId
       );
       
       // Get message statuses sorted by date (newest first)
       const messageStatuses = await MessageStatus.find({
-        messageId: message._id,
+        messageId: message.messageId,
         tenantId: tenantId
       })
         .select('userId status readAt createdAt')
@@ -113,7 +113,7 @@ const messageController = {
 
       // Get messages with pagination
       const messages = await Message.find(query)
-        .select('dialogId senderId content type createdAt updatedAt')
+        .select('messageId dialogId senderId content type createdAt updatedAt')
         .sort(sortOptions)
         .skip(skip)
         .limit(limit);
@@ -172,7 +172,7 @@ const messageController = {
 
       // Check if dialog exists and belongs to tenant
       const dialog = await Dialog.findOne({
-        _id: dialogId,
+        dialogId: dialogId,
         tenantId: req.tenantId
       });
 
@@ -186,7 +186,7 @@ const messageController = {
       // Parse filters if provided
       let query = {
         tenantId: req.tenantId,
-        dialogId: dialogId
+        dialogId: dialog._id // Используем ObjectId для поиска сообщений
       };
 
       if (req.query.filter) {
@@ -288,7 +288,7 @@ const messageController = {
 
       // Check if dialog exists and belongs to tenant
       const dialog = await Dialog.findOne({
-        _id: dialogId,
+        dialogId: dialogId,
         tenantId: req.tenantId
       });
 
@@ -302,7 +302,7 @@ const messageController = {
       // Create message
       const message = await Message.create({
         tenantId: req.tenantId,
-        dialogId: dialogId,
+        dialogId: dialog._id, // Используем ObjectId для связи в Message
         content,
         senderId,
         type
@@ -315,7 +315,7 @@ const messageController = {
       
       const dialogMembers = await DialogMember.find({
         tenantId: req.tenantId,
-        dialogId: dialogId,
+        dialogId: dialog._id, // Используем ObjectId для поиска DialogMember
         isActive: true
       }).select('userId').lean();
       
@@ -327,14 +327,14 @@ const messageController = {
             
             // Create MessageStatus record
             await MessageStatus.create({
-              messageId: message._id,
+              messageId: message.messageId,
               userId: userId,
               tenantId: req.tenantId,
               status: 'unread'
             });
             
             // Update DialogMember counter (только для существующих участников)
-            await incrementUnreadCount(req.tenantId, userId, dialogId, message._id);
+            await incrementUnreadCount(req.tenantId, userId, dialog._id, message._id);
           } catch (error) {
             console.error(`Error creating MessageStatus for user ${userId}:`, error);
           }
@@ -402,7 +402,7 @@ const messageController = {
       });
 
       // Get message with meta data
-      const messageWithMeta = await Message.findById(message._id)
+      const messageWithMeta = await Message.findOne({ _id: message._id })
         .select('-__v')
         .populate('tenantId', 'name domain')
         .populate('dialogId', 'name');
@@ -443,7 +443,7 @@ const messageController = {
       const { messageId } = req.params;
 
       const message = await Message.findOne({
-        _id: messageId,
+        messageId: messageId,
         tenantId: req.tenantId
       });
 
@@ -456,7 +456,7 @@ const messageController = {
 
       // Получаем статусы сообщения (свежие в начале)
       const messageStatuses = await MessageStatus.find({
-        messageId: message._id,
+        messageId: message.messageId,
         tenantId: req.tenantId
       })
         .select('userId status readAt createdAt')
@@ -466,7 +466,7 @@ const messageController = {
       const meta = await metaUtils.getEntityMeta(
         req.tenantId,
         'message',
-        message._id
+        message.messageId
       );
 
       const messageObj = message.toObject();

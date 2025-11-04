@@ -332,7 +332,7 @@ export const dialogController = {
   async getById(req, res) {
     try {
       const dialog = await Dialog.findOne({
-        _id: req.params.id,
+        dialogId: req.params.id,
         tenantId: req.tenantId
       })
         .select('-__v')
@@ -350,7 +350,7 @@ export const dialogController = {
       const meta = await metaUtils.getEntityMeta(
         req.tenantId,
         'dialog',
-        dialog._id
+        dialog.dialogId
       );
 
       // Получаем участников диалога

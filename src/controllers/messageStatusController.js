@@ -17,7 +17,7 @@ const messageStatusController = {
 
       // Check if message exists and belongs to tenant
       const message = await Message.findOne({
-        _id: messageId,
+        messageId: messageId,
         tenantId: req.tenantId
       });
 

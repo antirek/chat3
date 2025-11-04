@@ -13,7 +13,7 @@ function generateDialogId() {
 const dialogSchema = new mongoose.Schema({
   dialogId: {
     type: String,
-    required: false, // Генерируется автоматически
+    required: true, // Обязательное поле
     unique: true,
     trim: true,
     lowercase: true,

@@ -8,10 +8,20 @@ const dialogMemberController = {
     try {
       const { dialogId, userId } = req.params;
 
+      // Найти Dialog по dialogId для получения ObjectId
+      const { Dialog } = await import('../models/index.js');
+      const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: req.tenantId });
+      if (!dialog) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Dialog not found'
+        });
+      }
+
       const member = await unreadCountUtils.addDialogMember(
         req.tenantId,
         userId,
-        dialogId
+        dialog._id // Передаем ObjectId
       );
 
       // Создаем событие dialog.member.add
@@ -49,17 +59,27 @@ const dialogMemberController = {
     try {
       const { dialogId, userId } = req.params;
 
+      // Найти Dialog по dialogId для получения ObjectId
+      const { Dialog } = await import('../models/index.js');
+      const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: req.tenantId });
+      if (!dialog) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Dialog not found'
+        });
+      }
+
       // Получаем member перед удалением для события
       const member = await DialogMember.findOne({
         tenantId: req.tenantId,
         userId,
-        dialogId
+        dialogId: dialog._id // Используем ObjectId
       });
 
       await unreadCountUtils.removeDialogMember(
         req.tenantId,
         userId,
-        dialogId
+        dialog._id // Передаем ObjectId
       );
 
       // Создаем событие dialog.member.remove

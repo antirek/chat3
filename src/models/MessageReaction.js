@@ -8,10 +8,13 @@ const messageReactionSchema = new mongoose.Schema({
     match: /^tnt_[a-z0-9]+$/
   },
   messageId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Message',
+    type: String,
     required: true,
-    index: true
+    trim: true,
+    lowercase: true,
+    match: /^msg_[a-z0-9]{20}$/,
+    index: true,
+    description: 'ID сообщения в формате msg_XXXXXXXXXXXXXXXXXXXX'
   },
   userId: {
     type: String,

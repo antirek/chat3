@@ -13,7 +13,7 @@ function generateMessageId() {
 const messageSchema = new mongoose.Schema({
   messageId: {
     type: String,
-    required: false, // Генерируется автоматически
+    required: true, // Обязательное поле
     unique: true,
     trim: true,
     lowercase: true,
@@ -72,6 +72,10 @@ messageSchema.index({ tenantId: 1, createdAt: -1 });
 
 // Index for filtering by sender
 messageSchema.index({ senderId: 1 });
+
+// Включить все поля в JSON/Object
+messageSchema.set('toJSON', { virtuals: true });
+messageSchema.set('toObject', { virtuals: true });
 
 const Message = mongoose.model('Message', messageSchema);
 

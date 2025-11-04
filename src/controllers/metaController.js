@@ -191,7 +191,7 @@ const metaController = {
 async function verifyEntityExists(entityType, entityId, tenantId) {
   switch (entityType) {
     case 'dialog':
-      const dialog = await Dialog.findOne({ _id: entityId, tenantId });
+      const dialog = await Dialog.findOne({ dialogId: entityId, tenantId });
       if (!dialog) {
         const error = new Error('Dialog not found');
         error.statusCode = 404;
@@ -199,7 +199,7 @@ async function verifyEntityExists(entityType, entityId, tenantId) {
       }
       break;
     case 'message':
-      const message = await Message.findOne({ _id: entityId, tenantId });
+      const message = await Message.findOne({ messageId: entityId, tenantId });
       if (!message) {
         const error = new Error('Message not found');
         error.statusCode = 404;

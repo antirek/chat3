@@ -105,6 +105,11 @@ const adminOptions = {
         },
         properties: {
           _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          dialogId: {
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            description: 'ID диалога в формате dlg_XXXXXXXXXXXXXXXXXXXX'
+          },
           name: { isTitle: true },
           tenantId: {
             type: 'string',
@@ -130,8 +135,8 @@ const adminOptions = {
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
-        listProperties: ['_id', 'name', 'createdAt'],
-        showProperties: ['_id', 'name', 'tenantId', 'createdAt', 'updatedAt', 'meta', 'dialogMembers'],
+        listProperties: ['_id', 'dialogId', 'name', 'createdAt'],
+        showProperties: ['_id', 'dialogId', 'name', 'tenantId', 'createdAt', 'updatedAt', 'meta', 'dialogMembers'],
         editProperties: ['name'],
         filterProperties: ['name', 'tenantId'],
         actions: {
@@ -146,7 +151,7 @@ const adminOptions = {
                   const metaRecords = await Meta.find({
                     tenantId: record.params.tenantId,
                     entityType: 'dialog',
-                    entityId: record.params._id
+                    entityId: record.params.dialogId
                   }).lean();
                   
                   console.log('Found meta records:', metaRecords.length);
@@ -307,6 +312,11 @@ const adminOptions = {
         },
         properties: {
           _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          messageId: {
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            description: 'ID сообщения в формате msg_XXXXXXXXXXXXXXXXXXXX'
+          },
           content: { 
             isTitle: true,
             type: 'textarea',
@@ -348,8 +358,8 @@ const adminOptions = {
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
-        listProperties: ['_id', 'content', 'dialogId', 'senderId', 'type', 'createdAt'],
-        showProperties: ['_id', 'content', 'tenantId', 'dialogId', 'senderId', 'type', 'meta', 'messageStatuses', 'createdAt', 'updatedAt'],
+        listProperties: ['_id', 'messageId', 'content', 'dialogId', 'senderId', 'type', 'createdAt'],
+        showProperties: ['_id', 'messageId', 'content', 'tenantId', 'dialogId', 'senderId', 'type', 'meta', 'messageStatuses', 'createdAt', 'updatedAt'],
         editProperties: ['content', 'dialogId', 'senderId', 'type'],
         filterProperties: ['dialogId', 'senderId', 'type'],
         actions: {
@@ -364,7 +374,7 @@ const adminOptions = {
                   const metaRecords = await Meta.find({
                     tenantId: record.params.tenantId,
                     entityType: 'message',
-                    entityId: record.params._id
+                    entityId: record.params.messageId
                   }).lean();
                   
                   console.log('Found meta records for message:', metaRecords.length);
@@ -384,7 +394,7 @@ const adminOptions = {
                   const { MessageStatus } = await import('../models/index.js');
                   const messageStatuses = await MessageStatus.find({
                     tenantId: record.params.tenantId,
-                    messageId: record.params._id
+                    messageId: record.params.messageId
                   }).lean();
                   
                   console.log('Found message statuses:', messageStatuses.length);
@@ -421,9 +431,10 @@ const adminOptions = {
         properties: {
           _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
           messageId: {
-            reference: 'Message',
+            type: 'string',
             isRequired: true,
             isTitle: true,
+            description: 'ID сообщения в формате msg_XXXXXXXXXXXXXXXXXXXX'
           },
           userId: {
             type: 'string',
@@ -481,8 +492,9 @@ const adminOptions = {
         properties: {
           _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
           messageId: {
-            reference: 'Message',
+            type: 'string',
             isRequired: true,
+            description: 'ID сообщения в формате msg_XXXXXXXXXXXXXXXXXXXX'
           },
           userId: {
             type: 'string',

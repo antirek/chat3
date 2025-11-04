@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import MessageReaction from '../models/MessageReaction.js';
 import Message from '../models/Message.js';
 
@@ -12,8 +11,8 @@ export async function updateReactionCounts(tenantId, messageId) {
     const reactions = await MessageReaction.aggregate([
       {
         $match: {
-          tenantId: new mongoose.Types.ObjectId(tenantId),
-          messageId: new mongoose.Types.ObjectId(messageId)
+          tenantId: tenantId,
+          messageId: messageId
         }
       },
       {
@@ -32,7 +31,7 @@ export async function updateReactionCounts(tenantId, messageId) {
 
     // Обновляем счетчики в Message
     await Message.updateOne(
-      { _id: new mongoose.Types.ObjectId(messageId), tenantId: new mongoose.Types.ObjectId(tenantId) },
+      { messageId: messageId, tenantId: tenantId },
       { $set: { reactionCounts: reactionCounts } }
     );
 
@@ -49,7 +48,7 @@ export async function updateReactionCounts(tenantId, messageId) {
 export async function incrementReactionCount(tenantId, messageId, reaction) {
   try {
     await Message.updateOne(
-      { _id: messageId, tenantId: tenantId },
+      { messageId: messageId, tenantId: tenantId },
       { $inc: { [`reactionCounts.${reaction}`]: 1 } }
     );
   } catch (error) {
@@ -64,7 +63,7 @@ export async function incrementReactionCount(tenantId, messageId, reaction) {
  */
 export async function decrementReactionCount(tenantId, messageId, reaction) {
   try {
-    const message = await Message.findOne({ _id: messageId, tenantId: tenantId });
+    const message = await Message.findOne({ messageId: messageId, tenantId: tenantId });
     if (!message) return;
 
     const currentCount = message.reactionCounts?.[reaction] || 0;
@@ -72,13 +71,13 @@ export async function decrementReactionCount(tenantId, messageId, reaction) {
     if (currentCount <= 1) {
       // Удаляем ключ, если счетчик становится 0 или меньше
       await Message.updateOne(
-        { _id: messageId, tenantId: tenantId },
+        { messageId: messageId, tenantId: tenantId },
         { $unset: { [`reactionCounts.${reaction}`]: "" } }
       );
     } else {
       // Уменьшаем счетчик
       await Message.updateOne(
-        { _id: messageId, tenantId: tenantId },
+        { messageId: messageId, tenantId: tenantId },
         { $inc: { [`reactionCounts.${reaction}`]: -1 } }
       );
     }

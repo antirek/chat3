@@ -2,9 +2,13 @@ import mongoose from 'mongoose';
 
 const messageStatusSchema = new mongoose.Schema({
   messageId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Message',
-    required: true
+    type: String,
+    required: true,
+    trim: true,
+    lowercase: true,
+    match: /^msg_[a-z0-9]{20}$/,
+    index: true,
+    description: 'ID сообщения в формате msg_XXXXXXXXXXXXXXXXXXXX'
   },
   userId: {
     type: String,
