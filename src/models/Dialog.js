@@ -48,7 +48,7 @@ const dialogSchema = new mongoose.Schema({
 
 // Indexes
 dialogSchema.index({ tenantId: 1 });
-dialogSchema.index({ dialogId: 1 }, { unique: true });
+// dialogId index is created automatically by unique: true in schema
 
 // Включить виртуальные поля в JSON/Object
 dialogSchema.set('toJSON', { virtuals: true });

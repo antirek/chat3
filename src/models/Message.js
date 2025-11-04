@@ -60,7 +60,7 @@ const messageSchema = new mongoose.Schema({
 });
 
 // Indexes
-messageSchema.index({ messageId: 1 }, { unique: true });
+// messageId index is created automatically by unique: true in schema
 
 // Compound index for getDialogMessages() - получение сообщений конкретного диалога с сортировкой
 messageSchema.index({ tenantId: 1, dialogId: 1, createdAt: -1 });
