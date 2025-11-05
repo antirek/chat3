@@ -9,20 +9,25 @@ import * as rabbitmqUtils from './rabbitmqUtils.js';
  */
 export async function createDialogUpdate(tenantId, dialogId, eventId, eventType) {
   try {
-    // Получаем диалог с метаданными
-    const dialog = await Dialog.findById(dialogId);
+    // dialogId всегда приходит как строка dlg_*
+    // Находим Dialog по строковому dialogId
+    const dialog = await Dialog.findOne({ 
+      dialogId: dialogId, 
+      tenantId: tenantId 
+    });
+    
     if (!dialog) {
-      console.error(`Dialog ${dialogId} not found for update`);
+      console.error(`Dialog with dialogId ${dialogId} not found for update`);
       return;
     }
 
-    // Получаем метаданные диалога
-    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId.toString());
+    // Получаем метаданные диалога (используем dialogId строку)
+    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
 
-    // Получаем всех участников диалога (полные объекты для получения _id)
+    // Получаем всех участников диалога (используем dialog._id ObjectId)
     const dialogMembers = await DialogMember.find({
       tenantId: tenantId,
-      dialogId: dialogId,
+      dialogId: dialog._id, // DialogMember.dialogId - это ObjectId
       isActive: true
     }).lean();
 
@@ -52,8 +57,8 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
         return {
           tenantId: tenantId, // tenantId is now a String (tnt_XXXXXXXX)
           userId: member.userId,
-          dialogId: dialogId,
-          entityId: dialogId,
+          dialogId: dialog._id, // Используем ObjectId для Update.dialogId
+          entityId: dialog._id, // Используем ObjectId для Update.entityId
           eventId: eventId,
           eventType: eventType,
           data: dialogData,
@@ -90,13 +95,25 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       return;
     }
 
-    // Получаем метаданные сообщения
-    const messageMeta = await metaUtils.getEntityMeta(tenantId, 'message', messageId);
+    // Получаем метаданные сообщения (messageId - это строка msg_*)
+    const messageMeta = await metaUtils.getEntityMeta(tenantId, 'message', message.messageId);
 
-    // Получаем всех участников диалога
+    // dialogId приходит как строка dlg_*
+    // Находим Dialog чтобы получить его _id (ObjectId)
+    const dialog = await Dialog.findOne({ 
+      dialogId: dialogId, 
+      tenantId: tenantId 
+    });
+    
+    if (!dialog) {
+      console.error(`Dialog with dialogId ${dialogId} not found for update`);
+      return;
+    }
+
+    // Получаем всех участников диалога (используем dialog._id ObjectId)
     const dialogMembers = await DialogMember.find({
       tenantId: tenantId,
-      dialogId: dialogId,
+      dialogId: dialog._id, // DialogMember.dialogId - это ObjectId
       isActive: true
     }).select('userId').lean();
 
@@ -128,8 +145,8 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
     const updates = dialogMembers.map(member => ({
       tenantId: tenantId, // tenantId is now a String (tnt_XXXXXXXX)
       userId: member.userId,
-      dialogId: dialogId,
-      entityId: messageId,
+      dialogId: dialog._id, // Update.dialogId - это ObjectId
+      entityId: messageId, // Update.entityId - это ObjectId сообщения
       eventId: eventId,
       eventType: eventType,
       data: messageData,
