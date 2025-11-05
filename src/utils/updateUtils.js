@@ -186,9 +186,14 @@ async function publishUpdate(update) {
     // Публикуем в exchange chat3_updates с routing key user.{userId}.{updateType}
     const routingKey = `user.${updateObj.userId}.${updateType.toLowerCase()}`;
     
-    await rabbitmqUtils.publishUpdate(updateObj, routingKey);
+    const published = await rabbitmqUtils.publishUpdate(updateObj, routingKey);
+    
+    if (!published) {
+      console.error(`❌ Failed to publish update ${updateObj._id} to RabbitMQ (routing key: ${routingKey})`);
+      throw new Error('Failed to publish update to RabbitMQ');
+    }
 
-    // Обновляем статус published
+    // Обновляем статус published только если публикация успешна
     await Update.updateOne(
       { _id: updateObj._id },
       { 
@@ -198,8 +203,10 @@ async function publishUpdate(update) {
         } 
       }
     );
+    
+    console.log(`✅ Update ${updateObj._id} published to RabbitMQ (${routingKey})`);
   } catch (error) {
-    console.error(`Error publishing update ${update._id}:`, error);
+    console.error(`❌ Error publishing update ${update._id}:`, error.message);
     throw error;
   }
 }

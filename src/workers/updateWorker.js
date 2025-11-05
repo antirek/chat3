@@ -1,5 +1,6 @@
 import connectDB from '../config/database.js';
 import * as updateUtils from '../utils/updateUtils.js';
+import * as rabbitmqUtils from '../utils/rabbitmqUtils.js';
 import amqp from 'amqplib';
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://rmuser:rmpassword@localhost:5672/';
@@ -126,12 +127,21 @@ async function startWorker() {
     await connectDB();
     console.log('✅ MongoDB connected\n');
 
-    // Подключаемся к RabbitMQ
+    // Подключаемся к RabbitMQ для ЧТЕНИЯ событий
     const rabbitmqConnected = await connectRabbitMQ();
     if (!rabbitmqConnected) {
       console.error('❌ Cannot start worker without RabbitMQ connection');
       process.exit(1);
     }
+
+    // Инициализируем rabbitmqUtils для ПУБЛИКАЦИИ Updates
+    console.log('🐰 Initializing RabbitMQ for Updates publishing...');
+    const publishRabbitmqConnected = await rabbitmqUtils.initRabbitMQ();
+    if (!publishRabbitmqConnected) {
+      console.error('❌ Cannot start worker without RabbitMQ connection for publishing');
+      process.exit(1);
+    }
+    console.log('✅ RabbitMQ for Updates publishing initialized\n');
 
     console.log('\n👂 Waiting for events...\n');
 
@@ -172,14 +182,19 @@ async function shutdown() {
   console.log('\n\n🛑 Shutting down worker...');
   
   try {
+    // Закрываем Worker's own RabbitMQ connection
     if (channel) {
       await channel.close();
-      console.log('✅ RabbitMQ channel closed');
+      console.log('✅ Worker RabbitMQ channel closed');
     }
     if (connection) {
       await connection.close();
-      console.log('✅ RabbitMQ connection closed');
+      console.log('✅ Worker RabbitMQ connection closed');
     }
+    
+    // Закрываем rabbitmqUtils connection
+    await rabbitmqUtils.closeRabbitMQ();
+    console.log('✅ RabbitMQ Utils connection closed');
   } catch (error) {
     console.error('❌ Error during shutdown:', error);
   }
