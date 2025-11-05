@@ -17,13 +17,12 @@ const RABBITMQ_URL = process.env.RABBITMQ_URL ||
 
 const EXCHANGE_NAME = process.env.RABBITMQ_EXCHANGE || 'chat3_events';
 const EXCHANGE_TYPE = 'topic'; // topic exchange для гибкой маршрутизации
-const QUEUE_NAME = 'chat3_events'; // Имя очереди для всех событий
-const QUEUE_TTL = 3600000; // TTL 1 час в миллисекундах
 
 // Exchange для updates
 const UPDATES_EXCHANGE_NAME = 'chat3_updates';
 const UPDATES_EXCHANGE_TYPE = 'topic';
-const UPDATES_QUEUE_TTL = 3600000; // TTL 1 час в миллисекундах
+const UPDATES_QUEUE_TTL = 3600000; // TTL 1 час в миллисекундах для user queues
+
 
 /**
  * Инициализация подключения к RabbitMQ
@@ -42,29 +41,19 @@ export async function initRabbitMQ() {
       durable: true // Exchange переживет перезапуск RabbitMQ
     });
     
-    // Создаем очередь chat3_events с TTL 1 час
-    await channel.assertQueue(QUEUE_NAME, {
-      durable: true, // Очередь переживет перезапуск RabbitMQ
-      arguments: {
-        'x-message-ttl': QUEUE_TTL // TTL 1 час (3600000 мс)
-      }
-    });
-    
-    // Привязываем очередь к exchange с routing key '#' (все события)
-    await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, '#');
-    
     // Создаем exchange для updates
     await channel.assertExchange(UPDATES_EXCHANGE_NAME, UPDATES_EXCHANGE_TYPE, {
       durable: true
     });
     
+    // API Server НЕ создает очереди - только публикует в exchanges
+    // Очереди создаются Workers и Consumers
+    
     isConnected = true;
     console.log('✅ RabbitMQ connected successfully');
-    console.log(`   Exchange: ${EXCHANGE_NAME} (${EXCHANGE_TYPE})`);
-    console.log(`   Queue: ${QUEUE_NAME} (TTL: 1 hour)`);
-    console.log(`   Routing: All events (#) -> ${QUEUE_NAME}`);
-    console.log(`   Updates Exchange: ${UPDATES_EXCHANGE_NAME} (${UPDATES_EXCHANGE_TYPE})`);
-    console.log(`   User: ${RABBITMQ_USER}`);
+    console.log(`   Events Exchange: ${EXCHANGE_NAME} (${EXCHANGE_TYPE})`);
+    console.log(`   Updates Exchange: ${UPDATES_EXCHANGE_NAME} (${UPDATES_EXCHANGE_TYPE})`);    
+    console.log(`   📌 API publishes to exchanges, Workers consume from queues`);
     
     // Обработчики ошибок и закрытия соединения
     connection.on('error', (err) => {
@@ -237,21 +226,13 @@ export function isRabbitMQConnected() {
  */
 export function getRabbitMQInfo() {
   return {
-    url: RABBITMQ_URL.replace(/\/\/.*@/, '//***:***@'), // Скрываем креды
+    url: RABBITMQ_URL ? RABBITMQ_URL.replace(/\/\/.*@/, '//***:***@') : 'not configured', // Скрываем креды
     exchange: EXCHANGE_NAME,
     exchangeType: EXCHANGE_TYPE,
-    queue: QUEUE_NAME,
-    queueTtl: QUEUE_TTL / 1000, // TTL в секундах для читаемости
+    updatesExchange: UPDATES_EXCHANGE_NAME,
     connected: isConnected,
     user: RABBITMQ_USER
   };
-}
-
-/**
- * Получить имя очереди по умолчанию
- */
-export function getDefaultQueueName() {
-  return QUEUE_NAME;
 }
 
 /**
@@ -342,6 +323,5 @@ export default {
   createQueue,
   ensureUserUpdatesQueue,
   isRabbitMQConnected,
-  getRabbitMQInfo,
-  getDefaultQueueName
+  getRabbitMQInfo
 };
