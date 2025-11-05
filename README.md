@@ -218,7 +218,9 @@ chat3/
 - **Подробная документация**: [API.md](docs/API.md)
 - **Архитектура проекта**: [ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **Правила фильтрации**: [FILTER_RULES.md](docs/FILTER_RULES.md)
-- **Система событий**: [EVENTS.md](docs/EVENTS.md) 🆕
+- **Система событий**: [EVENTS.md](docs/EVENTS.md)
+- **Система обновлений**: [UPDATES.md](docs/UPDATES.md)
+- **RabbitMQ (обязательно)**: [RABBITMQ_REQUIRED.md](docs/RABBITMQ_REQUIRED.md) 🔴
 
 ### 🖥️ Тестовые интерфейсы
 

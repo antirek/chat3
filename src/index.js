@@ -26,10 +26,24 @@ const startServer = async () => {
     // Connect to MongoDB
     await connectDB();
 
-    // Initialize RabbitMQ (non-blocking, continues even if RabbitMQ is unavailable)
-    rabbitmqUtils.initRabbitMQ().catch(err => {
-      console.warn('⚠️  RabbitMQ initialization failed, continuing without it:', err.message);
-    });
+    // Initialize RabbitMQ (REQUIRED - server will not start without it)
+    console.log('🐰 Initializing RabbitMQ connection...');
+    const rabbitmqConnected = await rabbitmqUtils.initRabbitMQ();
+    
+    if (!rabbitmqConnected) {
+      console.error('❌ CRITICAL ERROR: Failed to connect to RabbitMQ');
+      console.error('❌ RabbitMQ is a required dependency for Chat3');
+      console.error('');
+      console.error('Please ensure:');
+      console.error('  1. RabbitMQ is running (docker-compose up -d rabbitmq)');
+      console.error('  2. Connection settings are correct:');
+      console.error('     RABBITMQ_URL=' + (process.env.RABBITMQ_URL || 'amqp://rmuser:rmpassword@localhost:5672/'));
+      console.error('');
+      console.error('Server startup aborted.');
+      process.exit(1);
+    }
+    
+    console.log('✅ RabbitMQ connection established successfully');
 
     // Setup AdminJS FIRST (before body-parser middleware)
     const adminRouter = buildAdminRouter(app);
@@ -196,12 +210,25 @@ const startServer = async () => {
 
     // API health check endpoint
     app.get('/health', (req, res) => {
-      res.json({
-        message: 'Chat3 API is running',
-        adminPanel: `http://localhost:${PORT}${admin.options.rootPath}`,
-        apiDocs: `http://localhost:${PORT}/api-docs`,
-        quickLinks: `http://localhost:${PORT}/admin-links`,
-        rabbitmq: rabbitmqUtils.getRabbitMQInfo(),
+      const rabbitmqInfo = rabbitmqUtils.getRabbitMQInfo();
+      const isHealthy = rabbitmqInfo.connected;
+      
+      res.status(isHealthy ? 200 : 503).json({
+        status: isHealthy ? 'ok' : 'degraded',
+        message: isHealthy ? 'Chat3 API is running' : 'Chat3 API is running but RabbitMQ is disconnected',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development',
+        version: '1.0.0',
+        services: {
+          mongodb: 'connected',
+          rabbitmq: rabbitmqInfo.connected ? 'connected' : 'disconnected'
+        },
+        rabbitmq: rabbitmqInfo,
+        links: {
+          adminPanel: `http://localhost:${PORT}${admin.options.rootPath}`,
+          apiDocs: `http://localhost:${PORT}/api-docs`,
+          quickLinks: `http://localhost:${PORT}/admin-links`
+        },
         endpoints: {
           tenants: `http://localhost:${PORT}/api/tenants`,
           users: `http://localhost:${PORT}/api/users`,
@@ -213,12 +240,17 @@ const startServer = async () => {
 
     // Start server
     app.listen(PORT, () => {
+      const rabbitmqInfo = rabbitmqUtils.getRabbitMQInfo();
+      
       console.log(`\n🚀 Server is running on http://localhost:${PORT}`);
       console.log(`\n🧪 Main page: http://localhost:${PORT} (API Test Suite)`);
       console.log(`📊 Admin panel: http://localhost:${PORT}${admin.options.rootPath} (без авторизации)`);
       console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
       console.log(`🔗 Quick Links: http://localhost:${PORT}/admin-links`);
       console.log(`💚 Health Check: http://localhost:${PORT}/health`);
+      console.log(`\n📡 Services Status:`);
+      console.log(`   MongoDB: ✅ Connected`);
+      console.log(`   RabbitMQ: ${rabbitmqInfo.connected ? '✅ Connected' : '❌ Disconnected'} (${rabbitmqInfo.exchange})`);
       console.log(`\n🔑 API Endpoints:`);
       console.log(`   POST /api/dialogs`);
       console.log(`   GET  /api/dialogs`);

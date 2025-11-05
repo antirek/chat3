@@ -17,6 +17,7 @@
 
 ### Функциональность
 - **[EVENTS.md](EVENTS.md)** - Система событий
+- **[UPDATES.md](UPDATES.md)** - Система обновлений (Updates)
 - **[WORKERS.md](WORKERS.md)** - Update Worker и обработка событий
 
 ---
@@ -77,7 +78,9 @@
 
 ### События и обновления
 - [EVENTS.md](EVENTS.md) - Система событий
+- [UPDATES.md](UPDATES.md) - Система обновлений (Updates)
 - [WORKERS.md](WORKERS.md) - Update Worker
+- [RABBITMQ_REQUIRED.md](RABBITMQ_REQUIRED.md) - RabbitMQ как критическая зависимость 🔴
 
 ### Docker и деплой
 - [DOCKER.md](DOCKER.md) - Контейнеризация
