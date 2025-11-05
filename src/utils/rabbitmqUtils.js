@@ -277,12 +277,10 @@ export async function publishUpdate(update, routingKey) {
   }
 
   try {
-    // Извлекаем userId из routing key или update
-    const userId = update.userId || routingKey.split('.')[1];
+    // Публикуем Update в exchange chat3_updates
+    // Exchange сам роутит сообщение в нужную user queue по routing key
+    // НЕ создаем очереди здесь - они должны быть созданы заранее!
     
-    // Убеждаемся, что очередь для пользователя существует
-    await ensureUserUpdatesQueue(userId);
-
     const message = JSON.stringify(update);
     
     const published = channel.publish(
