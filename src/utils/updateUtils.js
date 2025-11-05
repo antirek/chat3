@@ -45,6 +45,7 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
         // Формируем данные диалога для update с мета тегами участника
         const dialogData = {
           _id: dialog._id,
+          dialogId: dialog.dialogId, // Строковый ID dlg_*
           tenantId: dialog.tenantId,
           name: dialog.name,
           createdBy: dialog.createdBy,
@@ -130,8 +131,9 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
 
     const messageData = {
       _id: message._id,
+      messageId: message.messageId, // Строковый ID msg_*
       tenantId: message.tenantId,
-      dialogId: message.dialogId,
+      dialogId: dialog.dialogId, // Строковый ID dlg_* (не ObjectId!)
       senderId: message.senderId,
       content: messageContent,
       type: message.type,
