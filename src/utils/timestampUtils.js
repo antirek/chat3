@@ -15,13 +15,15 @@ export function generateTimestamp() {
   // Получаем высокоточное время для микросекунд
   const hrTime = process.hrtime.bigint();
   
-  // Извлекаем микросекунды из текущей секунды
-  // hrtime дает наносекунды с момента запуска, берем остаток от миллисекунды
+  // Извлекаем наносекунды из текущей миллисекунды
+  // hrtime дает наносекунды с момента запуска, берем остаток от 1 миллисекунды (1_000_000 наносекунд)
   const nanosecondsInMillisecond = Number(hrTime % 1_000_000n);
-  const microseconds = nanosecondsInMillisecond / 1000;
   
-  // Объединяем: целая часть из Date.now() + дробная часть из hrtime
-  return now + (microseconds / 1000);
+  // Конвертируем наносекунды в дробную часть миллисекунды (0.000000 - 0.999999)
+  const fractionalMilliseconds = nanosecondsInMillisecond / 1_000_000;
+  
+  // Объединяем: целая часть из Date.now() + дробная часть (микросекунды)
+  return now + fractionalMilliseconds;
 }
 
 /**
@@ -167,6 +169,16 @@ function formatRelativeTime(date) {
     const years = Math.floor(diffDays / 365);
     return `${years} г. назад`;
   }
+}
+
+/**
+ * Форматирует timestamp с фиксированным количеством знаков после запятой
+ * @param {number} timestamp - Временная метка
+ * @param {number} decimals - Количество знаков после запятой (по умолчанию 6)
+ * @returns {string} Timestamp как строка с фиксированным количеством знаков
+ */
+export function formatTimestampFixed(timestamp, decimals = 6) {
+  return timestamp.toFixed(decimals);
 }
 
 /**
