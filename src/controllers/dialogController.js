@@ -101,20 +101,12 @@ export const dialogController = {
               // Нет диалогов с такими участниками
               dialogIds = [];
             } else {
-              // Преобразуем ObjectId из DialogMember в строки dialogId
-              // Для этого найдем Dialog по _id и получим их dialogId
-              const dialogObjects = await Dialog.find({
-                _id: { $in: memberDialogIds },
-                tenantId: req.tenantId
-              }).select('dialogId').lean();
-              
-              const memberDialogIdStrings = dialogObjects.map(d => d.dialogId);
-              
+              // memberDialogIds уже содержит строки dialogId (dlg_*)
               if (dialogIds === null) {
-                dialogIds = memberDialogIdStrings;
+                dialogIds = memberDialogIds;
               } else {
-                // Пересечение с уже найденными dialogIds (обе стороны теперь строки dialogId)
-                dialogIds = dialogIds.filter(id => memberDialogIdStrings.includes(id));
+                // Пересечение с уже найденными dialogIds (обе стороны строки dialogId)
+                dialogIds = dialogIds.filter(id => memberDialogIds.includes(id));
               }
             }
           }
