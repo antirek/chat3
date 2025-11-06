@@ -62,7 +62,16 @@ const messageSchema = new mongoose.Schema({
     description: 'Timestamp в миллисекундах с точностью до микросекунд'
   }
 }, {
-  timestamps: true
+  timestamps: false // Отключаем автоматические timestamps
+});
+
+// Pre-save hook для обновления updatedAt с микросекундами
+messageSchema.pre('save', function(next) {
+  this.updatedAt = generateTimestamp();
+  if (this.isNew) {
+    this.createdAt = generateTimestamp();
+  }
+  next();
 });
 
 // Indexes

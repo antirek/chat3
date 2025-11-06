@@ -55,7 +55,16 @@ const dialogMemberSchema = new mongoose.Schema({
     description: 'Timestamp обновления (микросекунды)'
   }
 }, {
-  timestamps: true
+  timestamps: false // Отключаем автоматические timestamps
+});
+
+// Pre-save hook для обновления updatedAt с микросекундами
+dialogMemberSchema.pre('save', function(next) {
+  this.updatedAt = generateTimestamp();
+  if (this.isNew) {
+    this.createdAt = generateTimestamp();
+  }
+  next();
 });
 
 // Индексы для производительности

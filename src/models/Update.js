@@ -63,7 +63,7 @@ const updateSchema = new mongoose.Schema({
     description: 'Timestamp создания (микросекунды)'
   }
 }, {
-  timestamps: true
+  timestamps: false // Отключаем автоматические timestamps, используем только createdAt
 });
 
 // Составные индексы для частых запросов

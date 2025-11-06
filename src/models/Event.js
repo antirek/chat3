@@ -75,7 +75,15 @@ const eventSchema = new mongoose.Schema({
     description: 'Timestamp создания события (микросекунды)'
   }
 }, {
-  timestamps: { createdAt: true, updatedAt: false }
+  timestamps: false // Отключаем автоматические timestamps
+});
+
+// Pre-save hook для установки createdAt с микросекундами
+eventSchema.pre('save', function(next) {
+  if (this.isNew) {
+    this.createdAt = generateTimestamp();
+  }
+  next();
 });
 
 // Составные индексы для частых запросов
