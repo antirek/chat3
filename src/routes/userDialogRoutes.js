@@ -1,7 +1,7 @@
 import express from 'express';
 import userDialogController from '../controllers/userDialogController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
-import { validateUserId, validateDialogId } from '../validators/urlValidators/index.js';
+import { validateUserId, validateDialogId, validateMessageId } from '../validators/urlValidators/index.js';
 import { validateQuery } from '../validators/middleware.js';
 import { userDialogsQuerySchema } from '../validators/schemas/index.js';
 
@@ -217,5 +217,87 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *         description: Dialog not found
  */
 router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('read'), validateUserId, validateDialogId, userDialogController.getUserDialogMessages);
+
+/**
+ * @swagger
+ * /api/users/{userId}/dialogs/{dialogId}/messages/{messageId}:
+ *   get:
+ *     summary: Get single message in context of specific user
+ *     description: Returns detailed message information with user-specific context, all statuses and reactions
+ *     tags: [UserDialogs]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *       - in: path
+ *         name: dialogId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Dialog ID
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Message ID
+ *     responses:
+ *       200:
+ *         description: Message info retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     messageId:
+ *                       type: string
+ *                     dialogId:
+ *                       type: string
+ *                     senderId:
+ *                       type: string
+ *                     content:
+ *                       type: string
+ *                     type:
+ *                       type: string
+ *                     createdAt:
+ *                       type: number
+ *                     updatedAt:
+ *                       type: number
+ *                     reactionCounts:
+ *                       type: object
+ *                     meta:
+ *                       type: object
+ *                     context:
+ *                       type: object
+ *                       properties:
+ *                         userId:
+ *                           type: string
+ *                         isMine:
+ *                           type: boolean
+ *                         myStatus:
+ *                           type: string
+ *                         myReaction:
+ *                           type: string
+ *                           nullable: true
+ *                     statuses:
+ *                       type: array
+ *                       description: All message statuses from all users
+ *                     reactions:
+ *                       type: array
+ *                       description: All reactions from all users
+ *       403:
+ *         description: Forbidden - User is not a member of this dialog
+ *       404:
+ *         description: Message not found
+ */
+router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePermission('read'), validateUserId, validateDialogId, validateMessageId, userDialogController.getUserDialogMessage);
 
 export default router;

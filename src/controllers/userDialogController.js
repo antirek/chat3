@@ -501,6 +501,97 @@ const userDialogController = {
         message: error.message
       });
     }
+  },
+
+  // Get single message from dialog in context of specific user
+  async getUserDialogMessage(req, res) {
+    try {
+      const { userId, dialogId, messageId } = req.params;
+
+      // 1. Проверяем, что пользователь является участником диалога
+      const member = await DialogMember.findOne({
+        tenantId: req.tenantId,
+        dialogId: dialogId,
+        userId: userId,
+        isActive: true
+      });
+
+      if (!member) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'User is not a member of this dialog'
+        });
+      }
+
+      // 2. Получаем сообщение
+      const message = await Message.findOne({
+        tenantId: req.tenantId,
+        dialogId: dialogId,
+        messageId: messageId
+      }).lean();
+
+      if (!message) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Message not found'
+        });
+      }
+
+      // 3. Получаем статус сообщения для пользователя
+      const status = await MessageStatus.findOne({
+        tenantId: req.tenantId,
+        messageId: messageId,
+        userId: userId
+      }).lean();
+
+      // 4. Получаем реакцию пользователя на сообщение
+      const reaction = await MessageReaction.findOne({
+        tenantId: req.tenantId,
+        messageId: messageId,
+        userId: userId
+      }).lean();
+
+      // 5. Получаем все статусы сообщения (для всех пользователей)
+      const allStatuses = await MessageStatus.find({
+        tenantId: req.tenantId,
+        messageId: messageId
+      }).lean();
+
+      // 6. Получаем все реакции на сообщение
+      const allReactions = await MessageReaction.find({
+        tenantId: req.tenantId,
+        messageId: messageId
+      }).lean();
+
+      // 7. Получаем метаданные сообщения
+      const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', message.messageId);
+
+      // 8. Формируем ответ с контекстом пользователя
+      const enrichedMessage = {
+        ...message,
+        meta: messageMeta,
+        // Контекстные данные для конкретного пользователя
+        context: {
+          userId: userId,
+          isMine: message.senderId === userId,
+          myStatus: status ? status.status : (message.senderId === userId ? 'sent' : 'unread'),
+          myReaction: reaction ? reaction.reaction : null
+        },
+        // Полная информация
+        statuses: allStatuses,
+        reactions: allReactions
+      };
+
+      res.json({
+        data: sanitizeResponse(enrichedMessage)
+      });
+    } catch (error) {
+      console.error('Error in getUserDialogMessage:', error);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
   }
 };
 

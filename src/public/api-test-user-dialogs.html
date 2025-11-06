@@ -1330,18 +1330,29 @@
             }
         }
 
-        // Показать информацию о сообщении
+        // Показать информацию о сообщении в контексте пользователя
         async function showMessageInfo(messageId) {
             console.log('Show message info for:', messageId);
+            
+            if (!currentUserId) {
+                showModal('Ошибка', 'Сначала выберите пользователя');
+                return;
+            }
+            
+            if (!currentDialogId) {
+                showModal('Ошибка', 'Сначала выберите диалог');
+                return;
+            }
             
             // Показываем загрузку
             showModal('Информация о сообщении', '<div class="loading">Загрузка информации о сообщении...</div>');
             
             try {
-                // Загружаем полную информацию о сообщении с сервера
-                const response = await fetch(`/api/messages/${messageId}`, {
+                // Загружаем информацию о сообщении в контексте пользователя
+                const response = await fetch(`/api/users/${currentUserId}/dialogs/${currentDialogId}/messages/${messageId}`, {
                     headers: {
-                        'X-API-Key': apiKey
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
                     }
                 });
 
@@ -1353,7 +1364,13 @@
                 console.log('Message info response:', data);
 
                 if (data.data) {
-                    showModal('Информация о сообщении', formatMessageInfo(data.data));
+                    // Отображаем данные в формате JSON
+                    const jsonStr = JSON.stringify(data.data, null, 2);
+                    showModal(`Информация о сообщении (контекст: ${currentUserId})`, 
+                        `<div style="max-height: 500px; overflow: auto;">
+                            <pre style="background: #f5f5f5; padding: 15px; border-radius: 6px; font-size: 12px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word;">${jsonStr}</pre>
+                        </div>`
+                    );
                 } else {
                     showModal('Ошибка', 'Данные сообщения не найдены');
                 }
