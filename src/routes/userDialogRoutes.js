@@ -180,17 +180,24 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *                         type: object
  *                       meta:
  *                         type: object
- *                       isMine:
- *                         type: boolean
- *                         description: True if current user is the sender
- *                       myStatus:
- *                         type: string
- *                         enum: [sent, unread, delivered, read]
- *                         description: Message status for current user
- *                       myReaction:
- *                         type: string
- *                         nullable: true
- *                         description: Current user's reaction (emoji) or null
+ *                       context:
+ *                         type: object
+ *                         description: User-specific context data
+ *                         properties:
+ *                           userId:
+ *                             type: string
+ *                             description: ID of the user this context is for
+ *                           isMine:
+ *                             type: boolean
+ *                             description: True if current user is the sender
+ *                           myStatus:
+ *                             type: string
+ *                             enum: [sent, unread, delivered, read]
+ *                             description: Message status for current user
+ *                           myReaction:
+ *                             type: string
+ *                             nullable: true
+ *                             description: Current user's reaction (emoji) or null
  *                 pagination:
  *                   type: object
  *                   properties:

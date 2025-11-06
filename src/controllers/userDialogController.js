@@ -467,14 +467,17 @@ const userDialogController = {
           // Получаем метаданные сообщения
           const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', message.messageId);
 
-          // Формируем обогащенное сообщение
+          // Формируем обогащенное сообщение с контекстом пользователя
           return {
             ...message,
             meta: messageMeta,
-            // Контекстные поля для пользователя
-            isMine: message.senderId === userId,
-            myStatus: status ? status.status : (message.senderId === userId ? 'sent' : 'unread'),
-            myReaction: reaction ? reaction.reaction : null
+            // Контекстные данные для конкретного пользователя
+            context: {
+              userId: userId,
+              isMine: message.senderId === userId,
+              myStatus: status ? status.status : (message.senderId === userId ? 'sent' : 'unread'),
+              myReaction: reaction ? reaction.reaction : null
+            }
           };
         })
       );
