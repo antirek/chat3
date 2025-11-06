@@ -183,39 +183,41 @@ export const dialogController = {
           .lean();
         
         // Получаем участников для каждого диалога
-        const dialogIdsForMembers = dialogsWithMembers.map(d => d._id);
+        const dialogIdsForMembers = dialogsWithMembers.map(d => d.dialogId);
         const members = await DialogMember.find({ 
           dialogId: { $in: dialogIdsForMembers },
-          userId: userId 
+          userId: userId,
+          tenantId: req.tenantId
         }).lean();
         
         // Создаем мапу участников по dialogId
         const membersMap = {};
         members.forEach(member => {
-          membersMap[member.dialogId.toString()] = member;
+          membersMap[member.dialogId] = member;
         });
         
-        // Добавляем участников к диалогам и сортируем
-        dialogsWithMembers.forEach(dialog => {
-          const member = membersMap[dialog._id.toString()];
-          if (member) {
-            dialog.members = [member];
-            dialog.sortField = member[field] || 0;
-          } else {
-            dialog.members = [];
-            dialog.sortField = 0;
-          }
-        });
+        // Фильтруем диалоги - оставляем только те, где userId является участником
+        // и добавляем поле для сортировки
+        const dialogsWithValidMembers = dialogsWithMembers
+          .filter(dialog => {
+            const member = membersMap[dialog.dialogId];
+            if (member) {
+              dialog.members = [member];
+              dialog.sortField = member[field] || 0;
+              return true;
+            }
+            return false;
+          });
         
         // Сортируем по sortField
-        dialogsWithMembers.sort((a, b) => {
+        dialogsWithValidMembers.sort((a, b) => {
           const aVal = a.sortField || 0;
           const bVal = b.sortField || 0;
           return direction === -1 ? bVal - aVal : aVal - bVal;
         });
         
         // Применяем пагинацию
-        dialogs = dialogsWithMembers.slice(skip, skip + limit);
+        dialogs = dialogsWithValidMembers.slice(skip, skip + limit);
       } else if (isDialogMemberSort) {
         // Используем агрегацию для сортировки по полям DialogMember (старый способ)
         const sortDirection = req.query.sortDirection === 'asc' ? 1 : -1;
