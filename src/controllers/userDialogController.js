@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { DialogMember, Dialog, Message, Meta } from '../models/index.js';
+import { DialogMember, Dialog, Message, Meta, MessageStatus, MessageReaction } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
@@ -335,6 +335,164 @@ const userDialogController = {
         }
       });
     } catch (error) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  // Get messages from a dialog in context of specific user
+  async getUserDialogMessages(req, res) {
+    try {
+      const { userId, dialogId } = req.params;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 50;
+      const skip = (page - 1) * limit;
+
+      // 1. Проверяем, что пользователь является участником диалога
+      const member = await DialogMember.findOne({
+        tenantId: req.tenantId,
+        dialogId: dialogId,
+        userId: userId,
+        isActive: true
+      });
+
+      if (!member) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'User is not a member of this dialog'
+        });
+      }
+
+      // 2. Получаем диалог для проверки существования
+      const dialog = await Dialog.findOne({
+        tenantId: req.tenantId,
+        dialogId: dialogId
+      });
+
+      if (!dialog) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Dialog not found'
+        });
+      }
+
+      // 3. Получаем сообщения диалога
+      const query = {
+        tenantId: req.tenantId,
+        dialogId: dialogId
+      };
+
+      // Поддержка фильтрации
+      if (req.query.filter) {
+        try {
+          const parsedFilters = parseFilters(req.query.filter);
+          const { metaFilters, regularFilters } = extractMetaFilters(parsedFilters);
+          
+          // Применяем обычные фильтры
+          for (const [field, condition] of Object.entries(regularFilters)) {
+            query[field] = condition;
+          }
+          
+          // Для meta фильтров используем отдельную логику
+          if (Object.keys(metaFilters).length > 0) {
+            const metaQuery = {
+              tenantId: req.tenantId,
+              entityType: 'message'
+            };
+            
+            const messageIdsFromMeta = [];
+            for (const [key, condition] of Object.entries(metaFilters)) {
+              metaQuery.key = key.replace('meta.', '');
+              metaQuery.value = condition;
+              
+              const metaDocs = await Meta.find(metaQuery).select('entityId');
+              const ids = metaDocs.map(doc => doc.entityId);
+              messageIdsFromMeta.push(...ids);
+            }
+            
+            if (messageIdsFromMeta.length > 0) {
+              query.messageId = { $in: messageIdsFromMeta };
+            } else {
+              // Если meta фильтры не дали результатов, возвращаем пустой список
+              return res.json({
+                data: [],
+                pagination: {
+                  page,
+                  limit,
+                  total: 0,
+                  pages: 0
+                }
+              });
+            }
+          }
+        } catch (err) {
+          console.error('Error parsing filter:', err);
+          return res.status(400).json({
+            error: 'Bad Request',
+            message: 'Invalid filter format'
+          });
+        }
+      }
+
+      // Получаем общее количество
+      const total = await Message.countDocuments(query);
+
+      // Получаем сообщения с сортировкой по времени создания (новые сначала по умолчанию)
+      const sortOption = req.query.sort || '-createdAt';
+      const messages = await Message.find(query)
+        .sort(sortOption)
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      // 4. Обогащаем сообщения контекстными данными для пользователя
+      const enrichedMessages = await Promise.all(
+        messages.map(async (message) => {
+          // Получаем статус сообщения для пользователя
+          const status = await MessageStatus.findOne({
+            tenantId: req.tenantId,
+            messageId: message.messageId,
+            userId: userId
+          }).lean();
+
+          // Получаем реакцию пользователя на сообщение
+          const reaction = await MessageReaction.findOne({
+            tenantId: req.tenantId,
+            messageId: message.messageId,
+            userId: userId
+          }).lean();
+
+          // Получаем метаданные сообщения
+          const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', message.messageId);
+
+          // Формируем обогащенное сообщение
+          return {
+            ...message,
+            meta: messageMeta,
+            // Контекстные поля для пользователя
+            isMine: message.senderId === userId,
+            myStatus: status ? status.status : (message.senderId === userId ? 'sent' : 'unread'),
+            myReaction: reaction ? reaction.reaction : null
+          };
+        })
+      );
+
+      // Удаляем служебные поля
+      const sanitizedMessages = enrichedMessages.map(msg => sanitizeResponse(msg));
+
+      res.json({
+        data: sanitizedMessages,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      });
+    } catch (error) {
+      console.error('Error in getUserDialogMessages:', error);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
