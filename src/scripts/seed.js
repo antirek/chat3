@@ -2,6 +2,7 @@ import connectDB from '../config/database.js';
 import { Tenant, Dialog, Message, Meta, DialogMember, 
   MessageStatus, Event, MessageReaction, Update } from '../models/index.js';
 import * as reactionUtils from '../utils/reactionUtils.js';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 async function seed() {
   try {
@@ -129,8 +130,8 @@ async function seed() {
       // Создаем DialogMember записи для участников
       participants.forEach(userId => {
         const unreadCount = Math.floor(Math.random() * 5); // 0-4 непрочитанных
-        const lastSeenAt = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000); // Последние 7 дней
-        const lastMessageAt = new Date(Date.now() - Math.random() * 3 * 24 * 60 * 60 * 1000); // Последние 3 дня
+        const lastSeenAt = generateTimestamp() - Math.random() * 7 * 24 * 60 * 60 * 1000; // Последние 7 дней
+        const lastMessageAt = generateTimestamp() - Math.random() * 3 * 24 * 60 * 60 * 1000; // Последние 3 дня
 
         dialogMembers.push({
           userId,

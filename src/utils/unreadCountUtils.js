@@ -1,4 +1,5 @@
 import { DialogMember, MessageStatus } from '../models/index.js';
+import { generateTimestamp } from './timestampUtils.js';
 
 /**
  * Утилиты для управления участниками диалогов и счетчиками непрочитанных сообщений
@@ -22,8 +23,8 @@ export async function incrementUnreadCount(tenantId, userId, dialogId, messageId
 
     const updateData = {
       $inc: { unreadCount: 1 },
-      lastMessageAt: new Date(),
-      updatedAt: new Date()
+      lastMessageAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
     };
 
     const options = { new: true };
@@ -73,8 +74,8 @@ export async function decrementUnreadCount(tenantId, userId, dialogId, count = 1
             unreadCount: {
               $max: [0, { $add: ['$unreadCount', -count] }]
             },
-            lastSeenAt: new Date(),
-            updatedAt: new Date()
+            lastSeenAt: generateTimestamp(),
+            updatedAt: generateTimestamp()
           }
         }
       ],
@@ -108,8 +109,8 @@ export async function resetUnreadCount(tenantId, userId, dialogId) {
       filter,
       {
         unreadCount: 0,
-        lastSeenAt: new Date(),
-        updatedAt: new Date()
+        lastSeenAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
       },
       { upsert: true, new: true }
     );
@@ -174,8 +175,8 @@ export async function syncUnreadCount(tenantId, userId, dialogId) {
       },
       {
         unreadCount: realCount,
-        lastSeenAt: new Date(),
-        updatedAt: new Date()
+        lastSeenAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
       },
       { upsert: true, new: true }
     );
@@ -235,7 +236,7 @@ export async function addDialogMember(tenantId, userId, dialogId) {
       tenantId,
       dialogId,
       unreadCount: 0,
-      lastSeenAt: new Date(),
+      lastSeenAt: generateTimestamp(),
       isActive: true
     });
 
@@ -283,8 +284,8 @@ export async function updateLastSeen(tenantId, userId, dialogId) {
         dialogId
       },
       {
-        lastSeenAt: new Date(),
-        updatedAt: new Date()
+        lastSeenAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
       },
       { upsert: true, new: true }
     );
