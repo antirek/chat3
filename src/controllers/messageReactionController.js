@@ -157,7 +157,7 @@ const messageReactionController = {
         tenantId: req.tenantId,
         eventType: eventType,
         entityType: 'messageReaction',
-        entityId: reactionDoc._id,
+        entityId: `${messageId}_${userId}_${reaction}`, // Составной ID для messageReaction
         actorId: userId,
         actorType: 'user',
         data: {
@@ -259,7 +259,7 @@ const messageReactionController = {
         tenantId: req.tenantId,
         eventType: 'message.reaction.remove',
         entityType: 'messageReaction',
-        entityId: reactionToDelete._id,
+        entityId: `${messageId}_${userId}_${reactionToDelete.reaction}`, // Составной ID для messageReaction
         actorId: userId,
         actorType: 'user',
         data: {

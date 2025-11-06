@@ -67,7 +67,7 @@ const messageStatusController = {
         tenantId: req.tenantId,
         eventType: oldStatus ? 'message.status.update' : 'message.status.create',
         entityType: 'messageStatus',
-        entityId: messageStatus._id,
+        entityId: `${messageId}_${userId}`, // Составной ID для messageStatus
         actorId: userId,
         actorType: 'user',
         data: {

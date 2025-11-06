@@ -38,9 +38,10 @@ const eventSchema = new mongoose.Schema({
     index: true
   },
   entityId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     required: true,
-    index: true
+    index: true,
+    description: 'ID сущности с префиксом (dlg_*, msg_*, tnt_*, или составной для dialogMember)'
   },
   actorId: {
     type: String,
