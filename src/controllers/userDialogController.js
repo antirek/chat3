@@ -447,15 +447,30 @@ const userDialogController = {
         .limit(limit)
         .lean();
 
-      // 4. Обогащаем сообщения контекстными данными для пользователя
+      // 4. Получаем все статусы для всех сообщений одним запросом (оптимизация)
+      const messageIds = messages.map(m => m.messageId);
+      const allStatuses = await MessageStatus.find({
+        tenantId: req.tenantId,
+        messageId: { $in: messageIds }
+      }).lean();
+
+      // Группируем статусы по messageId для быстрого доступа
+      const statusesByMessage = {};
+      allStatuses.forEach(status => {
+        if (!statusesByMessage[status.messageId]) {
+          statusesByMessage[status.messageId] = [];
+        }
+        statusesByMessage[status.messageId].push(status);
+      });
+
+      // 5. Обогащаем сообщения контекстными данными для пользователя
       const enrichedMessages = await Promise.all(
         messages.map(async (message) => {
-          // Получаем статус сообщения для пользователя
-          const status = await MessageStatus.findOne({
-            tenantId: req.tenantId,
-            messageId: message.messageId,
-            userId: userId
-          }).lean();
+          // Получаем статусы для этого сообщения
+          const messageStatuses = statusesByMessage[message.messageId] || [];
+          
+          // Находим статус для текущего пользователя
+          const myStatusRecord = messageStatuses.find(s => s.userId === userId);
 
           // Получаем реакцию пользователя на сообщение
           const reaction = await MessageReaction.findOne({
@@ -475,9 +490,11 @@ const userDialogController = {
             context: {
               userId: userId,
               isMine: message.senderId === userId,
-              myStatus: status ? status.status : (message.senderId === userId ? 'sent' : 'unread'),
+              myStatus: myStatusRecord ? myStatusRecord.status : (message.senderId === userId ? 'sent' : 'unread'),
               myReaction: reaction ? reaction.reaction : null
-            }
+            },
+            // Все статусы от всех пользователей (для отправителя)
+            statuses: messageStatuses
           };
         })
       );
