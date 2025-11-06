@@ -1,6 +1,8 @@
 import express from 'express';
 import { tenantController } from '../controllers/tenantController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { validateBody, validateQuery } from '../validators/middleware.js';
+import { createTenantSchema, updateTenantSchema, paginationSchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -31,7 +33,7 @@ const router = express.Router();
  *       401:
  *         description: Unauthorized
  */
-router.get('/', apiAuth, requirePermission('read'), tenantController.getAll);
+router.get('/', apiAuth, requirePermission('read'), validateQuery(paginationSchema), tenantController.getAll);
 
 /**
  * @swagger
@@ -88,7 +90,7 @@ router.get('/:id', apiAuth, requirePermission('read'), tenantController.getById)
  *       400:
  *         description: Validation error
  */
-router.post('/', apiAuth, requirePermission('write'), tenantController.create);
+router.post('/', apiAuth, requirePermission('write'), validateBody(createTenantSchema), tenantController.create);
 
 /**
  * @swagger
@@ -125,7 +127,7 @@ router.post('/', apiAuth, requirePermission('write'), tenantController.create);
  *       404:
  *         description: Tenant not found
  */
-router.put('/:id', apiAuth, requirePermission('write'), tenantController.update);
+router.put('/:id', apiAuth, requirePermission('write'), validateBody(updateTenantSchema), tenantController.update);
 
 /**
  * @swagger

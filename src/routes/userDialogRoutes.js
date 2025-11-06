@@ -2,6 +2,8 @@ import express from 'express';
 import userDialogController from '../controllers/userDialogController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validateUserId } from '../validators/urlValidators/index.js';
+import { validateQuery } from '../validators/middleware.js';
+import { userDialogsQuerySchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -100,6 +102,6 @@ const router = express.Router();
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserId, userDialogController.getUserDialogs);
+router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserId, validateQuery(userDialogsQuerySchema), userDialogController.getUserDialogs);
 
 export default router;

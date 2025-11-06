@@ -2,6 +2,8 @@ import express from 'express';
 import { dialogController } from '../controllers/dialogController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validateDialogId } from '../validators/urlValidators/index.js';
+import { validateBody, validateQuery } from '../validators/middleware.js';
+import { createDialogSchema, queryWithFilterSchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -122,7 +124,7 @@ const router = express.Router();
  *       400:
  *         description: Неверный формат фильтра
  */
-router.get('/', apiAuth, requirePermission('read'), dialogController.getAll);
+router.get('/', apiAuth, requirePermission('read'), validateQuery(queryWithFilterSchema), dialogController.getAll);
 
 /**
  * @swagger
@@ -169,7 +171,7 @@ router.get('/:id', apiAuth, requirePermission('read'), validateDialogId, dialogC
  *       201:
  *         description: Dialog created
  */
-router.post('/', apiAuth, requirePermission('write'), dialogController.create);
+router.post('/', apiAuth, requirePermission('write'), validateBody(createDialogSchema), dialogController.create);
 
 
 /**

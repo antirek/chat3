@@ -2,6 +2,8 @@ import express from 'express';
 import messageReactionController from '../controllers/messageReactionController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validateMessageId, validateReaction } from '../validators/urlValidators/index.js';
+import { validateBody, validateQuery } from '../validators/middleware.js';
+import { addReactionSchema, reactionsQuerySchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -40,6 +42,7 @@ router.get('/:messageId/reactions',
   apiAuth,
   requirePermission('read'),
   validateMessageId,
+  validateQuery(reactionsQuerySchema),
   messageReactionController.getMessageReactions
 );
 
@@ -86,6 +89,7 @@ router.post('/:messageId/reactions',
   apiAuth,
   requirePermission('write'),
   validateMessageId,
+  validateBody(addReactionSchema),
   messageReactionController.addOrUpdateReaction
 );
 

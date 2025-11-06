@@ -2,6 +2,8 @@ import express from 'express';
 import metaController from '../controllers/metaController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validateEntityType, validateEntityId, validateMetaKey } from '../validators/urlValidators/index.js';
+import { validateBody } from '../validators/middleware.js';
+import { setMetaSchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -105,7 +107,7 @@ router.get('/:entityType/:entityId/:key', apiAuth, requirePermission('read'), va
  *       404:
  *         description: Entity not found
  */
-router.put('/:entityType/:entityId/:key', apiAuth, requirePermission('write'), validateEntityType, validateEntityId, validateMetaKey, metaController.setMeta);
+router.put('/:entityType/:entityId/:key', apiAuth, requirePermission('write'), validateEntityType, validateEntityId, validateMetaKey, validateBody(setMetaSchema), metaController.setMeta);
 
 /**
  * @swagger
