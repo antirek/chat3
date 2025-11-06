@@ -1771,10 +1771,13 @@
                 console.log('Message added successfully:', result);
                 
                 alert('Сообщение успешно добавлено!');
+                
+                // Сохраняем dialogId перед закрытием модального окна
+                const dialogIdToRefresh = currentDialogIdForMessage;
                 closeAddMessageModal();
                 
                 // Обновляем список сообщений, если диалог открыт
-                if (currentDialogId === currentDialogIdForMessage) {
+                if (currentDialogId === dialogIdToRefresh) {
                     loadDialogMessages(currentDialogId, currentMessagePage);
                 }
                 
