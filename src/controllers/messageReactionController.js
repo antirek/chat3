@@ -163,6 +163,7 @@ const messageReactionController = {
         data: {
           dialogId: message.dialogId, // Добавляем dialogId для генерации MessageUpdate
           messageId: messageId,
+          userId: userId, // Кто добавил/изменил реакцию
           reaction: reaction,
           oldReaction: oldReaction,
           reactionCounts: updatedMessage.reactionCounts
@@ -265,6 +266,7 @@ const messageReactionController = {
         data: {
           dialogId: message.dialogId, // Добавляем dialogId для генерации MessageUpdate
           messageId: messageId,
+          userId: userId, // Кто удалил реакцию
           reaction: reactionToDelete.reaction,
           reactionCounts: updatedMessage.reactionCounts
         }

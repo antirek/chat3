@@ -88,7 +88,7 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
 /**
  * Формирует MessageUpdate для всех участников диалога
  */
-export async function createMessageUpdate(tenantId, dialogId, messageId, eventId, eventType) {
+export async function createMessageUpdate(tenantId, dialogId, messageId, eventId, eventType, eventData = {}) {
   try {
     // Получаем сообщение по messageId (строка msg_*)
     const message = await Message.findOne({ messageId: messageId, tenantId: tenantId });
@@ -142,6 +142,23 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       updatedAt: message.updatedAt,
       meta: messageMeta
     };
+
+    // Для событий message.status.* добавляем информацию о статусе
+    if (eventType.startsWith('message.status.')) {
+      messageData.statusUpdate = {
+        userId: eventData.userId,           // Кто изменил статус
+        status: eventData.newStatus,        // Новый статус
+        oldStatus: eventData.oldStatus      // Старый статус (если есть)
+      };
+    }
+
+    // Для событий message.reaction.* добавляем информацию о реакции
+    if (eventType.startsWith('message.reaction.')) {
+      messageData.reactionUpdate = {
+        userId: eventData.userId,           // Кто добавил/удалил реакцию
+        reaction: eventData.reaction        // Какая реакция
+      };
+    }
 
     // Создаем updates для каждого участника
     const updates = dialogMembers.map(member => ({
