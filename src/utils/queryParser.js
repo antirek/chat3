@@ -53,7 +53,7 @@ export function parseFilter(filterString) {
     const operatorTrimmed = operator.trim();
     const valueTrimmed = value.trim();
 
-    const parsedValue = parseValue(valueTrimmed);
+    const parsedValue = parseValue(valueTrimmed, fieldTrimmed);
     const mongoQuery = operatorToMongo(operatorTrimmed, parsedValue);
 
     // Поддержка вложенных полей (meta.type)
@@ -82,24 +82,26 @@ export function parseFilter(filterString) {
 /**
  * Парсит значение из строки
  * @param {string} value - Строковое значение
+ * @param {string} fieldName - Имя поля для определения типа
  * @returns {any} Распарсенное значение
  */
-function parseValue(value) {
+function parseValue(value, fieldName = '') {
   // Массив: [value1,value2,value3]
   if (value.startsWith('[') && value.endsWith(']')) {
     const items = value.slice(1, -1).split(',').map(v => v.trim());
-    return items.map(item => parseScalarValue(item));
+    return items.map(item => parseScalarValue(item, fieldName));
   }
 
-  return parseScalarValue(value);
+  return parseScalarValue(value, fieldName);
 }
 
 /**
  * Парсит скалярное значение
  * @param {string} value - Строковое значение
- * @returns {any} Распарсенное значение (число, boolean, строка)
+ * @param {string} fieldName - Имя поля для определения типа
+ * @returns {any} Распарсенное значение (число, boolean, строка, timestamp)
  */
-function parseScalarValue(value) {
+function parseScalarValue(value, fieldName = '') {
   // null
   if (value === 'null') return null;
   
@@ -112,6 +114,17 @@ function parseScalarValue(value) {
     return parseFloat(value);
   }
   
+  // Конвертация дат в timestamps для временных полей
+  const timestampFields = ['createdAt', 'updatedAt', 'lastSeenAt', 'lastMessageAt', 'publishedAt', 'readAt', 'deliveredAt', 'statusTime', 'reactionTime', 'joinedAt', 'expiresAt', 'lastUsedAt'];
+  const isTimestampField = timestampFields.some(field => fieldName.includes(field));
+  
+  if (isTimestampField && isDateLike(value)) {
+    const timestamp = dateToTimestamp(value);
+    if (timestamp !== null) {
+      return timestamp;
+    }
+  }
+  
   // Строка (убираем кавычки если есть)
   if ((value.startsWith('"') && value.endsWith('"')) || 
       (value.startsWith("'") && value.endsWith("'"))) {
@@ -119,6 +132,35 @@ function parseScalarValue(value) {
   }
   
   return value;
+}
+
+/**
+ * Проверяет, похоже ли значение на дату
+ * @param {string} value - Значение для проверки
+ * @returns {boolean} true если похоже на дату
+ */
+function isDateLike(value) {
+  // ISO формат: 2025-10-21, 2025-10-21T10:30:00, 2025-10-21T10:30:00Z, 2025-10-21T10:30:00.000Z
+  const isoRegex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?)?$/;
+  return isoRegex.test(value);
+}
+
+/**
+ * Конвертирует дату в timestamp (миллисекунды с микросекундной точностью)
+ * @param {string} dateStr - Строка с датой
+ * @returns {number|null} Timestamp или null если конвертация не удалась
+ */
+function dateToTimestamp(dateStr) {
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+    // Возвращаем timestamp в миллисекундах (без дробной части, т.к. не знаем микросекунды)
+    return date.getTime();
+  } catch (e) {
+    return null;
+  }
 }
 
 /**
