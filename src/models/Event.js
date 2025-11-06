@@ -1,6 +1,17 @@
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 
 const eventSchema = new mongoose.Schema({
+  eventId: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true,
+    match: /^evt_[a-z0-9]{32}$/,
+    default: function() {
+      return 'evt_' + crypto.randomBytes(16).toString('hex');
+    }
+  },
   tenantId: {
     type: String,
     required: true,
