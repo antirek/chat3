@@ -81,12 +81,14 @@ const adminOptions = {
             isVisible: { list: true, show: true, edit: true }
           },
           expiresAt: {
-            type: 'datetime',
-            isVisible: { list: true, show: true, edit: true }
+            type: 'number',
+            isVisible: { list: true, show: true, edit: true },
+            description: 'Timestamp истечения (микросекунды)'
           },
           lastUsedAt: {
-            type: 'datetime',
-            isVisible: { list: true, show: true, edit: false }
+            type: 'number',
+            isVisible: { list: true, show: true, edit: false },
+            description: 'Timestamp последнего использования (микросекунды)'
           },
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: false, show: true, edit: false } },
@@ -235,14 +237,14 @@ const adminOptions = {
             description: 'Количество непрочитанных сообщений',
           },
           lastSeenAt: {
-            type: 'datetime',
+            type: 'number',
             isVisible: { list: true, show: true, edit: false },
-            description: 'Время последнего просмотра диалога',
+            description: 'Timestamp последнего просмотра (микросекунды)',
           },
           lastMessageAt: {
-            type: 'datetime',
+            type: 'number',
             isVisible: { list: true, show: true, edit: false },
-            description: 'Время последнего сообщения в диалоге',
+            description: 'Timestamp последнего сообщения (микросекунды)',
           },
           isActive: {
             type: 'boolean',
@@ -460,14 +462,14 @@ const adminOptions = {
             isRequired: true,
           },
           readAt: {
-            type: 'datetime',
+            type: 'number',
             isVisible: { list: true, show: true, edit: false },
-            description: 'Время прочтения',
+            description: 'Timestamp прочтения (микросекунды)',
           },
           deliveredAt: {
-            type: 'datetime',
+            type: 'number',
             isVisible: { list: true, show: true, edit: false },
-            description: 'Время доставки',
+            description: 'Timestamp доставки (микросекунды)',
           },
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: false, show: true, edit: false } },
@@ -834,8 +836,9 @@ const adminOptions = {
             isVisible: { list: true, show: true, edit: false },
           },
           publishedAt: {
-            type: 'datetime',
+            type: 'number',
             isVisible: { list: false, show: true, edit: false },
+            description: 'Timestamp публикации (микросекунды)',
           },
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: false, show: true, edit: false } },
