@@ -351,7 +351,7 @@ const messageController = {
             await metaUtils.setEntityMeta(
               req.tenantId,
               'message',
-              message._id,
+              message.messageId,
               key,
               value.value,
               value.dataType || 'string'
@@ -361,7 +361,7 @@ const messageController = {
             await metaUtils.setEntityMeta(
               req.tenantId,
               'message',
-              message._id,
+              message.messageId,
               key,
               value,
               typeof value === 'number' ? 'number' : 
@@ -376,7 +376,7 @@ const messageController = {
       const messageMeta = await metaUtils.getEntityMeta(
         req.tenantId,
         'message',
-        message._id
+        message.messageId
       );
 
       // Ограничиваем контент до 4096 символов для события
@@ -390,7 +390,7 @@ const messageController = {
         tenantId: req.tenantId,
         eventType: 'message.create',
         entityType: 'message',
-        entityId: message._id,
+        entityId: message.messageId,
         actorId: senderId,
         actorType: 'user',
         data: {

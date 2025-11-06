@@ -14,15 +14,18 @@ const updateSchema = new mongoose.Schema({
     index: true
   },
   dialogId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Dialog',
+    type: String,
     required: true,
+    trim: true,
+    lowercase: true,
+    match: /^dlg_[a-z0-9]{20}$/,
+    description: 'ID диалога (строка в формате dlg_XXXXXXXXXXXXXXXXXXXX)',
     index: true
   },
   entityId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     required: true,
-    description: 'ID сущности (dialog или message)',
+    description: 'ID сущности (dlg_* для dialog, msg_* для message)',
     index: true
   },
   eventId: {

@@ -71,13 +71,13 @@ export const dialogController = {
                   foundDialogIds = metaRecords.map(m => m.entityId.toString());
                 } else {
                   // Простое равенство (eq)
-                  const metaRecords = await Meta.find({
-                    ...metaQuery,
-                    key: key,
-                    value: condition
-                  }).select('entityId').lean();
-                  
-                  foundDialogIds = metaRecords.map(m => m.entityId.toString());
+                const metaRecords = await Meta.find({
+                  ...metaQuery,
+                  key: key,
+                  value: condition
+                }).select('entityId').lean();
+                
+                foundDialogIds = metaRecords.map(m => m.entityId.toString());
                 }
               }
               
@@ -294,12 +294,12 @@ export const dialogController = {
           const meta = await metaUtils.getEntityMeta(
             req.tenantId,
             'dialog',
-            dialog._id
+            dialog.dialogId
           );
 
           // Получаем участников диалога
           const members = await DialogMember.find({
-            dialogId: dialog._id,
+            dialogId: dialog.dialogId,
             tenantId: req.tenantId
           })
             .select('userId role joinedAt lastSeenAt lastMessageAt isActive unreadCount')
@@ -382,7 +382,7 @@ export const dialogController = {
 
       // Получаем участников диалога
       const members = await DialogMember.find({
-        dialogId: dialog._id,
+        dialogId: dialog.dialogId,
         tenantId: req.tenantId
       })
         .select('userId lastSeenAt lastMessageAt isActive unreadCount')
@@ -471,7 +471,7 @@ export const dialogController = {
         tenantId: req.tenantId,
         eventType: 'dialog.create',
         entityType: 'dialog',
-        entityId: dialog._id,
+        entityId: dialog.dialogId,
         actorId: createdBy,
         actorType: 'user',
         data: {
@@ -483,7 +483,7 @@ export const dialogController = {
       const meta = await metaUtils.getEntityMeta(
         req.tenantId,
         'dialog',
-        dialog._id
+        dialog.dialogId
       );
 
       const dialogObj = dialog.toObject();
@@ -530,7 +530,7 @@ export const dialogController = {
         tenantId: req.tenantId,
         eventType: 'dialog.delete',
         entityType: 'dialog',
-        entityId: dialog._id,
+        entityId: dialog.dialogId,
         actorId: req.apiKey?.name || 'unknown',
         actorType: 'api',
         data: {

@@ -685,7 +685,7 @@
                 dialogSelect.innerHTML = '<option value="">Выберите диалог</option>';
                 dialogs.forEach(dialog => {
                     const option = document.createElement('option');
-                    option.value = dialog._id;
+                    option.value = dialog.dialogId;
                     option.textContent = dialog.name;
                     dialogSelect.appendChild(option);
                 });
@@ -785,8 +785,8 @@
                     </thead>
                     <tbody>
                         ${messages.map(message => `
-                            <tr data-message-id="${message._id}">
-                                <td class="message-id">${message._id}</td>
+                            <tr data-message-id="${message.messageId}">
+                                <td class="message-id">${message.messageId}</td>
                                 <td>${getDialogName(message.dialogId)}</td>
                                 <td>${message.senderId}</td>
                                 <td>${formatMessageTime(message.createdAt)}</td>
@@ -803,7 +803,7 @@
         }
 
         function getDialogName(dialogId) {
-            const dialog = dialogs.find(d => d._id === dialogId);
+            const dialog = dialogs.find(d => d.dialogId === dialogId);
             return dialog ? dialog.name : dialogId;
         }
 

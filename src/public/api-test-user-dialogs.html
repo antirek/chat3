@@ -1055,14 +1055,14 @@
                             </thead>
                             <tbody>
                                 ${data.data.map(dialog => `
-                                    <tr onclick="selectDialog('${dialog.dialogId || dialog._id}', '${dialog.dialogName || dialog.name}')" class="dialog-row">
-                                        <td title="${dialog.dialogId || dialog._id}">${shortenDialogId(dialog.dialogId || dialog._id)}</td>
-                                        <td>${dialog.dialogName || dialog.name}</td>
+                                    <tr onclick="selectDialog('${dialog.dialogId}', '${dialog.name}')" class="dialog-row">
+                                        <td title="${dialog.dialogId}">${shortenDialogId(dialog.dialogId)}</td>
+                                        <td>${dialog.name}</td>
                                         <td>${dialog.unreadCount || 0}</td>
                                         <td>${formatLastSeen(dialog.lastSeenAt)}</td>
                                         <td>
-                                            <button onclick="event.stopPropagation(); showAddMessageModal('${dialog.dialogId || dialog._id}', '${dialog.dialogName || dialog.name}')">Сообщения</button>
-                                            <button onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId || dialog._id}')">Инфо</button>
+                                            <button onclick="event.stopPropagation(); showAddMessageModal('${dialog.dialogId}', '${dialog.name}')">Сообщения</button>
+                                            <button onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">Инфо</button>
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -1179,7 +1179,7 @@
                             </thead>
                             <tbody>
                                 ${data.data.map(message => `
-                                    <tr data-message-id="${message._id}">
+                                    <tr data-message-id="${message.messageId}">
                                         <td>${message.senderId}</td>
                                         <td>${formatMessageTime(message.createdAt)}</td>
                                         <td class="message-content">${message.content}</td>

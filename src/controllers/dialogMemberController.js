@@ -22,7 +22,7 @@ const dialogMemberController = {
       const member = await unreadCountUtils.addDialogMember(
         req.tenantId,
         userId,
-        dialog._id // Передаем ObjectId
+        dialog.dialogId // Передаем строковый dialogId
       );
 
       // Создаем событие dialog.member.add
@@ -30,7 +30,7 @@ const dialogMemberController = {
         tenantId: req.tenantId,
         eventType: 'dialog.member.add',
         entityType: 'dialogMember',
-        entityId: member._id,
+        entityId: member.userId + '_' + dialogId, // Составной ID для dialogMember
         actorId: req.apiKey?.name || 'unknown',
         actorType: 'api',
         data: {
@@ -73,13 +73,13 @@ const dialogMemberController = {
       const member = await DialogMember.findOne({
         tenantId: req.tenantId,
         userId,
-        dialogId: dialog._id // Используем ObjectId
+        dialogId: dialog.dialogId // Используем строковый dialogId
       });
 
       await unreadCountUtils.removeDialogMember(
         req.tenantId,
         userId,
-        dialog._id // Передаем ObjectId
+        dialog.dialogId // Передаем строковый dialogId
       );
 
       // Создаем событие dialog.member.remove
@@ -88,7 +88,7 @@ const dialogMemberController = {
           tenantId: req.tenantId,
           eventType: 'dialog.member.remove',
           entityType: 'dialogMember',
-          entityId: member._id,
+          entityId: userId + '_' + dialogId, // Составной ID для dialogMember
           actorId: req.apiKey?.name || 'unknown',
           actorType: 'api',
           data: {

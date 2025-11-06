@@ -25,10 +25,10 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
     // Получаем метаданные диалога (используем dialogId строку)
     const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
 
-    // Получаем всех участников диалога (используем dialog._id ObjectId)
+    // Получаем всех участников диалога (используем dialog.dialogId строка)
     const dialogMembers = await DialogMember.find({
       tenantId: tenantId,
-      dialogId: dialog._id, // DialogMember.dialogId - это ObjectId
+      dialogId: dialog.dialogId, // DialogMember.dialogId - это строка dlg_*
       isActive: true
     }).lean();
 
@@ -58,8 +58,8 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
         return {
           tenantId: tenantId, // tenantId is now a String (tnt_XXXXXXXX)
           userId: member.userId,
-          dialogId: dialog._id, // Используем ObjectId для Update.dialogId
-          entityId: dialog._id, // Используем ObjectId для Update.entityId
+          dialogId: dialog.dialogId, // Используем строковый dialogId для Update.dialogId
+          entityId: dialog.dialogId, // Используем строковый dialogId для Update.entityId
           eventId: eventId,
           eventType: eventType,
           data: dialogData,
@@ -111,10 +111,10 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       return;
     }
 
-    // Получаем всех участников диалога (используем dialog._id ObjectId)
+    // Получаем всех участников диалога (используем dialog.dialogId строка)
     const dialogMembers = await DialogMember.find({
       tenantId: tenantId,
-      dialogId: dialog._id, // DialogMember.dialogId - это ObjectId
+      dialogId: dialog.dialogId, // DialogMember.dialogId - это строка dlg_*
       isActive: true
     }).select('userId').lean();
 
@@ -146,8 +146,8 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
     const updates = dialogMembers.map(member => ({
       tenantId: tenantId, // tenantId is now a String (tnt_XXXXXXXX)
       userId: member.userId,
-      dialogId: dialog._id, // Update.dialogId - это ObjectId
-      entityId: messageId, // Update.entityId - это ObjectId сообщения
+      dialogId: dialog.dialogId, // Update.dialogId - это строка dlg_*
+      entityId: message.messageId, // Update.entityId - это строка msg_*
       eventId: eventId,
       eventType: eventType,
       data: messageData,

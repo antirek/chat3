@@ -194,26 +194,47 @@ const userDialogController = {
       }
 
       const dialogMembers = await DialogMember.find(dialogMembersQuery)
-        .populate('dialogId', 'dialogId name createdAt updatedAt')
         .sort({ lastSeenAt: -1 }) // Sort by last seen (most recent first)
         .lean();
 
+      // Получаем уникальные dialogId
+      const uniqueDialogIds = [...new Set(dialogMembers.map(m => m.dialogId))];
+
+      // Загружаем все диалоги одним запросом
+      const dialogsData = await Dialog.find({
+        dialogId: { $in: uniqueDialogIds },
+        tenantId: req.tenantId
+      }).select('dialogId name createdAt updatedAt _id').lean();
+
+      // Создаем Map для быстрого поиска
+      const dialogsMap = new Map(dialogsData.map(d => [d.dialogId, d]));
+
       // Format response data
-      const dialogs = dialogMembers.map(member => ({
-        dialogId: member.dialogId.dialogId,
-        dialogName: member.dialogId.name,
-        dialogObjectId: member.dialogId._id, // Сохраняем ObjectId для поиска сообщений
-        unreadCount: member.unreadCount,
-        lastSeenAt: member.lastSeenAt,
-        lastMessageAt: member.lastMessageAt,
-        isActive: member.isActive,
-        joinedAt: member.createdAt,
-        // Calculate last interaction time (most recent of lastSeenAt or lastMessageAt)
-        lastInteractionAt: new Date(Math.max(
-          new Date(member.lastSeenAt || 0).getTime(),
-          new Date(member.lastMessageAt || 0).getTime()
-        ))
-      }));
+      const dialogs = dialogMembers
+        .map(member => {
+          const dialog = dialogsMap.get(member.dialogId);
+          if (!dialog) {
+            console.warn(`Dialog not found for dialogId: ${member.dialogId}`);
+            return null;
+          }
+          
+          return {
+            dialogId: dialog.dialogId,
+            name: dialog.name,
+            dialogObjectId: dialog._id, // Сохраняем ObjectId для поиска сообщений
+            unreadCount: member.unreadCount,
+            lastSeenAt: member.lastSeenAt,
+            lastMessageAt: member.lastMessageAt,
+            isActive: member.isActive,
+            joinedAt: member.createdAt,
+            // Calculate last interaction time (most recent of lastSeenAt or lastMessageAt)
+            lastInteractionAt: new Date(Math.max(
+              new Date(member.lastSeenAt || 0).getTime(),
+              new Date(member.lastMessageAt || 0).getTime()
+            ))
+          };
+        })
+        .filter(d => d !== null); // Убираем null значения
 
       // Apply sorting BEFORE pagination
       if (req.query.sort) {
