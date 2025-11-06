@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 const messageStatusSchema = new mongoose.Schema({
   messageId: {
@@ -27,13 +28,15 @@ const messageStatusSchema = new mongoose.Schema({
     required: true
   },  
   createdAt: {
-    type: Date,
-    default: Date.now,
+    type: Number,
+    default: generateTimestamp,
     required: true,
+    description: 'Timestamp создания (микросекунды)'
   },
   updatedAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp обновления (микросекунды)'
   }
 }, {
   timestamps: true

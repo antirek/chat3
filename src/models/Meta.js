@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 const metaSchema = new mongoose.Schema({
   tenantId: {
@@ -36,12 +37,14 @@ const metaSchema = new mongoose.Schema({
     description: 'ID создателя (строка)'
   },
   createdAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp создания (микросекунды)'
   },
   updatedAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp обновления (микросекунды)'
   }
 }, {
   timestamps: true

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 const eventSchema = new mongoose.Schema({
   eventId: {
@@ -68,9 +69,10 @@ const eventSchema = new mongoose.Schema({
     description: 'Дополнительные данные события (что изменилось, старые/новые значения и т.д.)'
   },
   createdAt: {
-    type: Date,
-    default: Date.now,
-    index: true
+    type: Number,
+    default: generateTimestamp,
+    index: true,
+    description: 'Timestamp создания события (микросекунды)'
   }
 }, {
   timestamps: { createdAt: true, updatedAt: false }

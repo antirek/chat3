@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 const updateSchema = new mongoose.Schema({
   tenantId: {
@@ -52,13 +53,14 @@ const updateSchema = new mongoose.Schema({
     index: true
   },
   publishedAt: {
-    type: Date,
-    description: 'Время публикации в RabbitMQ'
+    type: Number,
+    description: 'Timestamp публикации в RabbitMQ (микросекунды)'
   },
   createdAt: {
-    type: Date,
-    default: Date.now,
-    index: true
+    type: Number,
+    default: generateTimestamp,
+    index: true,
+    description: 'Timestamp создания (микросекунды)'
   }
 }, {
   timestamps: true

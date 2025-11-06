@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 const messageReactionSchema = new mongoose.Schema({
   tenantId: {
@@ -27,12 +28,14 @@ const messageReactionSchema = new mongoose.Schema({
     description: 'Тип реакции: эмодзи (👍, ❤️, 😂) или текст (custom:text)'
   },
   createdAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp создания (микросекунды)'
   },
   updatedAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp обновления (микросекунды)'
   }
 }, {
   timestamps: true

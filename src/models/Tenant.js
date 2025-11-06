@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 /**
  * Генерирует уникальный tenantId в формате tnt_XXXXXXXX
@@ -51,12 +52,14 @@ const tenantSchema = new mongoose.Schema({
     default: {}
   },
   createdAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp создания (микросекунды)'
   },
   updatedAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp обновления (микросекунды)'
   }
 }, {
   timestamps: true

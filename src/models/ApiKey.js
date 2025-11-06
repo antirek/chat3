@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 const apiKeySchema = new mongoose.Schema({
   key: {
@@ -26,18 +27,22 @@ const apiKeySchema = new mongoose.Schema({
     enum: ['read', 'write', 'delete']
   }],
   expiresAt: {
-    type: Date
+    type: Number,
+    description: 'Timestamp истечения (микросекунды)'
   },
   lastUsedAt: {
-    type: Date
+    type: Number,
+    description: 'Timestamp последнего использования (микросекунды)'
   },
   createdAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp создания (микросекунды)'
   },
   updatedAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp обновления (микросекунды)'
   }
 }, {
   timestamps: true
@@ -51,13 +56,13 @@ apiKeySchema.statics.generateKey = function() {
 // Method to check if key is valid
 apiKeySchema.methods.isValid = function() {
   if (!this.isActive) return false;
-  if (this.expiresAt && this.expiresAt < new Date()) return false;
+  if (this.expiresAt && this.expiresAt < generateTimestamp()) return false;
   return true;
 };
 
 // Update last used timestamp
 apiKeySchema.methods.updateLastUsed = async function() {
-  this.lastUsedAt = new Date();
+  this.lastUsedAt = generateTimestamp();
   await this.save();
 };
 

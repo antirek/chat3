@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 // Function to generate dialogId
 function generateDialogId() {
@@ -35,12 +36,14 @@ const dialogSchema = new mongoose.Schema({
     description: 'ID создателя диалога (строка)'
   },
   createdAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp в миллисекундах с точностью до микросекунд'
   },
   updatedAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp в миллисекундах с точностью до микросекунд'
   }
 }, {
   timestamps: true

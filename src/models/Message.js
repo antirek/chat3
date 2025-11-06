@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 // Function to generate messageId
 function generateMessageId() {
@@ -51,12 +52,14 @@ const messageSchema = new mongoose.Schema({
     description: 'Агрегированные счетчики реакций: { "👍": 5, "❤️": 3 }'
   },
   createdAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp в миллисекундах с точностью до микросекунд'
   },
   updatedAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp в миллисекундах с точностью до микросекунд'
   }
 }, {
   timestamps: true

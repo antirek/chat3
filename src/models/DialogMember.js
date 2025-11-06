@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 const dialogMemberSchema = new mongoose.Schema({
   userId: {
@@ -28,15 +29,15 @@ const dialogMemberSchema = new mongoose.Schema({
     description: 'Количество непрочитанных сообщений в диалоге'
   },
   lastSeenAt: {
-    type: Date,
-    default: Date.now,
+    type: Number,
+    default: generateTimestamp,
     required: true,
-    description: 'Время последнего просмотра диалога пользователем'
+    description: 'Timestamp последнего просмотра диалога (микросекунды)'
   },
   lastMessageAt: {
-    type: Date,
-    default: Date.now,
-    description: 'Время последнего сообщения в диалоге'
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp последнего сообщения в диалоге (микросекунды)'
   },
   isActive: {
     type: Boolean,
@@ -44,12 +45,14 @@ const dialogMemberSchema = new mongoose.Schema({
     description: 'Активен ли участник в диалоге'
   },
   createdAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp создания (микросекунды)'
   },
   updatedAt: {
-    type: Date,
-    default: Date.now
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp обновления (микросекунды)'
   }
 }, {
   timestamps: true
