@@ -164,18 +164,26 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters) {
           
           // Также нужно добавить entityId, которые вообще не имеют этого ключа
           // Для этого нам нужно получить все entityId данного типа и исключить те, что имеют этот ключ
-          const { Message } = await import('../models/index.js');
-          const allMessages = await Message.find({ tenantId }).select('_id').lean();
-          const allMessageIds = new Set(allMessages.map(m => m._id.toString()));
-          
-          const withKeyIds = new Set(allWithKey.map(r => r.entityId.toString()));
-          
-          // Добавляем entityId, которые не имеют этого ключа вообще
-          allMessageIds.forEach(id => {
-            if (!withKeyIds.has(id)) {
-              allEntityIds.add(id);
-            }
-          });
+          if (entityType === 'message') {
+            const { Message } = await import('../models/index.js');
+            const allMessages = await Message.find({ tenantId }).select('messageId').lean();
+            const allMessageIds = new Set(allMessages.map(m => m.messageId));
+            
+            const withKeyIds = new Set(allWithKey.map(r => r.entityId.toString()));
+            
+            // Добавляем entityId, которые не имеют этого ключа вообще
+            allMessageIds.forEach(id => {
+              if (!withKeyIds.has(id)) {
+                allEntityIds.add(id);
+              }
+            });
+          } else {
+            // Для других типов (dialog, user и т.д.) entityId уже строки в Meta коллекции
+            // Просто добавляем все entityId из Meta, которые не имеют этого ключа
+            const withKeyIds = new Set(allWithKey.map(r => r.entityId.toString()));
+            // Для других типов просто не добавляем пустые значения
+            // Эта логика может быть расширена при необходимости
+          }
           
           continue; // Пропускаем обычную обработку
         }
@@ -193,7 +201,13 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters) {
       if (metaRecords.length === 0) {
         // Если нет записей для этого фильтра, возвращаем пустой результат
         console.log(`No records found for ${key}=${JSON.stringify(value)}, returning empty result`);
-        return { _id: { $in: [] } };
+        if (entityType === 'message') {
+          return { messageId: { $in: [] } };
+        } else if (entityType === 'dialog') {
+          return { dialogId: { $in: [] } };
+        } else {
+          return { _id: { $in: [] } };
+        }
       }
       
       // Добавляем entityId в множество
@@ -205,7 +219,17 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters) {
     const entityIds = Array.from(allEntityIds);
     console.log('Final entity IDs:', entityIds);
     
-    return { _id: { $in: entityIds } };
+    // Для разных типов сущностей используем разные поля для фильтрации
+    if (entityType === 'message') {
+      // Для сообщений entityId это messageId (строка), а не _id
+      return { messageId: { $in: entityIds } };
+    } else if (entityType === 'dialog') {
+      // Для диалогов entityId это dialogId (строка), а не _id
+      return { dialogId: { $in: entityIds } };
+    } else {
+      // Для других типов используем _id (ObjectId)
+      return { _id: { $in: entityIds } };
+    }
   } catch (error) {
     console.error('Error in buildMetaQuery:', error);
     throw new Error(`Failed to build meta query: ${error.message}`);

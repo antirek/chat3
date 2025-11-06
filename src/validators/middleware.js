@@ -11,7 +11,17 @@ import Joi from 'joi';
  */
 export const validate = (schema, property = 'body') => {
   return (req, res, next) => {
-    const { error, value } = schema.validate(req[property], {
+    // Преобразуем пустые строки в undefined для query параметров
+    const dataToValidate = property === 'query' 
+      ? Object.fromEntries(
+          Object.entries(req[property]).map(([key, value]) => [
+            key,
+            value === '' ? undefined : value
+          ])
+        )
+      : req[property];
+
+    const { error, value } = schema.validate(dataToValidate, {
       abortEarly: false, // Собираем все ошибки, а не только первую
       stripUnknown: true, // Удаляем неизвестные поля
       convert: true // Преобразуем типы (например, строки в числа)

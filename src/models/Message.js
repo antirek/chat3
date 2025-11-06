@@ -26,9 +26,12 @@ const messageSchema = new mongoose.Schema({
     match: /^tnt_[a-z0-9]+$/
   },
   dialogId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Dialog',
-    required: true
+    type: String,
+    required: true,
+    trim: true,
+    lowercase: true,
+    match: /^dlg_[a-z0-9]{20}$/,
+    description: 'ID диалога (строка в формате dlg_XXXXXXXXXXXXXXXXXXXX)'
   },
   senderId: {
     type: String,

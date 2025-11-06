@@ -59,13 +59,26 @@ export const dialogController = {
                 }
               } else {
                 // Для позитивных операторов (eq, in, gt, etc.) используем обычный запрос
-                const metaRecords = await Meta.find({
-                  ...metaQuery,
-                  key: key,
-                  value: condition
-                }).select('entityId').lean();
-                
-                foundDialogIds = metaRecords.map(m => m.entityId.toString());
+                // Проверяем, является ли condition объектом с MongoDB операторами (например, { $in: [...] })
+                if (typeof condition === 'object' && condition !== null && !Array.isArray(condition)) {
+                  // Если это объект с операторами MongoDB (например, { $in: [...] })
+                  const metaRecords = await Meta.find({
+                    ...metaQuery,
+                    key: key,
+                    value: condition
+                  }).select('entityId').lean();
+                  
+                  foundDialogIds = metaRecords.map(m => m.entityId.toString());
+                } else {
+                  // Простое равенство (eq)
+                  const metaRecords = await Meta.find({
+                    ...metaQuery,
+                    key: key,
+                    value: condition
+                  }).select('entityId').lean();
+                  
+                  foundDialogIds = metaRecords.map(m => m.entityId.toString());
+                }
               }
               
               // Объединяем с предыдущими результатами (AND логика)
@@ -88,11 +101,20 @@ export const dialogController = {
               // Нет диалогов с такими участниками
               dialogIds = [];
             } else {
+              // Преобразуем ObjectId из DialogMember в строки dialogId
+              // Для этого найдем Dialog по _id и получим их dialogId
+              const dialogObjects = await Dialog.find({
+                _id: { $in: memberDialogIds },
+                tenantId: req.tenantId
+              }).select('dialogId').lean();
+              
+              const memberDialogIdStrings = dialogObjects.map(d => d.dialogId);
+              
               if (dialogIds === null) {
-                dialogIds = memberDialogIds;
+                dialogIds = memberDialogIdStrings;
               } else {
-                // Пересечение с уже найденными dialogIds
-                dialogIds = dialogIds.filter(id => memberDialogIds.some(memberId => memberId.toString() === id.toString()));
+                // Пересечение с уже найденными dialogIds (обе стороны теперь строки dialogId)
+                dialogIds = dialogIds.filter(id => memberDialogIdStrings.includes(id));
               }
             }
           }
@@ -110,10 +132,10 @@ export const dialogController = {
 
       const query = { tenantId: req.tenantId };
       
-      // Если есть фильтрация по meta, ограничиваем выборку
+      // Если есть фильтрация по meta или member, ограничиваем выборку
       if (dialogIds !== null) {
         if (dialogIds.length === 0) {
-          // Нет диалогов с такими meta
+          // Нет диалогов с такими meta/member
           return res.json({
             data: sanitizeResponse([]),
             pagination: {
@@ -124,7 +146,9 @@ export const dialogController = {
             }
           });
         }
-        query._id = { $in: dialogIds };
+        
+        // Все dialogIds теперь строки dialogId (meta и member фильтры преобразованы)
+        query.dialogId = { $in: dialogIds };
       }
 
       // Проверяем, нужна ли сортировка по полям DialogMember
@@ -156,7 +180,8 @@ export const dialogController = {
         
         // Если есть ограничения по dialogIds, добавляем их
         if (dialogIds !== null && dialogIds.length > 0) {
-          baseQuery._id = { $in: dialogIds };
+          // Все dialogIds теперь строки dialogId
+          baseQuery.dialogId = { $in: dialogIds };
         }
         
         // Получаем диалоги с участниками

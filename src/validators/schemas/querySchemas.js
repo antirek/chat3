@@ -18,8 +18,8 @@ export const paginationSchema = Joi.object({
 export const queryWithFilterSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(10),
-  filter: Joi.string().optional(),
-  sort: Joi.string().optional(),
+  filter: Joi.string().allow('').optional(),
+  sort: Joi.string().allow('').optional(),
   sortDirection: Joi.string().valid('asc', 'desc').optional()
 });
 
@@ -30,8 +30,8 @@ export const userDialogsQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(10),
   includeLastMessage: Joi.string().valid('true', 'false').optional(),
-  filter: Joi.string().optional(),
-  sort: Joi.string().optional(),
+  filter: Joi.string().allow('').optional(),
+  sort: Joi.string().allow('').optional(),
   unreadCount: Joi.alternatives().try(
     Joi.number().integer(),
     Joi.string().pattern(/^(gte|gt|lte|lt):\d+$/).optional()
@@ -45,8 +45,11 @@ export const userDialogsQuerySchema = Joi.object({
 export const messagesQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(10),
-  filter: Joi.string().optional(),
-  sort: Joi.string().pattern(/^\([^,]+,(asc|desc)\)$/).optional()
+  filter: Joi.string().allow('').optional(),
+  sort: Joi.alternatives().try(
+    Joi.string().pattern(/^\([^,]+,(asc|desc)\)$/),
+    Joi.string().allow('').empty('')
+  ).optional()
 });
 
 /**

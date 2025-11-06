@@ -31,35 +31,9 @@ async function enrichMessagesWithMetaAndStatuses(messages, tenantId) {
       
       const messageObj = message.toObject ? message.toObject() : message;
       
-      // Получаем Dialog для получения dialogId в формате dlg_
-      let dialogIdString = messageObj.dialogId;
-      if (messageObj.dialogId && typeof messageObj.dialogId === 'object') {
-        // Если dialogId это ObjectId или объект Dialog
-        if (messageObj.dialogId.dialogId) {
-          // Если dialogId уже является объектом Dialog с полем dialogId (populate)
-          dialogIdString = messageObj.dialogId.dialogId;
-        } else if (messageObj.dialogId._id || messageObj.dialogId.toString) {
-          // Если это ObjectId, получаем Dialog
-          const dialogIdValue = messageObj.dialogId._id || messageObj.dialogId;
-          const dialog = await Dialog.findById(dialogIdValue).select('dialogId').lean();
-          if (dialog) {
-            dialogIdString = dialog.dialogId;
-          }
-        }
-      } else if (messageObj.dialogId && typeof messageObj.dialogId === 'string') {
-        // Если это уже строка, проверяем формат
-        if (!messageObj.dialogId.startsWith('dlg_')) {
-          // Если это ObjectId в строковом формате, получаем Dialog
-          const dialog = await Dialog.findById(messageObj.dialogId).select('dialogId').lean();
-          if (dialog) {
-            dialogIdString = dialog.dialogId;
-          }
-        }
-      }
-      
+      // dialogId теперь уже строка в формате dlg_, не нужно преобразовывать
       return {
         ...messageObj,
-        dialogId: dialogIdString, // Заменяем ObjectId на строковый dialogId
         meta,
         statuses: messageStatuses
       };
@@ -153,17 +127,17 @@ const messageController = {
       if (Object.keys(metaFilters).length > 0) {
         console.log('Verifying meta filters for found messages...');
         for (const message of messages) {
-          const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', message._id);
-          console.log(`Message ${message._id} meta:`, messageMeta);
+          const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', message.messageId);
+          console.log(`Message ${message.messageId} meta:`, messageMeta);
           
           // Проверяем каждый мета-фильтр
           for (const [key, expectedValue] of Object.entries(metaFilters)) {
             const actualValue = messageMeta[key];
             if (actualValue !== expectedValue) {
-              console.error(`❌ META FILTER MISMATCH for message ${message._id}:`);
+              console.error(`❌ META FILTER MISMATCH for message ${message.messageId}:`);
               console.error(`   Expected ${key}=${expectedValue}, got ${key}=${actualValue}`);
             } else {
-              console.log(`✅ Meta filter OK for message ${message._id}: ${key}=${actualValue}`);
+              console.log(`✅ Meta filter OK for message ${message.messageId}: ${key}=${actualValue}`);
             }
           }
         }
@@ -215,7 +189,7 @@ const messageController = {
       // Parse filters if provided
       let query = {
         tenantId: req.tenantId,
-        dialogId: dialog._id // Используем ObjectId для поиска сообщений
+        dialogId: dialog.dialogId // Используем строковый dialogId для поиска сообщений
       };
 
       if (req.query.filter) {
@@ -270,7 +244,6 @@ const messageController = {
         .limit(limit)
         .select('-__v')
         .populate('tenantId', 'name domain')
-        .populate('dialogId', 'dialogId name') // Включаем dialogId для получения строкового ID
         .sort(sortOptions);
 
       // Add meta data and message statuses for each message
@@ -331,7 +304,7 @@ const messageController = {
       // Create message
       const message = await Message.create({
         tenantId: req.tenantId,
-        dialogId: dialog._id, // Используем ObjectId для связи в Message
+        dialogId: dialog.dialogId, // Используем строковый dialogId
         content,
         senderId,
         type
@@ -344,7 +317,7 @@ const messageController = {
       
       const dialogMembers = await DialogMember.find({
         tenantId: req.tenantId,
-        dialogId: dialog._id, // Используем ObjectId для поиска DialogMember
+        dialogId: dialog.dialogId, // Используем строковый dialogId
         isActive: true
       }).select('userId').lean();
       
@@ -363,7 +336,7 @@ const messageController = {
             });
             
             // Update DialogMember counter (только для существующих участников)
-            await incrementUnreadCount(req.tenantId, userId, dialog._id, message._id);
+            await incrementUnreadCount(req.tenantId, userId, dialog.dialogId, message.messageId);
           } catch (error) {
             console.error(`Error creating MessageStatus for user ${userId}:`, error);
           }
@@ -430,33 +403,18 @@ const messageController = {
       });
 
       // Get message with meta data
-      const messageWithMeta = await Message.findOne({ _id: message._id })
+      const messageWithMeta = await Message.findOne({ messageId: message.messageId })
         .select('-__v')
-        .populate('tenantId', 'name domain')
-        .populate('dialogId', 'dialogId name');
+        .populate('tenantId', 'name domain');
 
       // messageMeta уже загружено выше для события, используем его
       const messageObj = messageWithMeta.toObject();
       
-      // Получаем dialogId в формате dlg_ из Dialog
-      let dialogIdString = messageObj.dialogId;
-      if (messageObj.dialogId && typeof messageObj.dialogId === 'object') {
-        if (messageObj.dialogId.dialogId) {
-          // Если dialogId уже является объектом Dialog с полем dialogId (populate)
-          dialogIdString = messageObj.dialogId.dialogId;
-        } else {
-          // Если это ObjectId, получаем Dialog
-          const dialog = await Dialog.findById(messageObj.dialogId).select('dialogId').lean();
-          if (dialog) {
-            dialogIdString = dialog.dialogId;
-          }
-        }
-      }
+      // dialogId теперь уже строка в формате dlg_, не нужно преобразовывать
 
       res.status(201).json({
         data: sanitizeResponse({
           ...messageObj,
-          dialogId: dialogIdString, // Заменяем ObjectId на строковый dialogId
           meta: messageMeta
         }),
         message: 'Message created successfully'
@@ -516,20 +474,11 @@ const messageController = {
 
       const messageObj = message.toObject();
       
-      // Получаем dialogId в формате dlg_ из Dialog
-      let dialogIdString = messageObj.dialogId;
-      if (messageObj.dialogId && typeof messageObj.dialogId === 'object') {
-        // Если dialogId это ObjectId, получаем Dialog
-        const dialog = await Dialog.findById(messageObj.dialogId).select('dialogId').lean();
-        if (dialog) {
-          dialogIdString = dialog.dialogId;
-        }
-      }
+      // dialogId теперь уже строка в формате dlg_, не нужно преобразовывать
 
       res.json({
         data: sanitizeResponse({
           ...messageObj,
-          dialogId: dialogIdString, // Заменяем ObjectId на строковый dialogId
           statuses: messageStatuses,
           meta
         })

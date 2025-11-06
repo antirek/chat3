@@ -135,7 +135,7 @@ async function seed() {
         dialogMembers.push({
           userId,
           tenantId: tenant.tenantId,
-          dialogId: dialog._id,
+          dialogId: dialog.dialogId,
           unreadCount,
           lastSeenAt,
           lastMessageAt,
@@ -281,7 +281,7 @@ async function seed() {
         
         allMessages.push({
           tenantId: tenant.tenantId,
-          dialogId: dialog._id,
+          dialogId: dialog.dialogId,
           senderId: randomSenderId, // Используем произвольную строку
           content: messageContent,
           type: randomType,
