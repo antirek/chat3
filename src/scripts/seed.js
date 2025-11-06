@@ -316,9 +316,10 @@ async function seed() {
 
       selectedUsers.forEach((userId, userIndex) => {
         // Время создания статуса - от времени сообщения до текущего времени
-        const messageTime = new Date(message.createdAt);
-        const now = new Date();
-        const statusTime = new Date(messageTime.getTime() + Math.random() * (now.getTime() - messageTime.getTime()));
+        const messageTime = message.createdAt; // Уже Number с микросекундами
+        const now = generateTimestamp();
+        const randomOffset = Math.random() * (now - messageTime);
+        const statusTime = messageTime + randomOffset; // Timestamp с микросекундами
         
         // Статус зависит от порядка пользователя (первый - sent, второй - delivered, остальные - read)
         let status;
@@ -335,8 +336,8 @@ async function seed() {
           userId,
           tenantId: tenant.tenantId,
           status,
-          createdAt: statusTime,
-          updatedAt: statusTime
+          createdAt: statusTime, // С микросекундами
+          updatedAt: statusTime  // С микросекундами
         });
       });
     });
@@ -567,9 +568,10 @@ async function seed() {
 
       selectedUsers.forEach((userId, userIndex) => {
         // Время реакции - от времени сообщения до текущего времени
-        const messageTime = new Date(message.createdAt);
-        const now = new Date();
-        const reactionTime = new Date(messageTime.getTime() + Math.random() * (now.getTime() - messageTime.getTime()));
+        const messageTime = message.createdAt; // Уже Number с микросекундами
+        const now = generateTimestamp();
+        const randomOffset = Math.random() * (now - messageTime);
+        const reactionTime = messageTime + randomOffset; // Timestamp с микросекундами
         
         // Выбираем случайную реакцию
         const reaction = reactions[Math.floor(Math.random() * reactions.length)];
@@ -579,8 +581,8 @@ async function seed() {
           messageId: message.messageId,
           userId: userId,
           reaction: reaction,
-          createdAt: reactionTime,
-          updatedAt: reactionTime
+          createdAt: reactionTime, // С микросекундами
+          updatedAt: reactionTime  // С микросекундами
         });
       });
     });
