@@ -84,6 +84,19 @@ async function processEvent(eventData) {
       }
     }
     
+    if (shouldUpdate.dialogMember) {
+      // Для событий dialog.member.update создаем update только для конкретного участника
+      const dialogId = data.dialogId;
+      const userId = data.userId;
+      
+      if (dialogId && userId) {
+        await updateUtils.createDialogMemberUpdate(tenantId, dialogId, userId, eventId, eventType, data);
+        console.log(`✅ Created DialogMemberUpdate for user ${userId} in event ${eventId}`);
+      } else {
+        console.warn(`⚠️ No dialogId or userId found for event ${eventId}`);
+      }
+    }
+    
     if (shouldUpdate.message) {
       // Для событий сообщений нужен dialogId из data
       let dialogId;
@@ -106,7 +119,7 @@ async function processEvent(eventData) {
       }
     }
 
-    if (!shouldUpdate.dialog && !shouldUpdate.message) {
+    if (!shouldUpdate.dialog && !shouldUpdate.dialogMember && !shouldUpdate.message) {
       console.log(`ℹ️ Event ${eventType} does not require update creation`);
     }
 

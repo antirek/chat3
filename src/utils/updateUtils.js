@@ -86,6 +86,89 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
 }
 
 /**
+ * Формирует DialogMemberUpdate для конкретного участника диалога
+ * Используется для событий, которые касаются только одного участника (например, изменение unreadCount)
+ */
+export async function createDialogMemberUpdate(tenantId, dialogId, userId, eventId, eventType, eventData = {}) {
+  try {
+    // dialogId всегда приходит как строка dlg_*
+    // Находим Dialog по строковому dialogId
+    const dialog = await Dialog.findOne({ 
+      dialogId: dialogId, 
+      tenantId: tenantId 
+    });
+    
+    if (!dialog) {
+      console.error(`Dialog with dialogId ${dialogId} not found for update`);
+      return;
+    }
+
+    // Получаем метаданные диалога
+    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+
+    // Получаем конкретного участника
+    const member = await DialogMember.findOne({
+      tenantId: tenantId,
+      dialogId: dialog.dialogId,
+      userId: userId,
+      isActive: true
+    }).lean();
+
+    if (!member) {
+      console.log(`Member ${userId} not found in dialog ${dialogId}`);
+      return;
+    }
+
+    // Получаем мета теги DialogMember для этого участника
+    const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', member._id.toString());
+
+    // Формируем данные диалога для update с мета тегами и данными участника
+    const dialogData = {
+      dialogId: dialog.dialogId,
+      tenantId: dialog.tenantId,
+      name: dialog.name,
+      createdBy: dialog.createdBy,
+      createdAt: dialog.createdAt,
+      updatedAt: dialog.updatedAt,
+      meta: dialogMeta,
+      dialogMemberMeta: memberMeta,
+      // Добавляем данные участника из события
+      memberData: {
+        userId: member.userId,
+        unreadCount: eventData.unreadCount !== undefined ? eventData.unreadCount : member.unreadCount,
+        lastSeenAt: eventData.lastSeenAt || member.lastSeenAt,
+        lastMessageAt: member.lastMessageAt,
+        isActive: member.isActive
+      }
+    };
+
+    // Создаем update только для этого участника
+    const updateData = {
+      tenantId: tenantId,
+      userId: userId, // Только для этого пользователя!
+      dialogId: dialog.dialogId,
+      entityId: dialog.dialogId,
+      eventId: eventId,
+      eventType: eventType,
+      data: dialogData,
+      published: false
+    };
+
+    // Сохраняем update в БД
+    const savedUpdate = await Update.create(updateData);
+
+    // Публикуем update в RabbitMQ
+    await publishUpdate(savedUpdate).catch(err => {
+      console.error(`Error publishing update ${savedUpdate._id}:`, err);
+    });
+
+    console.log(`Created DialogMemberUpdate for user ${userId} in dialog ${dialogId}`);
+  } catch (error) {
+    console.error('Error creating DialogMemberUpdate:', error);
+  }
+}
+
+/**
  * Формирует MessageUpdate для всех участников диалога
  */
 export async function createMessageUpdate(tenantId, dialogId, messageId, eventId, eventType, eventData = {}) {
@@ -249,6 +332,10 @@ export function getUpdateTypeFromEventType(eventType) {
     'dialog.member.remove'
   ];
 
+  const dialogMemberUpdateEvents = [
+    'dialog.member.update'
+  ];
+
   const messageUpdateEvents = [
     'message.create',
     'message.update',
@@ -262,6 +349,9 @@ export function getUpdateTypeFromEventType(eventType) {
 
   if (dialogUpdateEvents.includes(eventType)) {
     return 'DialogUpdate';
+  }
+  if (dialogMemberUpdateEvents.includes(eventType)) {
+    return 'DialogUpdate'; // Используем тот же routing key, но создаем только для одного участника
   }
   if (messageUpdateEvents.includes(eventType)) {
     return 'MessageUpdate';
@@ -281,6 +371,10 @@ export function shouldCreateUpdate(eventType) {
     'dialog.member.remove'
   ];
 
+  const dialogMemberUpdateEvents = [
+    'dialog.member.update' // События, которые касаются только одного участника
+  ];
+
   const messageUpdateEvents = [
     'message.create',
     'message.update',
@@ -294,6 +388,7 @@ export function shouldCreateUpdate(eventType) {
 
   return {
     dialog: dialogUpdateEvents.includes(eventType),
+    dialogMember: dialogMemberUpdateEvents.includes(eventType),
     message: messageUpdateEvents.includes(eventType)
   };
 }
