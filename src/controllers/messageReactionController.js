@@ -1,6 +1,7 @@
 import { MessageReaction, Message, Dialog } from '../models/index.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import * as reactionUtils from '../utils/reactionUtils.js';
+import { sanitizeResponse } from '../utils/responseUtils.js';
 
 const messageReactionController = {
   // Получить все реакции для сообщения
@@ -45,10 +46,10 @@ const messageReactionController = {
       const reactionCounts = message.reactionCounts || {};
 
       res.json({
-        data: {
+        data: sanitizeResponse({
           reactions: reactions,
           counts: reactionCounts
-        },
+        }),
         message: 'Message reactions retrieved successfully'
       });
     } catch (error) {
@@ -169,10 +170,10 @@ const messageReactionController = {
       });
 
       res.status(existingReaction ? 200 : 201).json({
-        data: {
+        data: sanitizeResponse({
           reaction: reactionDoc,
           counts: updatedMessage.reactionCounts
-        },
+        }),
         message: existingReaction ? 'Reaction updated successfully' : 'Reaction added successfully'
       });
     } catch (error) {
@@ -270,9 +271,9 @@ const messageReactionController = {
       });
 
       res.json({
-        data: {
+        data: sanitizeResponse({
           counts: updatedMessage.reactionCounts
-        },
+        }),
         message: 'Reaction removed successfully'
       });
     } catch (error) {

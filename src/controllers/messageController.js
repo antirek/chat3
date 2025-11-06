@@ -2,6 +2,7 @@ import { Message, Dialog, Meta, MessageStatus } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
+import { sanitizeResponse } from '../utils/responseUtils.js';
 
 /**
  * Helper function to enrich messages with meta data and statuses
@@ -25,12 +26,40 @@ async function enrichMessagesWithMetaAndStatuses(messages, tenantId) {
         tenantId: tenantId
       })
         .select('userId status readAt createdAt')
-        .sort({ createdAt: -1 }); // Newest first
+        .sort({ createdAt: -1 })
+        .lean(); // Используем .lean() для получения объектов вместо Mongoose документов
       
-      const messageObj = message.toObject();
+      const messageObj = message.toObject ? message.toObject() : message;
+      
+      // Получаем Dialog для получения dialogId в формате dlg_
+      let dialogIdString = messageObj.dialogId;
+      if (messageObj.dialogId && typeof messageObj.dialogId === 'object') {
+        // Если dialogId это ObjectId или объект Dialog
+        if (messageObj.dialogId.dialogId) {
+          // Если dialogId уже является объектом Dialog с полем dialogId (populate)
+          dialogIdString = messageObj.dialogId.dialogId;
+        } else if (messageObj.dialogId._id || messageObj.dialogId.toString) {
+          // Если это ObjectId, получаем Dialog
+          const dialogIdValue = messageObj.dialogId._id || messageObj.dialogId;
+          const dialog = await Dialog.findById(dialogIdValue).select('dialogId').lean();
+          if (dialog) {
+            dialogIdString = dialog.dialogId;
+          }
+        }
+      } else if (messageObj.dialogId && typeof messageObj.dialogId === 'string') {
+        // Если это уже строка, проверяем формат
+        if (!messageObj.dialogId.startsWith('dlg_')) {
+          // Если это ObjectId в строковом формате, получаем Dialog
+          const dialog = await Dialog.findById(messageObj.dialogId).select('dialogId').lean();
+          if (dialog) {
+            dialogIdString = dialog.dialogId;
+          }
+        }
+      }
       
       return {
         ...messageObj,
+        dialogId: dialogIdString, // Заменяем ObjectId на строковый dialogId
         meta,
         statuses: messageStatuses
       };
@@ -146,7 +175,7 @@ const messageController = {
       const total = await Message.countDocuments(query);
 
       res.json({
-        data: messagesWithMeta,
+        data: sanitizeResponse(messagesWithMeta),
         pagination: {
           page,
           limit,
@@ -241,7 +270,7 @@ const messageController = {
         .limit(limit)
         .select('-__v')
         .populate('tenantId', 'name domain')
-        .populate('dialogId', 'name')
+        .populate('dialogId', 'dialogId name') // Включаем dialogId для получения строкового ID
         .sort(sortOptions);
 
       // Add meta data and message statuses for each message
@@ -250,7 +279,7 @@ const messageController = {
       const total = await Message.countDocuments(query);
 
       res.json({
-        data: messagesWithMeta,
+        data: sanitizeResponse(messagesWithMeta),
         pagination: {
           page,
           limit,
@@ -404,16 +433,32 @@ const messageController = {
       const messageWithMeta = await Message.findOne({ _id: message._id })
         .select('-__v')
         .populate('tenantId', 'name domain')
-        .populate('dialogId', 'name');
+        .populate('dialogId', 'dialogId name');
 
       // messageMeta уже загружено выше для события, используем его
       const messageObj = messageWithMeta.toObject();
+      
+      // Получаем dialogId в формате dlg_ из Dialog
+      let dialogIdString = messageObj.dialogId;
+      if (messageObj.dialogId && typeof messageObj.dialogId === 'object') {
+        if (messageObj.dialogId.dialogId) {
+          // Если dialogId уже является объектом Dialog с полем dialogId (populate)
+          dialogIdString = messageObj.dialogId.dialogId;
+        } else {
+          // Если это ObjectId, получаем Dialog
+          const dialog = await Dialog.findById(messageObj.dialogId).select('dialogId').lean();
+          if (dialog) {
+            dialogIdString = dialog.dialogId;
+          }
+        }
+      }
 
       res.status(201).json({
-        data: {
+        data: sanitizeResponse({
           ...messageObj,
+          dialogId: dialogIdString, // Заменяем ObjectId на строковый dialogId
           meta: messageMeta
-        },
+        }),
         message: 'Message created successfully'
       });
     } catch (error) {
@@ -459,7 +504,8 @@ const messageController = {
         tenantId: req.tenantId
       })
         .select('userId status readAt createdAt')
-        .sort({ createdAt: -1 }); // Newest first
+        .sort({ createdAt: -1 })
+        .lean(); // Используем .lean() для получения объектов вместо Mongoose документов
 
       // Получаем метаданные сообщения
       const meta = await metaUtils.getEntityMeta(
@@ -469,13 +515,24 @@ const messageController = {
       );
 
       const messageObj = message.toObject();
+      
+      // Получаем dialogId в формате dlg_ из Dialog
+      let dialogIdString = messageObj.dialogId;
+      if (messageObj.dialogId && typeof messageObj.dialogId === 'object') {
+        // Если dialogId это ObjectId, получаем Dialog
+        const dialog = await Dialog.findById(messageObj.dialogId).select('dialogId').lean();
+        if (dialog) {
+          dialogIdString = dialog.dialogId;
+        }
+      }
 
       res.json({
-        data: {
+        data: sanitizeResponse({
           ...messageObj,
+          dialogId: dialogIdString, // Заменяем ObjectId на строковый dialogId
           statuses: messageStatuses,
           meta
-        }
+        })
       });
     } catch (error) {
       res.status(500).json({

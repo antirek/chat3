@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { DialogMember, Dialog, Message, Meta } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
+import { sanitizeResponse } from '../utils/responseUtils.js';
 
 const userDialogController = {
   // Get user's dialogs with optional last message
@@ -304,7 +305,7 @@ const userDialogController = {
       console.log('Sort parameter:', req.query.sort);
       console.log('Include last message:', includeLastMessage);
       res.json({
-        data: finalDialogs,
+        data: sanitizeResponse(finalDialogs),
         pagination: {
           page,
           limit,

@@ -1,6 +1,7 @@
 import { DialogMember } from '../models/index.js';
 import * as unreadCountUtils from '../utils/unreadCountUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
+import { sanitizeResponse } from '../utils/responseUtils.js';
 
 const dialogMemberController = {
   // Add member to dialog
@@ -39,10 +40,10 @@ const dialogMemberController = {
       });
 
       res.status(201).json({
-        data: {
+        data: sanitizeResponse({
           userId,
           dialogId
-        },
+        }),
         message: 'Member added to dialog successfully'
       });
     } catch (error) {

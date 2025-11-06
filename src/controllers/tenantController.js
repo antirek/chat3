@@ -1,4 +1,5 @@
 import { Tenant } from '../models/index.js';
+import { sanitizeResponse } from '../utils/responseUtils.js';
 
 export const tenantController = {
   // Get all tenants (paginated)
@@ -16,7 +17,7 @@ export const tenantController = {
       const total = await Tenant.countDocuments();
 
       res.json({
-        data: tenants,
+        data: sanitizeResponse(tenants),
         pagination: {
           page,
           limit,
@@ -44,7 +45,7 @@ export const tenantController = {
         });
       }
 
-      res.json({ data: tenant });
+      res.json({ data: sanitizeResponse(tenant) });
     } catch (error) {
       if (error.name === 'CastError') {
         return res.status(400).json({
@@ -65,7 +66,7 @@ export const tenantController = {
       const tenant = await Tenant.create(req.body);
 
       res.status(201).json({
-        data: tenant,
+        data: sanitizeResponse(tenant),
         message: 'Tenant created successfully'
       });
     } catch (error) {
@@ -106,7 +107,7 @@ export const tenantController = {
       }
 
       res.json({
-        data: tenant,
+        data: sanitizeResponse(tenant),
         message: 'Tenant updated successfully'
       });
     } catch (error) {

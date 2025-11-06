@@ -2,6 +2,7 @@ import { Dialog, Meta, DialogMember } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort } from '../utils/queryParser.js';
+import { sanitizeResponse } from '../utils/responseUtils.js';
 
 export const dialogController = {
   // Get all dialogs for current tenant
@@ -114,7 +115,7 @@ export const dialogController = {
         if (dialogIds.length === 0) {
           // Нет диалогов с такими meta
           return res.json({
-            data: [],
+            data: sanitizeResponse([]),
             pagination: {
               page,
               limit,
@@ -277,7 +278,8 @@ export const dialogController = {
             tenantId: req.tenantId
           })
             .select('userId role joinedAt lastSeenAt lastMessageAt isActive unreadCount')
-            .sort({ joinedAt: 1 });
+            .sort({ joinedAt: 1 })
+            .lean();
           
           // Для агрегации dialog уже является объектом, для обычного запроса - Mongoose документ
           const dialogObj = dialog.toObject ? dialog.toObject() : dialog;
@@ -312,7 +314,7 @@ export const dialogController = {
       const total = await Dialog.countDocuments(query);
 
       res.json({
-        data: dialogsWithMetaAndMembers,
+        data: sanitizeResponse(dialogsWithMetaAndMembers),
         pagination: {
           page,
           limit,
@@ -391,7 +393,7 @@ export const dialogController = {
       const dialogObj = dialog.toObject();
 
       res.json({
-        data: {
+        data: sanitizeResponse({
           ...dialogObj,
           meta,
           members: membersWithMeta
@@ -404,7 +406,7 @@ export const dialogController = {
           //     unreadCount: mostActiveMember.unreadCount
           //   } : null
           // }
-        }
+        })
       });
     } catch (error) {
       if (error.name === 'CastError') {
@@ -462,10 +464,10 @@ export const dialogController = {
       const dialogObj = dialog.toObject();
 
       res.status(201).json({
-        data: {
+        data: sanitizeResponse({
           ...dialogObj,
           meta
-        },
+        }),
         message: 'Dialog created successfully'
       });
     } catch (error) {

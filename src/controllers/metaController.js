@@ -1,5 +1,6 @@
 import * as metaUtils from '../utils/metaUtils.js';
 import { Dialog, Message, DialogMember } from '../models/index.js';
+import { sanitizeResponse } from '../utils/responseUtils.js';
 
 const metaController = {
   // Get all meta for an entity
@@ -23,7 +24,7 @@ const metaController = {
       const meta = await metaUtils.getEntityMeta(req.tenantId, entityType, entityId);
 
       res.json({
-        data: meta
+        data: sanitizeResponse(meta)
       });
     } catch (error) {
       if (error.statusCode === 404) {
@@ -67,10 +68,10 @@ const metaController = {
       }
 
       res.json({
-        data: {
+        data: sanitizeResponse({
           key,
           value
-        }
+        })
       });
     } catch (error) {
       if (error.statusCode === 404) {
@@ -125,7 +126,7 @@ const metaController = {
       );
 
       res.json({
-        data: meta,
+        data: sanitizeResponse(meta),
         message: 'Meta set successfully'
       });
     } catch (error) {

@@ -1,5 +1,6 @@
 import { MessageStatus, Message } from '../models/index.js';
 import * as eventUtils from '../utils/eventUtils.js';
+import { sanitizeResponse } from '../utils/responseUtils.js';
 
 const messageStatusController = {
   // Update message status (mark as read/delivered)
@@ -79,7 +80,7 @@ const messageStatusController = {
       });
 
       res.json({
-        data: messageStatus,
+        data: sanitizeResponse(messageStatus),
         message: 'Message status updated successfully'
       });
     } catch (error) {
