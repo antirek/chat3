@@ -228,8 +228,9 @@ const adminOptions = {
             }
           },
           dialogId: {
-            reference: 'Dialog',
+            type: 'string',
             isRequired: true,
+            description: 'ID диалога в формате dlg_XXXXXXXXXXXXXXXXXXXX',
           },
           unreadCount: {
             type: 'number',
@@ -334,8 +335,9 @@ const adminOptions = {
             }
           },
           dialogId: {
-            reference: 'Dialog',
+            type: 'string',
             isRequired: true,
+            description: 'ID диалога в формате dlg_XXXXXXXXXXXXXXXXXXXX',
           },
           senderId: {
             type: 'string',
@@ -769,8 +771,9 @@ const adminOptions = {
             isTitle: true,
           },
           dialogId: {
-            reference: 'Dialog',
+            type: 'string',
             isRequired: true,
+            description: 'ID диалога в формате dlg_XXXXXXXXXXXXXXXXXXXX',
           },
           entityId: {
             type: 'string',
