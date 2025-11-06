@@ -3,6 +3,18 @@
  * @param {any} obj - Объект для очистки
  * @returns {any} - Очищенный объект
  */
+
+// Список полей, которые являются timestamps и должны быть форматированы с 6 знаками
+const TIMESTAMP_FIELDS = [
+  'createdAt',
+  'updatedAt', 
+  'lastSeenAt',
+  'lastMessageAt',
+  'publishedAt',
+  'expiresAt',
+  'lastUsedAt'
+];
+
 export function removeIdFields(obj) {
   if (obj === null || obj === undefined) {
     return obj;
@@ -42,8 +54,14 @@ export function removeIdFields(obj) {
       continue;
     }
     
-    // Рекурсивно обрабатываем вложенные объекты и массивы
-    result[key] = removeIdFields(value);
+    // Форматируем timestamp поля с 6 знаками после точки
+    if (TIMESTAMP_FIELDS.includes(key) && typeof value === 'number' && value > 1000000000000) {
+      // Возвращаем строку с 6 знаками для гарантии отображения всех микросекунд
+      result[key] = value.toFixed(6);
+    } else {
+      // Рекурсивно обрабатываем вложенные объекты и массивы
+      result[key] = removeIdFields(value);
+    }
   }
 
   return result;
@@ -56,5 +74,18 @@ export function removeIdFields(obj) {
  */
 export function sanitizeResponse(data) {
   return removeIdFields(data);
+}
+
+/**
+ * JSON.stringify replacer для форматирования timestamps с 6 знаками
+ * Использовать: JSON.stringify(data, timestampReplacer)
+ */
+export function timestampReplacer(key, value) {
+  if (TIMESTAMP_FIELDS.includes(key) && typeof value === 'number' && value > 1000000000000) {
+    // Возвращаем число, но JSON.stringify покажет его с максимальной точностью
+    // Для гарантии 6 знаков нужно было бы вернуть строку, но это нарушает типизацию
+    return parseFloat(value.toFixed(6));
+  }
+  return value;
 }
 
