@@ -883,6 +883,51 @@
         </div>
     </div>
 
+    <!-- Модальное окно для управления участниками -->
+    <div id="membersModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Участники диалога</h2>
+                <span class="close" onclick="closeMembersModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <!-- Список текущих участников -->
+                <div style="margin-bottom: 25px;">
+                    <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Текущие участники:</h3>
+                    <div id="currentMembersList" style="max-height: 300px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 6px; padding: 10px; background: #f8f9fa;">
+                        <div class="loading">Загрузка участников...</div>
+                    </div>
+                </div>
+
+                <!-- Добавление нового участника -->
+                <div style="border-top: 2px solid #e9ecef; padding-top: 20px;">
+                    <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Добавить участника:</h3>
+                    <form id="addMemberForm">
+                        <div class="form-group" style="display: flex; gap: 10px; align-items: flex-end;">
+                            <div style="flex: 1;">
+                                <label for="newMemberSelect">Выберите пользователя:</label>
+                                <select id="newMemberSelect" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                    <option value="">-- Выберите пользователя --</option>
+                                    <option value="carl">Carl</option>
+                                    <option value="marta">Marta</option>
+                                    <option value="sara">Sara</option>
+                                    <option value="kirk">Kirk</option>
+                                    <option value="john">John</option>
+                                    <option value="alice">Alice</option>
+                                    <option value="bob">Bob</option>
+                                    <option value="system_bot">System Bot</option>
+                                </select>
+                            </div>
+                            <div class="form-actions" style="margin: 0;">
+                                <button type="submit" style="white-space: nowrap;">Добавить</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Глобальные переменные
         let apiKey = '';
@@ -1062,6 +1107,7 @@
                                         <td>${formatLastSeen(dialog.lastSeenAt)}</td>
                                         <td>
                                             <button onclick="event.stopPropagation(); showAddMessageModal('${dialog.dialogId}', '${dialog.name}')">Сообщения</button>
+                                            <button onclick="event.stopPropagation(); showMembersModal('${dialog.dialogId}', '${dialog.name}')">Участники</button>
                                             <button onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">Инфо</button>
                                         </td>
                                     </tr>
@@ -1917,15 +1963,194 @@
             }
         }
 
+        // ===== Управление участниками диалога =====
+        let currentDialogIdForMembers = null;
+        let currentDialogNameForMembers = null;
+
+        // Открытие модального окна управления участниками
+        async function showMembersModal(dialogId, dialogName) {
+            currentDialogIdForMembers = dialogId;
+            currentDialogNameForMembers = dialogName;
+            
+            // Обновляем заголовок модального окна
+            document.querySelector('#membersModal .modal-title').textContent = `Участники диалога "${dialogName}"`;
+            
+            // Сбрасываем форму
+            document.getElementById('addMemberForm').reset();
+            
+            // Показываем модальное окно
+            document.getElementById('membersModal').style.display = 'block';
+            
+            // Загружаем список участников
+            await loadDialogMembers(dialogId);
+        }
+
+        // Закрытие модального окна участников
+        function closeMembersModal() {
+            document.getElementById('membersModal').style.display = 'none';
+            currentDialogIdForMembers = null;
+            currentDialogNameForMembers = null;
+        }
+
+        // Загрузка списка участников диалога
+        async function loadDialogMembers(dialogId) {
+            const membersList = document.getElementById('currentMembersList');
+            
+            try {
+                membersList.innerHTML = '<div class="loading">Загрузка участников...</div>';
+                
+                const response = await fetch(`/api/dialogs/${dialogId}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const members = data.data?.members || [];
+                
+                if (members.length === 0) {
+                    membersList.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px;">Участников нет</div>';
+                    return;
+                }
+
+                // Форматируем список участников
+                membersList.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #dee2e6;">
+                                <th style="text-align: left; padding: 8px; color: #495057; font-weight: 600;">Пользователь</th>
+                                <th style="text-align: center; padding: 8px; color: #495057; font-weight: 600;">Непрочитанные</th>
+                                <th style="text-align: center; padding: 8px; color: #495057; font-weight: 600;">Активен</th>
+                                <th style="text-align: center; padding: 8px; color: #495057; font-weight: 600;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${members.map(member => `
+                                <tr style="border-bottom: 1px solid #e9ecef;">
+                                    <td style="padding: 8px; color: #495057; font-weight: 500;">${member.userId}</td>
+                                    <td style="padding: 8px; text-align: center; color: #6c757d;">${member.unreadCount || 0}</td>
+                                    <td style="padding: 8px; text-align: center;">
+                                        <span style="color: ${member.isActive ? '#28a745' : '#dc3545'};">${member.isActive ? '✓' : '✗'}</span>
+                                    </td>
+                                    <td style="padding: 8px; text-align: center;">
+                                        <button onclick="removeMember('${dialogId}', '${member.userId}')" 
+                                                style="padding: 4px 12px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                            Удалить
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading members:', error);
+                membersList.innerHTML = `<div style="text-align: center; color: #dc3545; padding: 20px;">Ошибка загрузки: ${error.message}</div>`;
+            }
+        }
+
+        // Добавление участника в диалог
+        document.getElementById('addMemberForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!currentDialogIdForMembers) {
+                alert('Ошибка: не выбран диалог');
+                return;
+            }
+
+            const userId = document.getElementById('newMemberSelect').value;
+            
+            if (!userId) {
+                alert('Пожалуйста, выберите пользователя');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/dialogs/${currentDialogIdForMembers}/members/${userId}/add`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('Member added successfully:', result);
+                
+                alert(`Пользователь ${userId} успешно добавлен в диалог!`);
+                
+                // Сбрасываем форму
+                document.getElementById('addMemberForm').reset();
+                
+                // Обновляем список участников
+                await loadDialogMembers(currentDialogIdForMembers);
+                
+            } catch (error) {
+                console.error('Error adding member:', error);
+                alert(`Ошибка при добавлении участника: ${error.message}`);
+            }
+        });
+
+        // Удаление участника из диалога
+        async function removeMember(dialogId, userId) {
+            if (!confirm(`Вы уверены, что хотите удалить пользователя ${userId} из диалога?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/dialogs/${dialogId}/members/${userId}/remove`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('Member removed successfully:', result);
+                
+                alert(`Пользователь ${userId} успешно удален из диалога!`);
+                
+                // Обновляем список участников
+                await loadDialogMembers(dialogId);
+                
+            } catch (error) {
+                console.error('Error removing member:', error);
+                alert(`Ошибка при удалении участника: ${error.message}`);
+            }
+        }
+
         // Закрытие модального окна по клику вне его
         window.onclick = function(event) {
             const addMessageModal = document.getElementById('addMessageModal');
             const reactionModal = document.getElementById('reactionModal');
+            const membersModal = document.getElementById('membersModal');
             if (event.target === addMessageModal) {
                 closeAddMessageModal();
             }
             if (event.target === reactionModal) {
                 closeReactionModal();
+            }
+            if (event.target === membersModal) {
+                closeMembersModal();
             }
         }
 
@@ -1934,6 +2159,7 @@
             if (event.key === 'Escape') {
                 closeAddMessageModal();
                 closeReactionModal();
+                closeMembersModal();
             }
         });
 
