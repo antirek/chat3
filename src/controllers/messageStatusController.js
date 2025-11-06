@@ -2,6 +2,7 @@ import { MessageStatus, Message } from '../models/index.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
+import * as unreadCountUtils from '../utils/unreadCountUtils.js';
 
 const messageStatusController = {
   // Update message status (mark as read/delivered)
@@ -80,6 +81,34 @@ const messageStatusController = {
           dialogId: message.dialogId
         }
       });
+
+      // Обновляем счетчик непрочитанных сообщений при чтении
+      const updatedMember = await unreadCountUtils.updateCountersOnStatusChange(
+        req.tenantId,
+        messageId,
+        userId,
+        oldStatus?.status || null,
+        status
+      );
+
+      // Если счетчик был обновлен, создаем событие dialog.member.update
+      if (updatedMember) {
+        await eventUtils.createEvent({
+          tenantId: req.tenantId,
+          eventType: 'dialog.member.update',
+          entityType: 'dialogMember',
+          entityId: `${userId}_${message.dialogId}`, // Составной ID для dialogMember
+          actorId: userId,
+          actorType: 'user',
+          data: {
+            userId,
+            dialogId: message.dialogId,
+            unreadCount: updatedMember.unreadCount,
+            lastSeenAt: updatedMember.lastSeenAt,
+            reason: 'message_read' // Указываем причину обновления
+          }
+        });
+      }
 
       res.json({
         data: sanitizeResponse(messageStatus),

@@ -192,31 +192,62 @@ export async function syncUnreadCount(tenantId, userId, dialogId) {
 /**
  * Обновить счетчики при изменении статуса сообщения
  * @param {String} tenantId - ID организации
- * @param {String} messageId - ID сообщения
- * @param {String} userId - ID пользователя
- * @param {String} oldStatus - Старый статус
+ * @param {String} messageId - ID сообщения (строка msg_*)
+ * @param {String} userId - ID пользователя (кто читает)
+ * @param {String} oldStatus - Старый статус ('unread', 'delivered', 'read', или null)
  * @param {String} newStatus - Новый статус
+ * @returns {Object|null} - Обновленный DialogMember или null если декремент не выполнен
  */
 export async function updateCountersOnStatusChange(tenantId, messageId, userId, oldStatus, newStatus) {
   try {
     // Получаем информацию о сообщении
     const { Message } = await import('../models/index.js');
-    const message = await Message.findById(messageId);
+    const message = await Message.findOne({ messageId: messageId, tenantId: tenantId });
     
-    if (!message) return;
+    if (!message) {
+      console.warn(`⚠️  Message ${messageId} not found, skipping counter update`);
+      return null;
+    }
 
     const dialogId = message.dialogId;
 
-    // Логика обновления счетчиков
-    if (oldStatus === 'unread' && newStatus !== 'unread') {
-      // Сообщение было непрочитанным, стало прочитанным/доставленным
-      await decrementUnreadCount(tenantId, userId, dialogId);
-    } else if (oldStatus !== 'unread' && newStatus === 'unread') {
-      // Сообщение стало непрочитанным
-      await incrementUnreadCount(tenantId, userId, dialogId, messageId);
+    // Проверяем, что пользователь читает НЕ свое сообщение
+    if (message.senderId === userId) {
+      console.log(`ℹ️ User ${userId} is the sender of message ${messageId}, skipping counter update`);
+      return null;
     }
 
-    console.log(`✅ Updated counters for user ${userId} in dialog ${dialogId}: ${oldStatus} -> ${newStatus}`);
+    // Декремент счетчика только при переходе в статус 'read' и если ранее не был 'read'
+    if (oldStatus !== 'read' && newStatus === 'read') {
+      // Сообщение было непрочитанным/доставленным, теперь прочитано
+      const filter = {
+        userId,
+        tenantId,
+        dialogId,
+        unreadCount: { $gt: 0 } // Декрементируем только если счетчик > 0
+      };
+
+      const updatedMember = await DialogMember.findOneAndUpdate(
+        filter,
+        {
+          $inc: { unreadCount: -1 },
+          lastSeenAt: generateTimestamp(),
+          updatedAt: generateTimestamp()
+        },
+        { new: true }
+      );
+
+      if (updatedMember) {
+        console.log(`✅ Decremented unread count for user ${userId} in dialog ${dialogId}: ${oldStatus || 'null'} -> ${newStatus}`);
+        return updatedMember;
+      } else {
+        console.log(`ℹ️ No decrement for user ${userId} in dialog ${dialogId} (count is 0 or member not found)`);
+        return null;
+      }
+    }
+
+    console.log(`ℹ️ No counter update needed for user ${userId}: ${oldStatus || 'null'} -> ${newStatus}`);
+    return null;
   } catch (error) {
     console.error('Error updating counters on status change:', error);
     throw error;
