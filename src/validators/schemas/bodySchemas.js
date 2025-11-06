@@ -28,7 +28,7 @@ export const createMessageSchema = Joi.object({
       Joi.array(),
       Joi.object()
     )
-  ).optional()
+  ).optional().allow(null).default({})
 });
 
 /**
