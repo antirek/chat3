@@ -1,6 +1,7 @@
 import { MessageStatus, Message } from '../models/index.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 const messageStatusController = {
   // Update message status (mark as read/delivered)
@@ -32,14 +33,14 @@ const messageStatusController = {
       // Update or create message status
       const updateData = {
         status,
-        updatedAt: new Date()
+        updatedAt: generateTimestamp()
       };
 
       // Set timestamps based on status
       if (status === 'read') {
-        updateData.readAt = new Date();
+        updateData.readAt = generateTimestamp();
       } else if (status === 'delivered') {
-        updateData.deliveredAt = new Date();
+        updateData.deliveredAt = generateTimestamp();
       }
 
       const oldStatus = await MessageStatus.findOne({
@@ -73,6 +74,7 @@ const messageStatusController = {
         data: {
           messageId,
           userId,
+          senderId: message.senderId, // Добавляем отправителя сообщения для real-time
           oldStatus: oldStatus?.status || null,
           newStatus: status,
           dialogId: message.dialogId
