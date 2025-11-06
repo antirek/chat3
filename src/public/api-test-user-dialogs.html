@@ -1173,14 +1173,20 @@
             loadDialogMessages(currentDialogId, 1);
         }
 
-        // Загрузка сообщений диалога
+        // Загрузка сообщений диалога (в контексте пользователя)
         async function loadDialogMessages(dialogId, page = 1) {
             const messagesList = document.getElementById('messagesList');
+            
+            if (!currentUserId) {
+                messagesList.innerHTML = '<div class="error">Сначала выберите пользователя</div>';
+                return;
+            }
             
             messagesList.innerHTML = '<div class="loading">Загрузка сообщений...</div>';
 
             try {
-                let url = `/api/dialogs/${dialogId}/messages?page=${page}&limit=10`;
+                // Используем новый endpoint с контекстом пользователя
+                let url = `/api/users/${currentUserId}/dialogs/${dialogId}/messages?page=${page}&limit=10`;
                 if (currentMessageSort) {
                     url += `&sort=${encodeURIComponent(currentMessageSort)}`;
                 }
@@ -1221,23 +1227,50 @@
                                     <th>Отправитель</th>
                                     <th onclick="toggleMessageSort('createdAt')" style="cursor: pointer;">Время <span class="sort-indicator" id="sort-message-createdAt">${getMessageSortIndicator('createdAt')}</span></th>
                                     <th>Содержимое</th>
-                                    <th>Тип</th>
+                                    <th>Статус</th>
+                                    <th>Реакция</th>
                                     <th>Инфо</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${data.data.map(message => `
-                                    <tr data-message-id="${message.messageId}">
-                                        <td>${message.senderId}</td>
+                                ${data.data.map(message => {
+                                    const ctx = message.context || {};
+                                    const statusIcons = {
+                                        'sent': '✓',
+                                        'delivered': '✓✓',
+                                        'read': '✓✓',
+                                        'unread': '◯'
+                                    };
+                                    const statusColors = {
+                                        'sent': '#999',
+                                        'delivered': '#999',
+                                        'read': '#4fc3f7',
+                                        'unread': '#ccc'
+                                    };
+                                    return `
+                                    <tr data-message-id="${message.messageId}" style="${ctx.isMine ? 'background-color: #f0f8ff;' : ''}">
+                                        <td>
+                                            ${message.senderId}
+                                            ${ctx.isMine ? '<span style="color: #4fc3f7; margin-left: 5px;" title="Ваше сообщение">👤</span>' : ''}
+                                        </td>
                                         <td>${formatMessageTime(message.createdAt)}</td>
                                         <td class="message-content">${message.content}</td>
-                                        <td>${message.type}</td>
+                                        <td>
+                                            <span style="color: ${statusColors[ctx.myStatus]}; font-weight: bold;" title="${ctx.myStatus}">
+                                                ${statusIcons[ctx.myStatus] || '?'}
+                                            </span>
+                                            <span style="color: #666; font-size: 11px; margin-left: 3px;">${ctx.myStatus}</span>
+                                        </td>
+                                        <td style="font-size: 20px;">
+                                            ${ctx.myReaction || '-'}
+                                        </td>
                                         <td>
                                             <button onclick="showMessageInfo('${message.messageId}')">Инфо</button>
                                             <button onclick="showReactionModal('${message.messageId}')" style="margin-left: 5px;">Реакции</button>
                                         </td>
                                     </tr>
-                                `).join('')}
+                                `;
+                                }).join('')}
                             </tbody>
                         </table>
                     `;
@@ -1398,9 +1431,14 @@
                 alert('Сначала выберите диалог');
                 return;
             }
+            
+            if (!currentUserId) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
 
-            // Строим URL запроса
-            let url = `/api/dialogs/${currentDialogId}/messages`;
+            // Строим URL запроса (с контекстом пользователя)
+            let url = `/api/users/${currentUserId}/dialogs/${currentDialogId}/messages`;
             const params = new URLSearchParams();
             
             // Добавляем параметры пагинации
