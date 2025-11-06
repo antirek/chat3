@@ -9,10 +9,19 @@
  * @returns {number} Timestamp в миллисекундах с точностью до микросекунд
  */
 export function generateTimestamp() {
+  // Получаем текущее время в миллисекундах
+  const now = Date.now();
+  
+  // Получаем высокоточное время для микросекунд
   const hrTime = process.hrtime.bigint();
-  // Преобразуем наносекунды в миллисекунды с сохранением дробной части
-  const milliseconds = Number(hrTime) / 1_000_000;
-  return milliseconds;
+  
+  // Извлекаем микросекунды из текущей секунды
+  // hrtime дает наносекунды с момента запуска, берем остаток от миллисекунды
+  const nanosecondsInMillisecond = Number(hrTime % 1_000_000n);
+  const microseconds = nanosecondsInMillisecond / 1000;
+  
+  // Объединяем: целая часть из Date.now() + дробная часть из hrtime
+  return now + (microseconds / 1000);
 }
 
 /**
