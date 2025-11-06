@@ -1,7 +1,7 @@
 import express from 'express';
 import userDialogController from '../controllers/userDialogController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
-import { validateUserId } from '../validators/urlValidators/index.js';
+import { validateUserId, validateDialogId } from '../validators/urlValidators/index.js';
 import { validateQuery } from '../validators/middleware.js';
 import { userDialogsQuerySchema } from '../validators/schemas/index.js';
 
@@ -216,6 +216,6 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *       404:
  *         description: Dialog not found
  */
-router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('read'), validateUserId, userDialogController.getUserDialogMessages);
+router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('read'), validateUserId, validateDialogId, userDialogController.getUserDialogMessages);
 
 export default router;
