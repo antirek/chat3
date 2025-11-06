@@ -32,7 +32,7 @@ const userDialogController = {
           // Обрабатываем meta фильтры
           if (Object.keys(metaFilters).length > 0) {
             const metaQuery = {
-              tenantId: new mongoose.Types.ObjectId(req.tenantId),
+              tenantId: req.tenantId, // tenantId теперь строка (tnt_*)
               entityType: 'dialog'
             };
 
