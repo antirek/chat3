@@ -830,7 +830,9 @@
         function formatUpdatedAt(updatedAt) {
             if (!updatedAt) return '-';
             
-            const date = new Date(updatedAt);
+            // Преобразуем строку с числом в число, если нужно (timestamp с микросекундами)
+            const timestamp = typeof updatedAt === 'string' ? parseFloat(updatedAt) : updatedAt;
+            const date = new Date(timestamp);
             return date.toLocaleString();
         }
 
