@@ -1,6 +1,7 @@
 import express from 'express';
 import { dialogController } from '../controllers/dialogController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { validateDialogId } from '../validators/urlValidators/index.js';
 
 const router = express.Router();
 
@@ -141,7 +142,7 @@ router.get('/', apiAuth, requirePermission('read'), dialogController.getAll);
  *       200:
  *         description: Dialog details
  */
-router.get('/:id', apiAuth, requirePermission('read'), dialogController.getById);
+router.get('/:id', apiAuth, requirePermission('read'), validateDialogId, dialogController.getById);
 
 /**
  * @swagger
@@ -189,7 +190,7 @@ router.post('/', apiAuth, requirePermission('write'), dialogController.create);
  *       200:
  *         description: Dialog deleted
  */
-router.delete('/:id', apiAuth, requirePermission('delete'), dialogController.delete);
+router.delete('/:id', apiAuth, requirePermission('delete'), validateDialogId, dialogController.delete);
 
 export default router;
 

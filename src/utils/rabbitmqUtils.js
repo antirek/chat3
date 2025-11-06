@@ -266,7 +266,7 @@ export async function ensureUserUpdatesQueue(userId) {
 
 /**
  * Публикация update в RabbitMQ
- * @param {Object} update - Update для публикации
+ * @param {Object} update - Update для публикации (уже очищенный от _id, id, __v)
  * @param {string} routingKey - Routing key (например, user.{userId}.dialogupdate)
  * @returns {Promise<boolean>} - true если успешно опубликовано
  */
@@ -281,6 +281,10 @@ export async function publishUpdate(update, routingKey) {
     // Exchange сам роутит сообщение в нужную user queue по routing key
     // НЕ создаем очереди здесь - они должны быть созданы заранее!
     
+    // Преобразуем ObjectId в строки для headers (dialogId и entityId могут быть ObjectId)
+    const dialogIdStr = update.dialogId?.toString?.() || update.dialogId;
+    const entityIdStr = update.entityId?.toString?.() || update.entityId;
+    
     const message = JSON.stringify(update);
     
     const published = channel.publish(
@@ -293,8 +297,8 @@ export async function publishUpdate(update, routingKey) {
         timestamp: Date.now(),
         headers: {
           userId: update.userId,
-          dialogId: update.dialogId?.toString(),
-          entityId: update.entityId?.toString(),
+          dialogId: dialogIdStr,
+          entityId: entityIdStr,
           eventType: update.eventType
         }
       }

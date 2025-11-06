@@ -1,6 +1,7 @@
 import express from 'express';
 import messageController from '../controllers/messageController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { validateDialogId } from '../validators/urlValidators/index.js';
 
 const router = express.Router();
 
@@ -120,7 +121,7 @@ const router = express.Router();
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-router.get('/:dialogId/messages', apiAuth, requirePermission('read'), messageController.getDialogMessages);
+router.get('/:dialogId/messages', apiAuth, requirePermission('read'), validateDialogId, messageController.getDialogMessages);
 
 /**
  * @swagger
@@ -221,7 +222,7 @@ router.get('/:dialogId/messages', apiAuth, requirePermission('read'), messageCon
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-router.post('/:dialogId/messages', apiAuth, requirePermission('write'), messageController.createMessage);
+router.post('/:dialogId/messages', apiAuth, requirePermission('write'), validateDialogId, messageController.createMessage);
 
 
 export default router;

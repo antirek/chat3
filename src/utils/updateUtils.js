@@ -3,6 +3,7 @@ import { Dialog, Message, DialogMember, Meta } from '../models/index.js';
 import Update from '../models/Update.js';
 import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
+import { sanitizeResponse } from './responseUtils.js';
 
 /**
  * Формирует DialogUpdate для всех участников диалога
@@ -44,7 +45,6 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
 
         // Формируем данные диалога для update с мета тегами участника
         const dialogData = {
-          _id: dialog._id,
           dialogId: dialog.dialogId, // Строковый ID dlg_*
           tenantId: dialog.tenantId,
           name: dialog.name,
@@ -130,7 +130,6 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       : message.content;
 
     const messageData = {
-      _id: message._id,
       messageId: message.messageId, // Строковый ID msg_*
       tenantId: message.tenantId,
       dialogId: dialog.dialogId, // Строковый ID dlg_* (не ObjectId!)
@@ -178,26 +177,32 @@ async function publishUpdate(update) {
   try {
     const updateObj = update.toObject ? update.toObject() : update;
     
+    // Сохраняем _id для логирования и обновления статуса
+    const updateId = updateObj._id;
+    
+    // Очищаем update от _id, id и __v, включая вложенные объекты в data
+    const sanitizedUpdate = sanitizeResponse(updateObj);
+    
     // Определяем тип update из eventType
-    const updateType = getUpdateTypeFromEventType(updateObj.eventType);
+    const updateType = getUpdateTypeFromEventType(sanitizedUpdate.eventType);
     if (!updateType) {
-      console.error(`Cannot determine update type for eventType: ${updateObj.eventType}`);
+      console.error(`Cannot determine update type for eventType: ${sanitizedUpdate.eventType}`);
       return;
     }
     
     // Публикуем в exchange chat3_updates с routing key user.{userId}.{updateType}
-    const routingKey = `user.${updateObj.userId}.${updateType.toLowerCase()}`;
+    const routingKey = `user.${sanitizedUpdate.userId}.${updateType.toLowerCase()}`;
     
-    const published = await rabbitmqUtils.publishUpdate(updateObj, routingKey);
+    const published = await rabbitmqUtils.publishUpdate(sanitizedUpdate, routingKey);
     
     if (!published) {
-      console.error(`❌ Failed to publish update ${updateObj._id} to RabbitMQ (routing key: ${routingKey})`);
+      console.error(`❌ Failed to publish update ${updateId} to RabbitMQ (routing key: ${routingKey})`);
       throw new Error('Failed to publish update to RabbitMQ');
     }
 
     // Обновляем статус published только если публикация успешна
     await Update.updateOne(
-      { _id: updateObj._id },
+      { _id: updateId },
       { 
         $set: { 
           published: true,
@@ -206,9 +211,10 @@ async function publishUpdate(update) {
       }
     );
     
-    console.log(`✅ Update ${updateObj._id} published to RabbitMQ (${routingKey})`);
+    console.log(`✅ Update ${updateId} published to RabbitMQ (${routingKey})`);
   } catch (error) {
-    console.error(`❌ Error publishing update ${update._id}:`, error.message);
+    const updateId = update._id || (update.toObject ? update.toObject()._id : null);
+    console.error(`❌ Error publishing update ${updateId}:`, error.message);
     throw error;
   }
 }

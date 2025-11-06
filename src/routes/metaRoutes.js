@@ -1,6 +1,7 @@
 import express from 'express';
 import metaController from '../controllers/metaController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { validateEntityType, validateEntityId, validateMetaKey } from '../validators/urlValidators/index.js';
 
 const router = express.Router();
 
@@ -50,7 +51,7 @@ const router = express.Router();
  *       404:
  *         description: Entity or meta key not found
  */
-router.get('/:entityType/:entityId/:key', apiAuth, requirePermission('read'), metaController.getMetaKey);
+router.get('/:entityType/:entityId/:key', apiAuth, requirePermission('read'), validateEntityType, validateEntityId, validateMetaKey, metaController.getMetaKey);
 
 /**
  * @swagger
@@ -104,7 +105,7 @@ router.get('/:entityType/:entityId/:key', apiAuth, requirePermission('read'), me
  *       404:
  *         description: Entity not found
  */
-router.put('/:entityType/:entityId/:key', apiAuth, requirePermission('write'), metaController.setMeta);
+router.put('/:entityType/:entityId/:key', apiAuth, requirePermission('write'), validateEntityType, validateEntityId, validateMetaKey, metaController.setMeta);
 
 /**
  * @swagger
@@ -140,7 +141,7 @@ router.put('/:entityType/:entityId/:key', apiAuth, requirePermission('write'), m
  *       404:
  *         description: Entity or meta key not found
  */
-router.delete('/:entityType/:entityId/:key', apiAuth, requirePermission('delete'), metaController.deleteMeta);
+router.delete('/:entityType/:entityId/:key', apiAuth, requirePermission('delete'), validateEntityType, validateEntityId, validateMetaKey, metaController.deleteMeta);
 
 /**
  * @swagger
@@ -178,7 +179,7 @@ router.delete('/:entityType/:entityId/:key', apiAuth, requirePermission('delete'
  *       404:
  *         description: Entity not found
  */
-router.get('/:entityType/:entityId', apiAuth, requirePermission('read'), metaController.getMeta);
+router.get('/:entityType/:entityId', apiAuth, requirePermission('read'), validateEntityType, validateEntityId, metaController.getMeta);
 
 export default router;
 

@@ -1,6 +1,7 @@
 import express from 'express';
 import dialogMemberController from '../controllers/dialogMemberController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { validateDialogId, validateUserId } from '../validators/urlValidators/index.js';
 
 const router = express.Router();
 
@@ -48,7 +49,7 @@ const router = express.Router();
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-router.post('/:dialogId/members/:userId/add', apiAuth, requirePermission('write'), dialogMemberController.addDialogMember);
+router.post('/:dialogId/members/:userId/add', apiAuth, requirePermission('write'), validateDialogId, validateUserId, dialogMemberController.addDialogMember);
 
 /**
  * @swagger
@@ -87,6 +88,6 @@ router.post('/:dialogId/members/:userId/add', apiAuth, requirePermission('write'
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-router.post('/:dialogId/members/:userId/remove', apiAuth, requirePermission('write'), dialogMemberController.removeDialogMember);
+router.post('/:dialogId/members/:userId/remove', apiAuth, requirePermission('write'), validateDialogId, validateUserId, dialogMemberController.removeDialogMember);
 
 export default router;

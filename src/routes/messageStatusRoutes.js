@@ -1,6 +1,7 @@
 import express from 'express';
 import messageStatusController from '../controllers/messageStatusController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { validateMessageId, validateUserId, validateStatus } from '../validators/urlValidators/index.js';
 
 const router = express.Router();
 
@@ -76,6 +77,6 @@ const router = express.Router();
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-router.post('/:messageId/status/:userId/:status', apiAuth, requirePermission('write'), messageStatusController.updateMessageStatus);
+router.post('/:messageId/status/:userId/:status', apiAuth, requirePermission('write'), validateMessageId, validateUserId, validateStatus, messageStatusController.updateMessageStatus);
 
 export default router;

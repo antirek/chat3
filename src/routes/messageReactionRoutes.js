@@ -1,6 +1,7 @@
 import express from 'express';
 import messageReactionController from '../controllers/messageReactionController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { validateMessageId, validateReaction } from '../validators/urlValidators/index.js';
 
 const router = express.Router();
 
@@ -38,6 +39,7 @@ const router = express.Router();
 router.get('/:messageId/reactions', 
   apiAuth,
   requirePermission('read'),
+  validateMessageId,
   messageReactionController.getMessageReactions
 );
 
@@ -83,6 +85,7 @@ router.get('/:messageId/reactions',
 router.post('/:messageId/reactions',
   apiAuth,
   requirePermission('write'),
+  validateMessageId,
   messageReactionController.addOrUpdateReaction
 );
 
@@ -121,6 +124,8 @@ router.post('/:messageId/reactions',
 router.delete('/:messageId/reactions/:reaction',
   apiAuth,
   requirePermission('write'),
+  validateMessageId,
+  validateReaction,
   messageReactionController.removeReaction
 );
 

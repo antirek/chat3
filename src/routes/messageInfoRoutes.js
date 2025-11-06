@@ -1,6 +1,7 @@
 import express from 'express';
 import messageController from '../controllers/messageController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { validateMessageId } from '../validators/urlValidators/index.js';
 
 const router = express.Router();
 
@@ -190,6 +191,6 @@ router.get('/', apiAuth, requirePermission('read'), messageController.getAll);
  *       500:
  *         description: Internal Server Error
  */
-router.get('/:messageId', apiAuth, requirePermission('read'), messageController.getMessageById);
+router.get('/:messageId', apiAuth, requirePermission('read'), validateMessageId, messageController.getMessageById);
 
 export default router;
