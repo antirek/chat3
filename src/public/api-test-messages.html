@@ -809,7 +809,9 @@
 
         function formatMessageTime(timestamp) {
             if (!timestamp) return '-';
-            const date = new Date(timestamp);
+            // Преобразуем строку с числом в число, если нужно
+            const ts = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
+            const date = new Date(ts);
             return date.toLocaleString('ru-RU');
         }
 

@@ -1093,7 +1093,9 @@
         function formatLastSeen(lastSeenAt) {
             if (!lastSeenAt) return '-';
             
-            const date = new Date(lastSeenAt);
+            // Преобразуем строку с числом в число, если нужно
+            const timestamp = typeof lastSeenAt === 'string' ? parseFloat(lastSeenAt) : lastSeenAt;
+            const date = new Date(timestamp);
             return date.toLocaleString();
         }
 
@@ -1214,7 +1216,9 @@
         function formatMessageTime(createdAt) {
             if (!createdAt) return '-';
             
-            const date = new Date(createdAt);
+            // Преобразуем строку с числом в число, если нужно
+            const timestamp = typeof createdAt === 'string' ? parseFloat(createdAt) : createdAt;
+            const date = new Date(timestamp);
             return date.toLocaleString();
         }
 
