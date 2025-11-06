@@ -4,6 +4,7 @@ import Update from '../models/Update.js';
 import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from './responseUtils.js';
+import { generateTimestamp } from './timestampUtils.js';
 
 /**
  * Формирует DialogUpdate для всех участников диалога
@@ -89,8 +90,8 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
  */
 export async function createMessageUpdate(tenantId, dialogId, messageId, eventId, eventType) {
   try {
-    // Получаем сообщение
-    const message = await Message.findById(messageId);
+    // Получаем сообщение по messageId (строка msg_*)
+    const message = await Message.findOne({ messageId: messageId, tenantId: tenantId });
     if (!message) {
       console.error(`Message ${messageId} not found for update`);
       return;
@@ -206,7 +207,7 @@ async function publishUpdate(update) {
       { 
         $set: { 
           published: true,
-          publishedAt: new Date()
+          publishedAt: generateTimestamp()
         } 
       }
     );
