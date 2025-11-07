@@ -548,6 +548,22 @@ const userDialogController = {
         statusesByMessage[status.messageId].push(status);
       });
 
+      // 4.5. Загружаем информацию о пользователе из контекста
+      const contextUser = await User.findOne({
+        userId: userId,
+        tenantId: req.tenantId
+      }).select('userId name').lean();
+
+      let contextUserInfo = null;
+      if (contextUser) {
+        const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+        contextUserInfo = {
+          userId: contextUser.userId,
+          name: contextUser.name,
+          meta: contextUserMeta
+        };
+      }
+
       // 5. Обогащаем сообщения контекстными данными для пользователя
       const enrichedMessages = await Promise.all(
         messages.map(async (message) => {
@@ -568,16 +584,23 @@ const userDialogController = {
           const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', message.messageId);
 
           // Формируем обогащенное сообщение с контекстом пользователя
+          const contextData = {
+            userId: userId,
+            isMine: message.senderId === userId,
+            statuses: myStatuses, // Статусы только для данного пользователя
+            myReaction: reaction ? reaction.reaction : null
+          };
+
+          // Добавляем userInfo если пользователь найден в User модели
+          if (contextUserInfo) {
+            contextData.userInfo = contextUserInfo;
+          }
+
           return {
             ...message,
             meta: messageMeta,
             // Контекстные данные для конкретного пользователя
-            context: {
-              userId: userId,
-              isMine: message.senderId === userId,
-              statuses: myStatuses, // Статусы только для данного пользователя
-              myReaction: reaction ? reaction.reaction : null
-            },
+            context: contextData,
             // Все статусы от всех пользователей
             statuses: messageStatuses
           };
@@ -664,17 +687,40 @@ const userDialogController = {
       // 7. Получаем метаданные сообщения
       const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', message.messageId);
 
+      // 7.5. Загружаем информацию о пользователе из контекста
+      const contextUser = await User.findOne({
+        userId: userId,
+        tenantId: req.tenantId
+      }).select('userId name').lean();
+
+      let contextUserInfo = null;
+      if (contextUser) {
+        const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+        contextUserInfo = {
+          userId: contextUser.userId,
+          name: contextUser.name,
+          meta: contextUserMeta
+        };
+      }
+
       // 8. Формируем ответ с контекстом пользователя
+      const contextData = {
+        userId: userId,
+        isMine: message.senderId === userId,
+        statuses: myStatuses, // Статусы только для данного пользователя
+        myReaction: reaction ? reaction.reaction : null
+      };
+
+      // Добавляем userInfo если пользователь найден
+      if (contextUserInfo) {
+        contextData.userInfo = contextUserInfo;
+      }
+
       const enrichedMessage = {
         ...message,
         meta: messageMeta,
         // Контекстные данные для конкретного пользователя
-        context: {
-          userId: userId,
-          isMine: message.senderId === userId,
-          statuses: myStatuses, // Статусы только для данного пользователя
-          myReaction: reaction ? reaction.reaction : null
-        },
+        context: contextData,
         // Полная информация
         statuses: allStatuses,
         reactions: allReactions
