@@ -469,8 +469,8 @@ const userDialogController = {
           // Получаем статусы для этого сообщения
           const messageStatuses = statusesByMessage[message.messageId] || [];
           
-          // Находим статус для текущего пользователя
-          const myStatusRecord = messageStatuses.find(s => s.userId === userId);
+          // Находим статусы для текущего пользователя (может быть несколько записей)
+          const myStatuses = messageStatuses.filter(s => s.userId === userId);
 
           // Получаем реакцию пользователя на сообщение
           const reaction = await MessageReaction.findOne({
@@ -490,10 +490,10 @@ const userDialogController = {
             context: {
               userId: userId,
               isMine: message.senderId === userId,
-              myStatus: myStatusRecord ? myStatusRecord.status : (message.senderId === userId ? 'sent' : 'unread'),
+              statuses: myStatuses, // Статусы только для данного пользователя
               myReaction: reaction ? reaction.reaction : null
             },
-            // Все статусы от всех пользователей (для отправителя)
+            // Все статусы от всех пользователей
             statuses: messageStatuses
           };
         })
@@ -554,24 +554,20 @@ const userDialogController = {
         });
       }
 
-      // 3. Получаем статус сообщения для пользователя
-      const status = await MessageStatus.findOne({
+      // 3. Получаем все статусы сообщения (для всех пользователей)
+      const allStatuses = await MessageStatus.find({
         tenantId: req.tenantId,
-        messageId: messageId,
-        userId: userId
+        messageId: messageId
       }).lean();
 
-      // 4. Получаем реакцию пользователя на сообщение
+      // 4. Фильтруем статусы для текущего пользователя
+      const myStatuses = allStatuses.filter(s => s.userId === userId);
+
+      // 5. Получаем реакцию пользователя на сообщение
       const reaction = await MessageReaction.findOne({
         tenantId: req.tenantId,
         messageId: messageId,
         userId: userId
-      }).lean();
-
-      // 5. Получаем все статусы сообщения (для всех пользователей)
-      const allStatuses = await MessageStatus.find({
-        tenantId: req.tenantId,
-        messageId: messageId
       }).lean();
 
       // 6. Получаем все реакции на сообщение
@@ -591,7 +587,7 @@ const userDialogController = {
         context: {
           userId: userId,
           isMine: message.senderId === userId,
-          myStatus: status ? status.status : (message.senderId === userId ? 'sent' : 'unread'),
+          statuses: myStatuses, // Статусы только для данного пользователя
           myReaction: reaction ? reaction.reaction : null
         },
         // Полная информация
