@@ -42,7 +42,9 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
     const updates = await Promise.all(
       dialogMembers.map(async (member) => {
         // Получаем мета теги DialogMember для этого участника
-        const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', member._id.toString());
+        // entityId для DialogMember meta = dialogId:userId (составной ключ)
+        const memberId = `${dialog.dialogId}:${member.userId}`;
+        const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
 
         // Формируем данные диалога для update с мета тегами участника
         const dialogData = {
@@ -120,7 +122,9 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
     }
 
     // Получаем мета теги DialogMember для этого участника
-    const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', member._id.toString());
+    // entityId для DialogMember meta = dialogId:userId (составной ключ)
+    const memberId = `${dialog.dialogId}:${member.userId}`;
+    const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
 
     // Формируем данные диалога для update с мета тегами и данными участника
     const dialogData = {

@@ -300,6 +300,31 @@ export const dialogController = {
             .sort({ joinedAt: 1 })
             .lean();
           
+          // Добавляем memberId (составной ключ dialogId:userId) для каждого участника
+          // Это нужно для работы с meta тегами, где entityId = dialogId:userId
+          const membersWithId = members.map(member => ({
+            ...member,
+            memberId: `${dialog.dialogId}:${member.userId}`
+          }));
+          
+          // Для каждого участника получаем мета теги
+          // entityId для DialogMember meta = dialogId:userId (составной ключ)
+          const membersWithMeta = await Promise.all(
+            membersWithId.map(async (member) => {
+              const memberId = `${dialog.dialogId}:${member.userId}`;
+              const memberMeta = await metaUtils.getEntityMeta(
+                req.tenantId,
+                'dialogMember',
+                memberId
+              );
+              
+              return {
+                ...member,
+                meta: memberMeta
+              };
+            })
+          );
+          
           // Для агрегации dialog уже является объектом, для обычного запроса - Mongoose документ
           const dialogObj = dialog.toObject ? dialog.toObject() : dialog;
           
@@ -316,7 +341,7 @@ export const dialogController = {
           return {
             ...dialogObj,
             meta,
-            members
+            members: membersWithMeta
             // dialogStats: {
             //   totalUnreadCount,
             //   activeMembersCount,
@@ -383,13 +408,22 @@ export const dialogController = {
         .sort({ lastSeenAt: -1 })
         .lean();
 
+      // Добавляем memberId (составной ключ dialogId:userId) для каждого участника
+      // Это нужно для работы с meta тегами, где entityId = dialogId:userId
+      const membersWithId = members.map(member => ({
+        ...member,
+        memberId: `${dialog.dialogId}:${member.userId}`
+      }));
+
       // Получаем мета теги для каждого участника
+      // entityId для DialogMember meta = dialogId:userId (составной ключ)
       const membersWithMeta = await Promise.all(
-        members.map(async (member) => {
+        membersWithId.map(async (member) => {
+          const memberId = `${dialog.dialogId}:${member.userId}`;
           const memberMeta = await metaUtils.getEntityMeta(
             req.tenantId,
             'dialogMember',
-            member._id.toString()
+            memberId
           );
           
           return {

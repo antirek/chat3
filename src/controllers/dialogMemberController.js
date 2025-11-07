@@ -30,7 +30,7 @@ const dialogMemberController = {
         tenantId: req.tenantId,
         eventType: 'dialog.member.add',
         entityType: 'dialogMember',
-        entityId: member.userId + '_' + dialogId, // Составной ID для dialogMember
+        entityId: dialogId + ':' + member.userId, // Составной ID для dialogMember (dialogId:userId)
         actorId: req.apiKey?.name || 'unknown',
         actorType: 'api',
         data: {
@@ -88,7 +88,7 @@ const dialogMemberController = {
           tenantId: req.tenantId,
           eventType: 'dialog.member.remove',
           entityType: 'dialogMember',
-          entityId: userId + '_' + dialogId, // Составной ID для dialogMember
+          entityId: dialogId + ':' + userId, // Составной ID для dialogMember (dialogId:userId)
           actorId: req.apiKey?.name || 'unknown',
           actorType: 'api',
           data: {

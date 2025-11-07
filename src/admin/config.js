@@ -253,28 +253,55 @@ const adminOptions = {
                   record.params.meta = JSON.stringify(metaObject, null, 2);
                   
                   // Загружаем участников диалога
-                  const { DialogMember } = await import('../models/index.js');
-                  const dialogMembers = await DialogMember.find({
-                    tenantId: record.params.tenantId,
-                    dialogId: record.params._id
-                  }).lean();
+                  // Важно: используем dialogId (строка dlg_xxx), а не _id (ObjectId)
+                  const { DialogMember, Dialog } = await import('../models/index.js');
+                  let dialogId = record.params.dialogId; // Строка dlg_xxx
                   
-                  console.log('Found dialog members:', dialogMembers.length);
+                  // Если dialogId не доступен в record.params, загружаем Dialog по _id
+                  if (!dialogId) {
+                    console.log('Dialog dialogId not in record.params, loading Dialog by _id:', record.params._id);
+                    const dialog = await Dialog.findOne({
+                      _id: record.params._id,
+                      tenantId: record.params.tenantId
+                    }).select('dialogId').lean();
+                    
+                    if (dialog) {
+                      dialogId = dialog.dialogId;
+                      console.log('Loaded dialogId from Dialog:', dialogId);
+                    } else {
+                      console.warn('Dialog not found for _id:', record.params._id);
+                    }
+                  }
                   
-                  // Форматируем данные участников для отображения
-                  const membersData = dialogMembers.map(member => ({
-                    userId: member.userId,
-                    unreadCount: member.unreadCount,
-                    lastSeenAt: member.lastSeenAt,
-                    lastMessageAt: member.lastMessageAt,
-                    isActive: member.isActive,
-                    createdAt: member.createdAt
-                  }));
-                  
-                  console.log('Members data:', membersData);
-                  
-                  // Добавляем в record как JSON строку для отображения
-                  record.params.dialogMembers = JSON.stringify(membersData, null, 2);
+                  if (dialogId) {
+                    const dialogMembers = await DialogMember.find({
+                      tenantId: record.params.tenantId,
+                      dialogId: dialogId // Используем строковый dialogId, а не ObjectId
+                    }).lean();
+                    
+                    console.log('Found dialog members:', dialogMembers.length);
+                    console.log('Dialog dialogId:', dialogId);
+                    
+                    // Форматируем данные участников для отображения
+                    // Добавляем memberId (составной ключ dialogId:userId) для работы с meta тегами
+                    const membersData = dialogMembers.map(member => ({
+                      memberId: `${dialogId}:${member.userId}`, // Составной ключ для meta тегов (dialogId:userId)
+                      userId: member.userId,
+                      unreadCount: member.unreadCount,
+                      lastSeenAt: member.lastSeenAt,
+                      lastMessageAt: member.lastMessageAt,
+                      isActive: member.isActive,
+                      createdAt: member.createdAt
+                    }));
+                    
+                    console.log('Members data:', membersData);
+                    
+                    // Добавляем в record как JSON строку для отображения
+                    record.params.dialogMembers = JSON.stringify(membersData, null, 2);
+                  } else {
+                    console.warn('Cannot load dialog members: dialogId not found');
+                    record.params.dialogMembers = JSON.stringify([], null, 2);
+                  }
                 } catch (error) {
                   console.error('Error loading dialog meta:', error);
                 }
@@ -358,16 +385,40 @@ const adminOptions = {
               const { record } = context;
               if (record && record.params._id && record.params.tenantId) {
                 try {
-                  console.log('Loading meta for DialogMember:', record.params._id);
+                  // entityId для DialogMember - это составной ключ dialogId:userId
+                  // Формат: "dialogId:userId" (например, "dlg_abc123...:carl")
+                  const userId = record.params.userId;
+                  const dialogId = record.params.dialogId;
+                  
+                  if (!userId || !dialogId) {
+                    console.warn('DialogMember meta not loaded: missing userId or dialogId', {
+                      has_userId: !!userId,
+                      has_dialogId: !!dialogId
+                    });
+                    record.params.meta = JSON.stringify({}, null, 2);
+                    return response;
+                  }
+                  
+                  const entityId = `${dialogId}:${userId}`;
+                  console.log('Loading meta for DialogMember:', {
+                    _id: record.params._id,
+                    userId: userId,
+                    dialogId: dialogId,
+                    entityId: entityId,
+                    tenantId: record.params.tenantId
+                  });
                   
                   // Загружаем метаданные DialogMember
                   const metaRecords = await Meta.find({
                     tenantId: record.params.tenantId,
                     entityType: 'dialogMember',
-                    entityId: record.params._id.toString()
+                    entityId: entityId
                   }).lean();
                   
                   console.log('Found meta records for DialogMember:', metaRecords.length);
+                  if (metaRecords.length > 0) {
+                    console.log('Meta records:', metaRecords.map(m => ({ key: m.key, value: m.value })));
+                  }
                   
                   // Преобразуем в объект {key: value}
                   const metaObject = {};
@@ -378,10 +429,20 @@ const adminOptions = {
                   console.log('DialogMember meta object:', metaObject);
                   
                   // Добавляем в record как JSON строку для отображения
+                  // Если meta тегов нет, показываем пустой объект
                   record.params.meta = JSON.stringify(metaObject, null, 2);
+                  
+                  console.log('DialogMember meta added to record.params.meta');
                 } catch (error) {
                   console.error('Error loading DialogMember meta:', error);
+                  // В случае ошибки показываем пустой объект
+                  record.params.meta = JSON.stringify({}, null, 2);
                 }
+              } else {
+                console.warn('DialogMember meta not loaded: missing _id or tenantId', {
+                  has_id: !!record?.params?._id,
+                  has_tenantId: !!record?.params?.tenantId
+                });
               }
               return response;
             }

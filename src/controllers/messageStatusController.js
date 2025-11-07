@@ -97,7 +97,7 @@ const messageStatusController = {
           tenantId: req.tenantId,
           eventType: 'dialog.member.update',
           entityType: 'dialogMember',
-          entityId: `${userId}_${message.dialogId}`, // Составной ID для dialogMember
+          entityId: `${message.dialogId}:${userId}`, // Составной ID для dialogMember (dialogId:userId)
           actorId: userId,
           actorType: 'user',
           data: {

@@ -192,6 +192,9 @@ async function seed() {
     const roles = ['admin', 'member', 'moderator'];
     
     savedDialogMembers.forEach((member, index) => {
+      // entityId для DialogMember meta = dialogId:userId (составной ключ)
+      const memberId = `${member.dialogId}:${member.userId}`;
+      
       // Role: случайная роль, но чаще 'member'
       const roleWeights = [0.1, 0.8, 0.1]; // 10% admin, 80% member, 10% moderator
       const randomRole = Math.random();
@@ -207,7 +210,7 @@ async function seed() {
       dialogMemberMetaEntries.push({
         tenantId: tenant.tenantId,
         entityType: 'dialogMember',
-        entityId: member._id.toString(),
+        entityId: memberId, // Используем составной ключ dialogId:userId
         key: 'role',
         value: role,
         dataType: 'string',
@@ -219,7 +222,7 @@ async function seed() {
       dialogMemberMetaEntries.push({
         tenantId: tenant.tenantId,
         entityType: 'dialogMember',
-        entityId: member._id.toString(),
+        entityId: memberId, // Используем составной ключ dialogId:userId
         key: 'muted',
         value: isMuted,
         dataType: 'boolean',
@@ -231,7 +234,7 @@ async function seed() {
       dialogMemberMetaEntries.push({
         tenantId: tenant.tenantId,
         entityType: 'dialogMember',
-        entityId: member._id.toString(),
+        entityId: memberId, // Используем составной ключ dialogId:userId
         key: 'notifySound',
         value: notifySound,
         dataType: 'boolean',
