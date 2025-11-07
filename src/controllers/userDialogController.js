@@ -343,7 +343,7 @@ const userDialogController = {
         tenantId: req.tenantId
       }).select('userId name').lean();
 
-      // Загружаем meta для отправителей
+      // Загружаем meta для отправителей (для всех senderIds, даже если пользователя нет в User)
       const sendersMeta = await Meta.find({
         tenantId: req.tenantId,
         entityType: 'user',
@@ -361,12 +361,28 @@ const userDialogController = {
 
       // Создаем Map отправителей
       const sendersMap = new Map();
+      
+      // 1. Добавляем пользователей, которые есть в User модели
       sendersData.forEach(user => {
         sendersMap.set(user.userId, {
           userId: user.userId,
           name: user.name,
           meta: metaBySender[user.userId] || {}
         });
+      });
+      
+      // 2. Добавляем пользователей, которых нет в User, но есть meta теги
+      // Fallback: если пользователь не существует в Chat3 API, используем getMeta для получения данных
+      senderIds.forEach(senderId => {
+        if (!sendersMap.has(senderId) && metaBySender[senderId]) {
+          // Пользователь не существует в User модели, но есть meta теги
+          // Создаем userInfo только на основе meta (без name, так как его нет)
+          sendersMap.set(senderId, {
+            userId: senderId,
+            name: null, // Имя отсутствует, так как пользователя нет в User
+            meta: metaBySender[senderId]
+          });
+        }
       });
 
       // Get meta for each dialog and build final response
@@ -556,12 +572,25 @@ const userDialogController = {
 
       let contextUserInfo = null;
       if (contextUser) {
+        // Пользователь существует в User модели
         const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
         contextUserInfo = {
           userId: contextUser.userId,
           name: contextUser.name,
           meta: contextUserMeta
         };
+      } else {
+        // Fallback: пользователь не существует в Chat3 API, но может быть meta теги
+        // Используем getMeta для получения данных пользователя (например, avatar)
+        const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+        if (contextUserMeta && Object.keys(contextUserMeta).length > 0) {
+          // Есть meta теги, создаем userInfo только на основе meta
+          contextUserInfo = {
+            userId: userId,
+            name: null, // Имя отсутствует, так как пользователя нет в User
+            meta: contextUserMeta
+          };
+        }
       }
 
       // 5. Обогащаем сообщения контекстными данными для пользователя
@@ -695,12 +724,25 @@ const userDialogController = {
 
       let contextUserInfo = null;
       if (contextUser) {
+        // Пользователь существует в User модели
         const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
         contextUserInfo = {
           userId: contextUser.userId,
           name: contextUser.name,
           meta: contextUserMeta
         };
+      } else {
+        // Fallback: пользователь не существует в Chat3 API, но может быть meta теги
+        // Используем getMeta для получения данных пользователя (например, avatar)
+        const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+        if (contextUserMeta && Object.keys(contextUserMeta).length > 0) {
+          // Есть meta теги, создаем userInfo только на основе meta
+          contextUserInfo = {
+            userId: userId,
+            name: null, // Имя отсутствует, так как пользователя нет в User
+            meta: contextUserMeta
+          };
+        }
       }
 
       // 8. Формируем ответ с контекстом пользователя
