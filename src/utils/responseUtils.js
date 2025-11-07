@@ -10,9 +10,14 @@ const TIMESTAMP_FIELDS = [
   'updatedAt', 
   'lastSeenAt',
   'lastMessageAt',
+  'lastInteractionAt',
+  'lastActiveAt',
   'publishedAt',
   'expiresAt',
-  'lastUsedAt'
+  'lastUsedAt',
+  'readAt',
+  'deliveredAt',
+  'joinedAt'
 ];
 
 export function removeIdFields(obj) {
