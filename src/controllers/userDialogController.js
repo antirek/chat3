@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { DialogMember, Dialog, Message, Meta, MessageStatus, MessageReaction } from '../models/index.js';
+import { DialogMember, Dialog, Message, Meta, MessageStatus, MessageReaction, User } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
@@ -216,20 +216,64 @@ const userDialogController = {
         isActive: true
       }).select('dialogId userId unreadCount lastSeenAt lastMessageAt isActive createdAt').lean();
 
+      // Получаем уникальные userId всех участников
+      const uniqueUserIds = [...new Set(allMembers.map(m => m.userId))];
+
+      // Загружаем всех пользователей одним запросом
+      const usersData = await User.find({
+        userId: { $in: uniqueUserIds },
+        tenantId: req.tenantId
+      }).select('userId name').lean();
+
+      // Загружаем meta для всех пользователей одним запросом
+      const usersMeta = await Meta.find({
+        tenantId: req.tenantId,
+        entityType: 'user',
+        entityId: { $in: uniqueUserIds }
+      }).lean();
+
+      // Группируем meta по userId
+      const metaByUser = {};
+      usersMeta.forEach(meta => {
+        if (!metaByUser[meta.entityId]) {
+          metaByUser[meta.entityId] = {};
+        }
+        metaByUser[meta.entityId][meta.key] = meta.value;
+      });
+
+      // Создаем Map пользователей с их meta
+      const usersMap = new Map();
+      usersData.forEach(user => {
+        usersMap.set(user.userId, {
+          userId: user.userId,
+          name: user.name,
+          meta: metaByUser[user.userId] || {}
+        });
+      });
+
       // Группируем участников по dialogId
       const membersByDialog = {};
       allMembers.forEach(member => {
         if (!membersByDialog[member.dialogId]) {
           membersByDialog[member.dialogId] = [];
         }
-        membersByDialog[member.dialogId].push({
+        
+        const memberData = {
           userId: member.userId,
           unreadCount: member.unreadCount,
           lastSeenAt: member.lastSeenAt,
           lastMessageAt: member.lastMessageAt,
           isActive: member.isActive,
           joinedAt: member.createdAt
-        });
+        };
+
+        // Добавляем userInfo если пользователь найден в User модели
+        const userInfo = usersMap.get(member.userId);
+        if (userInfo) {
+          memberData.userInfo = userInfo;
+        }
+
+        membersByDialog[member.dialogId].push(memberData);
       });
 
       // Format response data
