@@ -8,40 +8,323 @@ import { createUserSchema, updateUserSchema } from '../validators/schemas/bodySc
 const router = express.Router();
 
 /**
- * GET /api/users
- * Получить список всех пользователей
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Get all users
+ *     description: |
+ *       Получить список пользователей с поддержкой пагинации и фильтрации.
+ *       
+ *       Возвращает пользователей с их meta тегами (theme, email, department и т.д.)
+ *     tags: [Users]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Номер страницы
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Количество пользователей на странице
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Фильтр в формате (field,operator,value)
+ *           
+ *           Примеры:
+ *           - `(name,regex,^John)` - имя начинается с John
+ *           - `(userId,in,[carl,marta,sara])` - userId в списке
+ *         examples:
+ *           by-name:
+ *             summary: По имени
+ *             value: '(name,regex,^Carl)'
+ *           by-userId:
+ *             summary: По userId
+ *             value: '(userId,in,[carl,marta])'
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *         description: Сортировка в формате JSON, например `{"createdAt":-1}`
+ *     responses:
+ *       200:
+ *         description: Список пользователей
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       userId:
+ *                         type: string
+ *                         example: "carl"
+ *                       tenantId:
+ *                         type: string
+ *                         example: "tnt_default"
+ *                       name:
+ *                         type: string
+ *                         example: "Carl Johnson"
+ *                       lastActiveAt:
+ *                         type: string
+ *                         example: "1730891234567.123456"
+ *                       createdAt:
+ *                         type: string
+ *                         example: "1730891234567.123456"
+ *                       updatedAt:
+ *                         type: string
+ *                         example: "1730891234567.123456"
+ *                       meta:
+ *                         type: object
+ *                         example: {"theme": "dark", "email": "carl@example.com"}
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     pages:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized - invalid API key
  */
 router.get('/', apiAuth, userController.getUsers);
 
 /**
- * GET /api/users/:userId
- * Получить пользователя по userId
+ * @swagger
+ * /api/users/{userId}:
+ *   get:
+ *     summary: Get user by userId
+ *     description: Получить информацию о пользователе по его userId, включая все meta теги
+ *     tags: [Users]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID (например, carl, marta, alice)
+ *     responses:
+ *       200:
+ *         description: Информация о пользователе
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                       example: "alice"
+ *                     tenantId:
+ *                       type: string
+ *                       example: "tnt_default"
+ *                     name:
+ *                       type: string
+ *                       example: "Alice Wonder"
+ *                     lastActiveAt:
+ *                       type: string
+ *                       example: "1730891234567.123456"
+ *                     createdAt:
+ *                       type: string
+ *                       example: "1730891234567.123456"
+ *                     updatedAt:
+ *                       type: string
+ *                       example: "1730891234567.123456"
+ *                     meta:
+ *                       type: object
+ *                       example: {"theme": "dark", "email": "alice@example.com", "department": "Engineering"}
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/:userId', apiAuth, validateUserId, userController.getUserById);
 
 /**
- * POST /api/users
- * Создать нового пользователя
+ * @swagger
+ * /api/users:
+ *   post:
+ *     summary: Create new user
+ *     description: |
+ *       Создать нового пользователя.
+ *       
+ *       Только базовые поля (userId и name). Дополнительные данные (email, phone, department и т.д.) 
+ *       добавляются через Meta API: `PUT /api/meta/user/{userId}/{key}`
+ *     tags: [Users]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: Уникальный идентификатор пользователя (lowercase)
+ *                 example: "john"
+ *               name:
+ *                 type: string
+ *                 description: Имя пользователя (опционально)
+ *                 example: "John Doe"
+ *     responses:
+ *       201:
+ *         description: Пользователь создан
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                     tenantId:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     lastActiveAt:
+ *                       type: string
+ *                     createdAt:
+ *                       type: string
+ *                     updatedAt:
+ *                       type: string
+ *       409:
+ *         description: Conflict - user already exists
+ *       400:
+ *         description: Validation error
  */
 router.post('/', apiAuth, validateBody(createUserSchema), userController.createUser);
 
 /**
- * PUT /api/users/:userId
- * Обновить пользователя
+ * @swagger
+ * /api/users/{userId}:
+ *   put:
+ *     summary: Update user
+ *     description: |
+ *       Обновить данные пользователя.
+ *       
+ *       Можно обновить только поле name. Для других полей используйте Meta API.
+ *     tags: [Users]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Новое имя пользователя
+ *                 example: "John Smith"
+ *     responses:
+ *       200:
+ *         description: Пользователь обновлен
+ *       404:
+ *         description: User not found
+ *       400:
+ *         description: Validation error
  */
 router.put('/:userId', apiAuth, validateUserId, validateBody(updateUserSchema), userController.updateUser);
 
 /**
- * DELETE /api/users/:userId
- * Удалить пользователя
+ * @swagger
+ * /api/users/{userId}:
+ *   delete:
+ *     summary: Delete user
+ *     description: |
+ *       Удалить пользователя.
+ *       
+ *       ⚠️ Внимание: это удалит пользователя из базы, но не удалит его участие в диалогах.
+ *       Для полного удаления также необходимо удалить DialogMember записи.
+ *     tags: [Users]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       204:
+ *         description: Пользователь удален
+ *       404:
+ *         description: User not found
  */
 router.delete('/:userId', apiAuth, validateUserId, userController.deleteUser);
 
 /**
- * POST /api/users/:userId/activity
- * Обновить lastActiveAt для пользователя
+ * @swagger
+ * /api/users/{userId}/activity:
+ *   post:
+ *     summary: Update user activity
+ *     description: |
+ *       Обновить timestamp последней активности пользователя.
+ *       
+ *       Устанавливает lastActiveAt в текущее время с микросекундной точностью.
+ *     tags: [Users]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: Activity updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                     lastActiveAt:
+ *                       type: string
+ *                       description: Updated timestamp with microseconds
+ *       404:
+ *         description: User not found
  */
 router.post('/:userId/activity', apiAuth, validateUserId, userController.updateUserActivity);
 
 export default router;
-
