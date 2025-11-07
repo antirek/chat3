@@ -307,27 +307,93 @@ const userDialogController = {
       // Apply pagination to the sorted results
       const paginatedDialogs = dialogs.slice(skip, skip + limit);
 
-      // Get last message and meta for each dialog
+      // Загружаем последние сообщения для всех диалогов
+      const lastMessages = await Promise.all(
+        paginatedDialogs.map(async (dialog) => {
+          const lastMsg = await Message.findOne({
+            dialogId: dialog.dialogId, // Используем dialogId (строку dlg_*), а не ObjectId
+            tenantId: req.tenantId
+          })
+            .sort({ createdAt: -1 })
+            .select('messageId content senderId type createdAt')
+            .lean();
+          
+          return { dialogId: dialog.dialogId, message: lastMsg };
+        })
+      );
+
+      // Создаем Map последних сообщений
+      const lastMessagesMap = new Map();
+      lastMessages.forEach(item => {
+        if (item.message) {
+          lastMessagesMap.set(item.dialogId, item.message);
+        }
+      });
+
+      // Получаем уникальные senderId из последних сообщений
+      const senderIds = [...new Set(
+        Array.from(lastMessagesMap.values())
+          .map(msg => msg.senderId)
+          .filter(Boolean)
+      )];
+
+      // Загружаем информацию об отправителях
+      const sendersData = await User.find({
+        userId: { $in: senderIds },
+        tenantId: req.tenantId
+      }).select('userId name').lean();
+
+      // Загружаем meta для отправителей
+      const sendersMeta = await Meta.find({
+        tenantId: req.tenantId,
+        entityType: 'user',
+        entityId: { $in: senderIds }
+      }).lean();
+
+      // Группируем meta по userId
+      const metaBySender = {};
+      sendersMeta.forEach(meta => {
+        if (!metaBySender[meta.entityId]) {
+          metaBySender[meta.entityId] = {};
+        }
+        metaBySender[meta.entityId][meta.key] = meta.value;
+      });
+
+      // Создаем Map отправителей
+      const sendersMap = new Map();
+      sendersData.forEach(user => {
+        sendersMap.set(user.userId, {
+          userId: user.userId,
+          name: user.name,
+          meta: metaBySender[user.userId] || {}
+        });
+      });
+
+      // Get meta for each dialog and build final response
       let finalDialogs = await Promise.all(
         paginatedDialogs.map(async (dialog) => {
           // Получаем meta теги для диалога
           const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
 
-          // Получаем последнее сообщение (всегда)
-          const lastMsg = await Message.findOne({
-            dialogId: dialog.dialogObjectId, // Используем ObjectId для поиска
-            tenantId: req.tenantId
-          })
-            .sort({ createdAt: -1 })
-            .select('content senderId type createdAt')
-            .lean();
+          // Получаем последнее сообщение
+          const lastMsg = lastMessagesMap.get(dialog.dialogId);
+          let lastMessage = null;
+          
+          if (lastMsg) {
+            lastMessage = {
+              messageId: lastMsg.messageId,
+              content: lastMsg.content,
+              senderId: lastMsg.senderId,
+              type: lastMsg.type,
+              createdAt: lastMsg.createdAt
+            };
 
-          const lastMessage = lastMsg ? {
-            content: lastMsg.content,
-            senderId: lastMsg.senderId,
-            type: lastMsg.type,
-            createdAt: lastMsg.createdAt
-          } : null;
+            // Добавляем senderInfo если отправитель найден
+            const senderInfo = sendersMap.get(lastMsg.senderId);
+            if (senderInfo) {
+              lastMessage.senderInfo = senderInfo;
+            }
+          }
 
           // Удаляем временное поле dialogObjectId из ответа
           const { dialogObjectId, ...dialogWithoutObjectId } = dialog;
