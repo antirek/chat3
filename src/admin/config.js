@@ -120,6 +120,12 @@ const adminOptions = {
             isVisible: { list: true, show: true, edit: true },
             isRequired: false
           },
+          meta: {
+            type: 'textarea',
+            isVisible: { list: false, show: true, edit: false },
+            position: 999,
+            description: 'Meta теги пользователя (theme, email, department и т.д.)'
+          },
           lastActiveAt: {
             type: 'number',
             isVisible: { list: true, show: true, edit: false },
@@ -135,9 +141,44 @@ const adminOptions = {
           }
         },
         listProperties: ['_id', 'userId', 'name', 'lastActiveAt', 'createdAt'],
-        showProperties: ['_id', 'userId', 'tenantId', 'name', 'lastActiveAt', 'createdAt', 'updatedAt'],
+        showProperties: ['_id', 'userId', 'tenantId', 'name', 'lastActiveAt', 'createdAt', 'updatedAt', 'meta'],
         editProperties: ['name'],
-        filterProperties: ['userId', 'tenantId', 'name']
+        filterProperties: ['userId', 'tenantId', 'name'],
+        actions: {
+          show: {
+            after: async (response, request, context) => {
+              const { record } = context;
+              if (record && record.params._id && record.params.tenantId && record.params.userId) {
+                try {
+                  console.log('Loading meta for user:', record.params.userId);
+                  
+                  // Загружаем метаданные пользователя
+                  const metaRecords = await Meta.find({
+                    tenantId: record.params.tenantId,
+                    entityType: 'user',
+                    entityId: record.params.userId
+                  }).lean();
+                  
+                  console.log('Found meta records:', metaRecords.length);
+                  
+                  // Преобразуем в объект {key: value}
+                  const metaObject = {};
+                  metaRecords.forEach(m => {
+                    metaObject[m.key] = m.value;
+                  });
+                  
+                  console.log('Meta object:', metaObject);
+                  
+                  // Добавляем в record как JSON строку для отображения
+                  record.params.meta = JSON.stringify(metaObject, null, 2);
+                } catch (error) {
+                  console.error('Error loading user meta:', error);
+                }
+              }
+              return response;
+            }
+          }
+        }
       }
     },
     {
