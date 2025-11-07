@@ -1,4 +1,5 @@
 import Tenant from './Tenant.js';
+import User from './User.js';
 import Dialog from './Dialog.js';
 import Message from './Message.js';
 import Meta from './Meta.js';
@@ -11,6 +12,7 @@ import Update from './Update.js';
 
 export {
   Tenant,
+  User,
   Dialog,
   Message,
   Meta,

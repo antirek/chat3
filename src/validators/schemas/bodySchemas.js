@@ -72,3 +72,26 @@ export const updateTenantSchema = Joi.object({
   isActive: Joi.boolean().optional()
 });
 
+/**
+ * Схема валидации создания пользователя
+ */
+export const createUserSchema = Joi.object({
+  userId: Joi.string().trim().lowercase().min(1).max(100).required(),
+  name: Joi.string().trim().min(1).max(200).optional(),
+  email: Joi.string().trim().email().lowercase().max(200).optional(),
+  phone: Joi.string().trim().max(50).optional(),
+  avatar: Joi.string().trim().uri().max(500).optional(),
+  status: Joi.string().valid('active', 'inactive', 'blocked', 'deleted').default('active')
+});
+
+/**
+ * Схема валидации обновления пользователя
+ */
+export const updateUserSchema = Joi.object({
+  name: Joi.string().trim().min(1).max(200).optional(),
+  email: Joi.string().trim().email().lowercase().max(200).optional(),
+  phone: Joi.string().trim().max(50).optional(),
+  avatar: Joi.string().trim().uri().max(500).optional(),
+  status: Joi.string().valid('active', 'inactive', 'blocked', 'deleted').optional()
+});
+

@@ -2,7 +2,7 @@ import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import * as AdminJSMongoose from '@adminjs/mongoose';
 
-import { Tenant, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember, Event, MessageReaction, Update } from '../models/index.js';
+import { Tenant, User, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember, Event, MessageReaction, Update } from '../models/index.js';
 
 // Register the mongoose adapter
 AdminJS.registerAdapter({
@@ -96,6 +96,69 @@ const adminOptions = {
         listProperties: ['_id', 'name', 'permissions', 'isActive', 'lastUsedAt', 'createdAt'],
         filterProperties: ['name', 'isActive'],
         showProperties: ['_id', 'name', 'description', 'key', 'permissions', 'isActive', 'expiresAt', 'lastUsedAt', 'createdAt', 'updatedAt'],
+      }
+    },
+    {
+      resource: User,
+      options: {
+        navigation: {
+          name: 'Пользователи',
+          icon: 'User',
+        },
+        properties: {
+          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          userId: {
+            isTitle: true,
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            type: 'string'
+          },
+          tenantId: {
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true }
+          },
+          name: {
+            isVisible: { list: true, show: true, edit: true },
+            isRequired: false
+          },
+          email: {
+            isVisible: { list: true, show: true, edit: true },
+            type: 'string'
+          },
+          phone: {
+            isVisible: { list: false, show: true, edit: true },
+            type: 'string'
+          },
+          avatar: {
+            isVisible: { list: false, show: true, edit: true },
+            type: 'string'
+          },
+          status: {
+            availableValues: [
+              { value: 'active', label: 'Активный' },
+              { value: 'inactive', label: 'Неактивный' },
+              { value: 'blocked', label: 'Заблокирован' },
+              { value: 'deleted', label: 'Удален' }
+            ],
+            isVisible: { list: true, show: true, edit: true }
+          },
+          lastActiveAt: {
+            type: 'number',
+            isVisible: { list: true, show: true, edit: false },
+            description: 'Timestamp последней активности (микросекунды)'
+          },
+          createdAt: {
+            type: 'number',
+            isVisible: { list: true, show: true, edit: false }
+          },
+          updatedAt: {
+            type: 'number',
+            isVisible: { list: false, show: true, edit: false }
+          }
+        },
+        listProperties: ['_id', 'userId', 'name', 'email', 'status', 'lastActiveAt', 'createdAt'],
+        showProperties: ['_id', 'userId', 'tenantId', 'name', 'email', 'phone', 'avatar', 'status', 'lastActiveAt', 'createdAt', 'updatedAt'],
+        editProperties: ['name', 'email', 'phone', 'avatar', 'status'],
+        filterProperties: ['userId', 'tenantId', 'name', 'email', 'status']
       }
     },
     {

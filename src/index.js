@@ -5,6 +5,7 @@ import { admin, buildAdminRouter } from './admin/config.js';
 import swaggerSpec from './config/swagger.js';
 import * as rabbitmqUtils from './utils/rabbitmqUtils.js';
 import tenantRoutes from './routes/tenantRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 import dialogRoutes from './routes/dialogRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import messageStatusRoutes from './routes/messageStatusRoutes.js';
@@ -61,6 +62,7 @@ const startServer = async () => {
 
     // API Routes
     app.use('/api/tenants', tenantRoutes);
+    app.use('/api/users', userRoutes);
     app.use('/api/dialogs', dialogRoutes);
     app.use('/api/dialogs', messageRoutes);
     app.use('/api/messages', messageInfoRoutes);
