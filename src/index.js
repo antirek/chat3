@@ -167,6 +167,10 @@ const startServer = async () => {
                 <span class="emoji">🧪</span> API Test Suite (Главная)
               </a>
               
+              <a href="/api-test-users.html" target="_blank" class="link-btn success">
+                <span class="emoji">👥</span> User API Test
+              </a>
+              
               <a href="/health" target="_blank" class="link-btn info">
                 <span class="emoji">💚</span> Health Check
               </a>
@@ -175,6 +179,8 @@ const startServer = async () => {
             <div class="info-box">
               <h3 style="margin-top: 0;">📊 API Endpoints:</h3>
               <ul style="line-height: 1.8;">
+                <li><code>GET/POST/PUT/DELETE /api/users</code> - Управление пользователями</li>
+                <li><code>POST /api/users/:userId/activity</code> - Обновить активность</li>
                 <li><code>GET/POST/PUT/DELETE /api/tenants</code></li>
                 <li><code>GET/POST/DELETE /api/dialogs</code></li>
                 <li><code>GET/POST /api/dialogs/:id/messages</code></li>

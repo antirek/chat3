@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat3 - User API Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        thead {
+            background: #f8f9fa;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        th {
+            font-weight: 600;
+            color: #495057;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-blocked {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-deleted {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 20px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👥 User API Test</h1>
+            <p>Управление пользователями - CRUD операции</p>
+        </div>
+
+        <div class="content">
+            <div class="controls">
+                <button class="btn-success" onclick="showCreateModal()">➕ Создать пользователя</button>
+                <button class="btn-primary" onclick="loadUsers()">🔄 Обновить список</button>
+            </div>
+
+            <div id="usersList">
+                <div class="loading">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal для создания пользователя -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Создать пользователя</h2>
+            </div>
+            <div class="modal-body">
+                <form id="createForm" onsubmit="createUser(event)">
+                    <div class="form-group">
+                        <label for="createUserId">User ID *</label>
+                        <input type="text" id="createUserId" required placeholder="john">
+                    </div>
+                    <div class="form-group">
+                        <label for="createName">Имя</label>
+                        <input type="text" id="createName" placeholder="John Doe">
+                    </div>
+                    <div class="form-group">
+                        <label for="createEmail">Email</label>
+                        <input type="email" id="createEmail" placeholder="john@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="createPhone">Телефон</label>
+                        <input type="text" id="createPhone" placeholder="+1234567890">
+                    </div>
+                    <div class="form-group">
+                        <label for="createAvatar">Avatar URL</label>
+                        <input type="url" id="createAvatar" placeholder="https://example.com/avatar.jpg">
+                    </div>
+                    <div class="form-group">
+                        <label for="createStatus">Статус</label>
+                        <select id="createStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="blocked">Blocked</option>
+                            <option value="deleted">Deleted</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeCreateModal()">Отмена</button>
+                        <button type="submit" class="btn-success">Создать</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal для редактирования пользователя -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Редактировать пользователя</h2>
+            </div>
+            <div class="modal-body">
+                <form id="editForm" onsubmit="updateUser(event)">
+                    <input type="hidden" id="editUserId">
+                    <div class="form-group">
+                        <label for="editName">Имя</label>
+                        <input type="text" id="editName" placeholder="John Doe">
+                    </div>
+                    <div class="form-group">
+                        <label for="editEmail">Email</label>
+                        <input type="email" id="editEmail" placeholder="john@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="editPhone">Телефон</label>
+                        <input type="text" id="editPhone" placeholder="+1234567890">
+                    </div>
+                    <div class="form-group">
+                        <label for="editAvatar">Avatar URL</label>
+                        <input type="url" id="editAvatar" placeholder="https://example.com/avatar.jpg">
+                    </div>
+                    <div class="form-group">
+                        <label for="editStatus">Статус</label>
+                        <select id="editStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="blocked">Blocked</option>
+                            <option value="deleted">Deleted</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeEditModal()">Отмена</button>
+                        <button type="submit" class="btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = 'test-api-key-12345';
+
+        // Загрузить список пользователей
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/users?limit=100', {
+                    headers: {
+                        'X-API-Key': API_KEY
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.data && data.data.length > 0) {
+                    renderUsers(data.data);
+                } else {
+                    document.getElementById('usersList').innerHTML = '<div class="no-data">Пользователи не найдены</div>';
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('usersList').innerHTML = `<div class="error">Ошибка загрузки: ${error.message}</div>`;
+            }
+        }
+
+        // Отобразить список пользователей
+        function renderUsers(users) {
+            const html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Имя</th>
+                            <th>Email</th>
+                            <th>Телефон</th>
+                            <th>Статус</th>
+                            <th>Последняя активность</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(user => `
+                            <tr>
+                                <td><strong>${user.userId}</strong></td>
+                                <td>${user.name || '-'}</td>
+                                <td>${user.email || '-'}</td>
+                                <td>${user.phone || '-'}</td>
+                                <td><span class="status-badge status-${user.status}">${user.status}</span></td>
+                                <td>${formatTimestamp(user.lastActiveAt)}</td>
+                                <td>
+                                    <button class="btn-primary" style="padding: 6px 12px; font-size: 12px; margin-right: 5px;" onclick="showEditModal('${user.userId}')">✏️ Редактировать</button>
+                                    <button class="btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="deleteUser('${user.userId}')">🗑️ Удалить</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('usersList').innerHTML = html;
+        }
+
+        // Форматировать timestamp
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '-';
+            const ts = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
+            const date = new Date(ts);
+            return date.toLocaleString();
+        }
+
+        // Показать modal создания
+        function showCreateModal() {
+            document.getElementById('createModal').style.display = 'block';
+            document.getElementById('createForm').reset();
+        }
+
+        // Закрыть modal создания
+        function closeCreateModal() {
+            document.getElementById('createModal').style.display = 'none';
+        }
+
+        // Создать пользователя
+        async function createUser(event) {
+            event.preventDefault();
+
+            const userData = {
+                userId: document.getElementById('createUserId').value.trim().toLowerCase(),
+                name: document.getElementById('createName').value.trim(),
+                email: document.getElementById('createEmail').value.trim(),
+                phone: document.getElementById('createPhone').value.trim(),
+                avatar: document.getElementById('createAvatar').value.trim(),
+                status: document.getElementById('createStatus').value
+            };
+
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to create user');
+                }
+
+                closeCreateModal();
+                loadUsers();
+                alert('Пользователь успешно создан!');
+            } catch (error) {
+                console.error('Error creating user:', error);
+                alert('Ошибка создания пользователя: ' + error.message);
+            }
+        }
+
+        // Показать modal редактирования
+        async function showEditModal(userId) {
+            try {
+                const response = await fetch(`/api/users/${userId}`, {
+                    headers: {
+                        'X-API-Key': API_KEY
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load user');
+                }
+
+                const { data: user } = await response.json();
+
+                document.getElementById('editUserId').value = user.userId;
+                document.getElementById('editName').value = user.name || '';
+                document.getElementById('editEmail').value = user.email || '';
+                document.getElementById('editPhone').value = user.phone || '';
+                document.getElementById('editAvatar').value = user.avatar || '';
+                document.getElementById('editStatus').value = user.status;
+
+                document.getElementById('editModal').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading user:', error);
+                alert('Ошибка загрузки данных пользователя');
+            }
+        }
+
+        // Закрыть modal редактирования
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        // Обновить пользователя
+        async function updateUser(event) {
+            event.preventDefault();
+
+            const userId = document.getElementById('editUserId').value;
+            const userData = {
+                name: document.getElementById('editName').value.trim(),
+                email: document.getElementById('editEmail').value.trim(),
+                phone: document.getElementById('editPhone').value.trim(),
+                avatar: document.getElementById('editAvatar').value.trim(),
+                status: document.getElementById('editStatus').value
+            };
+
+            try {
+                const response = await fetch(`/api/users/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to update user');
+                }
+
+                closeEditModal();
+                loadUsers();
+                alert('Пользователь успешно обновлен!');
+            } catch (error) {
+                console.error('Error updating user:', error);
+                alert('Ошибка обновления пользователя: ' + error.message);
+            }
+        }
+
+        // Удалить пользователя
+        async function deleteUser(userId) {
+            if (!confirm(`Вы уверены, что хотите удалить пользователя "${userId}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-API-Key': API_KEY
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to delete user');
+                }
+
+                loadUsers();
+                alert('Пользователь успешно удален!');
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                alert('Ошибка удаления пользователя: ' + error.message);
+            }
+        }
+
+        // Закрыть модальные окна при клике вне их
+        window.onclick = function(event) {
+            const createModal = document.getElementById('createModal');
+            const editModal = document.getElementById('editModal');
+            
+            if (event.target === createModal) {
+                closeCreateModal();
+            }
+            if (event.target === editModal) {
+                closeEditModal();
+            }
+        }
+
+        // Загрузить пользователей при загрузке страницы
+        window.addEventListener('DOMContentLoaded', loadUsers);
+    </script>
+</body>
+</html>
+
