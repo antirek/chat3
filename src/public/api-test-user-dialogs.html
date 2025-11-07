@@ -1103,8 +1103,8 @@
                                     <tr onclick="selectDialog('${dialog.dialogId}', '${dialog.name}')" class="dialog-row">
                                         <td title="${dialog.dialogId}">${shortenDialogId(dialog.dialogId)}</td>
                                         <td>${dialog.name}</td>
-                                        <td>${dialog.unreadCount || 0}</td>
-                                        <td>${formatLastSeen(dialog.lastSeenAt)}</td>
+                                        <td>${dialog.context?.unreadCount || 0}</td>
+                                        <td>${formatLastSeen(dialog.context?.lastSeenAt)}</td>
                                         <td>
                                             <button onclick="event.stopPropagation(); showAddMessageModal('${dialog.dialogId}', '${dialog.name}')">Сообщения</button>
                                             <button onclick="event.stopPropagation(); showMembersModal('${dialog.dialogId}', '${dialog.name}')">Участники</button>
