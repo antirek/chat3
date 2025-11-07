@@ -209,6 +209,29 @@ const userDialogController = {
       // Создаем Map для быстрого поиска
       const dialogsMap = new Map(dialogsData.map(d => [d.dialogId, d]));
 
+      // Загружаем всех участников для этих диалогов одним запросом
+      const allMembers = await DialogMember.find({
+        dialogId: { $in: uniqueDialogIds },
+        tenantId: req.tenantId,
+        isActive: true
+      }).select('dialogId userId unreadCount lastSeenAt lastMessageAt isActive createdAt').lean();
+
+      // Группируем участников по dialogId
+      const membersByDialog = {};
+      allMembers.forEach(member => {
+        if (!membersByDialog[member.dialogId]) {
+          membersByDialog[member.dialogId] = [];
+        }
+        membersByDialog[member.dialogId].push({
+          userId: member.userId,
+          unreadCount: member.unreadCount,
+          lastSeenAt: member.lastSeenAt,
+          lastMessageAt: member.lastMessageAt,
+          isActive: member.isActive,
+          joinedAt: member.createdAt
+        });
+      });
+
       // Format response data
       const dialogs = dialogMembers
         .map(member => {
@@ -218,15 +241,24 @@ const userDialogController = {
             return null;
           }
           
+          // Получаем участников этого диалога
+          const dialogMembersList = membersByDialog[member.dialogId] || [];
+          
           return {
             dialogId: dialog.dialogId,
             name: dialog.name,
             dialogObjectId: dialog._id, // Сохраняем ObjectId для поиска сообщений
-            unreadCount: member.unreadCount,
-            lastSeenAt: member.lastSeenAt,
-            lastMessageAt: member.lastMessageAt,
-            isActive: member.isActive,
-            joinedAt: member.createdAt,
+            // Context - данные текущего пользователя в этом диалоге
+            context: {
+              userId: userId,
+              unreadCount: member.unreadCount,
+              lastSeenAt: member.lastSeenAt,
+              lastMessageAt: member.lastMessageAt,
+              isActive: member.isActive,
+              joinedAt: member.createdAt
+            },
+            // Members - все участники диалога
+            members: dialogMembersList,
             // Calculate last interaction time (most recent of lastSeenAt or lastMessageAt)
             lastInteractionAt: new Date(Math.max(
               new Date(member.lastSeenAt || 0).getTime(),
@@ -249,14 +281,14 @@ const userDialogController = {
             let aVal, bVal;
             
             if (field === 'lastSeenAt') {
-              aVal = new Date(a.lastSeenAt || 0);
-              bVal = new Date(b.lastSeenAt || 0);
+              aVal = new Date(a.context.lastSeenAt || 0);
+              bVal = new Date(b.context.lastSeenAt || 0);
             } else if (field === 'lastInteractionAt') {
               aVal = new Date(a.lastInteractionAt || 0);
               bVal = new Date(b.lastInteractionAt || 0);
             } else if (field === 'unreadCount') {
-              aVal = a.unreadCount || 0;
-              bVal = b.unreadCount || 0;
+              aVal = a.context.unreadCount || 0;
+              bVal = b.context.unreadCount || 0;
             } else {
               // Default sorting by lastInteractionAt
               aVal = new Date(a.lastInteractionAt || 0);
