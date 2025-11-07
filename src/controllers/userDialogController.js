@@ -260,10 +260,11 @@ const userDialogController = {
             // Members - все участники диалога
             members: dialogMembersList,
             // Calculate last interaction time (most recent of lastSeenAt or lastMessageAt)
-            lastInteractionAt: new Date(Math.max(
-              new Date(member.lastSeenAt || 0).getTime(),
-              new Date(member.lastMessageAt || 0).getTime()
-            ))
+            // Возвращаем как число с микросекундами, а не Date объект
+            lastInteractionAt: Math.max(
+              member.lastSeenAt || 0,
+              member.lastMessageAt || 0
+            )
           };
         })
         .filter(d => d !== null); // Убираем null значения
@@ -281,18 +282,18 @@ const userDialogController = {
             let aVal, bVal;
             
             if (field === 'lastSeenAt') {
-              aVal = new Date(a.context.lastSeenAt || 0);
-              bVal = new Date(b.context.lastSeenAt || 0);
+              aVal = a.context.lastSeenAt || 0;
+              bVal = b.context.lastSeenAt || 0;
             } else if (field === 'lastInteractionAt') {
-              aVal = new Date(a.lastInteractionAt || 0);
-              bVal = new Date(b.lastInteractionAt || 0);
+              aVal = a.lastInteractionAt || 0;
+              bVal = b.lastInteractionAt || 0;
             } else if (field === 'unreadCount') {
               aVal = a.context.unreadCount || 0;
               bVal = b.context.unreadCount || 0;
             } else {
               // Default sorting by lastInteractionAt
-              aVal = new Date(a.lastInteractionAt || 0);
-              bVal = new Date(b.lastInteractionAt || 0);
+              aVal = a.lastInteractionAt || 0;
+              bVal = b.lastInteractionAt || 0;
             }
             
             if (direction === 'desc') {
@@ -304,11 +305,11 @@ const userDialogController = {
         } else {
           console.log('Invalid sort format:', req.query.sort);
           // Fallback to default sorting
-          dialogs.sort((a, b) => new Date(b.lastInteractionAt) - new Date(a.lastInteractionAt));
+          dialogs.sort((a, b) => (b.lastInteractionAt || 0) - (a.lastInteractionAt || 0));
         }
       } else {
         // Sort by last interaction time (most recent first) - default
-        dialogs.sort((a, b) => new Date(b.lastInteractionAt) - new Date(a.lastInteractionAt));
+        dialogs.sort((a, b) => (b.lastInteractionAt || 0) - (a.lastInteractionAt || 0));
       }
 
       // Get total count for pagination (after sorting)
