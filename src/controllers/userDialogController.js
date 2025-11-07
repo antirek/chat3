@@ -285,12 +285,16 @@ const userDialogController = {
       // Apply pagination to the sorted results
       const paginatedDialogs = dialogs.slice(skip, skip + limit);
 
-      // Get last message for each dialog if requested
-      let finalDialogs = paginatedDialogs;
-      if (includeLastMessage) {
-        finalDialogs = await Promise.all(
-          paginatedDialogs.map(async (dialog) => {
-            const lastMessage = await Message.findOne({
+      // Get last message and meta for each dialog
+      let finalDialogs = await Promise.all(
+        paginatedDialogs.map(async (dialog) => {
+          // Получаем meta теги для диалога
+          const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
+
+          // Получаем последнее сообщение, если запрошено
+          let lastMessage = null;
+          if (includeLastMessage) {
+            const lastMsg = await Message.findOne({
               dialogId: dialog.dialogObjectId, // Используем ObjectId для поиска
               tenantId: req.tenantId
             })
@@ -298,27 +302,26 @@ const userDialogController = {
               .select('content senderId type createdAt')
               .lean();
 
-            // Удаляем временное поле dialogObjectId из ответа
-            const { dialogObjectId, ...dialogWithoutObjectId } = dialog;
+            if (lastMsg) {
+              lastMessage = {
+                content: lastMsg.content,
+                senderId: lastMsg.senderId,
+                type: lastMsg.type,
+                createdAt: lastMsg.createdAt
+              };
+            }
+          }
 
-            return {
-              ...dialogWithoutObjectId,
-              lastMessage: lastMessage ? {
-                content: lastMessage.content,
-                senderId: lastMessage.senderId,
-                type: lastMessage.type,
-                createdAt: lastMessage.createdAt
-              } : null
-            };
-          })
-        );
-      } else {
-        // Удаляем временное поле dialogObjectId из всех диалогов
-        finalDialogs = paginatedDialogs.map(dialog => {
+          // Удаляем временное поле dialogObjectId из ответа
           const { dialogObjectId, ...dialogWithoutObjectId } = dialog;
-          return dialogWithoutObjectId;
-        });
-      }
+
+          return {
+            ...dialogWithoutObjectId,
+            meta: dialogMeta,
+            ...(includeLastMessage ? { lastMessage } : {})
+          };
+        })
+      );
 
       console.log('Returning dialogs:', finalDialogs.length, 'total:', total);
       console.log('Dialog IDs used:', dialogIds);
