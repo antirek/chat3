@@ -686,26 +686,57 @@
                     <label for="filterExample">🔍 Фильтр:</label>
                     <select id="filterExample" onchange="selectFilterExample()">
                         <option value="">Выберите пример фильтра</option>
-                        <option value="(meta.channelType,eq,whatsapp)">meta. Тип канала = whatsapp</option>
-                        <option value="(meta.channelType,eq,telegram)">meta. Тип канала = telegram</option>
-                        <option value="(meta.type,eq,internal)">meta. Тип диалога = internal</option>
-                        <option value="(meta.type,eq,external)">meta. Тип диалога = external</option>
-                        <option value="(meta.securityLevel,eq,high)">meta. Уровень безопасности = high</option>
-                        <option value="(meta.securityLevel,in,[high,medium])">meta. Уровень безопасности в [high,medium]</option>
-                        <option value="(meta.maxParticipants,gte,50)">meta. Макс. участников ≥ 50</option>
-                        <option value="(meta.maxParticipants,eq,50)">meta. Макс. участников = 50</option>
-                        <option value="(meta.channelType,regex,^whats)">meta. Тип канала начинается с 'whats'</option>
-                        <option value="(meta.channelType,eq,whatsapp)&(meta.securityLevel,in,[high,medium])">meta. WhatsApp + высокий/средний уровень безопасности</option>
-                        <option value="(meta.type,eq,internal)&(meta.maxParticipants,eq,50)">meta. Внутренний + 50 участников</option>
-                        <option value="(meta.channelType,eq,telegram)&(meta.securityLevel,eq,high)">meta. Telegram + высокий уровень безопасности</option>
-                        <option value="(unreadCount,gte,4)&(meta.channelType,eq,whatsapp)">📬 ≥4 непрочитанных + WhatsApp</option>
-                        <option value="(unreadCount,eq,0)&(meta.type,eq,internal)">📬 0 непрочитанных + Внутренний</option>
-                        <option value="(unreadCount,gte,2)&(meta.securityLevel,eq,high)">📬 ≥2 непрочитанных + Высокий уровень</option>
-                        <option value="(unreadCount,gt,0)&(meta.channelType,eq,telegram)">📬 >0 непрочитанных + Telegram</option>
-                        <option value="(unreadCount,gte,1)&(meta.maxParticipants,eq,50)">📬 ≥1 непрочитанных + 50 участников</option>
-                        <option value="(unreadCount,eq,0)&(meta.type,eq,external)">📬 0 непрочитанных + Внешний</option>
-                        <option value="(unreadCount,gte,3)&(meta.channelType,eq,whatsapp)">📬 ≥3 непрочитанных + WhatsApp</option>
-                        <option value="(unreadCount,gt,0)&(meta.channelType,in,[whatsapp,telegram])&(meta.securityLevel,eq,high)">📬 >0 непрочитанных + WhatsApp/Telegram + Высокий уровень</option>
+                        <optgroup label="Фильтры по участникам">
+                            <option value="(member,in,[carl])">👥 С участником: carl</option>
+                            <option value="(member,in,[marta])">👥 С участником: marta</option>
+                            <option value="(member,in,[alice])">👥 С участником: alice</option>
+                            <option value="(member,in,[bob])">👥 С участником: bob</option>
+                            <option value="(member,in,[sara])">👥 С участником: sara</option>
+                            <option value="(member,in,[kirk])">👥 С участником: kirk</option>
+                            <option value="(member,in,[john])">👥 С участником: john</option>
+                            <option value="(member,in,[eve])">👥 С участником: eve</option>
+                            <option value="(member,in,[carl,marta])">👥 С участниками: carl или marta</option>
+                            <option value="(member,in,[alice,bob])">👥 С участниками: alice или bob</option>
+                            <option value="(member,in,[carl,marta,alice])">👥 С участниками: carl, marta или alice</option>
+                            <option value="(member,in,[alice,bob,eve])">👥 С участниками: alice, bob или eve</option>
+                            <option value="(member,all,[carl,marta])">👥 Со всеми участниками: carl и marta</option>
+                            <option value="(member,all,[alice,bob])">👥 Со всеми участниками: alice и bob</option>
+                            <option value="(member,all,[carl,marta,alice])">👥 Со всеми участниками: carl, marta и alice</option>
+                            <option value="(member,ne,carl)">👥 БЕЗ участника: carl</option>
+                            <option value="(member,ne,marta)">👥 БЕЗ участника: marta</option>
+                            <option value="(member,nin,[carl,marta])">👥 БЕЗ участников: carl и marta</option>
+                        </optgroup>
+                        <optgroup label="Фильтры по meta">
+                            <option value="(meta.channelType,eq,whatsapp)">meta. Тип канала = whatsapp</option>
+                            <option value="(meta.channelType,eq,telegram)">meta. Тип канала = telegram</option>
+                            <option value="(meta.type,eq,internal)">meta. Тип диалога = internal</option>
+                            <option value="(meta.type,eq,external)">meta. Тип диалога = external</option>
+                            <option value="(meta.securityLevel,eq,high)">meta. Уровень безопасности = high</option>
+                            <option value="(meta.securityLevel,in,[high,medium])">meta. Уровень безопасности в [high,medium]</option>
+                            <option value="(meta.maxParticipants,gte,50)">meta. Макс. участников ≥ 50</option>
+                            <option value="(meta.maxParticipants,eq,50)">meta. Макс. участников = 50</option>
+                            <option value="(meta.channelType,regex,^whats)">meta. Тип канала начинается с 'whats'</option>
+                            <option value="(meta.channelType,eq,whatsapp)&(meta.securityLevel,in,[high,medium])">meta. WhatsApp + высокий/средний уровень безопасности</option>
+                            <option value="(meta.type,eq,internal)&(meta.maxParticipants,eq,50)">meta. Внутренний + 50 участников</option>
+                            <option value="(meta.channelType,eq,telegram)&(meta.securityLevel,eq,high)">meta. Telegram + высокий уровень безопасности</option>
+                        </optgroup>
+                        <optgroup label="Комбинированные фильтры">
+                            <option value="(unreadCount,gte,4)&(meta.channelType,eq,whatsapp)">📬 ≥4 непрочитанных + WhatsApp</option>
+                            <option value="(unreadCount,eq,0)&(meta.type,eq,internal)">📬 0 непрочитанных + Внутренний</option>
+                            <option value="(unreadCount,gte,2)&(meta.securityLevel,eq,high)">📬 ≥2 непрочитанных + Высокий уровень</option>
+                            <option value="(unreadCount,gt,0)&(meta.channelType,eq,telegram)">📬 >0 непрочитанных + Telegram</option>
+                            <option value="(unreadCount,gte,1)&(meta.maxParticipants,eq,50)">📬 ≥1 непрочитанных + 50 участников</option>
+                            <option value="(unreadCount,eq,0)&(meta.type,eq,external)">📬 0 непрочитанных + Внешний</option>
+                            <option value="(unreadCount,gte,3)&(meta.channelType,eq,whatsapp)">📬 ≥3 непрочитанных + WhatsApp</option>
+                            <option value="(unreadCount,gt,0)&(meta.channelType,in,[whatsapp,telegram])&(meta.securityLevel,eq,high)">📬 >0 непрочитанных + WhatsApp/Telegram + Высокий уровень</option>
+                            <option value="(member,in,[carl])&(meta.channelType,eq,whatsapp)">👥 С carl + WhatsApp</option>
+                            <option value="(member,in,[marta])&(unreadCount,gt,0)">👥 С marta + есть непрочитанные</option>
+                            <option value="(member,in,[alice])&(meta.channelType,eq,telegram)">👥 С alice + Telegram</option>
+                            <option value="(member,in,[carl,marta])&(unreadCount,eq,0)">👥 С carl или marta + нет непрочитанных</option>
+                            <option value="(member,all,[carl,marta])&(meta.type,eq,internal)">👥 Со всеми: carl и marta + внутренний</option>
+                            <option value="(member,in,[alice,bob])&(meta.channelType,eq,whatsapp)">👥 С alice или bob + WhatsApp</option>
+                            <option value="(member,in,[sara])&(unreadCount,gte,1)">👥 С sara + ≥1 непрочитанных</option>
+                        </optgroup>
                         <option value="custom">Пользовательский фильтр</option>
                     </select>
                     <div class="input-with-clear">

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { DialogMember, Dialog, Message, Meta, MessageStatus, MessageReaction, User } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
-import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
+import { parseFilters, extractMetaFilters, processMemberFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 
 const userDialogController = {
@@ -23,10 +23,11 @@ const userDialogController = {
           const parsedFilters = parseFilters(req.query.filter);
           console.log('Parsed filters:', parsedFilters);
           
-          // Извлекаем meta фильтры
-          const { metaFilters, regularFilters } = extractMetaFilters(parsedFilters);
+          // Извлекаем meta фильтры и member фильтры
+          const { metaFilters, regularFilters, memberFilters } = extractMetaFilters(parsedFilters);
           console.log('Meta filters:', metaFilters);
           console.log('Regular filters:', regularFilters);
+          console.log('Member filters:', memberFilters);
           
           // Обрабатываем meta фильтры
           if (Object.keys(metaFilters).length > 0) {
@@ -79,6 +80,276 @@ const userDialogController = {
               } else {
                 // Пересечение (AND логика между фильтрами)
                 dialogIds = dialogIds.filter(id => foundDialogIds.includes(id));
+              }
+            }
+          }
+          
+          // Обрабатываем member фильтры (фильтрация по участникам)
+          // Важно: нужно найти диалоги где есть И текущий пользователь, И указанные участники
+          if (Object.keys(memberFilters).length > 0) {
+            // Для фильтрации по участникам используем специальную логику:
+            // находим диалоги где есть текущий пользователь И указанные участники
+            const { DialogMember } = await import('../models/index.js');
+            
+            // Получаем список указанных участников из фильтра
+            let targetUserIds = [];
+            if (memberFilters.member) {
+              const memberValue = memberFilters.member;
+              if (typeof memberValue === 'string') {
+                // Один участник - обрабатываем как $in с одним элементом
+                targetUserIds = [memberValue];
+                
+                // Находим диалоги текущего пользователя
+                const userDialogs = await DialogMember.find({
+                  userId: userId,
+                  tenantId: req.tenantId,
+                  isActive: true
+                }).select('dialogId').lean();
+                
+                const userDialogIds = userDialogs.map(d => d.dialogId);
+                
+                if (userDialogIds.length === 0) {
+                  return res.json({
+                    data: [],
+                    pagination: { page, limit, total: 0, pages: 0 }
+                  });
+                }
+                
+                // Находим диалоги где есть указанный участник (но только из диалогов текущего пользователя)
+                const targetDialogs = await DialogMember.find({
+                  userId: memberValue,
+                  dialogId: { $in: userDialogIds },
+                  tenantId: req.tenantId,
+                  isActive: true
+                }).select('dialogId').lean();
+                
+                const memberDialogIds = targetDialogs.map(d => d.dialogId);
+                
+                console.log('Member filter (single) applied, found dialogs:', memberDialogIds.length, 'with member:', memberValue);
+                
+                if (memberDialogIds.length === 0) {
+                  return res.json({
+                    data: [],
+                    pagination: { page, limit, total: 0, pages: 0 }
+                  });
+                }
+                
+                // Если уже есть фильтр по meta, пересекаем результаты (AND логика)
+                if (dialogIds !== null) {
+                  dialogIds = dialogIds.filter(id => memberDialogIds.includes(id));
+                } else {
+                  dialogIds = memberDialogIds;
+                }
+              } else if (typeof memberValue === 'object' && memberValue.$in) {
+                // Для $in: находим диалоги где есть ЛЮБОЙ из указанных участников (OR логика)
+                targetUserIds = memberValue.$in;
+                
+                // Находим диалоги текущего пользователя
+                const userDialogs = await DialogMember.find({
+                  userId: userId,
+                  tenantId: req.tenantId,
+                  isActive: true
+                }).select('dialogId').lean();
+                
+                const userDialogIds = userDialogs.map(d => d.dialogId);
+                
+                if (userDialogIds.length === 0) {
+                  return res.json({
+                    data: [],
+                    pagination: { page, limit, total: 0, pages: 0 }
+                  });
+                }
+                
+                // Находим диалоги где есть ЛЮБОЙ из указанных участников (но только из диалогов текущего пользователя)
+                const targetDialogs = await DialogMember.find({
+                  userId: { $in: targetUserIds },
+                  dialogId: { $in: userDialogIds },
+                  tenantId: req.tenantId,
+                  isActive: true
+                }).select('dialogId').lean();
+                
+                // Получаем уникальные dialogId
+                const memberDialogIds = [...new Set(targetDialogs.map(d => d.dialogId))];
+                
+                console.log('Member filter ($in) applied:');
+                console.log('  - Target user IDs:', targetUserIds);
+                console.log('  - User dialog IDs:', userDialogIds.length);
+                console.log('  - Target dialogs found:', targetDialogs.length);
+                console.log('  - Unique dialog IDs:', memberDialogIds.length);
+                console.log('  - Dialog IDs:', memberDialogIds);
+                
+                if (memberDialogIds.length === 0) {
+                  return res.json({
+                    data: [],
+                    pagination: { page, limit, total: 0, pages: 0 }
+                  });
+                }
+                
+                // Если уже есть фильтр по meta, пересекаем результаты (AND логика)
+                if (dialogIds !== null) {
+                  dialogIds = dialogIds.filter(id => memberDialogIds.includes(id));
+                } else {
+                  dialogIds = memberDialogIds;
+                }
+              } else if (typeof memberValue === 'object' && memberValue.$all) {
+                // Для $all: находим диалоги где есть ВСЕ указанные участники (AND логика)
+                targetUserIds = memberValue.$all;
+                
+                // Находим диалоги текущего пользователя
+                const userDialogs = await DialogMember.find({
+                  userId: userId,
+                  tenantId: req.tenantId,
+                  isActive: true
+                }).select('dialogId').lean();
+                
+                const userDialogIds = userDialogs.map(d => d.dialogId);
+                
+                if (userDialogIds.length === 0) {
+                  return res.json({
+                    data: [],
+                    pagination: { page, limit, total: 0, pages: 0 }
+                  });
+                }
+                
+                // Находим все участники для указанных пользователей в диалогах текущего пользователя
+                const allTargetMembers = await DialogMember.find({
+                  userId: { $in: targetUserIds },
+                  dialogId: { $in: userDialogIds },
+                  tenantId: req.tenantId,
+                  isActive: true
+                }).select('dialogId userId').lean();
+                
+                // Группируем по dialogId
+                const dialogMembersMap = {};
+                allTargetMembers.forEach(dm => {
+                  if (!dialogMembersMap[dm.dialogId]) {
+                    dialogMembersMap[dm.dialogId] = new Set();
+                  }
+                  dialogMembersMap[dm.dialogId].add(dm.userId);
+                });
+                
+                // Находим диалоги где присутствуют ВСЕ указанные участники
+                const memberDialogIds = [];
+                for (const dialogId of userDialogIds) {
+                  const members = dialogMembersMap[dialogId] || new Set();
+                  // Проверяем, что все указанные участники присутствуют в диалоге
+                  const hasAllMembers = targetUserIds.every(targetUserId => members.has(targetUserId));
+                  if (hasAllMembers) {
+                    memberDialogIds.push(dialogId);
+                  }
+                }
+                
+                console.log('Member filter ($all) applied, found dialogs:', memberDialogIds.length, 'with all members:', targetUserIds);
+                
+                if (memberDialogIds.length === 0) {
+                  return res.json({
+                    data: [],
+                    pagination: { page, limit, total: 0, pages: 0 }
+                  });
+                }
+                
+                // Если уже есть фильтр по meta, пересекаем результаты (AND логика)
+                if (dialogIds !== null) {
+                  dialogIds = dialogIds.filter(id => memberDialogIds.includes(id));
+                } else {
+                  dialogIds = memberDialogIds;
+                }
+              } else if (typeof memberValue === 'object' && memberValue.$ne) {
+                // Для $ne: находим диалоги где НЕТ указанного участника (исключение участника)
+                const excludedUserId = memberValue.$ne;
+                
+                // Находим диалоги текущего пользователя
+                const userDialogs = await DialogMember.find({
+                  userId: userId,
+                  tenantId: req.tenantId,
+                  isActive: true
+                }).select('dialogId').lean();
+                
+                const userDialogIds = userDialogs.map(d => d.dialogId);
+                
+                if (userDialogIds.length === 0) {
+                  return res.json({
+                    data: [],
+                    pagination: { page, limit, total: 0, pages: 0 }
+                  });
+                }
+                
+                // Находим диалоги где есть исключаемый участник
+                const dialogsWithExcluded = await DialogMember.find({
+                  userId: excludedUserId,
+                  dialogId: { $in: userDialogIds },
+                  tenantId: req.tenantId,
+                  isActive: true
+                }).select('dialogId').lean();
+                
+                const excludedDialogIds = new Set(dialogsWithExcluded.map(d => d.dialogId));
+                
+                // Исключаем эти диалоги из списка
+                const memberDialogIds = userDialogIds.filter(dialogId => !excludedDialogIds.has(dialogId));
+                
+                console.log('Member filter ($ne) applied, found dialogs:', memberDialogIds.length, 'excluding member:', excludedUserId);
+                
+                if (memberDialogIds.length === 0) {
+                  return res.json({
+                    data: [],
+                    pagination: { page, limit, total: 0, pages: 0 }
+                  });
+                }
+                
+                // Если уже есть фильтр по meta, пересекаем результаты (AND логика)
+                if (dialogIds !== null) {
+                  dialogIds = dialogIds.filter(id => memberDialogIds.includes(id));
+                } else {
+                  dialogIds = memberDialogIds;
+                }
+              } else if (typeof memberValue === 'object' && memberValue.$nin) {
+                // Для $nin: находим диалоги где НЕТ ни одного из указанных участников
+                const excludedUserIds = Array.isArray(memberValue.$nin) ? memberValue.$nin : [memberValue.$nin];
+                
+                // Находим диалоги текущего пользователя
+                const userDialogs = await DialogMember.find({
+                  userId: userId,
+                  tenantId: req.tenantId,
+                  isActive: true
+                }).select('dialogId').lean();
+                
+                const userDialogIds = userDialogs.map(d => d.dialogId);
+                
+                if (userDialogIds.length === 0) {
+                  return res.json({
+                    data: [],
+                    pagination: { page, limit, total: 0, pages: 0 }
+                  });
+                }
+                
+                // Находим диалоги где есть хотя бы один из исключаемых участников
+                const dialogsWithExcluded = await DialogMember.find({
+                  userId: { $in: excludedUserIds },
+                  dialogId: { $in: userDialogIds },
+                  tenantId: req.tenantId,
+                  isActive: true
+                }).select('dialogId').lean();
+                
+                const excludedDialogIds = new Set(dialogsWithExcluded.map(d => d.dialogId));
+                
+                // Исключаем эти диалоги из списка
+                const memberDialogIds = userDialogIds.filter(dialogId => !excludedDialogIds.has(dialogId));
+                
+                console.log('Member filter ($nin) applied, found dialogs:', memberDialogIds.length, 'excluding members:', excludedUserIds);
+                
+                if (memberDialogIds.length === 0) {
+                  return res.json({
+                    data: [],
+                    pagination: { page, limit, total: 0, pages: 0 }
+                  });
+                }
+                
+                // Если уже есть фильтр по meta, пересекаем результаты (AND логика)
+                if (dialogIds !== null) {
+                  dialogIds = dialogIds.filter(id => memberDialogIds.includes(id));
+                } else {
+                  dialogIds = memberDialogIds;
+                }
               }
             }
           }
@@ -175,10 +446,11 @@ const userDialogController = {
         console.log('Applied lastSeenAt filter:', dialogMembersQuery.lastSeenAt);
       }
 
-      // Если есть фильтрация по meta, ограничиваем выборку
+      // Если есть фильтрация по meta или по участникам, ограничиваем выборку
       if (dialogIds !== null) {
         if (dialogIds.length === 0) {
-          // Нет диалогов с такими meta
+          // Нет диалогов с такими фильтрами
+          console.log('No dialogs found after filtering, returning empty result');
           return res.json({
             data: [],
             pagination: {
@@ -189,15 +461,73 @@ const userDialogController = {
             }
           });
         }
+        console.log('Applying dialogIds filter:', dialogIds.length, 'dialogs');
         dialogMembersQuery.dialogId = { $in: dialogIds };
       }
 
-      const dialogMembers = await DialogMember.find(dialogMembersQuery)
+      console.log('Final dialogMembersQuery:', JSON.stringify(dialogMembersQuery, null, 2));
+      let dialogMembers = await DialogMember.find(dialogMembersQuery)
         .sort({ lastSeenAt: -1 }) // Sort by last seen (most recent first)
         .lean();
+      
+      console.log('Found dialogMembers:', dialogMembers.length);
 
       // Получаем уникальные dialogId
       const uniqueDialogIds = [...new Set(dialogMembers.map(m => m.dialogId))];
+      
+      console.log('Unique dialog IDs from dialogMembers:', uniqueDialogIds.length, uniqueDialogIds);
+
+      // Если был применен фильтр по участникам, дополнительно проверяем, что в каждом диалоге действительно есть нужные участники
+      if (dialogIds !== null && req.query.filter) {
+        try {
+          const parsedFilters = parseFilters(req.query.filter);
+          const { memberFilters } = extractMetaFilters(parsedFilters);
+          
+          if (Object.keys(memberFilters).length > 0 && memberFilters.member) {
+            const memberValue = memberFilters.member;
+            let requiredUserIds = [];
+            
+            if (typeof memberValue === 'string') {
+              requiredUserIds = [memberValue];
+            } else if (typeof memberValue === 'object' && memberValue.$in) {
+              requiredUserIds = memberValue.$in;
+            } else if (typeof memberValue === 'object' && memberValue.$all) {
+              requiredUserIds = memberValue.$all;
+            }
+            
+            if (requiredUserIds.length > 0) {
+              // Проверяем, что в каждом диалоге есть нужные участники
+              const verifiedMembers = await DialogMember.find({
+                dialogId: { $in: uniqueDialogIds },
+                userId: { $in: requiredUserIds },
+                tenantId: req.tenantId,
+                isActive: true
+              }).select('dialogId userId').lean();
+              
+              const dialogsWithRequiredMembers = new Set(verifiedMembers.map(m => m.dialogId));
+              
+              // Фильтруем только те диалоги, где действительно есть нужные участники
+              const verifiedDialogIds = uniqueDialogIds.filter(dialogId => dialogsWithRequiredMembers.has(dialogId));
+              
+              console.log('Verified dialog IDs with required members:', verifiedDialogIds.length, 'required:', requiredUserIds);
+              
+              if (verifiedDialogIds.length !== uniqueDialogIds.length) {
+                console.warn('Some dialogs were filtered out after verification:', uniqueDialogIds.length, '->', verifiedDialogIds.length);
+              }
+              
+              // Используем только проверенные диалоги
+              uniqueDialogIds.length = 0;
+              uniqueDialogIds.push(...verifiedDialogIds);
+              
+              // Также фильтруем dialogMembers, чтобы оставить только проверенные диалоги
+              const verifiedDialogIdsSet = new Set(verifiedDialogIds);
+              dialogMembers = dialogMembers.filter(m => verifiedDialogIdsSet.has(m.dialogId));
+            }
+          }
+        } catch (error) {
+          console.error('Error verifying member filter:', error);
+        }
+      }
 
       // Загружаем все диалоги одним запросом
       const dialogsData = await Dialog.find({
