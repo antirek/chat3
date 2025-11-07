@@ -205,6 +205,8 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters) {
           return { messageId: { $in: [] } };
         } else if (entityType === 'dialog') {
           return { dialogId: { $in: [] } };
+        } else if (entityType === 'dialogMember') {
+          return { _id: { $in: [] } }; // Пустой результат для DialogMember
         } else {
           return { _id: { $in: [] } };
         }
@@ -226,9 +228,28 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters) {
     } else if (entityType === 'dialog') {
       // Для диалогов entityId это dialogId (строка), а не _id
       return { dialogId: { $in: entityIds } };
+    } else if (entityType === 'dialogMember') {
+      // Для DialogMember entityId это составной ключ dialogId:userId
+      // Нужно распарсить и использовать dialogId и userId
+      const memberQueries = entityIds.map(entityId => {
+        const parts = entityId.toString().split(':');
+        if (parts.length !== 2) {
+          return null;
+        }
+        const [dialogId, userId] = parts;
+        return { dialogId, userId };
+      }).filter(q => q !== null);
+      
+      if (memberQueries.length === 0) {
+        return { _id: { $in: [] } }; // Пустой результат
+      }
+      
+      // Используем $or для поиска по составному ключу
+      return { $or: memberQueries };
     } else {
-      // Для других типов используем _id (ObjectId)
-      return { _id: { $in: entityIds } };
+      // Для других типов (user, tenant, system) entityId это строка, но не используется для фильтрации
+      // Возвращаем пустой результат, так как для этих типов фильтрация по meta не поддерживается
+      return { _id: { $in: [] } };
     }
   } catch (error) {
     console.error('Error in buildMetaQuery:', error);

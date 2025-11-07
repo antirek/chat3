@@ -90,7 +90,11 @@ const metaController = {
   // Set or update meta for an entity
   async setMeta(req, res) {
     try {
-      const { entityType, entityId, key } = req.params;
+      // Декодируем entityId из URL (на случай если пришло закодированное)
+      const { entityType, entityId: rawEntityId, key } = req.params;
+      const entityId = decodeURIComponent(rawEntityId || '');
+      
+      console.log('setMeta: rawEntityId:', rawEntityId, 'decoded entityId:', entityId, 'entityType:', entityType);
       const { value, dataType = 'string' } = req.body;
 
       // Validate entityType
@@ -130,10 +134,25 @@ const metaController = {
         message: 'Meta set successfully'
       });
     } catch (error) {
+      console.error('Error in setMeta:', error);
       if (error.statusCode === 404) {
         return res.status(404).json({
           error: 'Not Found',
           message: error.message
+        });
+      }
+      if (error.statusCode === 400) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: error.message
+        });
+      }
+      // Проверяем, не является ли это ошибкой каста ObjectId
+      if (error.message && error.message.includes('Cast to ObjectId')) {
+        console.error('ObjectId cast error detected:', error.message);
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: `Invalid entityId format for ${entityType}. For dialogMember, use format: dialogId:userId`
         });
       }
       res.status(500).json({
@@ -210,6 +229,7 @@ async function verifyEntityExists(entityType, entityId, tenantId) {
     case 'dialogMember':
       // entityId для DialogMember - это составной ключ dialogId:userId
       // Формат: "dlg_abc123...:carl"
+      console.log('verifyEntityExists: dialogMember, entityId:', entityId, 'tenantId:', tenantId);
       const parts = entityId.split(':');
       if (parts.length !== 2) {
         const error = new Error('Invalid DialogMember entityId format. Expected format: dialogId:userId');
@@ -217,11 +237,21 @@ async function verifyEntityExists(entityType, entityId, tenantId) {
         throw error;
       }
       const [dialogId, userId] = parts;
+      console.log('verifyEntityExists: dialogMember, parsed dialogId:', dialogId, 'userId:', userId);
+      // ВАЖНО: Используем составной ключ, НЕ _id!
+      // Убеждаемся, что dialogId и userId не пустые
+      if (!dialogId || !userId) {
+        const error = new Error('Invalid DialogMember entityId: dialogId or userId is empty');
+        error.statusCode = 400;
+        throw error;
+      }
+      // Явно указываем, что НЕ используем _id, только dialogId и userId
       const dialogMember = await DialogMember.findOne({ 
-        dialogId: dialogId, 
-        userId: userId, 
-        tenantId 
-      });
+        dialogId: String(dialogId).trim(), 
+        userId: String(userId).trim(), 
+        tenantId: String(tenantId).trim()
+      }, { _id: 1, dialogId: 1, userId: 1 }).lean(); // Используем .lean() и явно указываем поля
+      console.log('verifyEntityExists: dialogMember found:', !!dialogMember);
       if (!dialogMember) {
         const error = new Error('DialogMember not found');
         error.statusCode = 404;
