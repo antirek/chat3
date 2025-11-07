@@ -208,7 +208,20 @@ async function verifyEntityExists(entityType, entityId, tenantId) {
       }
       break;
     case 'dialogMember':
-      const dialogMember = await DialogMember.findOne({ _id: entityId, tenantId });
+      // entityId для DialogMember - это составной ключ dialogId:userId
+      // Формат: "dlg_abc123...:carl"
+      const parts = entityId.split(':');
+      if (parts.length !== 2) {
+        const error = new Error('Invalid DialogMember entityId format. Expected format: dialogId:userId');
+        error.statusCode = 400;
+        throw error;
+      }
+      const [dialogId, userId] = parts;
+      const dialogMember = await DialogMember.findOne({ 
+        dialogId: dialogId, 
+        userId: userId, 
+        tenantId 
+      });
       if (!dialogMember) {
         const error = new Error('DialogMember not found');
         error.statusCode = 404;

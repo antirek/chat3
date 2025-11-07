@@ -291,12 +291,12 @@ export const dialogController = {
             dialog.dialogId
           );
 
-          // Получаем участников диалога
+          // Получаем участников диалога (без _id)
           const members = await DialogMember.find({
             dialogId: dialog.dialogId,
             tenantId: req.tenantId
           })
-            .select('userId role joinedAt lastSeenAt lastMessageAt isActive unreadCount')
+            .select('-_id userId role joinedAt lastSeenAt lastMessageAt isActive unreadCount')
             .sort({ joinedAt: 1 })
             .lean();
           
@@ -399,12 +399,12 @@ export const dialogController = {
         dialog.dialogId
       );
 
-      // Получаем участников диалога
+      // Получаем участников диалога (без _id)
       const members = await DialogMember.find({
         dialogId: dialog.dialogId,
         tenantId: req.tenantId
       })
-        .select('userId lastSeenAt lastMessageAt isActive unreadCount')
+        .select('-_id userId lastSeenAt lastMessageAt isActive unreadCount')
         .sort({ lastSeenAt: -1 })
         .lean();
 
