@@ -31,7 +31,9 @@ export async function initRabbitMQ() {
   try {
     // Скрываем пароль в логах для безопасности
     const safeUrl = RABBITMQ_URL.replace(/\/\/.*@/, '//***:***@');
-    console.log('🐰 Connecting to RabbitMQ:', safeUrl);
+    if (process.env.NODE_ENV !== 'test') {
+      console.log('🐰 Connecting to RabbitMQ:', safeUrl);
+    }
     
     connection = await amqp.connect(RABBITMQ_URL);
     channel = await connection.createChannel();
@@ -50,10 +52,12 @@ export async function initRabbitMQ() {
     // Очереди создаются Workers и Consumers
     
     isConnected = true;
-    console.log('✅ RabbitMQ connected successfully');
-    console.log(`   Events Exchange: ${EXCHANGE_NAME} (${EXCHANGE_TYPE})`);
-    console.log(`   Updates Exchange: ${UPDATES_EXCHANGE_NAME} (${UPDATES_EXCHANGE_TYPE})`);    
-    console.log(`   📌 API publishes to exchanges, Workers consume from queues`);
+    if (process.env.NODE_ENV !== 'test') {
+      console.log('✅ RabbitMQ connected successfully');
+      console.log(`   Events Exchange: ${EXCHANGE_NAME} (${EXCHANGE_TYPE})`);
+      console.log(`   Updates Exchange: ${UPDATES_EXCHANGE_NAME} (${UPDATES_EXCHANGE_TYPE})`);    
+      console.log(`   📌 API publishes to exchanges, Workers consume from queues`);
+    }
     
     // Обработчики ошибок и закрытия соединения
     connection.on('error', (err) => {
@@ -62,21 +66,29 @@ export async function initRabbitMQ() {
     });
     
     connection.on('close', () => {
-      console.warn('⚠️  RabbitMQ connection closed');
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn('⚠️  RabbitMQ connection closed');
+      }
       isConnected = false;
-      // Попытка переподключения через 5 секунд
-      setTimeout(() => {
-        console.log('🔄 Attempting to reconnect to RabbitMQ...');
-        initRabbitMQ();
-      }, 5000);
+      if (process.env.NODE_ENV !== 'test') {
+        // Попытка переподключения через 5 секунд
+        setTimeout(() => {
+          console.log('🔄 Attempting to reconnect to RabbitMQ...');
+          initRabbitMQ();
+        }, 5000);
+      }
     });
     
     channel.on('error', (err) => {
-      console.error('❌ RabbitMQ channel error:', err.message);
+      if (process.env.NODE_ENV !== 'test') {
+        console.error('❌ RabbitMQ channel error:', err.message);
+      }
     });
     
     channel.on('close', () => {
-      console.warn('⚠️  RabbitMQ channel closed');
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn('⚠️  RabbitMQ channel closed');
+      }
     });
     
     return true;
