@@ -9,7 +9,6 @@ const userDialogController = {
   async getUserDialogs(req, res) {
     try {
       const { userId } = req.params;
-      const includeLastMessage = req.query.includeLastMessage === 'true';
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
@@ -209,71 +208,20 @@ const userDialogController = {
       // Создаем Map для быстрого поиска
       const dialogsMap = new Map(dialogsData.map(d => [d.dialogId, d]));
 
-      // Загружаем всех участников для этих диалогов одним запросом
+      // Загружаем всех участников для этих диалогов одним запросом (для подсчета)
       const allMembers = await DialogMember.find({
         dialogId: { $in: uniqueDialogIds },
         tenantId: req.tenantId,
         isActive: true
-      }).select('dialogId userId unreadCount lastSeenAt lastMessageAt isActive createdAt').lean();
+      }).select('dialogId').lean();
 
-      // Получаем уникальные userId всех участников
-      const uniqueUserIds = [...new Set(allMembers.map(m => m.userId))];
-
-      // Загружаем всех пользователей одним запросом
-      const usersData = await User.find({
-        userId: { $in: uniqueUserIds },
-        tenantId: req.tenantId
-      }).select('userId name').lean();
-
-      // Загружаем meta для всех пользователей одним запросом
-      const usersMeta = await Meta.find({
-        tenantId: req.tenantId,
-        entityType: 'user',
-        entityId: { $in: uniqueUserIds }
-      }).lean();
-
-      // Группируем meta по userId
-      const metaByUser = {};
-      usersMeta.forEach(meta => {
-        if (!metaByUser[meta.entityId]) {
-          metaByUser[meta.entityId] = {};
-        }
-        metaByUser[meta.entityId][meta.key] = meta.value;
-      });
-
-      // Создаем Map пользователей с их meta
-      const usersMap = new Map();
-      usersData.forEach(user => {
-        usersMap.set(user.userId, {
-          userId: user.userId,
-          name: user.name,
-          meta: metaByUser[user.userId] || {}
-        });
-      });
-
-      // Группируем участников по dialogId
-      const membersByDialog = {};
+      // Подсчитываем количество участников по dialogId
+      const membersCountByDialog = {};
       allMembers.forEach(member => {
-        if (!membersByDialog[member.dialogId]) {
-          membersByDialog[member.dialogId] = [];
+        if (!membersCountByDialog[member.dialogId]) {
+          membersCountByDialog[member.dialogId] = 0;
         }
-        
-        const memberData = {
-          userId: member.userId,
-          unreadCount: member.unreadCount,
-          lastSeenAt: member.lastSeenAt,
-          lastMessageAt: member.lastMessageAt,
-          isActive: member.isActive,
-          joinedAt: member.createdAt
-        };
-
-        // Добавляем userInfo если пользователь найден в User модели
-        const userInfo = usersMap.get(member.userId);
-        if (userInfo) {
-          memberData.userInfo = userInfo;
-        }
-
-        membersByDialog[member.dialogId].push(memberData);
+        membersCountByDialog[member.dialogId]++;
       });
 
       // Format response data
@@ -284,9 +232,6 @@ const userDialogController = {
             console.warn(`Dialog not found for dialogId: ${member.dialogId}`);
             return null;
           }
-          
-          // Получаем участников этого диалога
-          const dialogMembersList = membersByDialog[member.dialogId] || [];
           
           return {
             dialogId: dialog.dialogId,
@@ -301,8 +246,8 @@ const userDialogController = {
               isActive: member.isActive,
               joinedAt: member.createdAt
             },
-            // Members - все участники диалога
-            members: dialogMembersList,
+            // Members count - количество участников диалога
+            membersCount: membersCountByDialog[member.dialogId] || 0,
             // Calculate last interaction time (most recent of lastSeenAt or lastMessageAt)
             // Возвращаем как число с микросекундами, а не Date объект
             lastInteractionAt: Math.max(
@@ -368,26 +313,21 @@ const userDialogController = {
           // Получаем meta теги для диалога
           const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
 
-          // Получаем последнее сообщение, если запрошено
-          let lastMessage = null;
-          if (includeLastMessage) {
-            const lastMsg = await Message.findOne({
-              dialogId: dialog.dialogObjectId, // Используем ObjectId для поиска
-              tenantId: req.tenantId
-            })
-              .sort({ createdAt: -1 })
-              .select('content senderId type createdAt')
-              .lean();
+          // Получаем последнее сообщение (всегда)
+          const lastMsg = await Message.findOne({
+            dialogId: dialog.dialogObjectId, // Используем ObjectId для поиска
+            tenantId: req.tenantId
+          })
+            .sort({ createdAt: -1 })
+            .select('content senderId type createdAt')
+            .lean();
 
-            if (lastMsg) {
-              lastMessage = {
-                content: lastMsg.content,
-                senderId: lastMsg.senderId,
-                type: lastMsg.type,
-                createdAt: lastMsg.createdAt
-              };
-            }
-          }
+          const lastMessage = lastMsg ? {
+            content: lastMsg.content,
+            senderId: lastMsg.senderId,
+            type: lastMsg.type,
+            createdAt: lastMsg.createdAt
+          } : null;
 
           // Удаляем временное поле dialogObjectId из ответа
           const { dialogObjectId, ...dialogWithoutObjectId } = dialog;
@@ -395,7 +335,7 @@ const userDialogController = {
           return {
             ...dialogWithoutObjectId,
             meta: dialogMeta,
-            ...(includeLastMessage ? { lastMessage } : {})
+            lastMessage: lastMessage
           };
         })
       );
@@ -404,7 +344,6 @@ const userDialogController = {
       console.log('Dialog IDs used:', dialogIds);
       console.log('Filter was applied:', dialogIds !== null);
       console.log('Sort parameter:', req.query.sort);
-      console.log('Include last message:', includeLastMessage);
       res.json({
         data: sanitizeResponse(finalDialogs),
         pagination: {
