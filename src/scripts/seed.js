@@ -1,5 +1,5 @@
 import connectDB from '../config/database.js';
-import { Tenant, Dialog, Message, Meta, DialogMember, 
+import { Tenant, User, Dialog, Message, Meta, DialogMember, 
   MessageStatus, Event, MessageReaction, Update } from '../models/index.js';
 import * as reactionUtils from '../utils/reactionUtils.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
@@ -12,6 +12,7 @@ async function seed() {
 
     // Clear existing data
     await Tenant.deleteMany({});
+    await User.deleteMany({});
     await Dialog.deleteMany({});
     await Message.deleteMany({});
     await Meta.deleteMany({});
@@ -42,9 +43,31 @@ async function seed() {
     // Используем только default tenant для всех тестовых данных
     const tenant = defaultTenant;
 
-    // Users are now just string identifiers, not User models
-    const userIds = ['carl', 'marta', 'sara', 'kirk', 'john'];
-    console.log(`✅ Using string user identifiers: ${userIds.join(', ')}`);
+    // Create Users
+    const usersData = [
+      { userId: 'carl', name: 'Carl Johnson' },
+      { userId: 'marta', name: 'Marta Rodriguez' },
+      { userId: 'sara', name: 'Sara Connor' },
+      { userId: 'kirk', name: 'Kirk Hammett' },
+      { userId: 'john', name: 'John Doe' },
+      { userId: 'alice', name: 'Alice Wonder' },
+      { userId: 'bob', name: 'Bob Builder' },
+      { userId: 'eve', name: 'Eve Anderson' }
+    ];
+
+    const users = [];
+    for (const userData of usersData) {
+      const user = await User.create({
+        userId: userData.userId,
+        tenantId: tenant.tenantId,
+        name: userData.name,
+        lastActiveAt: generateTimestamp()
+      });
+      users.push(user);
+    }
+
+    const userIds = users.map(u => u.userId);
+    console.log(`✅ Created ${users.length} users: ${userIds.join(', ')}`);
 
     // Create 100 Dialogs with different meta types and channelTypes
     const dialogNames = {
@@ -102,13 +125,15 @@ async function seed() {
     // Для каждого диалога добавляем участников
     dialogs.forEach((dialog, dialogIndex) => {
       // Каждый пользователь участвует в разном количестве диалогов
-      // carl - в 50+ диалогах, marta - в 45+, sara - в 40+, kirk - в 35+, john - в 30+
       const userParticipation = {
-        'carl': Math.floor(Math.random() * 20) + 50, // 50-70 диалогов
-        'marta': Math.floor(Math.random() * 15) + 45, // 45-60 диалогов  
-        'sara': Math.floor(Math.random() * 15) + 40, // 40-55 диалогов
-        'kirk': Math.floor(Math.random() * 10) + 35, // 35-45 диалогов
-        'john': Math.floor(Math.random() * 10) + 30  // 30-40 диалогов
+        'carl': Math.floor(Math.random() * 20) + 50,   // 50-70 диалогов
+        'marta': Math.floor(Math.random() * 15) + 45,  // 45-60 диалогов  
+        'sara': Math.floor(Math.random() * 15) + 40,   // 40-55 диалогов
+        'kirk': Math.floor(Math.random() * 10) + 35,   // 35-45 диалогов
+        'john': Math.floor(Math.random() * 10) + 30,   // 30-40 диалогов
+        'alice': Math.floor(Math.random() * 10) + 25,  // 25-35 диалогов
+        'bob': Math.floor(Math.random() * 10) + 20,    // 20-30 диалогов
+        'eve': Math.floor(Math.random() * 10) + 15     // 15-25 диалогов
       };
 
       // Определяем, какие пользователи участвуют в этом диалоге
@@ -438,6 +463,88 @@ async function seed() {
         dataType: 'string',
         createdBy: 'john',
       },
+      // Meta tags for alice, bob, eve
+      {
+        tenantId: tenant.tenantId,
+        entityType: 'user',
+        entityId: 'alice',
+        key: 'theme',
+        value: 'dark',
+        dataType: 'string',
+        createdBy: 'alice',
+      },
+      {
+        tenantId: tenant.tenantId,
+        entityType: 'user',
+        entityId: 'alice',
+        key: 'email',
+        value: 'alice@example.com',
+        dataType: 'string',
+        createdBy: 'alice',
+      },
+      {
+        tenantId: tenant.tenantId,
+        entityType: 'user',
+        entityId: 'alice',
+        key: 'department',
+        value: 'Engineering',
+        dataType: 'string',
+        createdBy: 'alice',
+      },
+      {
+        tenantId: tenant.tenantId,
+        entityType: 'user',
+        entityId: 'bob',
+        key: 'theme',
+        value: 'light',
+        dataType: 'string',
+        createdBy: 'bob',
+      },
+      {
+        tenantId: tenant.tenantId,
+        entityType: 'user',
+        entityId: 'bob',
+        key: 'email',
+        value: 'bob@example.com',
+        dataType: 'string',
+        createdBy: 'bob',
+      },
+      {
+        tenantId: tenant.tenantId,
+        entityType: 'user',
+        entityId: 'bob',
+        key: 'department',
+        value: 'Sales',
+        dataType: 'string',
+        createdBy: 'bob',
+      },
+      {
+        tenantId: tenant.tenantId,
+        entityType: 'user',
+        entityId: 'eve',
+        key: 'theme',
+        value: 'auto',
+        dataType: 'string',
+        createdBy: 'eve',
+      },
+      {
+        tenantId: tenant.tenantId,
+        entityType: 'user',
+        entityId: 'eve',
+        key: 'email',
+        value: 'eve@example.com',
+        dataType: 'string',
+        createdBy: 'eve',
+      },
+      {
+        tenantId: tenant.tenantId,
+        entityType: 'user',
+        entityId: 'eve',
+        key: 'department',
+        value: 'Marketing',
+        dataType: 'string',
+        createdBy: 'eve',
+      },
     ];
 
     // Add meta for each dialog
@@ -540,7 +647,7 @@ async function seed() {
     console.log(`✅ Created ${meta.length} meta entries`);
     console.log(`   - Bot metadata: 3`);
     console.log(`   - Tenant metadata: 1`);
-    console.log(`   - User metadata: 5 (carl, marta, sara, kirk, john themes)`);
+    console.log(`   - User metadata: 14 (themes + email/department for alice, bob, eve)`);
     console.log(`   - Dialog metadata: ${dialogs.length * 6} (6 per dialog: type, channelType, welcomeMessage, maxParticipants, features, securityLevel)`);
     console.log(`   - Message metadata: ${messages.length * 2} (2 per message: channelType, channelId)`);
     console.log(`   - DialogMember metadata: ${dialogMemberMetaEntries.length} (3 per member: role, muted, notifySound)`);
