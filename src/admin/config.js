@@ -120,27 +120,6 @@ const adminOptions = {
             isVisible: { list: true, show: true, edit: true },
             isRequired: false
           },
-          email: {
-            isVisible: { list: true, show: true, edit: true },
-            type: 'string'
-          },
-          phone: {
-            isVisible: { list: false, show: true, edit: true },
-            type: 'string'
-          },
-          avatar: {
-            isVisible: { list: false, show: true, edit: true },
-            type: 'string'
-          },
-          status: {
-            availableValues: [
-              { value: 'active', label: 'Активный' },
-              { value: 'inactive', label: 'Неактивный' },
-              { value: 'blocked', label: 'Заблокирован' },
-              { value: 'deleted', label: 'Удален' }
-            ],
-            isVisible: { list: true, show: true, edit: true }
-          },
           lastActiveAt: {
             type: 'number',
             isVisible: { list: true, show: true, edit: false },
@@ -155,10 +134,10 @@ const adminOptions = {
             isVisible: { list: false, show: true, edit: false }
           }
         },
-        listProperties: ['_id', 'userId', 'name', 'email', 'status', 'lastActiveAt', 'createdAt'],
-        showProperties: ['_id', 'userId', 'tenantId', 'name', 'email', 'phone', 'avatar', 'status', 'lastActiveAt', 'createdAt', 'updatedAt'],
-        editProperties: ['name', 'email', 'phone', 'avatar', 'status'],
-        filterProperties: ['userId', 'tenantId', 'name', 'email', 'status']
+        listProperties: ['_id', 'userId', 'name', 'lastActiveAt', 'createdAt'],
+        showProperties: ['_id', 'userId', 'tenantId', 'name', 'lastActiveAt', 'createdAt', 'updatedAt'],
+        editProperties: ['name'],
+        filterProperties: ['userId', 'tenantId', 'name']
       }
     },
     {

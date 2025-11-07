@@ -47,6 +47,40 @@
             padding: 30px;
         }
 
+        .settings-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .settings-panel h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .settings-row label {
+            flex: 0 0 120px;
+            padding-top: 8px;
+            font-weight: 500;
+        }
+
+        .settings-row input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
         .controls {
             display: flex;
             gap: 15px;
@@ -100,6 +134,12 @@
             background: #5a6268;
         }
 
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            margin-right: 5px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -128,33 +168,6 @@
             background: #f8f9fa;
         }
 
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .status-active {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .status-inactive {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .status-blocked {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .status-deleted {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-
         .modal {
             display: none;
             position: fixed;
@@ -178,7 +191,9 @@
             padding: 0;
             border-radius: 12px;
             width: 90%;
-            max-width: 600px;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             animation: slideIn 0.3s;
         }
@@ -222,7 +237,8 @@
         }
 
         .form-group input,
-        .form-group select {
+        .form-group select,
+        .form-group textarea {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
@@ -230,11 +246,36 @@
             font-size: 14px;
         }
 
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+            font-family: monospace;
+        }
+
         .form-actions {
             display: flex;
             gap: 10px;
             justify-content: flex-end;
             margin-top: 20px;
+        }
+
+        .meta-tags {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .meta-tag-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .meta-tag-row input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
         }
 
         .no-data {
@@ -256,16 +297,37 @@
             border-radius: 6px;
             margin-bottom: 20px;
         }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>👥 User API Test</h1>
-            <p>Управление пользователями - CRUD операции</p>
+            <p>Управление пользователями - CRUD операции + Meta теги</p>
         </div>
 
         <div class="content">
+            <!-- Настройки -->
+            <div class="settings-panel">
+                <h3>⚙️ Настройки подключения</h3>
+                <div class="settings-row">
+                    <label>API Key:</label>
+                    <input type="text" id="apiKey" value="test-api-key-12345" placeholder="Введите API ключ">
+                </div>
+                <div class="settings-row">
+                    <label>Tenant ID:</label>
+                    <input type="text" id="tenantId" value="tnt_default" placeholder="tnt_default">
+                </div>
+            </div>
+
             <div class="controls">
                 <button class="btn-success" onclick="showCreateModal()">➕ Создать пользователя</button>
                 <button class="btn-primary" onclick="loadUsers()">🔄 Обновить список</button>
@@ -293,27 +355,6 @@
                         <label for="createName">Имя</label>
                         <input type="text" id="createName" placeholder="John Doe">
                     </div>
-                    <div class="form-group">
-                        <label for="createEmail">Email</label>
-                        <input type="email" id="createEmail" placeholder="john@example.com">
-                    </div>
-                    <div class="form-group">
-                        <label for="createPhone">Телефон</label>
-                        <input type="text" id="createPhone" placeholder="+1234567890">
-                    </div>
-                    <div class="form-group">
-                        <label for="createAvatar">Avatar URL</label>
-                        <input type="url" id="createAvatar" placeholder="https://example.com/avatar.jpg">
-                    </div>
-                    <div class="form-group">
-                        <label for="createStatus">Статус</label>
-                        <select id="createStatus">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="blocked">Blocked</option>
-                            <option value="deleted">Deleted</option>
-                        </select>
-                    </div>
                     <div class="form-actions">
                         <button type="button" class="btn-secondary" onclick="closeCreateModal()">Отмена</button>
                         <button type="submit" class="btn-success">Создать</button>
@@ -336,27 +377,6 @@
                         <label for="editName">Имя</label>
                         <input type="text" id="editName" placeholder="John Doe">
                     </div>
-                    <div class="form-group">
-                        <label for="editEmail">Email</label>
-                        <input type="email" id="editEmail" placeholder="john@example.com">
-                    </div>
-                    <div class="form-group">
-                        <label for="editPhone">Телефон</label>
-                        <input type="text" id="editPhone" placeholder="+1234567890">
-                    </div>
-                    <div class="form-group">
-                        <label for="editAvatar">Avatar URL</label>
-                        <input type="url" id="editAvatar" placeholder="https://example.com/avatar.jpg">
-                    </div>
-                    <div class="form-group">
-                        <label for="editStatus">Статус</label>
-                        <select id="editStatus">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="blocked">Blocked</option>
-                            <option value="deleted">Deleted</option>
-                        </select>
-                    </div>
                     <div class="form-actions">
                         <button type="button" class="btn-secondary" onclick="closeEditModal()">Отмена</button>
                         <button type="submit" class="btn-primary">Сохранить</button>
@@ -366,15 +386,54 @@
         </div>
     </div>
 
+    <!-- Modal для управления meta тегами -->
+    <div id="metaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🏷️ Meta теги пользователя</h2>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="metaUserId">
+                <div id="metaList"></div>
+                <div class="meta-tags">
+                    <h3 style="margin-bottom: 15px;">Добавить Meta тег</h3>
+                    <div class="meta-tag-row">
+                        <input type="text" id="newMetaKey" placeholder="key (например: department)">
+                        <input type="text" id="newMetaValue" placeholder="value (например: Sales)">
+                        <button class="btn-success" onclick="addMetaTag()">➕ Добавить</button>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeMetaModal()">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const API_KEY = 'test-api-key-12345';
+        // Получить настройки
+        function getApiKey() {
+            return document.getElementById('apiKey').value.trim();
+        }
+
+        function getTenantId() {
+            return document.getElementById('tenantId').value.trim();
+        }
 
         // Загрузить список пользователей
         async function loadUsers() {
             try {
+                const apiKey = getApiKey();
+                const tenantId = getTenantId();
+
+                if (!apiKey) {
+                    throw new Error('API Key не указан');
+                }
+
                 const response = await fetch('/api/users?limit=100', {
                     headers: {
-                        'X-API-Key': API_KEY
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
                     }
                 });
 
@@ -403,10 +462,8 @@
                         <tr>
                             <th>User ID</th>
                             <th>Имя</th>
-                            <th>Email</th>
-                            <th>Телефон</th>
-                            <th>Статус</th>
                             <th>Последняя активность</th>
+                            <th>Создан</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -415,13 +472,12 @@
                             <tr>
                                 <td><strong>${user.userId}</strong></td>
                                 <td>${user.name || '-'}</td>
-                                <td>${user.email || '-'}</td>
-                                <td>${user.phone || '-'}</td>
-                                <td><span class="status-badge status-${user.status}">${user.status}</span></td>
                                 <td>${formatTimestamp(user.lastActiveAt)}</td>
+                                <td>${formatTimestamp(user.createdAt)}</td>
                                 <td>
-                                    <button class="btn-primary" style="padding: 6px 12px; font-size: 12px; margin-right: 5px;" onclick="showEditModal('${user.userId}')">✏️ Редактировать</button>
-                                    <button class="btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="deleteUser('${user.userId}')">🗑️ Удалить</button>
+                                    <button class="btn-primary btn-small" onclick="showEditModal('${user.userId}')">✏️ Редактировать</button>
+                                    <button class="btn-success btn-small" onclick="showMetaModal('${user.userId}')">🏷️ Meta</button>
+                                    <button class="btn-danger btn-small" onclick="deleteUser('${user.userId}')">🗑️ Удалить</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -457,19 +513,19 @@
 
             const userData = {
                 userId: document.getElementById('createUserId').value.trim().toLowerCase(),
-                name: document.getElementById('createName').value.trim(),
-                email: document.getElementById('createEmail').value.trim(),
-                phone: document.getElementById('createPhone').value.trim(),
-                avatar: document.getElementById('createAvatar').value.trim(),
-                status: document.getElementById('createStatus').value
+                name: document.getElementById('createName').value.trim() || undefined
             };
 
             try {
+                const apiKey = getApiKey();
+                const tenantId = getTenantId();
+
                 const response = await fetch('/api/users', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-API-Key': API_KEY
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
                     },
                     body: JSON.stringify(userData)
                 });
@@ -491,9 +547,13 @@
         // Показать modal редактирования
         async function showEditModal(userId) {
             try {
+                const apiKey = getApiKey();
+                const tenantId = getTenantId();
+
                 const response = await fetch(`/api/users/${userId}`, {
                     headers: {
-                        'X-API-Key': API_KEY
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
                     }
                 });
 
@@ -505,10 +565,6 @@
 
                 document.getElementById('editUserId').value = user.userId;
                 document.getElementById('editName').value = user.name || '';
-                document.getElementById('editEmail').value = user.email || '';
-                document.getElementById('editPhone').value = user.phone || '';
-                document.getElementById('editAvatar').value = user.avatar || '';
-                document.getElementById('editStatus').value = user.status;
 
                 document.getElementById('editModal').style.display = 'block';
             } catch (error) {
@@ -528,19 +584,19 @@
 
             const userId = document.getElementById('editUserId').value;
             const userData = {
-                name: document.getElementById('editName').value.trim(),
-                email: document.getElementById('editEmail').value.trim(),
-                phone: document.getElementById('editPhone').value.trim(),
-                avatar: document.getElementById('editAvatar').value.trim(),
-                status: document.getElementById('editStatus').value
+                name: document.getElementById('editName').value.trim() || undefined
             };
 
             try {
+                const apiKey = getApiKey();
+                const tenantId = getTenantId();
+
                 const response = await fetch(`/api/users/${userId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-API-Key': API_KEY
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
                     },
                     body: JSON.stringify(userData)
                 });
@@ -566,10 +622,14 @@
             }
 
             try {
+                const apiKey = getApiKey();
+                const tenantId = getTenantId();
+
                 const response = await fetch(`/api/users/${userId}`, {
                     method: 'DELETE',
                     headers: {
-                        'X-API-Key': API_KEY
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
                     }
                 });
 
@@ -586,16 +646,157 @@
             }
         }
 
+        // Показать modal meta тегов
+        async function showMetaModal(userId) {
+            document.getElementById('metaUserId').value = userId;
+            document.getElementById('metaModal').style.display = 'block';
+            await loadMetaTags(userId);
+        }
+
+        // Закрыть modal meta тегов
+        function closeMetaModal() {
+            document.getElementById('metaModal').style.display = 'none';
+        }
+
+        // Загрузить meta теги
+        async function loadMetaTags(userId) {
+            try {
+                const apiKey = getApiKey();
+                const tenantId = getTenantId();
+
+                const response = await fetch(`/api/users/${userId}`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load user meta');
+                }
+
+                const { data: user } = await response.json();
+                const meta = user.meta || {};
+
+                let html = '<h3 style="margin-bottom: 15px;">Текущие Meta теги:</h3>';
+                
+                const metaKeys = Object.keys(meta);
+                if (metaKeys.length === 0) {
+                    html += '<div class="no-data" style="padding: 20px;">Meta теги отсутствуют</div>';
+                } else {
+                    html += '<table><thead><tr><th>Key</th><th>Value</th><th>Действия</th></tr></thead><tbody>';
+                    for (const key of metaKeys) {
+                        html += `
+                            <tr>
+                                <td><strong>${key}</strong></td>
+                                <td>${JSON.stringify(meta[key])}</td>
+                                <td><button class="btn-danger btn-small" onclick="deleteMetaTag('${userId}', '${key}')">🗑️ Удалить</button></td>
+                            </tr>
+                        `;
+                    }
+                    html += '</tbody></table>';
+                }
+
+                document.getElementById('metaList').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading meta tags:', error);
+                document.getElementById('metaList').innerHTML = `<div class="error">Ошибка загрузки meta тегов: ${error.message}</div>`;
+            }
+        }
+
+        // Добавить meta тег
+        async function addMetaTag() {
+            const userId = document.getElementById('metaUserId').value;
+            const key = document.getElementById('newMetaKey').value.trim();
+            const valueStr = document.getElementById('newMetaValue').value.trim();
+
+            if (!key || !valueStr) {
+                alert('Заполните ключ и значение');
+                return;
+            }
+
+            // Пытаемся распарсить значение как JSON, если не получается - оставляем строкой
+            let value;
+            try {
+                value = JSON.parse(valueStr);
+            } catch (e) {
+                value = valueStr;
+            }
+
+            try {
+                const apiKey = getApiKey();
+                const tenantId = getTenantId();
+
+                const response = await fetch(`/api/meta/user/${userId}/${key}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    },
+                    body: JSON.stringify({ value })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to set meta tag');
+                }
+
+                document.getElementById('newMetaKey').value = '';
+                document.getElementById('newMetaValue').value = '';
+                await loadMetaTags(userId);
+                alert('Meta тег успешно добавлен!');
+            } catch (error) {
+                console.error('Error adding meta tag:', error);
+                alert('Ошибка добавления meta тега: ' + error.message);
+            }
+        }
+
+        // Удалить meta тег
+        async function deleteMetaTag(userId, key) {
+            if (!confirm(`Удалить meta тег "${key}"?`)) {
+                return;
+            }
+
+            try {
+                const apiKey = getApiKey();
+                const tenantId = getTenantId();
+
+                const response = await fetch(`/api/meta/user/${userId}/${key}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to delete meta tag');
+                }
+
+                await loadMetaTags(userId);
+                alert('Meta тег успешно удален!');
+            } catch (error) {
+                console.error('Error deleting meta tag:', error);
+                alert('Ошибка удаления meta тега: ' + error.message);
+            }
+        }
+
         // Закрыть модальные окна при клике вне их
         window.onclick = function(event) {
             const createModal = document.getElementById('createModal');
             const editModal = document.getElementById('editModal');
+            const metaModal = document.getElementById('metaModal');
             
             if (event.target === createModal) {
                 closeCreateModal();
             }
             if (event.target === editModal) {
                 closeEditModal();
+            }
+            if (event.target === metaModal) {
+                closeMetaModal();
             }
         }
 
@@ -604,4 +805,3 @@
     </script>
 </body>
 </html>
-

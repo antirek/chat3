@@ -95,7 +95,7 @@ export async function getUserById(req, res) {
  */
 export async function createUser(req, res) {
   try {
-    const { userId, name, email, phone, avatar, status } = req.body;
+    const { userId, name } = req.body;
 
     // Проверяем, что пользователь не существует
     const existingUser = await User.findOne({
@@ -115,10 +115,6 @@ export async function createUser(req, res) {
       userId: userId,
       tenantId: req.tenantId,
       name: name,
-      email: email,
-      phone: phone,
-      avatar: avatar,
-      status: status || 'active',
       lastActiveAt: generateTimestamp()
     });
 
@@ -149,7 +145,7 @@ export async function createUser(req, res) {
 export async function updateUser(req, res) {
   try {
     const { userId } = req.params;
-    const { name, email, phone, avatar, status } = req.body;
+    const { name } = req.body;
 
     const user = await User.findOne({
       userId: userId,
@@ -165,10 +161,6 @@ export async function updateUser(req, res) {
 
     // Обновляем поля
     if (name !== undefined) user.name = name;
-    if (email !== undefined) user.email = email;
-    if (phone !== undefined) user.phone = phone;
-    if (avatar !== undefined) user.avatar = avatar;
-    if (status !== undefined) user.status = status;
 
     await user.save();
 
