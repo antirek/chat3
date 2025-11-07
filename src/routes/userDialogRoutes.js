@@ -109,7 +109,7 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  * /api/users/{userId}/dialogs/{dialogId}/messages:
  *   get:
  *     summary: Get messages from a dialog in context of specific user
- *     description: Returns messages with user-specific data (myStatus, isMine, myReaction). Only accessible if user is a dialog member.
+ *     description: Returns messages with user-specific data (statuses, isMine, myReaction). Only accessible if user is a dialog member.
  *     tags: [UserDialogs]
  *     security:
  *       - ApiKeyAuth: []
@@ -190,10 +190,21 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *                           isMine:
  *                             type: boolean
  *                             description: True if current user is the sender
- *                           myStatus:
- *                             type: string
- *                             enum: [sent, unread, delivered, read]
- *                             description: Message status for current user
+ *                           statuses:
+ *                             type: array
+ *                             description: Message statuses for current user (array of status objects)
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 status:
+ *                                   type: string
+ *                                   enum: [sent, unread, delivered, read]
+ *                                 userId:
+ *                                   type: string
+ *                                 messageId:
+ *                                   type: string
+ *                                 createdAt:
+ *                                   type: number
  *                           myReaction:
  *                             type: string
  *                             nullable: true
@@ -282,8 +293,21 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *                           type: string
  *                         isMine:
  *                           type: boolean
- *                         myStatus:
- *                           type: string
+ *                         statuses:
+ *                           type: array
+ *                           description: Message statuses for current user (array of status objects)
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               status:
+ *                                 type: string
+ *                                 enum: [sent, unread, delivered, read]
+ *                               userId:
+ *                                 type: string
+ *                               messageId:
+ *                                 type: string
+ *                               createdAt:
+ *                                 type: number
  *                         myReaction:
  *                           type: string
  *                           nullable: true
