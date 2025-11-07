@@ -62,16 +62,33 @@ export async function getUserById(req, res) {
       tenantId: req.tenantId
     }).lean();
 
+    // Получаем метаданные пользователя (даже если пользователя нет в User модели)
+    const userMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+
     if (!user) {
+      // Fallback: если пользователя нет в User модели, но есть meta теги, возвращаем их
+      if (userMeta && Object.keys(userMeta).length > 0) {
+        return res.json({
+          data: sanitizeResponse({
+            userId: userId,
+            tenantId: req.tenantId,
+            name: null, // Имя отсутствует, так как пользователя нет в User
+            lastActiveAt: null,
+            createdAt: null,
+            updatedAt: null,
+            meta: userMeta
+          })
+        });
+      }
+      
+      // Пользователя нет и мета-тегов нет
       return res.status(404).json({
         error: 'Not Found',
         message: 'User not found'
       });
     }
 
-    // Получаем метаданные пользователя
-    const userMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
-
+    // Пользователь существует, обогащаем мета-тегами
     const enrichedUser = {
       ...user,
       meta: userMeta
