@@ -1247,6 +1247,11 @@
                                         'read': '#4fc3f7',
                                         'unread': '#ccc'
                                     };
+                                    // Получаем статус из массива statuses
+                                    const myStatus = (ctx.statuses && ctx.statuses.length > 0) 
+                                        ? ctx.statuses[0].status 
+                                        : (ctx.isMine ? 'sent' : 'unread');
+                                    
                                     return `
                                     <tr data-message-id="${message.messageId}" style="${ctx.isMine ? 'background-color: #f0f8ff;' : ''}">
                                         <td>
@@ -1256,10 +1261,10 @@
                                         <td>${formatMessageTime(message.createdAt)}</td>
                                         <td class="message-content">${message.content}</td>
                                         <td>
-                                            <span style="color: ${statusColors[ctx.myStatus]}; font-weight: bold;" title="${ctx.myStatus}">
-                                                ${statusIcons[ctx.myStatus] || '?'}
+                                            <span style="color: ${statusColors[myStatus]}; font-weight: bold;" title="${myStatus}">
+                                                ${statusIcons[myStatus] || '?'}
                                             </span>
-                                            <span style="color: #666; font-size: 11px; margin-left: 3px;">${ctx.myStatus}</span>
+                                            <span style="color: #666; font-size: 11px; margin-left: 3px;">${myStatus}</span>
                                         </td>
                                         <td style="font-size: 20px;">
                                             ${ctx.myReaction || '-'}
