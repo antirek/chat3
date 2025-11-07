@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat3 - User API Test</title>
+    <title>API Test - Пользователи - Chat3</title>
     <style>
         * {
             margin: 0;
@@ -13,86 +13,93 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: #f5f5f5;
+            height: 100vh;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-        }
-
-        .header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-
-        .content {
-            padding: 30px;
-        }
-
-        .settings-panel {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 2px solid #e9ecef;
-        }
-
-        .settings-panel h3 {
-            margin-bottom: 15px;
-            color: #333;
-            font-size: 16px;
-        }
-
-        .settings-row {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             display: flex;
-            gap: 15px;
-            margin-bottom: 10px;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .settings-row label {
-            flex: 0 0 120px;
-            padding-top: 8px;
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+
+        .back-link:hover {
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            font-size: 18px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .api-key-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .api-key-section label {
+            font-size: 12px;
+            color: #666;
             font-weight: 500;
         }
 
-        .settings-row input {
+        .api-key-section input {
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+            width: 400px;
+        }
+
+        .container {
             flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            margin: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
 
         .controls {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            background: #f8f9fa;
             display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
         }
 
         button {
-            padding: 12px 24px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: 4px;
+            font-size: 13px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
@@ -135,39 +142,74 @@
         }
 
         .btn-small {
-            padding: 6px 12px;
-            font-size: 12px;
+            padding: 4px 10px;
+            font-size: 11px;
             margin-right: 5px;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
         }
 
         thead {
             background: #f8f9fa;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e9ecef;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         th {
+            padding: 12px 15px;
+            text-align: left;
             font-weight: 600;
             color: #495057;
-            font-size: 13px;
+            font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 13px;
         }
 
         tr:hover {
             background: #f8f9fa;
         }
 
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px;
+            font-size: 13px;
+        }
+
+        /* Modal */
         .modal {
             display: none;
             position: fixed;
@@ -189,18 +231,18 @@
             background: white;
             margin: 50px auto;
             padding: 0;
-            border-radius: 12px;
+            border-radius: 8px;
             width: 90%;
-            max-width: 700px;
+            max-width: 600px;
             max-height: 80vh;
             overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             animation: slideIn 0.3s;
         }
 
         @keyframes slideIn {
             from {
-                transform: translateY(-50px);
+                transform: translateY(-30px);
                 opacity: 0;
             }
             to {
@@ -210,40 +252,42 @@
         }
 
         .modal-header {
-            padding: 20px 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 12px 12px 0 0;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            border-radius: 8px 8px 0 0;
         }
 
         .modal-header h2 {
-            font-size: 20px;
+            font-size: 16px;
             margin: 0;
+            color: #333;
         }
 
         .modal-body {
-            padding: 30px;
+            padding: 20px;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             font-weight: 500;
-            color: #333;
+            color: #495057;
+            font-size: 13px;
         }
 
         .form-group input,
         .form-group select,
         .form-group textarea {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
+            padding: 8px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 13px;
         }
 
         .form-group textarea {
@@ -257,85 +301,63 @@
             gap: 10px;
             justify-content: flex-end;
             margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
         }
 
-        .meta-tags {
+        .meta-section {
             margin-top: 20px;
             padding-top: 20px;
             border-top: 2px solid #e9ecef;
         }
 
+        .meta-section h3 {
+            font-size: 14px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
         .meta-tag-row {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             margin-bottom: 10px;
+            align-items: center;
         }
 
         .meta-tag-row input {
             flex: 1;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
         }
 
-        .no-data {
-            text-align: center;
-            padding: 40px;
-            color: #6c757d;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #667eea;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-        }
-
-        .success {
-            background: #d4edda;
-            color: #155724;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
+        .meta-list {
+            max-height: 300px;
+            overflow-y: auto;
         }
     </style>
 </head>
 <body>
+    <div class="header">
+        <div class="header-left">
+            <a href="/" class="back-link">← Назад</a>
+            <h1>👤 Пользователи - Управление пользователями и meta тегами</h1>
+        </div>
+        <div class="api-key-section">
+            <label for="apiKey">API Key:</label>
+            <input type="text" id="apiKey" placeholder="Введите API Key" value="chat3_edabb7b0fb722074c0d2efcc262f386fa23708adef9115392d79b4e5774e3d28">
+        </div>
+    </div>
+
     <div class="container">
-        <div class="header">
-            <h1>👥 User API Test</h1>
-            <p>Управление пользователями - CRUD операции + Meta теги</p>
+        <div class="controls">
+            <button class="btn-success" onclick="showCreateModal()">➕ Создать пользователя</button>
+            <button class="btn-primary" onclick="loadUsers()">🔄 Обновить список</button>
         </div>
 
-        <div class="content">
-            <!-- Настройки -->
-            <div class="settings-panel">
-                <h3>⚙️ Настройки подключения</h3>
-                <div class="settings-row">
-                    <label>API Key:</label>
-                    <input type="text" id="apiKey" value="test-api-key-12345" placeholder="Введите API ключ">
-                </div>
-                <div class="settings-row">
-                    <label>Tenant ID:</label>
-                    <input type="text" id="tenantId" value="tnt_default" placeholder="tnt_default">
-                </div>
-            </div>
-
-            <div class="controls">
-                <button class="btn-success" onclick="showCreateModal()">➕ Создать пользователя</button>
-                <button class="btn-primary" onclick="loadUsers()">🔄 Обновить список</button>
-            </div>
-
-            <div id="usersList">
-                <div class="loading">Загрузка...</div>
-            </div>
+        <div class="content" id="usersList">
+            <div class="loading">Загрузка...</div>
         </div>
     </div>
 
@@ -394,13 +416,13 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="metaUserId">
-                <div id="metaList"></div>
-                <div class="meta-tags">
-                    <h3 style="margin-bottom: 15px;">Добавить Meta тег</h3>
+                <div class="meta-list" id="metaList"></div>
+                <div class="meta-section">
+                    <h3>Добавить Meta тег</h3>
                     <div class="meta-tag-row">
                         <input type="text" id="newMetaKey" placeholder="key (например: department)">
                         <input type="text" id="newMetaValue" placeholder="value (например: Sales)">
-                        <button class="btn-success" onclick="addMetaTag()">➕ Добавить</button>
+                        <button class="btn-success btn-small" onclick="addMetaTag()">➕ Добавить</button>
                     </div>
                 </div>
                 <div class="form-actions">
@@ -411,20 +433,17 @@
     </div>
 
     <script>
-        // Получить настройки
+        const tenantId = 'tnt_default';
+
+        // Получить API Key
         function getApiKey() {
             return document.getElementById('apiKey').value.trim();
-        }
-
-        function getTenantId() {
-            return document.getElementById('tenantId').value.trim();
         }
 
         // Загрузить список пользователей
         async function loadUsers() {
             try {
                 const apiKey = getApiKey();
-                const tenantId = getTenantId();
 
                 if (!apiKey) {
                     throw new Error('API Key не указан');
@@ -518,7 +537,6 @@
 
             try {
                 const apiKey = getApiKey();
-                const tenantId = getTenantId();
 
                 const response = await fetch('/api/users', {
                     method: 'POST',
@@ -548,7 +566,6 @@
         async function showEditModal(userId) {
             try {
                 const apiKey = getApiKey();
-                const tenantId = getTenantId();
 
                 const response = await fetch(`/api/users/${userId}`, {
                     headers: {
@@ -589,7 +606,6 @@
 
             try {
                 const apiKey = getApiKey();
-                const tenantId = getTenantId();
 
                 const response = await fetch(`/api/users/${userId}`, {
                     method: 'PUT',
@@ -623,7 +639,6 @@
 
             try {
                 const apiKey = getApiKey();
-                const tenantId = getTenantId();
 
                 const response = await fetch(`/api/users/${userId}`, {
                     method: 'DELETE',
@@ -662,7 +677,6 @@
         async function loadMetaTags(userId) {
             try {
                 const apiKey = getApiKey();
-                const tenantId = getTenantId();
 
                 const response = await fetch(`/api/users/${userId}`, {
                     headers: {
@@ -678,7 +692,7 @@
                 const { data: user } = await response.json();
                 const meta = user.meta || {};
 
-                let html = '<h3 style="margin-bottom: 15px;">Текущие Meta теги:</h3>';
+                let html = '<h3 style="margin-bottom: 15px; font-size: 14px;">Текущие Meta теги:</h3>';
                 
                 const metaKeys = Object.keys(meta);
                 if (metaKeys.length === 0) {
@@ -725,7 +739,6 @@
 
             try {
                 const apiKey = getApiKey();
-                const tenantId = getTenantId();
 
                 const response = await fetch(`/api/meta/user/${userId}/${key}`, {
                     method: 'PUT',
@@ -760,7 +773,6 @@
 
             try {
                 const apiKey = getApiKey();
-                const tenantId = getTenantId();
 
                 const response = await fetch(`/api/meta/user/${userId}/${key}`, {
                     method: 'DELETE',
