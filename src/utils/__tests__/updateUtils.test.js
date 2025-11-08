@@ -288,7 +288,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         senderId: 'user1',
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       await DialogMember.create([
@@ -339,7 +339,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         senderId: 'user1',
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       await DialogMember.create({
@@ -382,7 +382,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         senderId: 'user1',
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       await DialogMember.create({
@@ -455,7 +455,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         senderId: 'user1',
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       await DialogMember.create({

@@ -493,7 +493,7 @@
     <div class="header">
         <div class="api-key-section">
             <label for="apiKey" style="font-weight: 600; color: #333;">API Key:</label>
-            <input type="text" id="apiKey" placeholder="Введите API Key" value="chat3_edabb7b0fb722074c0d2efcc262f386fa23708adef9115392d79b4e5774e3d28">
+            <input type="text" id="apiKey" placeholder="Введите API Key" value="chat3_95143fbd5ca948b3b4633ecf8ab637023d84a67a5fe4ea15dd10d85ff9fc35ff">
             <label for="tenantId" style="font-weight: 600; color: #333; margin-left: 10px;">Tenant ID:</label>
             <input type="text" id="tenantId" placeholder="Tenant ID" value="tnt_default" style="width: 150px;">
             <button onclick="setApiKey()">Установить</button>
@@ -519,7 +519,7 @@
                         <option value="(content,regex,хорошо)">📝 Содержит "хорошо"</option>
                         <option value="(content,regex,интересно)">📝 Содержит "интересно"</option>
                         <option value="(content,regex,отлично)">📝 Содержит "отлично"</option>
-                        <option value="(type,eq,text)">📝 Тип = text</option>
+                        <option value="(type,eq,internal.text)">📝 Тип = internal.text</option>
                         <option value="(type,eq,system)">📝 Тип = system</option>
                         <option value="(type,in,[text,system])">📝 Тип в [text,system]</option>
                         <option value="(senderId,eq,carl)">👤 Отправитель = carl</option>
@@ -540,12 +540,12 @@
                         <option value="(content,regex,встретимся)&(type,eq,system)">📝 "встретимся" + system</option>
                         <option value="(senderId,eq,carl)&(type,eq,system)">👤 Carl + system</option>
                         <option value="(content,regex,спасибо)&(createdAt,gte,2025-10-24)">📝 "спасибо" + ≥24.10</option>
-                        <option value="(senderId,in,[carl,sara])&(type,eq,text)&(content,regex,привет)">👥 Carl/Sara + text + "привет"</option>
+                        <option value="(senderId,in,[carl,sara])&(type,eq,internal.text)&(content,regex,привет)">👥 Carl/Sara + internal.text + "привет"</option>
                         <option value="(dialogId,eq,dlg_nfftyjrk53nn5w4bc94n)&(senderId,eq,carl)">💬 Общий чат + Carl</option>
-                        <option value="(dialogId,eq,dlg_xndr7w5fhvazpvi8a35p)&(type,eq,text)">💬 Проектные обсуждения + text</option>
+                        <option value="(dialogId,eq,dlg_xndr7w5fhvazpvi8a35p)&(type,eq,internal.text)">💬 Проектные обсуждения + internal.text</option>
                         <option value="(dialogId,in,[dlg_nfftyjrk53nn5w4bc94n,dlg_xndr7w5fhvazpvi8a35p])&(senderId,eq,marta)">💬 Общий чат/Проектные + Marta</option>
                         <option value="(meta.channelType,eq,whatsapp)&(senderId,eq,carl)">📱 WhatsApp + Carl</option>
-                        <option value="(meta.channelType,eq,telegram)&(type,eq,text)">📱 Telegram + text</option>
+                        <option value="(meta.channelType,eq,telegram)&(type,eq,internal.text)">📱 Telegram + internal.text</option>
                         <option value="(meta.channelId,eq,W0000)&(content,regex,привет)">📱 W0000 + "привет"</option>
                         <option value="(meta.channelType,in,[whatsapp,telegram])&(senderId,in,[carl,sara])">📱 WhatsApp/Telegram + Carl/Sara</option>
                         <option value="(dialogId,eq,dlg_nfftyjrk53nn5w4bc94n)&(meta.channelType,eq,telegram)">💬 Общий чат + Telegram</option>

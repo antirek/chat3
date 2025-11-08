@@ -93,7 +93,7 @@ describe('messageReactionController', () => {
       messageId: generateMessageId(),
       senderId: 'alice',
       content: 'Hello!',
-      type: 'text',
+      type: 'internal.text',
       reactionCounts: {},
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()

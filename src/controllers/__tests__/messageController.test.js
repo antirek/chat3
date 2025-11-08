@@ -102,7 +102,7 @@ describe('messageController.getAll - filter combinations', () => {
       messageId: generateMessageId(),
       senderId: 'alice',
       content: 'Email update',
-      type: 'text',
+      type: 'internal.text',
       createdAt: baseTimestamp,
       updatedAt: baseTimestamp
     });
@@ -113,7 +113,7 @@ describe('messageController.getAll - filter combinations', () => {
       messageId: generateMessageId(),
       senderId: 'bob',
       content: 'Support update',
-      type: 'text',
+      type: 'internal.text',
       createdAt: baseTimestamp + 1000,
       updatedAt: baseTimestamp + 1000
     });
@@ -124,7 +124,7 @@ describe('messageController.getAll - filter combinations', () => {
       messageId: generateMessageId(),
       senderId: 'alice',
       content: 'Internal note',
-      type: 'text',
+      type: 'internal.text',
       createdAt: baseTimestamp + 2000,
       updatedAt: baseTimestamp + 2000
     });

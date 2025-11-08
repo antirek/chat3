@@ -289,7 +289,7 @@ async function seed() {
       'До свидания!'
     ];
 
-    const messageTypes = ['text', 'text', 'text', 'text', 'text', 'system']; // Больше текстовых сообщений
+    const messageTypes = ['internal.text', 'internal.text', 'internal.text', 'internal.text', 'internal.text', 'internal.system']; // Больше текстовых сообщений
     const senderIds = ['carl', 'marta', 'sara', 'kirk', 'john']; // Произвольные строки вместо ObjectId
     const allMessages = [];
 

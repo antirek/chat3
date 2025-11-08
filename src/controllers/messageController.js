@@ -278,7 +278,7 @@ const messageController = {
   async createMessage(req, res) {
     try {
       const { dialogId } = req.params;
-      const { content, senderId, type = 'text', meta } = req.body;
+      const { content, senderId, type = 'internal.text', meta } = req.body;
 
       // Basic validation
       if (!content || !senderId) {

@@ -1,6 +1,22 @@
 import Joi from 'joi';
 
 /**
+ * Допустимые системные (internal) типы сообщений
+ */
+const INTERNAL_MESSAGE_TYPES = Object.freeze([
+  'internal.text',
+  'internal.image',
+  'internal.file',
+  'internal.audio',
+  'internal.video',
+  'internal.location',
+  'internal.contact',
+  'internal.system'
+]);
+
+const USER_MESSAGE_TYPE_REGEX = /^user\.[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
+
+/**
  * Схемы валидации для body запросов
  */
 
@@ -18,7 +34,22 @@ export const createDialogSchema = Joi.object({
 export const createMessageSchema = Joi.object({
   content: Joi.string().trim().min(1).max(10000).required(),
   senderId: Joi.string().trim().min(1).max(100).required(),
-  type: Joi.string().valid('text', 'image', 'file', 'audio', 'video', 'location', 'contact', 'system').default('text'),
+  type: Joi.string()
+    .trim()
+    .lowercase()
+    .custom((value, helpers) => {
+      if (INTERNAL_MESSAGE_TYPES.includes(value)) {
+        return value;
+      }
+      if (USER_MESSAGE_TYPE_REGEX.test(value)) {
+        return value;
+      }
+      return helpers.error('any.invalid');
+    })
+    .default('internal.text')
+    .messages({
+      'any.invalid': 'type must be one of the predefined internal.* values or match user.*'
+    }),
   meta: Joi.object().pattern(
     Joi.string().pattern(/^[a-zA-Z0-9_-]+$/).max(100),
     Joi.alternatives().try(

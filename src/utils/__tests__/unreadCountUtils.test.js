@@ -271,7 +271,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
           dialogId,
           senderId: 'user2',
           content: 'Message 1',
-          type: 'text'
+          type: 'internal.text'
         },
         {
           tenantId,
@@ -279,7 +279,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
           dialogId,
           senderId: 'user2',
           content: 'Message 2',
-          type: 'text'
+          type: 'internal.text'
         }
       ]);
 
@@ -357,7 +357,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
         dialogId,
         senderId,
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       // Создаем участника с непрочитанными сообщениями
@@ -388,7 +388,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
         dialogId,
         senderId: userId,
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       await addDialogMember(tenantId, userId, dialogId);
@@ -420,7 +420,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
         dialogId,
         senderId,
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       await addDialogMember(tenantId, userId, dialogId);
@@ -448,7 +448,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
         dialogId,
         senderId,
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       await addDialogMember(tenantId, userId, dialogId);

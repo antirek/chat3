@@ -91,7 +91,7 @@ describe('messageStatusController.updateMessageStatus', () => {
       messageId: generateMessageId(),
       senderId: 'alice',
       content: 'Hello team!',
-      type: 'text',
+      type: 'internal.text',
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()
     });

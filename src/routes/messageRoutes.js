@@ -45,11 +45,12 @@ const router = express.Router();
  *           - Operators: eq, ne, in, nin, gt, gte, lt, lte, regex, exists
  *           - Meta filters: (meta.key,operator,value)
  *           - Examples:
- *             - (type,eq,text) - messages with type 'text'
+ *             - (type,eq,internal.text) - internal text messages
+ *             - (type,eq,internal.text) - internal text messages
  *             - (senderId,eq,carl) - messages from sender 'carl'
  *             - (meta.channelType,eq,whatsapp) - WhatsApp messages
  *             - (meta.channelId,eq,W0000) - messages with channel ID W0000
- *             - (type,eq,text)&(meta.channelType,eq,telegram) - text messages from Telegram
+ *             - (type,eq,internal.text)&(meta.channelType,eq,telegram) - internal text messages from Telegram
  *             - (senderId,in,[carl,sara]) - messages from carl or sara
  *             - (meta.channelType,ne,telegram) - messages not from Telegram
  *     responses:
@@ -161,8 +162,8 @@ router.get('/:dialogId/messages', apiAuth, requirePermission('read'), validateDi
  *               type:
  *                 type: string
  *                 description: Message type
- *                 default: "text"
- *                 example: "text"
+ *                 default: "internal.text"
+ *                 example: "internal.text"
  *               meta:
  *                 type: object
  *                 description: Message meta data

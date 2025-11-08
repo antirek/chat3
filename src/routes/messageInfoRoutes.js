@@ -39,10 +39,10 @@ const router = express.Router();
  *           - Operators: eq, ne, in, nin, gt, gte, lt, lte, regex, exists
  *           - Meta filters: (meta.key,operator,value)
  *           - Examples:
- *             - (type,eq,text) - messages with type 'text'
+ *             - (type,eq,internal.text) - internal text messages
  *             - (senderId,eq,carl) - messages from sender 'carl'
  *             - (content,regex,привет) - messages containing 'привет'
- *             - (type,eq,text)&(senderId,eq,carl) - text messages from carl
+ *             - (type,eq,internal.text)&(senderId,eq,carl) - internal text messages from carl
  *             - (senderId,in,[carl,sara]) - messages from carl or sara
  *       - in: query
  *         name: sort

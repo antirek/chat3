@@ -40,7 +40,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       // Создаем реакции
@@ -79,7 +79,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       const result = await updateReactionCounts(tenantId, messageId);
@@ -99,7 +99,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       // Разные пользователи ставят разные реакции
@@ -130,7 +130,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
           dialogId: 'dlg_test1234567890123456',
           senderId: 'user1',
           content: 'Message 1',
-          type: 'text'
+          type: 'internal.text'
         },
         {
           tenantId,
@@ -138,7 +138,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
           dialogId: 'dlg_test1234567890123456',
           senderId: 'user1',
           content: 'Message 2',
-          type: 'text'
+          type: 'internal.text'
         }
       ]);
 
@@ -169,7 +169,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text',
+        type: 'internal.text',
         reactionCounts: { '👍': 5 }
       });
 
@@ -188,7 +188,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text'
+        type: 'internal.text'
       });
 
       await incrementReactionCount(tenantId, messageId, '👍');
@@ -206,7 +206,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text',
+        type: 'internal.text',
         reactionCounts: { '👍': 1 }
       });
 
@@ -237,7 +237,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text',
+        type: 'internal.text',
         reactionCounts: { '👍': 5 }
       });
 
@@ -256,7 +256,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text',
+        type: 'internal.text',
         reactionCounts: { '👍': 1 }
       });
 
@@ -276,7 +276,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text',
+        type: 'internal.text',
         reactionCounts: { '👍': 0 }
       });
 
@@ -300,7 +300,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text',
+        type: 'internal.text',
         reactionCounts: { '👍': 5 } // Неправильный счетчик
       });
 
@@ -335,7 +335,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text',
+        type: 'internal.text',
         reactionCounts: { '👍': 3, '❤️': 2 }
       });
 
@@ -356,7 +356,7 @@ describe('reactionUtils - Integration Tests with MongoDB', () => {
         dialogId: 'dlg_test1234567890123456',
         senderId: 'user1',
         content: 'Test message',
-        type: 'text',
+        type: 'internal.text',
         reactionCounts: { '👍': 10 } // Неправильный счетчик
       });
 

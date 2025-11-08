@@ -44,7 +44,7 @@ const messageSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    default: 'text'
+    default: 'internal.text'
   },
   reactionCounts: {
     type: mongoose.Schema.Types.Mixed,
