@@ -282,6 +282,7 @@ const messageController = {
       const normalizedType = type;
       const messageContent = typeof content === 'string' ? content : '';
       const metaPayload = meta && typeof meta === 'object' ? { ...meta } : {};
+      const isSystemMessage = normalizedType.startsWith('system.');
       const MEDIA_MESSAGE_TYPES = new Set(['internal.image', 'internal.file', 'internal.audio', 'internal.video']);
 
       if (!senderId) {
@@ -332,34 +333,36 @@ const messageController = {
       });
 
       // Create MessageStatus records and update DialogMember counters for all dialog participants
-      // Получаем реальных участников диалога из DialogMember
-      const { DialogMember } = await import('../models/index.js');
-      const { incrementUnreadCount } = await import('../utils/unreadCountUtils.js');
-      
-      const dialogMembers = await DialogMember.find({
-        tenantId: req.tenantId,
-        dialogId: dialog.dialogId, // Используем строковый dialogId
-        isActive: true
-      }).select('userId').lean();
-      
-      for (const member of dialogMembers) {
-        const userId = member.userId;
-        if (userId !== senderId) { // Don't create status for sender
-          try {
-            const { MessageStatus } = await import('../models/index.js');
-            
-            // Create MessageStatus record
-            await MessageStatus.create({
-              messageId: message.messageId,
-              userId: userId,
-              tenantId: req.tenantId,
-              status: 'unread'
-            });
-            
-            // Update DialogMember counter (только для существующих участников)
-            await incrementUnreadCount(req.tenantId, userId, dialog.dialogId, message.messageId);
-          } catch (error) {
-            console.error(`Error creating MessageStatus for user ${userId}:`, error);
+      if (!isSystemMessage) {
+        // Получаем реальных участников диалога из DialogMember
+        const { DialogMember } = await import('../models/index.js');
+        const { incrementUnreadCount } = await import('../utils/unreadCountUtils.js');
+        
+        const dialogMembers = await DialogMember.find({
+          tenantId: req.tenantId,
+          dialogId: dialog.dialogId, // Используем строковый dialogId
+          isActive: true
+        }).select('userId').lean();
+        
+        for (const member of dialogMembers) {
+          const userId = member.userId;
+          if (userId !== senderId) { // Don't create status for sender
+            try {
+              const { MessageStatus } = await import('../models/index.js');
+              
+              // Create MessageStatus record
+              await MessageStatus.create({
+                messageId: message.messageId,
+                userId: userId,
+                tenantId: req.tenantId,
+                status: 'unread'
+              });
+              
+              // Update DialogMember counter (только для существующих участников)
+              await incrementUnreadCount(req.tenantId, userId, dialog.dialogId, message.messageId);
+            } catch (error) {
+              console.error(`Error creating MessageStatus for user ${userId}:`, error);
+            }
           }
         }
       }

@@ -122,6 +122,8 @@
 | `internal.video` | `senderId`, `meta.url` | Дополнительно `meta.previewUrl`, `duration` и т.д. |
 | `internal.audio` | `senderId`, `meta.url` | Дополнительно `meta.duration`, `meta.waveform` и др. |
 
+> ℹ️ Сообщения с типом `system.*` считаются техническими: они не создают записей `MessageStatus` и не увеличивают `unreadCount` для участников диалога.
+
 ```json
 {
   "senderId": "agent_42",

@@ -1,5 +1,5 @@
 import messageController from '../messageController.js';
-import { Dialog, Message, Meta, MessageStatus, Tenant, User } from '../../models/index.js';
+import { Dialog, DialogMember, Message, Meta, MessageStatus, Tenant, User } from '../../models/index.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../utils/timestampUtils.js';
 
@@ -197,5 +197,90 @@ describe('messageController.getAll - filter combinations', () => {
     // createdAt values increase in order message1, message2, message3 because of creation sequence
     expect(returnedIds[0]).toBe(message1.messageId);
     expect(returnedIds[returnedIds.length - 1]).toBe(message3.messageId);
+  });
+});
+
+describe('messageController.createMessage - unread handling', () => {
+  let dialog;
+
+  const createRequest = (body) => ({
+    tenantId,
+    params: { dialogId: dialog.dialogId },
+    body
+  });
+
+  const createResponse = () => createMockRes();
+
+  beforeEach(async () => {
+    dialog = await Dialog.create({
+      tenantId,
+      dialogId: generateDialogId(),
+      name: 'Another Dialog',
+      createdBy: 'alice',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+
+    await DialogMember.create([
+      {
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'alice',
+        unreadCount: 0,
+        lastSeenAt: generateTimestamp(),
+        lastMessageAt: generateTimestamp()
+      },
+      {
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'bob',
+        unreadCount: 0,
+        lastSeenAt: generateTimestamp(),
+        lastMessageAt: generateTimestamp()
+      }
+    ]);
+  });
+
+  test('internal.text message increments unreadCount and creates statuses', async () => {
+    const req = createRequest({
+      content: 'Hello Bob',
+      senderId: 'alice',
+      type: 'internal.text'
+    });
+    const res = createResponse();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(201);
+    const message = await Message.findOne({ tenantId, senderId: 'alice', type: 'internal.text' }).lean();
+    expect(message).toBeTruthy();
+
+    const bobMember = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'bob' }).lean();
+    expect(bobMember?.unreadCount).toBe(1);
+
+    const statuses = await MessageStatus.find({ tenantId, messageId: message.messageId }).lean();
+    expect(statuses).toHaveLength(1);
+    expect(statuses[0].userId).toBe('bob');
+  });
+
+  test('system.* message does not increment unreadCount or create statuses', async () => {
+    const req = createRequest({
+      content: 'System maintenance window',
+      senderId: 'alice',
+      type: 'system.text'
+    });
+    const res = createResponse();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(201);
+    const message = await Message.findOne({ tenantId, type: 'system.text' }).lean();
+    expect(message).toBeTruthy();
+
+    const bobMember = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'bob' }).lean();
+    expect(bobMember?.unreadCount).toBe(0);
+
+    const statuses = await MessageStatus.find({ tenantId, messageId: message.messageId }).lean();
+    expect(statuses).toHaveLength(0);
   });
 });

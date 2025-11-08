@@ -80,6 +80,16 @@ describe('queryParser', () => {
       expect(result).toEqual({ name: { $regex: '^John', $options: 'i' } });
     });
 
+    test('should strip inline case-insensitive flag from regex operator', () => {
+      const result = parseFilter('(name,regex,(?i).*john.*)');
+      expect(result).toEqual({ name: { $regex: '.*john.*', $options: 'i' } });
+    });
+
+    test('should default to case-insensitive regex when value is not a string', () => {
+      const result = parseFilter('(name,regex,123)');
+      expect(result).toEqual({ name: { $regex: 123, $options: 'i' } });
+    });
+
     test('should parse exists operator', () => {
       const result = parseFilter('(email,exists,true)');
       expect(result).toEqual({ email: { $exists: true } });

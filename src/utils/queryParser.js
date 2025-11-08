@@ -30,6 +30,7 @@ export function parseFilter(filterString) {
 
   // Убираем пробелы
   filterString = filterString.trim();
+  filterString = stripInlineRegexFlags(filterString);
 
   // Если это старый JSON формат, парсим как JSON
   if (filterString.startsWith('{')) {
@@ -171,24 +172,72 @@ function dateToTimestamp(dateStr) {
  */
 function operatorToMongo(operator, value) {
   const operators = {
-    'eq': value,                    // Равно
-    'ne': { $ne: value },          // Не равно
-    'in': { $in: value },          // В массиве
-    'nin': { $nin: value },        // Не в массиве
-    'all': { $all: value },        // Все элементы из массива (для member фильтров)
-    'gt': { $gt: value },          // Больше
-    'gte': { $gte: value },        // Больше или равно
-    'lt': { $lt: value },          // Меньше
-    'lte': { $lte: value },        // Меньше или равно
-    'regex': { $regex: value, $options: 'i' }, // Регулярное выражение (case-insensitive)
-    'exists': { $exists: value },  // Существование поля
+    'eq': () => value,                    // Равно
+    'ne': () => ({ $ne: value }),         // Не равно
+    'in': () => ({ $in: value }),         // В массиве
+    'nin': () => ({ $nin: value }),       // Не в массиве
+    'all': () => ({ $all: value }),       // Все элементы из массива (для member фильтров)
+    'gt': () => ({ $gt: value }),         // Больше
+    'gte': () => ({ $gte: value }),       // Больше или равно
+    'lt': () => ({ $lt: value }),         // Меньше
+    'lte': () => ({ $lte: value }),       // Меньше или равно
+    'regex': () => {
+      const { pattern, options } = normalizeRegexValue(value);
+      return options ? { $regex: pattern, $options: options } : { $regex: pattern };
+    }, // Регулярное выражение (по умолчанию insensitive)
+    'exists': () => ({ $exists: value }), // Существование поля
   };
 
-  if (!operators.hasOwnProperty(operator)) {
+  if (!Object.prototype.hasOwnProperty.call(operators, operator)) {
     throw new Error(`Unsupported operator: ${operator}. Supported: ${Object.keys(operators).join(', ')}`);
   }
 
-  return operators[operator];
+  return operators[operator]();
+}
+
+function normalizeRegexValue(rawValue) {
+  if (rawValue instanceof RegExp) {
+    // В редких случаях значение уже могло быть RegExp
+    const flags = rawValue.flags ? ensureCaseInsensitive(rawValue.flags) : 'i';
+    return { pattern: rawValue.source, options: flags };
+  }
+
+  if (typeof rawValue !== 'string') {
+    return { pattern: rawValue, options: 'i' };
+  }
+
+  let pattern = rawValue;
+  let options = 'i';
+
+  // Обрабатываем inline-флаги вида (?i), (?im) и т.д. только в начале строки
+  const inlineFlagRegex = /^\(\?([a-z]+)\)/i;
+  let match = inlineFlagRegex.exec(pattern);
+  while (match) {
+    const flags = match[1];
+    if (flags.includes('i')) {
+      options = ensureCaseInsensitive(options || '');
+    }
+    // Удаляем распознанный inline-блок
+    pattern = pattern.slice(match[0].length);
+    match = inlineFlagRegex.exec(pattern);
+  }
+
+  pattern = pattern || '.*';
+
+  return { pattern, options };
+}
+
+function ensureCaseInsensitive(existingFlags) {
+  const flagsSet = new Set((existingFlags || '').split('').filter(Boolean));
+  flagsSet.add('i');
+  return Array.from(flagsSet).sort().join('');
+}
+
+function stripInlineRegexFlags(input) {
+  if (typeof input !== 'string' || input.indexOf('(?') === -1) {
+    return input;
+  }
+  return input.replace(/\(\?[a-z]*i[a-z]*\)/gi, '');
 }
 
 /**

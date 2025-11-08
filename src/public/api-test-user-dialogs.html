@@ -55,11 +55,27 @@
             flex: 1;
             gap: 1px;
             background: #ddd;
+            overflow: hidden;
         }
 
         .users-panel {
             width: 13%;
             min-width: 150px;
+            max-width: 320px;
+            overflow-y: auto;
+            border-right: 1px solid #edeff3;
+        }
+
+        .users-panel .panel {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .users-panel .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .dialogs-panel {
@@ -76,7 +92,6 @@
             background: white;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
         }
 
         .panel-header {
@@ -228,21 +243,7 @@
             color: #dc3545;
         }
 
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #e9ecef;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            margin-right: 12px;
-        }
-
         .user-item {
-            display: flex;
-            align-items: center;
             padding: 12px 20px;
             cursor: pointer;
             border-bottom: 1px solid #f0f0f0;
@@ -267,6 +268,7 @@
             font-size: 12px;
             color: #6c757d;
         }
+
 
         .message-content {
             max-width: 100%;
@@ -973,6 +975,7 @@
         let currentMessageSort = null;
         let currentDialogFilter = null;
         let currentDialogSort = null;
+        const dialogCountCache = new Map();
 
         // Установка API ключа
         function setApiKey() {
@@ -989,6 +992,7 @@
             console.log('API Key set:', apiKey);
             console.log('Tenant ID set:', tenantId);
             
+            dialogCountCache.clear();
             // Загружаем пользователей
             loadUsers();
         }
@@ -998,49 +1002,127 @@
             const usersList = document.getElementById('usersList');
             usersList.innerHTML = '<div class="loading">Загрузка пользователей...</div>';
 
-            // Список пользователей для трехколоночного режима
-            const users = [
-                { 
-                    id: 'carl',
-                    name: 'Carl',
-                    avatar: '👤',
-                    description: 'Диалоги пользователя Carl'
-                },
-                { 
-                    id: 'marta',
-                    name: 'Marta',
-                    avatar: '👤',
-                    description: 'Диалоги пользователя Marta'
-                },
-                { 
-                    id: 'sara',
-                    name: 'Sara',
-                    avatar: '👤',
-                    description: 'Диалоги пользователя Sara'
-                },
-                { 
-                    id: 'kirk',
-                    name: 'Kirk',
-                    avatar: '👤',
-                    description: 'Диалоги пользователя Kirk'
-                },
-                { 
-                    id: 'john',
-                    name: 'John',
-                    avatar: '👤',
-                    description: 'Диалоги пользователя John'
-                }
-            ];
+            if (!apiKey) {
+                usersList.innerHTML = '<div class="error">API ключ не задан</div>';
+                return;
+            }
 
-            usersList.innerHTML = users.map(user => `
-                <div class="user-item" onclick="selectUser('${user.id}', '${user.name}')" title="${user.description}">
-                    <div class="user-avatar">${user.avatar}</div>
+            try {
+                const response = await fetch('/api/users?limit=100', {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const users = Array.isArray(data.data) ? data.data : [];
+
+                if (users.length === 0) {
+                    usersList.innerHTML = '<div class="no-data">Пользователи не найдены</div>';
+                    return;
+                }
+
+                const enrichedUsers = await Promise.all(users.map(async (user) => {
+                    const dialogCount = await fetchUserDialogCount(user.userId);
+                    return {
+                        ...user,
+                        displayName: user.name || user.userId,
+                        dialogCount
+                    };
+                }));
+
+                enrichedUsers.sort((a, b) => {
+                    if (b.dialogCount !== a.dialogCount) {
+                        return b.dialogCount - a.dialogCount;
+                    }
+                    const nameA = (a.displayName || '').toLowerCase();
+                    const nameB = (b.displayName || '').toLowerCase();
+                    if (nameA === nameB) {
+                        return a.userId.localeCompare(b.userId);
+                    }
+                    return nameA.localeCompare(nameB);
+                });
+
+                usersList.innerHTML = enrichedUsers
+                    .map(renderUserListItem)
+                    .join('');
+            } catch (error) {
+                console.error('Error loading users:', error);
+                usersList.innerHTML = `<div class="error">Ошибка загрузки: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        function getAuthHeaders() {
+            return {
+                'X-API-Key': apiKey,
+                'X-TENANT-ID': tenantId
+            };
+        }
+
+        async function fetchUserDialogCount(userId) {
+            if (!userId) {
+                return 0;
+            }
+
+            if (dialogCountCache.has(userId)) {
+                return dialogCountCache.get(userId);
+            }
+
+            try {
+                const response = await fetch(`/api/users/${encodeURIComponent(userId)}/dialogs?page=1&limit=1`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const total = data?.pagination?.total ?? (Array.isArray(data?.data) ? data.data.length : 0);
+                const count = Number.isFinite(total) ? total : 0;
+                dialogCountCache.set(userId, count);
+                return count;
+            } catch (error) {
+                console.error(`Error loading dialogs for user ${userId}:`, error);
+                dialogCountCache.set(userId, 0);
+                return 0;
+            }
+        }
+
+        function renderUserListItem(user) {
+        const displayName = user.displayName || user.userId;
+        const dialogCount = Number.isFinite(user.dialogCount) ? user.dialogCount : 0;
+        const safeNameAttr = escapeJsString(displayName);
+        const safeUserIdAttr = escapeJsString(user.userId);
+        const nameText = escapeHtml(displayName);
+        const userIdText = escapeHtml(user.userId);
+
+            return `
+                <div class="user-item" onclick="selectUser('${safeUserIdAttr}', '${safeNameAttr}')" title="Диалогов: ${dialogCount}">
                     <div class="user-info">
-                        <div class="user-name">${user.name}</div>
-                        <div class="user-id">${user.description}</div>
+                        <div class="user-name">${nameText}</div>
+                        <div class="user-id">User ID: ${userIdText} • Диалогов: ${dialogCount}</div>
                     </div>
                 </div>
-            `).join('');
+            `;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (match) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[match]);
+        }
+
+        function escapeJsString(value) {
+            return String(value ?? '')
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, '\\\'');
         }
 
         // Выбор пользователя
