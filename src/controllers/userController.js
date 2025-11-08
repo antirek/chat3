@@ -3,6 +3,7 @@ import * as metaUtils from '../utils/metaUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { parseFilters } from '../utils/queryParser.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
+import { DialogMember } from '../models/index.js';
 
 /**
  * Получить список всех пользователей
@@ -30,6 +31,37 @@ export async function getUsers(req, res) {
       .skip(skip)
       .limit(limit)
       .lean();
+
+    const includeDialogCount = String(req.query.includeDialogCount).toLowerCase() === 'true';
+    let dialogCountsByUser = null;
+
+    if (includeDialogCount && users.length > 0) {
+      const userIds = users.map(user => user.userId);
+      const aggregationResults = await DialogMember.aggregate([
+        {
+          $match: {
+            tenantId: req.tenantId,
+            isActive: true,
+            userId: { $in: userIds }
+          }
+        },
+        {
+          $group: {
+            _id: '$userId',
+            dialogCount: { $sum: 1 }
+          }
+        }
+      ]);
+
+      dialogCountsByUser = new Map(
+        aggregationResults.map(({ _id, dialogCount }) => [_id, dialogCount])
+      );
+
+      users.forEach((user) => {
+        const count = dialogCountsByUser.get(user.userId) || 0;
+        user.dialogCount = count;
+      });
+    }
 
     res.json({
       data: users.map(user => sanitizeResponse(user)),

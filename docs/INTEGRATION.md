@@ -88,6 +88,7 @@
 | Message Reactions | `DELETE /messages/:messageId/reactions/:reactionId` | Удаление реакции. | delete |
 | Dialog Members | `POST /dialogs/:dialogId/members/:userId/add` | Добавление участника. | write |
 | Dialog Members | `POST /dialogs/:dialogId/members/:userId/remove` | Удаление участника. | delete |
+| Users | `GET /users` | Список пользователей; `includeDialogCount=true` добавляет счётчик диалогов. | read |
 | Users | `GET /users/:userId/dialogs` | Диалоги конкретного пользователя с фильтрами. | read |
 | Meta | `GET/PUT/DELETE /meta/:entityType/:entityId/:key` | Работа с мета-тегами любой сущности. | read/write/delete |
 

@@ -975,7 +975,6 @@
         let currentMessageSort = null;
         let currentDialogFilter = null;
         let currentDialogSort = null;
-        const dialogCountCache = new Map();
 
         // Установка API ключа
         function setApiKey() {
@@ -992,7 +991,6 @@
             console.log('API Key set:', apiKey);
             console.log('Tenant ID set:', tenantId);
             
-            dialogCountCache.clear();
             // Загружаем пользователей
             loadUsers();
         }
@@ -1008,7 +1006,7 @@
             }
 
             try {
-                const response = await fetch('/api/users?limit=100', {
+                const response = await fetch('/api/users?limit=100&includeDialogCount=true', {
                     headers: getAuthHeaders()
                 });
 
@@ -1017,23 +1015,18 @@
                 }
 
                 const data = await response.json();
-                const users = Array.isArray(data.data) ? data.data : [];
+                const users = (Array.isArray(data.data) ? data.data : []).map((user) => ({
+                    ...user,
+                    displayName: user.name || user.userId,
+                    dialogCount: Number.isFinite(user.dialogCount) ? user.dialogCount : 0
+                }));
 
                 if (users.length === 0) {
                     usersList.innerHTML = '<div class="no-data">Пользователи не найдены</div>';
                     return;
                 }
 
-                const enrichedUsers = await Promise.all(users.map(async (user) => {
-                    const dialogCount = await fetchUserDialogCount(user.userId);
-                    return {
-                        ...user,
-                        displayName: user.name || user.userId,
-                        dialogCount
-                    };
-                }));
-
-                enrichedUsers.sort((a, b) => {
+                users.sort((a, b) => {
                     if (b.dialogCount !== a.dialogCount) {
                         return b.dialogCount - a.dialogCount;
                     }
@@ -1045,7 +1038,7 @@
                     return nameA.localeCompare(nameB);
                 });
 
-                usersList.innerHTML = enrichedUsers
+                usersList.innerHTML = users
                     .map(renderUserListItem)
                     .join('');
             } catch (error) {
@@ -1059,36 +1052,6 @@
                 'X-API-Key': apiKey,
                 'X-TENANT-ID': tenantId
             };
-        }
-
-        async function fetchUserDialogCount(userId) {
-            if (!userId) {
-                return 0;
-            }
-
-            if (dialogCountCache.has(userId)) {
-                return dialogCountCache.get(userId);
-            }
-
-            try {
-                const response = await fetch(`/api/users/${encodeURIComponent(userId)}/dialogs?page=1&limit=1`, {
-                    headers: getAuthHeaders()
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                const total = data?.pagination?.total ?? (Array.isArray(data?.data) ? data.data.length : 0);
-                const count = Number.isFinite(total) ? total : 0;
-                dialogCountCache.set(userId, count);
-                return count;
-            } catch (error) {
-                console.error(`Error loading dialogs for user ${userId}:`, error);
-                dialogCountCache.set(userId, 0);
-                return 0;
-            }
         }
 
         function renderUserListItem(user) {

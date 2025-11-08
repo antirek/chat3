@@ -14,6 +14,7 @@ import messageReactionRoutes from './routes/messageReactionRoutes.js';
 import dialogMemberRoutes from './routes/dialogMemberRoutes.js';
 import userDialogRoutes from './routes/userDialogRoutes.js';
 import metaRoutes from './routes/metaRoutes.js';
+import idempotencyGuard from './middleware/idempotencyGuard.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -53,6 +54,7 @@ const startServer = async () => {
     // Body parser middleware AFTER AdminJS
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
+    app.use(idempotencyGuard);
 
     // Swagger UI
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
