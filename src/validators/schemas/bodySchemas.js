@@ -10,9 +10,10 @@ const INTERNAL_MESSAGE_TYPES = Object.freeze([
   'internal.audio',
   'internal.video',
   'internal.location',
-  'internal.contact',
-  'internal.system'
+  'internal.contact'
 ]);
+
+const SYSTEM_MESSAGE_TYPE_REGEX = /^system\.[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 
 const USER_MESSAGE_TYPE_REGEX = /^user\.[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 
@@ -41,6 +42,9 @@ export const createMessageSchema = Joi.object({
       if (INTERNAL_MESSAGE_TYPES.includes(value)) {
         return value;
       }
+      if (SYSTEM_MESSAGE_TYPE_REGEX.test(value)) {
+        return value;
+      }
       if (USER_MESSAGE_TYPE_REGEX.test(value)) {
         return value;
       }
@@ -48,7 +52,7 @@ export const createMessageSchema = Joi.object({
     })
     .default('internal.text')
     .messages({
-      'any.invalid': 'type must be one of the predefined internal.* values or match user.*'
+      'any.invalid': 'type must be one of the predefined internal.* values or match system.* / user.*'
     }),
   meta: Joi.object().pattern(
     Joi.string().pattern(/^[a-zA-Z0-9_-]+$/).max(100),

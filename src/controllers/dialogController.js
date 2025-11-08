@@ -201,13 +201,13 @@ export const dialogController = {
         const dialogsWithValidMembers = dialogsWithMembers
           .filter(dialog => {
             const member = membersMap[dialog.dialogId];
-            if (member) {
-              dialog.members = [member];
-              dialog.sortField = member[field] || 0;
+          if (member) {
+            dialog.members = [member];
+            dialog.sortField = member[field] || 0;
               return true;
-            }
+          }
             return false;
-          });
+        });
         
         // Сортируем по sortField
         dialogsWithValidMembers.sort((a, b) => {
