@@ -40,7 +40,10 @@ const messageSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true
+    required: function() {
+      return this.type === 'internal.text';
+    },
+    default: ''
   },
   type: {
     type: String,

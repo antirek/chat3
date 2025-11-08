@@ -111,6 +111,52 @@
   - Встроенные (`internal.*`): `internal.text`, `internal.image`, `internal.file`, `internal.audio`, `internal.video`, `internal.location`, `internal.contact`.
   - Системные (`system.*`): любая строка, соответствующая `system.<slug>` (латиница/цифры, допускаются точка, дефис, подчёркивание). Используйте для технических уведомлений и сервисных событий (например, `system.text`, `system.announcement`).
   - Пользовательские (`user.*`): любые, соответствующие `user.<slug>` (латиница/цифры, допускаются точка, дефис, подчёркивание).
+
+#### Обязательные поля и примеры для `internal.*`
+
+| Тип | Обязательные поля | Дополнительно |
+|-----|-------------------|---------------|
+| `internal.text` | `senderId`, `content` (1–10 000 символов) | `meta` опционален |
+| `internal.image` | `senderId`, `meta.url` | `content` — подпись к изображению (опционально), `meta` может содержать `mimeType`, `size`, `width`, `height` и т.д. |
+| `internal.file` | `senderId`, `meta.url` | `content` — подпись, `meta` может хранить `mimeType`, `size`, `fileName` |
+| `internal.video` | `senderId`, `meta.url` | Дополнительно `meta.previewUrl`, `duration` и т.д. |
+| `internal.audio` | `senderId`, `meta.url` | Дополнительно `meta.duration`, `meta.waveform` и др. |
+
+```json
+{
+  "senderId": "agent_42",
+  "type": "internal.text",
+  "content": "Привет! Чем помочь?"
+}
+```
+
+```json
+{
+  "senderId": "agent_42",
+  "type": "internal.image",
+  "content": "Вот фото товара",
+  "meta": {
+    "url": "https://cdn.example.com/images/item-42.jpg",
+    "mimeType": "image/jpeg",
+    "size": 482193,
+    "width": 1280,
+    "height": 720
+  }
+}
+```
+
+```json
+{
+  "senderId": "agent_42",
+  "type": "internal.file",
+  "meta": {
+    "url": "https://cdn.example.com/docs/manual.pdf",
+    "mimeType": "application/pdf",
+    "size": 912344,
+    "fileName": "manual.pdf"
+  }
+}
+```
 - При отсутствии `type` автоматически ставится `internal.text`.
 - Поле `meta` допускает строки, числа, булевы, массивы и объекты.
 - В теле сообщения не отправляются бинарные данные — используйте ссылки в `meta` (например, `attachmentUrl`).

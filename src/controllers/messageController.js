@@ -279,13 +279,34 @@ const messageController = {
     try {
       const { dialogId } = req.params;
       const { content, senderId, type = 'internal.text', meta } = req.body;
+      const normalizedType = type;
+      const messageContent = typeof content === 'string' ? content : '';
+      const metaPayload = meta && typeof meta === 'object' ? { ...meta } : {};
+      const MEDIA_MESSAGE_TYPES = new Set(['internal.image', 'internal.file', 'internal.audio', 'internal.video']);
 
-      // Basic validation
-      if (!content || !senderId) {
+      if (!senderId) {
         return res.status(400).json({
           error: 'Bad Request',
-          message: 'Missing required fields: content, senderId'
+          message: 'Missing required field: senderId'
         });
+      }
+
+      if (normalizedType === 'internal.text' && messageContent.trim().length === 0) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'content is required for internal.text messages'
+        });
+      }
+
+      if (MEDIA_MESSAGE_TYPES.has(normalizedType)) {
+        const mediaUrl = typeof metaPayload.url === 'string' ? metaPayload.url.trim() : '';
+        if (!mediaUrl) {
+          return res.status(400).json({
+            error: 'Bad Request',
+            message: `meta.url is required for ${normalizedType} messages`
+          });
+        }
+        metaPayload.url = mediaUrl;
       }
 
       // Check if dialog exists and belongs to tenant
@@ -305,9 +326,9 @@ const messageController = {
       const message = await Message.create({
         tenantId: req.tenantId,
         dialogId: dialog.dialogId, // Используем строковый dialogId
-        content,
+        content: messageContent || '',
         senderId,
-        type
+        type: normalizedType
       });
 
       // Create MessageStatus records and update DialogMember counters for all dialog participants
@@ -344,8 +365,8 @@ const messageController = {
       }
 
       // Add meta data if provided
-      if (meta && typeof meta === 'object') {
-        for (const [key, value] of Object.entries(meta)) {
+      if (metaPayload && typeof metaPayload === 'object') {
+        for (const [key, value] of Object.entries(metaPayload)) {
           if (typeof value === 'object' && value !== null) {
             // If value is an object with dataType and value properties
             await metaUtils.setEntityMeta(
@@ -381,9 +402,9 @@ const messageController = {
 
       // Ограничиваем контент до 4096 символов для события
       const MAX_CONTENT_LENGTH = 4096;
-      const eventContent = content.length > MAX_CONTENT_LENGTH 
-        ? content.substring(0, MAX_CONTENT_LENGTH) 
-        : content;
+      const eventContent = messageContent.length > MAX_CONTENT_LENGTH 
+        ? messageContent.substring(0, MAX_CONTENT_LENGTH) 
+        : messageContent;
 
       // Создаем событие message.create (после сохранения мета-тегов)
       await eventUtils.createEvent({

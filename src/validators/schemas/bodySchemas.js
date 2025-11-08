@@ -13,9 +13,36 @@ const INTERNAL_MESSAGE_TYPES = Object.freeze([
   'internal.contact'
 ]);
 
+const INTERNAL_MEDIA_MESSAGE_TYPES = Object.freeze([
+  'internal.image',
+  'internal.file',
+  'internal.audio',
+  'internal.video'
+]);
+
 const SYSTEM_MESSAGE_TYPE_REGEX = /^system\.[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 
 const USER_MESSAGE_TYPE_REGEX = /^user\.[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
+
+const META_KEY_SCHEMA = Joi.string().pattern(/^[a-zA-Z0-9_-]+$/).max(100);
+const META_VALUE_SCHEMA = Joi.alternatives().try(
+  Joi.string(),
+  Joi.number(),
+  Joi.boolean(),
+  Joi.array(),
+  Joi.object()
+);
+
+const BASE_META_SCHEMA = Joi.object().pattern(META_KEY_SCHEMA, META_VALUE_SCHEMA);
+
+const OPTIONAL_META_SCHEMA = BASE_META_SCHEMA.optional()
+  .allow(null)
+  .default({})
+  .custom((value) => (value === null ? {} : value));
+
+const MEDIA_META_SCHEMA = BASE_META_SCHEMA.keys({
+  url: Joi.string().trim().min(1).max(2048).required()
+}).required();
 
 /**
  * Схемы валидации для body запросов
@@ -33,7 +60,11 @@ export const createDialogSchema = Joi.object({
  * Схема валидации создания сообщения
  */
 export const createMessageSchema = Joi.object({
-  content: Joi.string().trim().min(1).max(10000).required(),
+  content: Joi.alternatives().conditional('type', {
+    is: 'internal.text',
+    then: Joi.string().trim().min(1).max(10000).required(),
+    otherwise: Joi.string().trim().max(10000).allow('').optional().default('')
+  }),
   senderId: Joi.string().trim().min(1).max(100).required(),
   type: Joi.string()
     .trim()
@@ -54,16 +85,11 @@ export const createMessageSchema = Joi.object({
     .messages({
       'any.invalid': 'type must be one of the predefined internal.* values or match system.* / user.*'
     }),
-  meta: Joi.object().pattern(
-    Joi.string().pattern(/^[a-zA-Z0-9_-]+$/).max(100),
-    Joi.alternatives().try(
-      Joi.string(),
-      Joi.number(),
-      Joi.boolean(),
-      Joi.array(),
-      Joi.object()
-    )
-  ).optional().allow(null).default({})
+  meta: Joi.alternatives().conditional('type', {
+    is: Joi.valid(...INTERNAL_MEDIA_MESSAGE_TYPES),
+    then: MEDIA_META_SCHEMA,
+    otherwise: OPTIONAL_META_SCHEMA
+  })
 });
 
 /**
