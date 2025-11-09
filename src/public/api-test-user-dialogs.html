@@ -672,6 +672,37 @@
         <!-- Пользователи -->
         <div class="panel users-panel">
             <div class="panel-header">👥 Пользователи</div>
+            <div class="filter-form" style="border-bottom: 1px solid #e9ecef;">
+                <div class="form-section">
+                    <label for="userFilterInput">🔍 Фильтр пользователей (формат: <code>(поле,оператор,значение)</code>)</label>
+                    <select id="userFilterExample" onchange="selectUserFilterExample()" style="margin-bottom: 8px;">
+                        <option value="">Выберите пример</option>
+                        <optgroup label="Поле userId">
+                            <option value="(userId,regex,carl)">userId содержит "carl"</option>
+                            <option value="(userId,regex,bot)">userId содержит "bot"</option>
+                            <option value="(userId,eq,system_bot)">userId = system_bot</option>
+                        </optgroup>
+                        <optgroup label="Поле name">
+                            <option value="(name,regex,Alice)">Имя содержит "Alice"</option>
+                            <option value="(name,regex,Marta)">Имя содержит "Marta"</option>
+                        </optgroup>
+                        <optgroup label="Мета-теги (meta.*)">
+                            <option value="(meta.role,eq,manager)">meta.role = manager</option>
+                            <option value="(meta.region,regex,europe)">meta.region содержит "europe"</option>
+                        </optgroup>
+                        <option value="custom">Пользовательский фильтр</option>
+                    </select>
+                    <div class="input-with-clear">
+                        <input type="text" id="userFilterInput" placeholder="Например: (userId,regex,carl)&(meta.role,eq,manager)">
+                        <button class="clear-field" type="button" onclick="clearUserFilterField()" title="Очистить поле">✕</button>
+                    </div>
+                    <small style="display: block; margin-top: 6px; color: #6c757d;">Поддерживаются поля `userId`, `name`, а также `meta.*`. Операторы: eq, regex, in, nin, gt, gte, lt, lte, ne и др.</small>
+                </div>
+                <div class="form-actions" style="margin-top: 8px;">
+                    <button class="primary" type="button" onclick="applyUserFilter()">Применить</button>
+                    <button type="button" onclick="clearUserFilter()">Сбросить</button>
+                </div>
+            </div>
             <div class="panel-content" id="usersList">
                 <div class="loading">Загрузка пользователей...</div>
             </div>
@@ -975,6 +1006,8 @@
         let currentMessageSort = null;
         let currentDialogFilter = null;
         let currentDialogSort = null;
+        let allUsers = [];
+        let currentUserFilter = '';
 
         // Установка API ключа
         function setApiKey() {
@@ -1006,12 +1039,31 @@
             }
 
             try {
-                const response = await fetch('/api/users?limit=100&includeDialogCount=true', {
+                const params = new URLSearchParams({
+                    limit: '100',
+                    includeDialogCount: 'true',
+                    page: '1'
+                });
+
+                if (currentUserFilter) {
+                    params.append('filter', currentUserFilter);
+                }
+
+                const response = await fetch(`/api/users?${params.toString()}`, {
                     headers: getAuthHeaders()
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    let errorMessage = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorPayload = await response.json();
+                        if (errorPayload?.message) {
+                            errorMessage = errorPayload.message;
+                        }
+                    } catch (parseError) {
+                        // ignore parse error, keep default message
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 const data = await response.json();
@@ -1038,12 +1090,12 @@
                     return nameA.localeCompare(nameB);
                 });
 
-                usersList.innerHTML = users
-                    .map(renderUserListItem)
-                    .join('');
+                allUsers = users;
+                renderUsersList();
             } catch (error) {
                 console.error('Error loading users:', error);
-                usersList.innerHTML = `<div class="error">Ошибка загрузки: ${escapeHtml(error.message)}</div>`;
+                const message = error?.message || 'Неизвестная ошибка';
+                usersList.innerHTML = `<div class="error">Ошибка загрузки: ${escapeHtml(message)}</div>`;
             }
         }
 
@@ -1052,6 +1104,16 @@
                 'X-API-Key': apiKey,
                 'X-TENANT-ID': tenantId
             };
+        }
+
+        function renderUsersList() {
+            const usersList = document.getElementById('usersList');
+            if (!Array.isArray(allUsers) || allUsers.length === 0) {
+                usersList.innerHTML = '<div class="no-data">Пользователи не найдены</div>';
+                return;
+            }
+
+            usersList.innerHTML = allUsers.map(renderUserListItem).join('');
         }
 
         function renderUserListItem(user) {
@@ -1630,6 +1692,41 @@
             }
         }
 
+        function selectUserFilterExample() {
+            const select = document.getElementById('userFilterExample');
+            const input = document.getElementById('userFilterInput');
+
+            if (select.value && select.value !== 'custom') {
+                input.value = select.value;
+                applyUserFilter();
+            } else if (select.value === 'custom') {
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function clearUserFilterField() {
+            const input = document.getElementById('userFilterInput');
+            const select = document.getElementById('userFilterExample');
+            input.value = '';
+            if (select) {
+                select.value = '';
+            }
+        }
+
+        async function applyUserFilter() {
+            const rawValue = document.getElementById('userFilterInput').value.trim();
+
+            currentUserFilter = rawValue;
+            await loadUsers();
+        }
+
+        async function clearUserFilter() {
+            currentUserFilter = '';
+            clearUserFilterField();
+            await loadUsers();
+        }
+
         function clearFilterField() {
             document.getElementById('filterValue').value = '';
             document.getElementById('filterExample').value = '';
@@ -1780,6 +1877,16 @@
             const apiKeyInput = document.getElementById('apiKey');
             if (apiKeyInput.value.trim()) {
                 setApiKey();
+            }
+
+            const userFilterInput = document.getElementById('userFilterInput');
+            if (userFilterInput) {
+                userFilterInput.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        applyUserFilter();
+                    }
+                });
             }
         });
         // Функции для работы с фильтрами сообщений

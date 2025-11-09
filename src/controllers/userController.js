@@ -1,9 +1,74 @@
 import User from '../models/User.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
-import { parseFilters } from '../utils/queryParser.js';
+import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
-import { DialogMember } from '../models/index.js';
+import { DialogMember, Meta } from '../models/index.js';
+
+function appendFilterConditions(target, filtersObject) {
+  if (!filtersObject || typeof filtersObject !== 'object') {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(filtersObject)) {
+    if (key === '$and' && Array.isArray(value)) {
+      value.forEach((entry) => {
+        if (entry && typeof entry === 'object') {
+          target.push(entry);
+        }
+      });
+    } else {
+      target.push({ [key]: value });
+    }
+  }
+}
+
+async function findUserIdsByMeta(metaFilters, tenantId) {
+  if (!metaFilters || Object.keys(metaFilters).length === 0) {
+    return [];
+  }
+
+  let matchingIds = null;
+
+  for (const [key, condition] of Object.entries(metaFilters)) {
+    const metaQuery = {
+      tenantId,
+      entityType: 'user',
+      key
+    };
+
+    if (condition !== null && typeof condition === 'object' && !Array.isArray(condition)) {
+      metaQuery.value = condition;
+    } else {
+      metaQuery.value = condition;
+    }
+
+    const metaRecords = await Meta.find(metaQuery).select('entityId').lean();
+
+    if (!metaRecords || metaRecords.length === 0) {
+      return [];
+    }
+
+    const ids = metaRecords.map((record) => record.entityId.toString());
+
+    if (matchingIds === null) {
+      matchingIds = new Set(ids);
+    } else {
+      const nextMatch = new Set();
+      ids.forEach((id) => {
+        if (matchingIds.has(id)) {
+          nextMatch.add(id);
+        }
+      });
+      matchingIds = nextMatch;
+      if (matchingIds.size === 0) {
+        return [];
+      }
+    }
+  }
+
+  return matchingIds ? Array.from(matchingIds) : [];
+}
 
 /**
  * Получить список всех пользователей
@@ -12,13 +77,53 @@ import { DialogMember } from '../models/index.js';
 export async function getUsers(req, res) {
   try {
     // Парсим фильтры из query
-    const filter = req.query.filter ? parseFilters(req.query.filter) : {};
+    let parsedFilters = {};
+    if (req.query.filter) {
+      const rawFilter = String(req.query.filter);
+      try {
+        parsedFilters = parseFilters(rawFilter);
+      } catch (error) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: `Invalid filter format. ${error.message}`
+        });
+      }
+
+      if (!parsedFilters || Object.keys(parsedFilters).length === 0) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Invalid filter format. No valid conditions were parsed.'
+        });
+      }
+    }
+
+    const { metaFilters, regularFilters } = extractMetaFilters(parsedFilters);
     const sort = req.query.sort ? JSON.parse(req.query.sort) : { createdAt: -1 };
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
 
     // Добавляем фильтр по tenantId
-    const finalFilter = { ...filter, tenantId: req.tenantId };
+    const andConditions = [{ tenantId: req.tenantId }];
+    appendFilterConditions(andConditions, regularFilters);
+
+    if (metaFilters && Object.keys(metaFilters).length > 0) {
+      const userIdsFromMeta = await findUserIdsByMeta(metaFilters, req.tenantId);
+      if (!userIdsFromMeta || userIdsFromMeta.length === 0) {
+        return res.json({
+          data: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            pages: 0
+          }
+        });
+      }
+
+      andConditions.push({ userId: { $in: userIdsFromMeta } });
+    }
+
+    const finalFilter = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
 
     const skip = (page - 1) * limit;
 
