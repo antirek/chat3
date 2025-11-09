@@ -76,6 +76,11 @@ beforeEach(async () => {
     createdAt: generateTimestamp(),
     lastActiveAt: generateTimestamp()
   });
+
+  await Meta.create([
+    { tenantId, entityType: 'user', entityId: 'alice', key: 'role', value: 'manager', dataType: 'string' },
+    { tenantId, entityType: 'user', entityId: 'bob', key: 'role', value: 'agent', dataType: 'string' }
+  ]);
 });
 
 describe('messageController.getAll - filter combinations', () => {
@@ -154,6 +159,16 @@ describe('messageController.getAll - filter combinations', () => {
     expect(ids).toContain(message1.messageId);
     expect(ids).toContain(message3.messageId);
     expect(ids).not.toContain(message2.messageId);
+
+    res.body.data.forEach((message) => {
+      expect(message).toHaveProperty('senderInfo');
+      if (message.senderId === 'alice') {
+        expect(message.senderInfo).toEqual(expect.objectContaining({
+          userId: 'alice',
+          meta: expect.objectContaining({ role: 'manager' })
+        }));
+      }
+    });
   });
 
   test('returns messages filtered by meta channel', async () => {
@@ -166,6 +181,13 @@ describe('messageController.getAll - filter combinations', () => {
     expect(ids).toContain(message1.messageId);
     expect(ids).toContain(message3.messageId);
     expect(ids).not.toContain(message2.messageId);
+
+    res.body.data.forEach((message) => {
+      expect(message).toHaveProperty('senderInfo');
+      if (message.senderId === 'alice') {
+        expect(message.senderInfo?.userId).toBe('alice');
+      }
+    });
   });
 
   test('returns messages filtered by sender AND meta', async () => {
@@ -185,6 +207,9 @@ describe('messageController.getAll - filter combinations', () => {
     await messageController.getAll(req, res);
 
     expect(res.body.data).toHaveLength(3);
+    res.body.data.forEach((message) => {
+      expect(message.senderInfo?.userId).toBe(message.senderId);
+    });
   });
 
   test('supports sorting by createdAt asc', async () => {
@@ -252,6 +277,7 @@ describe('messageController.createMessage - unread handling', () => {
     await messageController.createMessage(req, res);
 
     expect(res.statusCode).toBe(201);
+    expect(res.body.data?.senderInfo).toEqual(expect.objectContaining({ userId: 'alice' }));
     const message = await Message.findOne({ tenantId, senderId: 'alice', type: 'internal.text' }).lean();
     expect(message).toBeTruthy();
 
@@ -274,6 +300,7 @@ describe('messageController.createMessage - unread handling', () => {
     await messageController.createMessage(req, res);
 
     expect(res.statusCode).toBe(201);
+    expect(res.body.data?.senderInfo).toEqual(expect.objectContaining({ userId: 'alice' }));
     const message = await Message.findOne({ tenantId, type: 'system.text' }).lean();
     expect(message).toBeTruthy();
 

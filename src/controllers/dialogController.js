@@ -282,6 +282,46 @@ export const dialogController = {
       }
 
       // Добавляем метаданные для каждого диалога
+      const dialogIdSet = new Set(
+        dialogs
+          .map((dialog) => {
+            if (dialog?.dialogId) {
+              return dialog.dialogId.toString();
+            }
+            if (dialog?.toObject) {
+              const obj = dialog.toObject();
+              return obj.dialogId ? obj.dialogId.toString() : null;
+            }
+            return null;
+          })
+          .filter((id) => typeof id === 'string' && id.length > 0)
+      );
+
+      let memberCounts = {};
+
+      if (dialogIdSet.size > 0) {
+        const dialogIdArray = Array.from(dialogIdSet);
+
+        const counts = await DialogMember.aggregate([
+          {
+            $match: {
+              tenantId: req.tenantId,
+              dialogId: { $in: dialogIdArray }
+            }
+          },
+          {
+            $group: {
+              _id: '$dialogId',
+              count: { $sum: 1 }
+            }
+          }
+        ]);
+
+        counts.forEach(({ _id, count }) => {
+          memberCounts[_id] = count;
+        });
+      }
+
       const dialogsWithMeta = await Promise.all(
         dialogs.map(async (dialog) => {
           // Получаем метаданные диалога
@@ -305,9 +345,16 @@ export const dialogController = {
           //   return (member.unreadCount || 0) > (most.unreadCount || 0) ? member : most;
           // }, members[0] || {});
           
+          const dialogIdForCount = typeof dialogObj.dialogId === 'string'
+            ? dialogObj.dialogId
+            : dialogObj.dialogId?.toString?.();
+
+          const memberCount = dialogIdForCount ? memberCounts[dialogIdForCount] || 0 : 0;
+
           return sanitizeResponse({
             ...dialogWithoutMembers,
-            meta
+            meta,
+            memberCount
             // dialogStats: {
             //   totalUnreadCount,
             //   activeMembersCount,
@@ -365,6 +412,11 @@ export const dialogController = {
         dialog.dialogId
       );
 
+      const memberCount = await DialogMember.countDocuments({
+        tenantId: req.tenantId,
+        dialogId: dialog.dialogId
+      });
+
       // Вычисляем общую статистику по диалогу
       // const totalUnreadCount = members.reduce((total, member) => total + (member.unreadCount || 0), 0);
       // const activeMembersCount = members.filter(member => member.isActive).length;
@@ -380,7 +432,8 @@ export const dialogController = {
       res.json({
         data: sanitizeResponse({
           ...dialogObj,
-          meta
+          meta,
+          memberCount
           // dialogStats: {
           //   totalUnreadCount,
           //   activeMembersCount,

@@ -13,6 +13,15 @@ function generateDialogId() {
   return result;
 }
 
+function generateMessageId() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = 'msg_';
+  for (let i = 0; i < 20; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 describe('userDialogController', () => {
   let mongoUri;
   const tenantId = 'tnt_test';
@@ -654,6 +663,72 @@ describe('userDialogController', () => {
       const response = res.body;
       expect(response.data).toHaveLength(0);
       expect(response.pagination.total).toBe(0);
+    });
+  });
+
+  describe('getUserDialogMessages - senderInfo', () => {
+    let dialog;
+    const viewerId = 'usr_viewer';
+    const senderId = 'usr_sender';
+
+    beforeEach(async () => {
+      const timestamp = generateTimestamp();
+
+      await User.create([
+        { tenantId, userId: viewerId, name: 'Viewer', lastActiveAt: timestamp, createdAt: timestamp },
+        { tenantId, userId: senderId, name: 'Support Agent', lastActiveAt: timestamp, createdAt: timestamp }
+      ]);
+
+      await Meta.create([
+        { tenantId, entityType: 'user', entityId: senderId, key: 'role', value: 'agent', dataType: 'string' }
+      ]);
+
+      dialog = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: viewerId,
+        name: 'Support Dialog',
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+
+      await DialogMember.create([
+        { tenantId, dialogId: dialog.dialogId, userId: viewerId, isActive: true, unreadCount: 0, joinedAt: timestamp },
+        { tenantId, dialogId: dialog.dialogId, userId: senderId, isActive: true, unreadCount: 0, joinedAt: timestamp }
+      ]);
+
+      await Message.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        messageId: generateMessageId(),
+        senderId,
+        content: 'Hello!',
+        type: 'internal.text',
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+    });
+
+    test('includes senderInfo for each message', async () => {
+      const req = createMockReq(
+        { userId: viewerId, dialogId: dialog.dialogId },
+        { page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogMessages(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body?.data).toHaveLength(1);
+      const [message] = res.body.data;
+      expect(message).toHaveProperty('senderInfo');
+      expect(message.senderInfo).toEqual(
+        expect.objectContaining({
+          userId: senderId,
+          name: 'Support Agent',
+          meta: expect.objectContaining({ role: 'agent' })
+        })
+      );
     });
   });
 });

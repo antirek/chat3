@@ -144,6 +144,10 @@ describe('dialogController.getAll - filter combinations', () => {
 
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data).toHaveLength(4);
+    res.body.data.forEach((dialog) => {
+      expect(dialog).toHaveProperty('memberCount');
+      expect(typeof dialog.memberCount).toBe('number');
+    });
   });
 
   test('filters dialogs by meta tag eq', async () => {
@@ -337,6 +341,7 @@ describe('dialogController.getById', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data.dialogId).toBe(dialog.dialogId);
     expect(res.body.data.meta).toEqual({ priority: 'high' });
+    expect(res.body.data.memberCount).toBe(1);
     expect(res.body.data.members).toBeUndefined();
   });
 

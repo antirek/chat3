@@ -1,4 +1,4 @@
-import { Message, Dialog, Meta, MessageStatus } from '../models/index.js';
+import { Message, Dialog, MessageStatus, User } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
@@ -10,7 +10,45 @@ import { sanitizeResponse } from '../utils/responseUtils.js';
  * @param {String} tenantId - Tenant ID
  * @returns {Promise<Array>} - Array of enriched messages with meta and statuses
  */
+async function getSenderInfo(tenantId, senderId, cache = new Map()) {
+  if (!senderId) {
+    return null;
+  }
+
+  if (cache.has(senderId)) {
+    return cache.get(senderId);
+  }
+
+  const user = await User.findOne({
+    tenantId,
+    userId: senderId
+  })
+    .select('userId name lastActiveAt createdAt updatedAt')
+    .lean();
+
+  if (!user) {
+    cache.set(senderId, null);
+    return null;
+  }
+
+  const userMeta = await metaUtils.getEntityMeta(tenantId, 'user', senderId);
+
+  const senderInfo = {
+    userId: user.userId,
+    name: user.name || null,
+    lastActiveAt: user.lastActiveAt ?? null,
+    createdAt: user.createdAt ?? null,
+    updatedAt: user.updatedAt ?? null,
+    meta: userMeta
+  };
+
+  cache.set(senderId, senderInfo);
+  return senderInfo;
+}
+
 async function enrichMessagesWithMetaAndStatuses(messages, tenantId) {
+  const senderInfoCache = new Map();
+
   return await Promise.all(
     messages.map(async (message) => {
       // Get message meta data
@@ -31,11 +69,14 @@ async function enrichMessagesWithMetaAndStatuses(messages, tenantId) {
       
       const messageObj = message.toObject ? message.toObject() : message;
       
+      const senderInfo = await getSenderInfo(tenantId, messageObj.senderId, senderInfoCache);
+
       // dialogId теперь уже строка в формате dlg_, не нужно преобразовывать
       return {
         ...messageObj,
         meta,
-        statuses: messageStatuses
+        statuses: messageStatuses,
+        senderInfo: senderInfo || null
       };
     })
   );
@@ -403,6 +444,8 @@ const messageController = {
         message.messageId
       );
 
+      const senderInfo = await getSenderInfo(req.tenantId, senderId);
+
       // Ограничиваем контент до 4096 символов для события
       const MAX_CONTENT_LENGTH = 4096;
       const eventContent = messageContent.length > MAX_CONTENT_LENGTH 
@@ -439,7 +482,8 @@ const messageController = {
       res.status(201).json({
         data: sanitizeResponse({
           ...messageObj,
-          meta: messageMeta
+          meta: messageMeta,
+          senderInfo: senderInfo || null
         }),
         message: 'Message created successfully'
       });
@@ -496,6 +540,8 @@ const messageController = {
         message.messageId
       );
 
+      const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
+
       const messageObj = message.toObject();
       
       // dialogId теперь уже строка в формате dlg_, не нужно преобразовывать
@@ -504,7 +550,8 @@ const messageController = {
         data: sanitizeResponse({
           ...messageObj,
           statuses: messageStatuses,
-          meta
+          meta,
+          senderInfo: senderInfo || null
         })
       });
     } catch (error) {

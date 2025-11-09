@@ -4,6 +4,42 @@ import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 
+async function getSenderInfo(tenantId, senderId, cache = new Map()) {
+  if (!senderId) {
+    return null;
+  }
+
+  if (cache.has(senderId)) {
+    return cache.get(senderId);
+  }
+
+  const user = await User.findOne({
+    userId: senderId,
+    tenantId
+  })
+    .select('userId name lastActiveAt createdAt updatedAt')
+    .lean();
+
+  const meta = await metaUtils.getEntityMeta(tenantId, 'user', senderId);
+
+  if (!user && (!meta || Object.keys(meta).length === 0)) {
+    cache.set(senderId, null);
+    return null;
+  }
+
+  const senderInfo = {
+    userId: senderId,
+    name: user?.name || null,
+    lastActiveAt: user?.lastActiveAt ?? null,
+    createdAt: user?.createdAt ?? null,
+    updatedAt: user?.updatedAt ?? null,
+    meta
+  };
+
+  cache.set(senderId, senderInfo);
+  return senderInfo;
+}
+
 const userDialogController = {
   // Get user's dialogs with optional last message
   async getUserDialogs(req, res) {
@@ -894,11 +930,13 @@ const userDialogController = {
         statusesByMessage[status.messageId].push(status);
       });
 
+      const senderInfoCache = new Map();
+
       // 4.5. Загружаем информацию о пользователе из контекста
       const contextUser = await User.findOne({
         userId: userId,
         tenantId: req.tenantId
-      }).select('userId name').lean();
+      }).select('userId name lastActiveAt createdAt updatedAt').lean();
 
       let contextUserInfo = null;
       if (contextUser) {
@@ -906,9 +944,13 @@ const userDialogController = {
         const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
         contextUserInfo = {
           userId: contextUser.userId,
-          name: contextUser.name,
+          name: contextUser.name || null,
+          lastActiveAt: contextUser.lastActiveAt ?? null,
+          createdAt: contextUser.createdAt ?? null,
+          updatedAt: contextUser.updatedAt ?? null,
           meta: contextUserMeta
         };
+        senderInfoCache.set(contextUser.userId, contextUserInfo);
       } else {
         // Fallback: пользователь не существует в Chat3 API, но может быть meta теги
         // Используем getMeta для получения данных пользователя (например, avatar)
@@ -918,8 +960,12 @@ const userDialogController = {
           contextUserInfo = {
             userId: userId,
             name: null, // Имя отсутствует, так как пользователя нет в User
+            lastActiveAt: null,
+            createdAt: null,
+            updatedAt: null,
             meta: contextUserMeta
           };
+          senderInfoCache.set(userId, contextUserInfo);
         }
       }
 
@@ -955,13 +1001,16 @@ const userDialogController = {
             contextData.userInfo = contextUserInfo;
           }
 
+          const senderInfo = await getSenderInfo(req.tenantId, message.senderId, senderInfoCache);
+
           return {
             ...message,
             meta: messageMeta,
             // Контекстные данные для конкретного пользователя
             context: contextData,
             // Все статусы от всех пользователей
-            statuses: messageStatuses
+            statuses: messageStatuses,
+            senderInfo: senderInfo || null
           };
         })
       );
@@ -1050,7 +1099,7 @@ const userDialogController = {
       const contextUser = await User.findOne({
         userId: userId,
         tenantId: req.tenantId
-      }).select('userId name').lean();
+      }).select('userId name lastActiveAt createdAt updatedAt').lean();
 
       let contextUserInfo = null;
       if (contextUser) {
@@ -1058,7 +1107,10 @@ const userDialogController = {
         const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
         contextUserInfo = {
           userId: contextUser.userId,
-          name: contextUser.name,
+          name: contextUser.name || null,
+          lastActiveAt: contextUser.lastActiveAt ?? null,
+          createdAt: contextUser.createdAt ?? null,
+          updatedAt: contextUser.updatedAt ?? null,
           meta: contextUserMeta
         };
       } else {
@@ -1070,6 +1122,9 @@ const userDialogController = {
           contextUserInfo = {
             userId: userId,
             name: null, // Имя отсутствует, так как пользователя нет в User
+            lastActiveAt: null,
+            createdAt: null,
+            updatedAt: null,
             meta: contextUserMeta
           };
         }
@@ -1088,6 +1143,8 @@ const userDialogController = {
         contextData.userInfo = contextUserInfo;
       }
 
+      const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
+
       const enrichedMessage = {
         ...message,
         meta: messageMeta,
@@ -1095,7 +1152,8 @@ const userDialogController = {
         context: contextData,
         // Полная информация
         statuses: allStatuses,
-        reactions: allReactions
+        reactions: allReactions,
+        senderInfo: senderInfo || null
       };
 
       res.json({

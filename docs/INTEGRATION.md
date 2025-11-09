@@ -75,9 +75,9 @@
 | Категория | Endpoint | Описание | Требуемые права |
 |-----------|----------|----------|-----------------|
 | Tenants | `GET/POST/PUT/DELETE /tenants` | Управление организациями (редко используется внешними системами). | read/write/delete |
-| Dialogs | `GET /dialogs` | Список диалогов с фильтрами, сортировкой, пагинацией; участники не включаются. | read |
+| Dialogs | `GET /dialogs` | Список диалогов с фильтрами, сортировкой, пагинацией; участники не включаются, поле `memberCount` показывает количество участников. | read |
 | Dialogs | `POST /dialogs` | Создание диалога, указание участников и мета-тегов. | write |
-| Dialogs | `GET /dialogs/:dialogId` | Детали диалога и мета-информация без списка участников. | read |
+| Dialogs | `GET /dialogs/:dialogId` | Детали диалога и мета-информация без списка участников; доступно поле `memberCount`. | read |
 | Dialogs | `GET /dialogs/:dialogId/members` | Пагинированный список участников диалога с фильтрами `queryParser` и `meta.*`. | read |
 | Dialogs | `DELETE /dialogs/:dialogId` | Удаление диалога. | delete |
 | Dialog Members | `POST /dialogs/{dialogId}/member/{userId}/typing` | Сигнал "пользователь печатает" (идемпотентен 1 с). | write |
@@ -95,6 +95,8 @@
 | Meta | `GET/PUT/DELETE /meta/:entityType/:entityId/:key` | Работа с мета-тегами любой сущности. | read/write/delete |
 
 > Полные описания полей и примеры см. в `docs/API.md` (REST) и `docs/FILTER_RULES.md` (фильтры).
+
+- Ответы `GET /messages` и `GET /dialogs/:dialogId/messages` содержат объект `senderInfo`, если пользователь с `senderId` существует. В структуру входят `userId`, `name`, временные метки и `meta` (все мета-теги пользователя).
 
 #### Получение участников диалога
 
