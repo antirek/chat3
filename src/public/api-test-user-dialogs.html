@@ -532,6 +532,106 @@
             border-radius: 4px;
         }
 
+        .members-tab-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .members-tab-bar .tab-button {
+            flex: 0 0 auto;
+            padding: 6px 12px;
+            border: 1px solid #ced4da;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            color: #495057;
+            transition: all 0.2s;
+        }
+
+        .members-tab-bar .tab-button.active {
+            background: #667eea;
+            border-color: #667eea;
+            color: white;
+        }
+
+        .members-tab-bar .tab-button:not(.active):hover {
+            background: #e9ecef;
+        }
+
+        .member-meta-editor {
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px;
+            background: #f8f9fa;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .member-meta-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .member-meta-row input {
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .member-meta-row .member-meta-key {
+            flex: 0 0 180px;
+            background: white;
+        }
+
+        .member-meta-row .member-meta-key[readonly] {
+            background: #e9ecef;
+            cursor: not-allowed;
+        }
+
+        .member-meta-row .member-meta-value {
+            flex: 1;
+        }
+
+        .member-meta-row input.input-error {
+            border-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .meta-editor-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .status-message {
+            margin-top: 12px;
+            font-size: 12px;
+        }
+
+        .status-success {
+            color: #28a745;
+        }
+
+        .status-error {
+            color: #dc3545;
+        }
+
+        .member-meta-empty {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            font-size: 12px;
+            background: #f8f9fa;
+            border: 1px dashed #ced4da;
+            border-radius: 6px;
+        }
+
         /* Стили для формы добавления сообщения */
         .form-group {
             margin-bottom: 15px;
@@ -955,38 +1055,95 @@
                 <span class="close" onclick="closeMembersModal()">&times;</span>
             </div>
             <div class="modal-body">
-                <!-- Список текущих участников -->
-                <div style="margin-bottom: 25px;">
-                    <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Текущие участники:</h3>
-                    <div id="currentMembersList" style="max-height: 300px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 6px; padding: 10px; background: #f8f9fa;">
-                        <div class="loading">Загрузка участников...</div>
+                <div class="members-tab-bar">
+                    <button type="button" class="tab-button active" id="membersTabList" onclick="switchMembersTab('list')">Список</button>
+                    <button type="button" class="tab-button" id="membersTabMeta" onclick="switchMembersTab('meta')">Мета</button>
+                </div>
+
+                <div id="membersListSection">
+                    <div style="margin-bottom: 25px;">
+                        <div class="filter-form" style="border: 1px solid #e9ecef; border-radius: 6px; margin-bottom: 15px;">
+                            <div class="form-section">
+                                <label for="memberFilterInput">🔍 Фильтр участников (формат: <code>(поле,оператор,значение)</code>)</label>
+                                <select id="memberFilterExample" onchange="selectMemberFilterExample()" style="margin-bottom: 8px;">
+                                    <option value="">Выберите пример</option>
+                                    <optgroup label="userId">
+                                        <option value="(userId,regex,carl)">userId содержит "carl"</option>
+                                        <option value="(userId,eq,alice)">userId = alice</option>
+                                    </optgroup>
+                                    <optgroup label="Активность и счётчики">
+                                        <option value="(isActive,eq,true)">Только активные</option>
+                                        <option value="(unreadCount,gt,0)">Непрочитанные &gt; 0</option>
+                                    </optgroup>
+                                    <optgroup label="Мета-теги (meta.*)">
+                                        <option value="(meta.role,eq,agent)">meta.role = agent</option>
+                                        <option value="(meta.shift,eq,day)">meta.shift = day</option>
+                                    </optgroup>
+                                    <option value="custom">Пользовательский фильтр</option>
+                                </select>
+                                <div class="input-with-clear">
+                                    <input type="text" id="memberFilterInput" placeholder="Например: (userId,regex,carl)&(meta.role,eq,agent)">
+                                    <button class="clear-field" type="button" onclick="clearMemberFilterField()" title="Очистить поле">✕</button>
+                                </div>
+                                <small style="display: block; margin-top: 6px; color: #6c757d;">Поддерживаются поля `userId`, `isActive`, `unreadCount`, `joinedAt`, `meta.*`. Операторы: eq, ne, regex, in, nin, gt, gte, lt, lte.</small>
+                            </div>
+                            <div class="form-actions" style="margin-top: 8px;">
+                                <button class="primary" type="button" onclick="applyMemberFilter()">Применить</button>
+                                <button type="button" onclick="clearMemberFilter()">Сбросить</button>
+                            </div>
+                        </div>
+                        <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Текущие участники:</h3>
+                        <div id="currentMembersList" style="max-height: 300px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 6px; padding: 10px; background: #f8f9fa;">
+                            <div class="loading">Загрузка участников...</div>
+                        </div>
+                    </div>
+
+                    <div style="border-top: 2px solid #e9ecef; padding-top: 20px;">
+                        <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Добавить участника:</h3>
+                        <form id="addMemberForm">
+                            <div class="form-group" style="display: flex; gap: 10px; align-items: flex-end;">
+                                <div style="flex: 1;">
+                                    <label for="newMemberSelect">Выберите пользователя:</label>
+                                    <select id="newMemberSelect" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                                        <option value="">-- Выберите пользователя --</option>
+                                        <option value="carl">Carl</option>
+                                        <option value="marta">Marta</option>
+                                        <option value="sara">Sara</option>
+                                        <option value="kirk">Kirk</option>
+                                        <option value="john">John</option>
+                                        <option value="alice">Alice</option>
+                                        <option value="bob">Bob</option>
+                                        <option value="system_bot">System Bot</option>
+                                    </select>
+                                </div>
+                                <div class="form-actions" style="margin: 0;">
+                                    <button type="submit" style="white-space: nowrap;">Добавить</button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
 
-                <!-- Добавление нового участника -->
-                <div style="border-top: 2px solid #e9ecef; padding-top: 20px;">
-                    <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Добавить участника:</h3>
-                    <form id="addMemberForm">
-                        <div class="form-group" style="display: flex; gap: 10px; align-items: flex-end;">
-                            <div style="flex: 1;">
-                                <label for="newMemberSelect">Выберите пользователя:</label>
-                                <select id="newMemberSelect" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
-                                    <option value="">-- Выберите пользователя --</option>
-                                    <option value="carl">Carl</option>
-                                    <option value="marta">Marta</option>
-                                    <option value="sara">Sara</option>
-                                    <option value="kirk">Kirk</option>
-                                    <option value="john">John</option>
-                                    <option value="alice">Alice</option>
-                                    <option value="bob">Bob</option>
-                                    <option value="system_bot">System Bot</option>
-                                </select>
-                            </div>
-                            <div class="form-actions" style="margin: 0;">
-                                <button type="submit" style="white-space: nowrap;">Добавить</button>
-                            </div>
-                        </div>
-                    </form>
+                <div id="memberMetaSection" style="display: none;">
+                    <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Редактирование мета-тегов</h3>
+                    <div class="form-section">
+                        <label for="memberMetaSelect">Выберите участника:</label>
+                        <select id="memberMetaSelect" onchange="onSelectMemberForMeta()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                            <option value="">-- Выберите участника --</option>
+                        </select>
+                    </div>
+                    <div id="memberMetaEditorContainer" style="margin-top: 15px;">
+                        <div id="memberMetaEmptyState" class="member-meta-empty">Выберите участника, чтобы редактировать мета-теги</div>
+                        <div id="memberMetaEditor" class="member-meta-editor" style="display: none;"></div>
+                    </div>
+                    <div class="meta-editor-actions" id="memberMetaEditorActions" style="display: none;">
+                        <button type="button" onclick="addMemberMetaRow()">+ Добавить тег</button>
+                    </div>
+                    <div class="meta-editor-actions" id="memberMetaSaveActions" style="display: none;">
+                        <button type="button" class="primary" onclick="saveMemberMetaChanges()">Сохранить</button>
+                        <button type="button" onclick="cancelMemberMetaEditing()">Отмена</button>
+                    </div>
+                    <div id="memberMetaStatus" class="status-message"></div>
                 </div>
             </div>
         </div>
@@ -1008,6 +1165,11 @@
         let currentDialogSort = null;
         let allUsers = [];
         let currentUserFilter = '';
+        let currentDialogMembers = [];
+        let currentMembersTab = 'list';
+        let currentMemberMetaEditingUserId = null;
+        let currentMemberMetaOriginal = {};
+        let currentMemberFilter = '';
 
         // Установка API ключа
         function setApiKey() {
@@ -1888,6 +2050,15 @@
                     }
                 });
             }
+            const memberFilterInput = document.getElementById('memberFilterInput');
+            if (memberFilterInput) {
+                memberFilterInput.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        applyMemberFilter();
+                    }
+                });
+            }
         });
         // Функции для работы с фильтрами сообщений
         function selectMessageFilterExample() {
@@ -2214,12 +2385,18 @@
         async function showMembersModal(dialogId, dialogName) {
             currentDialogIdForMembers = dialogId;
             currentDialogNameForMembers = dialogName;
+            currentMemberFilter = '';
             
             // Обновляем заголовок модального окна
             document.querySelector('#membersModal .modal-title').textContent = `Участники диалога "${dialogName}"`;
             
             // Сбрасываем форму
             document.getElementById('addMemberForm').reset();
+            clearMemberFilterField();
+            currentMemberMetaEditingUserId = null;
+            currentMemberMetaOriginal = {};
+            switchMembersTab('list');
+            clearMemberMetaEditor();
             
             // Показываем модальное окно
             document.getElementById('membersModal').style.display = 'block';
@@ -2233,6 +2410,13 @@
             document.getElementById('membersModal').style.display = 'none';
             currentDialogIdForMembers = null;
             currentDialogNameForMembers = null;
+            currentMemberMetaEditingUserId = null;
+            currentMemberMetaOriginal = {};
+            clearMemberMetaEditor();
+            const select = document.getElementById('memberMetaSelect');
+            if (select) {
+                select.value = '';
+            }
         }
 
         // Загрузка списка участников диалога
@@ -2241,8 +2425,17 @@
             
             try {
                 membersList.innerHTML = '<div class="loading">Загрузка участников...</div>';
+
+                const params = new URLSearchParams({
+                    page: '1',
+                    limit: '100',
+                    sort: '(joinedAt,asc)'
+                });
+                if (currentMemberFilter) {
+                    params.append('filter', currentMemberFilter);
+                }
                 
-                const response = await fetch(`/api/dialogs/${dialogId}`, {
+                const response = await fetch(`/api/dialogs/${dialogId}/members?${params.toString()}`, {
                     method: 'GET',
                     headers: {
                         'X-API-Key': apiKey,
@@ -2251,12 +2444,23 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    let message = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorPayload = await response.json();
+                        if (errorPayload?.message) {
+                            message = errorPayload.message;
+                        }
+                    } catch (_) {
+                        // ignore parse issues
+                    }
+                    throw new Error(message);
                 }
 
                 const data = await response.json();
-                const members = data.data?.members || [];
-                
+                const members = Array.isArray(data.data) ? data.data : [];
+                currentDialogMembers = members;
+                refreshMemberMetaSelect();
+
                 if (members.length === 0) {
                     membersList.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px;">Участников нет</div>';
                     return;
@@ -2270,6 +2474,7 @@
                                 <th style="text-align: left; padding: 8px; color: #495057; font-weight: 600;">Пользователь</th>
                                 <th style="text-align: center; padding: 8px; color: #495057; font-weight: 600;">Непрочитанные</th>
                                 <th style="text-align: center; padding: 8px; color: #495057; font-weight: 600;">Активен</th>
+                                <th style="text-align: left; padding: 8px; color: #495057; font-weight: 600;">Мета</th>
                                 <th style="text-align: center; padding: 8px; color: #495057; font-weight: 600;">Действия</th>
                             </tr>
                         </thead>
@@ -2280,6 +2485,9 @@
                                     <td style="padding: 8px; text-align: center; color: #6c757d;">${member.unreadCount || 0}</td>
                                     <td style="padding: 8px; text-align: center;">
                                         <span style="color: ${member.isActive ? '#28a745' : '#dc3545'};">${member.isActive ? '✓' : '✗'}</span>
+                                    </td>
+                                    <td style="padding: 8px; color: #6c757d; font-size: 12px;">
+                                        ${formatMemberMeta(member.meta)}
                                     </td>
                                     <td style="padding: 8px; text-align: center;">
                                         <button onclick="removeMember('${dialogId}', '${member.userId}')" 
@@ -2294,8 +2502,479 @@
                 `;
             } catch (error) {
                 console.error('Error loading members:', error);
-                membersList.innerHTML = `<div style="text-align: center; color: #dc3545; padding: 20px;">Ошибка загрузки: ${error.message}</div>`;
+                currentDialogMembers = [];
+                refreshMemberMetaSelect();
+                const safeMessage = escapeHtml(error.message || 'Неизвестная ошибка');
+                membersList.innerHTML = `<div style="text-align: center; color: #dc3545; padding: 20px;">Ошибка загрузки: ${safeMessage}</div>`;
             }
+        }
+
+        function formatMemberMeta(meta) {
+            if (!meta || Object.keys(meta).length === 0) {
+                return '<span style="color: #adb5bd;">—</span>';
+            }
+
+            return Object.entries(meta)
+                .map(([key, value]) => `<div><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value)}</div>`)
+                .join('');
+        }
+
+        function switchMembersTab(tab) {
+            currentMembersTab = tab;
+            const listSection = document.getElementById('membersListSection');
+            const metaSection = document.getElementById('memberMetaSection');
+            const listButton = document.getElementById('membersTabList');
+            const metaButton = document.getElementById('membersTabMeta');
+
+            if (listSection && metaSection) {
+                if (tab === 'meta') {
+                    listSection.style.display = 'none';
+                    metaSection.style.display = 'block';
+                    refreshMemberMetaSelect();
+                } else {
+                    listSection.style.display = 'block';
+                    metaSection.style.display = 'none';
+                }
+            }
+
+            if (listButton && metaButton) {
+                if (tab === 'meta') {
+                    listButton.classList.remove('active');
+                    metaButton.classList.add('active');
+                } else {
+                    listButton.classList.add('active');
+                    metaButton.classList.remove('active');
+                }
+            }
+
+            if (tab !== 'meta') {
+                setMemberMetaStatus('');
+            }
+        }
+
+        function setMemberMetaStatus(message, type = '') {
+            const statusEl = document.getElementById('memberMetaStatus');
+            if (!statusEl) {
+                return;
+            }
+            statusEl.textContent = message || '';
+            statusEl.classList.remove('status-success', 'status-error');
+            if (message) {
+                if (type === 'success') {
+                    statusEl.classList.add('status-success');
+                } else if (type === 'error') {
+                    statusEl.classList.add('status-error');
+                }
+            }
+        }
+
+        function deepClone(value) {
+            try {
+                return JSON.parse(JSON.stringify(value ?? {}));
+            } catch (error) {
+                console.warn('Failed to clone value', error);
+                return {};
+            }
+        }
+
+        function clearMemberMetaEditor() {
+            const editor = document.getElementById('memberMetaEditor');
+            const emptyState = document.getElementById('memberMetaEmptyState');
+            const actions = document.getElementById('memberMetaEditorActions');
+            const saveActions = document.getElementById('memberMetaSaveActions');
+            if (editor) {
+                editor.innerHTML = '';
+                editor.style.display = 'none';
+            }
+            if (emptyState) {
+                emptyState.style.display = 'block';
+            }
+            if (actions) {
+                actions.style.display = 'none';
+            }
+            if (saveActions) {
+                saveActions.style.display = 'none';
+            }
+            setMemberMetaStatus('');
+        }
+
+        function refreshMemberMetaSelect() {
+            const select = document.getElementById('memberMetaSelect');
+            if (!select) {
+                return;
+            }
+
+            const previousValue = currentMemberMetaEditingUserId;
+            const options = ['<option value="">-- Выберите участника --</option>'];
+            currentDialogMembers.forEach(member => {
+                const safeUserId = escapeHtml(member.userId);
+                options.push(`<option value="${safeUserId}">${safeUserId}</option>`);
+            });
+            select.innerHTML = options.join('');
+
+            if (previousValue && currentDialogMembers.some(member => member.userId === previousValue)) {
+                select.value = previousValue;
+                const member = currentDialogMembers.find(m => m.userId === previousValue);
+                currentMemberMetaOriginal = deepClone(member?.meta || {});
+                renderMemberMetaEditor(currentMemberMetaOriginal);
+            } else {
+                select.value = '';
+                currentMemberMetaEditingUserId = null;
+                currentMemberMetaOriginal = {};
+                clearMemberMetaEditor();
+            }
+        }
+
+        function onSelectMemberForMeta() {
+            const select = document.getElementById('memberMetaSelect');
+            if (!select) {
+                return;
+            }
+            const userId = select.value;
+            setMemberMetaStatus('');
+
+            if (!userId) {
+                currentMemberMetaEditingUserId = null;
+                currentMemberMetaOriginal = {};
+                clearMemberMetaEditor();
+                return;
+            }
+
+            const member = currentDialogMembers.find(m => m.userId === userId);
+            currentMemberMetaEditingUserId = userId;
+            currentMemberMetaOriginal = deepClone(member?.meta || {});
+            renderMemberMetaEditor(currentMemberMetaOriginal);
+        }
+
+        function renderMemberMetaEditor(meta = {}) {
+            const editor = document.getElementById('memberMetaEditor');
+            const emptyState = document.getElementById('memberMetaEmptyState');
+            const actions = document.getElementById('memberMetaEditorActions');
+            const saveActions = document.getElementById('memberMetaSaveActions');
+
+            if (!editor || !emptyState || !actions || !saveActions) {
+                return;
+            }
+
+            editor.innerHTML = '';
+            const keys = Object.keys(meta || {});
+
+            if (keys.length === 0) {
+                editor.style.display = 'none';
+                emptyState.style.display = 'block';
+            } else {
+                keys.forEach(key => {
+                    editor.appendChild(createMemberMetaRowElement(key, meta[key], true));
+                });
+                editor.style.display = 'block';
+                emptyState.style.display = 'none';
+            }
+
+            actions.style.display = 'flex';
+            saveActions.style.display = 'flex';
+            updateMemberMetaEditorState();
+        }
+
+        function createMemberMetaRowElement(key, value, isExisting) {
+            const row = document.createElement('div');
+            row.className = 'member-meta-row';
+            row.dataset.originalKey = isExisting ? key : '';
+
+            const keyInput = document.createElement('input');
+            keyInput.type = 'text';
+            keyInput.className = 'member-meta-key';
+            keyInput.placeholder = 'Ключ';
+            if (isExisting) {
+                keyInput.value = key;
+                keyInput.readOnly = true;
+            }
+
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.className = 'member-meta-value';
+            valueInput.placeholder = 'Значение';
+            valueInput.value = formatMetaValueForInput(value);
+
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'remove-meta-btn';
+            removeButton.textContent = '✕';
+            removeButton.onclick = () => removeMemberMetaRow(removeButton);
+
+            row.appendChild(keyInput);
+            row.appendChild(valueInput);
+            row.appendChild(removeButton);
+
+            return row;
+        }
+
+        function addMemberMetaRow() {
+            const editor = document.getElementById('memberMetaEditor');
+            if (!editor) {
+                return;
+            }
+            const row = createMemberMetaRowElement('', '', false);
+            editor.appendChild(row);
+            updateMemberMetaEditorState();
+            const keyInput = row.querySelector('.member-meta-key');
+            if (keyInput) {
+                keyInput.focus();
+            }
+        }
+
+        function removeMemberMetaRow(button) {
+            const row = button.closest('.member-meta-row');
+            if (row) {
+                row.remove();
+                updateMemberMetaEditorState();
+            }
+        }
+
+        function updateMemberMetaEditorState() {
+            const editor = document.getElementById('memberMetaEditor');
+            const emptyState = document.getElementById('memberMetaEmptyState');
+            if (!editor || !emptyState) {
+                return;
+            }
+            const hasRows = editor.querySelectorAll('.member-meta-row').length > 0;
+            if (hasRows) {
+                editor.style.display = 'block';
+                emptyState.style.display = 'none';
+            } else {
+                editor.style.display = 'none';
+                emptyState.style.display = 'block';
+            }
+        }
+
+        function formatMetaValueForInput(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+            if (typeof value === 'object') {
+                try {
+                    return JSON.stringify(value);
+                } catch (error) {
+                    console.warn('Failed to stringify meta value', error);
+                    return '';
+                }
+            }
+            return String(value);
+        }
+
+        function collectMemberMetaRows() {
+            const editor = document.getElementById('memberMetaEditor');
+            if (!editor) {
+                return { metaEntries: {}, metaPlain: {}, errors: [] };
+            }
+            const rows = Array.from(editor.querySelectorAll('.member-meta-row'));
+            const metaEntries = {};
+            const metaPlain = {};
+            const errors = [];
+
+            rows.forEach(row => {
+                const keyInput = row.querySelector('.member-meta-key');
+                const valueInput = row.querySelector('.member-meta-value');
+                if (!keyInput || !valueInput) {
+                    return;
+                }
+                keyInput.classList.remove('input-error');
+
+                const key = keyInput.value.trim();
+                if (!key) {
+                    errors.push('Ключ мета-тега не может быть пустым');
+                    keyInput.classList.add('input-error');
+                    return;
+                }
+                if (metaEntries[key]) {
+                    errors.push(`Дублирующийся ключ "${key}"`);
+                    keyInput.classList.add('input-error');
+                    return;
+                }
+
+                const parsed = parseMetaValue(valueInput.value);
+                metaEntries[key] = { value: parsed.value, dataType: parsed.dataType };
+                metaPlain[key] = parsed.value;
+            });
+
+            return { metaEntries, metaPlain, errors };
+        }
+
+        function parseMetaValue(raw) {
+            const trimmed = raw.trim();
+            if (trimmed === '') {
+                return { value: '', dataType: 'string' };
+            }
+            if (trimmed === 'true' || trimmed === 'false') {
+                return { value: trimmed === 'true', dataType: 'boolean' };
+            }
+            const numericValue = Number(trimmed);
+            if (!Number.isNaN(numericValue) && trimmed !== '') {
+                return { value: numericValue, dataType: 'number' };
+            }
+            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    return { value: parsed, dataType: Array.isArray(parsed) ? 'array' : 'object' };
+                } catch (error) {
+                    console.warn('Failed to parse JSON meta value', error);
+                }
+            }
+            return { value: raw, dataType: 'string' };
+        }
+
+        function valuesAreEqual(a, b) {
+            return JSON.stringify(a) === JSON.stringify(b);
+        }
+
+        async function saveMemberMetaChanges() {
+            if (!currentDialogIdForMembers || !currentMemberMetaEditingUserId) {
+                alert('Сначала выберите участника');
+                return;
+            }
+
+            const { metaEntries, metaPlain, errors } = collectMemberMetaRows();
+            if (errors.length > 0) {
+                setMemberMetaStatus(errors[0], 'error');
+                return;
+            }
+
+            const original = currentMemberMetaOriginal || {};
+            const newKeys = Object.keys(metaEntries);
+            const originalKeys = Object.keys(original);
+
+            const updates = [];
+            newKeys.forEach(key => {
+                const entry = metaEntries[key];
+                if (!Object.prototype.hasOwnProperty.call(original, key) || !valuesAreEqual(original[key], entry.value)) {
+                    updates.push({
+                        key,
+                        value: entry.value,
+                        dataType: entry.dataType
+                    });
+                }
+            });
+
+            const deletions = originalKeys.filter(key => !metaEntries[key]);
+
+            if (updates.length === 0 && deletions.length === 0) {
+                setMemberMetaStatus('Изменений нет', 'success');
+                return;
+            }
+
+            const entityId = `${currentDialogIdForMembers}:${currentMemberMetaEditingUserId}`;
+
+            try {
+                for (const update of updates) {
+                    const response = await fetch(`/api/meta/dialogMember/${encodeURIComponent(entityId)}/${encodeURIComponent(update.key)}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': apiKey,
+                            'X-TENANT-ID': tenantId
+                        },
+                        body: JSON.stringify({
+                            value: update.value,
+                            dataType: update.dataType
+                        })
+                    });
+                    if (!response.ok) {
+                        const errorPayload = await safeParseJson(response);
+                        const message = errorPayload?.message || `Не удалось сохранить тег "${update.key}"`;
+                        throw new Error(message);
+                    }
+                }
+
+                for (const key of deletions) {
+                    const response = await fetch(`/api/meta/dialogMember/${encodeURIComponent(entityId)}/${encodeURIComponent(key)}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-API-Key': apiKey,
+                            'X-TENANT-ID': tenantId
+                        }
+                    });
+                    if (!response.ok) {
+                        const errorPayload = await safeParseJson(response);
+                        const message = errorPayload?.message || `Не удалось удалить тег "${key}"`;
+                        throw new Error(message);
+                    }
+                }
+
+                setMemberMetaStatus('Мета-теги успешно обновлены', 'success');
+                await loadDialogMembers(currentDialogIdForMembers);
+
+                const updatedMember = currentDialogMembers.find(member => member.userId === currentMemberMetaEditingUserId);
+                currentMemberMetaOriginal = deepClone(updatedMember?.meta || {});
+                renderMemberMetaEditor(currentMemberMetaOriginal);
+
+                const select = document.getElementById('memberMetaSelect');
+                if (select) {
+                    select.value = currentMemberMetaEditingUserId || '';
+                }
+            } catch (error) {
+                console.error('Error saving member meta:', error);
+                setMemberMetaStatus(error.message || 'Ошибка при сохранении мета-тегов', 'error');
+            }
+        }
+
+        function cancelMemberMetaEditing() {
+            if (!currentMemberMetaEditingUserId) {
+                clearMemberMetaEditor();
+                return;
+            }
+            renderMemberMetaEditor(currentMemberMetaOriginal);
+            setMemberMetaStatus('Изменения отменены', 'success');
+        }
+
+        async function safeParseJson(response) {
+            try {
+                return await response.json();
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function selectMemberFilterExample() {
+            const select = document.getElementById('memberFilterExample');
+            const input = document.getElementById('memberFilterInput');
+
+            if (select.value && select.value !== 'custom') {
+                input.value = select.value;
+                applyMemberFilter();
+            } else if (select.value === 'custom') {
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function clearMemberFilterField() {
+            const input = document.getElementById('memberFilterInput');
+            const select = document.getElementById('memberFilterExample');
+            if (input) {
+                input.value = '';
+            }
+            if (select) {
+                select.value = '';
+            }
+        }
+
+        async function applyMemberFilter() {
+            if (!currentDialogIdForMembers) {
+                alert('Сначала откройте окно участников');
+                return;
+            }
+            const input = document.getElementById('memberFilterInput');
+            const value = input ? input.value.trim() : '';
+            currentMemberFilter = value;
+            await loadDialogMembers(currentDialogIdForMembers);
+        }
+
+        async function clearMemberFilter() {
+            if (!currentDialogIdForMembers) {
+                return;
+            }
+            currentMemberFilter = '';
+            clearMemberFilterField();
+            await loadDialogMembers(currentDialogIdForMembers);
         }
 
         // Добавление участника в диалог
@@ -2372,6 +3051,16 @@
                 
                 alert(`Пользователь ${userId} успешно удален из диалога!`);
                 
+                if (currentMemberMetaEditingUserId === userId) {
+                    currentMemberMetaEditingUserId = null;
+                    currentMemberMetaOriginal = {};
+                    clearMemberMetaEditor();
+                    const select = document.getElementById('memberMetaSelect');
+                    if (select) {
+                        select.value = '';
+                    }
+                }
+
                 // Обновляем список участников
                 await loadDialogMembers(dialogId);
                 
