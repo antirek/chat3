@@ -1,5 +1,7 @@
-import { Dialog, DialogMember } from '../models/index.js';
+import { Dialog, DialogMember, User } from '../models/index.js';
 import * as eventUtils from '../utils/eventUtils.js';
+import * as metaUtils from '../utils/metaUtils.js';
+import { sanitizeResponse } from '../utils/responseUtils.js';
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 
@@ -34,6 +36,17 @@ export async function sendTyping(req, res) {
       });
     }
 
+    const user = await User.findOne({
+      userId,
+      tenantId
+    }).lean();
+
+    const userMeta = await metaUtils.getEntityMeta(
+      tenantId,
+      'user',
+      userId
+    );
+
     await eventUtils.createEvent({
       tenantId,
       eventType: 'dialog.typing',
@@ -44,6 +57,10 @@ export async function sendTyping(req, res) {
       data: {
         dialogId,
         userId,
+        userInfo: sanitizeResponse({
+          ...user,
+          meta: userMeta
+        }),
         expiresInMs: DEFAULT_TYPING_EXPIRES_MS,
         timestamp: Date.now()
       }

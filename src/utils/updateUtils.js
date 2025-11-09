@@ -332,6 +332,7 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
 
     const expiresInMs = eventData.expiresInMs || DEFAULT_TYPING_EXPIRES_MS;
     const timestamp = eventData.timestamp || Date.now();
+    const userInfo = eventData.userInfo || null;
 
     const updatesPayload = dialogMembers
       .filter(member => member.userId !== typingUserId)
@@ -347,7 +348,8 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
           typing: {
             userId: typingUserId,
             expiresInMs,
-            timestamp
+            timestamp,
+            userInfo
           }
         },
         published: false
