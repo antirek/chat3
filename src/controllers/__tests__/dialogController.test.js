@@ -328,7 +328,7 @@ describe('dialogController.getById', () => {
     ]);
   });
 
-  test('returns dialog with meta and member meta', async () => {
+  test('returns dialog with meta without eagerly loading members', async () => {
     const req = createMockReq(tenantId, {}, { id: dialog.dialogId });
     const res = createMockRes();
 
@@ -337,9 +337,7 @@ describe('dialogController.getById', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data.dialogId).toBe(dialog.dialogId);
     expect(res.body.data.meta).toEqual({ priority: 'high' });
-    expect(res.body.data.members).toHaveLength(1);
-    expect(res.body.data.members[0].userId).toBe('alice');
-    expect(res.body.data.members[0].meta).toEqual({ role: 'agent' });
+    expect(res.body.data.members).toBeUndefined();
   });
 
   test('returns 404 when dialog missing', async () => {

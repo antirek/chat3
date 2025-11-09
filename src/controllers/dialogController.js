@@ -281,8 +281,8 @@ export const dialogController = {
           .populate('createdBy', 'username email');
       }
 
-      // Добавляем метаданные и участников для каждого диалога
-      const dialogsWithMetaAndMembers = await Promise.all(
+      // Добавляем метаданные для каждого диалога
+      const dialogsWithMeta = await Promise.all(
         dialogs.map(async (dialog) => {
           // Получаем метаданные диалога
           const meta = await metaUtils.getEntityMeta(
@@ -291,42 +291,9 @@ export const dialogController = {
             dialog.dialogId
           );
 
-          // Получаем участников диалога (без _id)
-          const members = await DialogMember.find({
-            dialogId: dialog.dialogId,
-            tenantId: req.tenantId
-          })
-            .select('-_id userId role joinedAt lastSeenAt lastMessageAt isActive unreadCount')
-            .sort({ joinedAt: 1 })
-            .lean();
-          
-          // Добавляем memberId (составной ключ dialogId:userId) для каждого участника
-          // Это нужно для работы с meta тегами, где entityId = dialogId:userId
-          const membersWithId = members.map(member => ({
-            ...member,
-            memberId: `${dialog.dialogId}:${member.userId}`
-          }));
-          
-          // Для каждого участника получаем мета теги
-          // entityId для DialogMember meta = dialogId:userId (составной ключ)
-          const membersWithMeta = await Promise.all(
-            membersWithId.map(async (member) => {
-              const memberId = `${dialog.dialogId}:${member.userId}`;
-              const memberMeta = await metaUtils.getEntityMeta(
-                req.tenantId,
-                'dialogMember',
-                memberId
-              );
-              
-              return {
-                ...member,
-                meta: memberMeta
-              };
-            })
-          );
-          
           // Для агрегации dialog уже является объектом, для обычного запроса - Mongoose документ
           const dialogObj = dialog.toObject ? dialog.toObject() : dialog;
+          const { members, ...dialogWithoutMembers } = dialogObj;
           
           // Вычисляем общую статистику по диалогу
           // const totalUnreadCount = members.reduce((total, member) => total + (member.unreadCount || 0), 0);
@@ -338,10 +305,9 @@ export const dialogController = {
           //   return (member.unreadCount || 0) > (most.unreadCount || 0) ? member : most;
           // }, members[0] || {});
           
-          return {
-            ...dialogObj,
-            meta,
-            members: membersWithMeta
+          return sanitizeResponse({
+            ...dialogWithoutMembers,
+            meta
             // dialogStats: {
             //   totalUnreadCount,
             //   activeMembersCount,
@@ -351,14 +317,14 @@ export const dialogController = {
             //     unreadCount: mostActiveMember.unreadCount
             //   } : null
             // }
-          };
+          });
         })
       );
 
       const total = await Dialog.countDocuments(query);
 
       res.json({
-        data: sanitizeResponse(dialogsWithMetaAndMembers),
+        data: dialogsWithMeta,
         pagination: {
           page,
           limit,
@@ -399,40 +365,6 @@ export const dialogController = {
         dialog.dialogId
       );
 
-      // Получаем участников диалога (без _id)
-      const members = await DialogMember.find({
-        dialogId: dialog.dialogId,
-        tenantId: req.tenantId
-      })
-        .select('-_id userId lastSeenAt lastMessageAt isActive unreadCount')
-        .sort({ lastSeenAt: -1 })
-        .lean();
-
-      // Добавляем memberId (составной ключ dialogId:userId) для каждого участника
-      // Это нужно для работы с meta тегами, где entityId = dialogId:userId
-      const membersWithId = members.map(member => ({
-        ...member,
-        memberId: `${dialog.dialogId}:${member.userId}`
-      }));
-
-      // Получаем мета теги для каждого участника
-      // entityId для DialogMember meta = dialogId:userId (составной ключ)
-      const membersWithMeta = await Promise.all(
-        membersWithId.map(async (member) => {
-          const memberId = `${dialog.dialogId}:${member.userId}`;
-          const memberMeta = await metaUtils.getEntityMeta(
-            req.tenantId,
-            'dialogMember',
-            memberId
-          );
-          
-          return {
-            ...member,
-            meta: memberMeta
-          };
-        })
-      );
-
       // Вычисляем общую статистику по диалогу
       // const totalUnreadCount = members.reduce((total, member) => total + (member.unreadCount || 0), 0);
       // const activeMembersCount = members.filter(member => member.isActive).length;
@@ -448,8 +380,7 @@ export const dialogController = {
       res.json({
         data: sanitizeResponse({
           ...dialogObj,
-          meta,
-          members: membersWithMeta
+          meta
           // dialogStats: {
           //   totalUnreadCount,
           //   activeMembersCount,

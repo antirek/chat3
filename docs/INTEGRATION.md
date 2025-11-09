@@ -75,11 +75,12 @@
 | Категория | Endpoint | Описание | Требуемые права |
 |-----------|----------|----------|-----------------|
 | Tenants | `GET/POST/PUT/DELETE /tenants` | Управление организациями (редко используется внешними системами). | read/write/delete |
-| Dialogs | `GET /dialogs` | Список диалогов с фильтрами, сортировкой, пагинацией. | read |
+| Dialogs | `GET /dialogs` | Список диалогов с фильтрами, сортировкой, пагинацией; участники не включаются. | read |
 | Dialogs | `POST /dialogs` | Создание диалога, указание участников и мета-тегов. | write |
-| Dialogs | `GET /dialogs/:dialogId` | Детали диалога (участники, мета). | read |
+| Dialogs | `GET /dialogs/:dialogId` | Детали диалога и мета-информация без списка участников. | read |
+| Dialogs | `GET /dialogs/:dialogId/members` | Пагинированный список участников диалога с фильтрами `queryParser` и `meta.*`. | read |
 | Dialogs | `DELETE /dialogs/:dialogId` | Удаление диалога. | delete |
-| Dialogs | `POST /dialogs/{dialogId}/user/{userId}/typing` | Сигнал "пользователь печатает" (идемпотентен 1 с). | write |
+| Dialog Members | `POST /dialogs/{dialogId}/member/{userId}/typing` | Сигнал "пользователь печатает" (идемпотентен 1 с). | write |
 | Messages | `GET /dialogs/:dialogId/messages` | Сообщения в диалоге с фильтрами. | read |
 | Messages | `POST /dialogs/:dialogId/messages` | Отправка сообщения (`content`, `type`, `meta`). | write |
 | Messages | `GET /messages` | Глобальный поиск сообщений (все диалоги). | read |
@@ -94,6 +95,12 @@
 | Meta | `GET/PUT/DELETE /meta/:entityType/:entityId/:key` | Работа с мета-тегами любой сущности. | read/write/delete |
 
 > Полные описания полей и примеры см. в `docs/API.md` (REST) и `docs/FILTER_RULES.md` (фильтры).
+
+#### Получение участников диалога
+
+- `GET /api/dialogs/:dialogId` возвращает только основные поля диалога и его `meta`.
+- Для списка участников используйте `GET /api/dialogs/:dialogId/members?page=1&limit=50&filter=(role,eq,agent)`.
+- Поддерживаются все операторы `queryParser`, включая `meta.*` (например, `(meta.shift,eq,day)`), а также сортировка по `joinedAt`, `lastSeenAt`, `lastMessageAt`, `unreadCount`, `userId`, `role`, `isActive`.
 
 ### Фильтрация, сортировка и пагинация
 
@@ -110,7 +117,7 @@
 
 ### Индикатор набора текста
 
-- `POST /dialogs/{dialogId}/user/{userId}/typing` сообщает всем участникам диалога, что пользователь начал печатать.
+- `POST /dialogs/{dialogId}/member/{userId}/typing` сообщает всем участникам диалога, что пользователь начал печатать.
 - Тело запроса пустое. Аутентификация и права — стандартные (`write`).
 - Эндпоинт идемпотентен в течение 1 секунды, поэтому фронтенд достаточно вызывать его периодически (рекомендуемый интервал — 700–1000 мс).
 - В ответ сервер вернёт `202 Accepted` и рекомендуемый `expiresInMs` (по умолчанию 5000 мс), чтобы клиенты знали, когда скрывать индикатор при отсутствии повторных сигналов.

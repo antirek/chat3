@@ -3,7 +3,7 @@ const DEFAULT_TTL_MS = 500; // 0.5 seconds
 const CUSTOM_TTL_RULES = [
   {
     method: 'POST',
-    pathRegex: /^\/api\/dialogs\/[^/]+\/user\/[^/]+\/typing(?:\/)?$/i,
+    pathRegex: /^\/api\/dialogs\/[^/]+\/member\/[^/]+\/typing(?:\/)?$/i,
     ttlMs: 1000
   }
 ];

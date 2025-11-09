@@ -1,5 +1,6 @@
 import express from 'express';
 import { dialogController } from '../controllers/dialogController.js';
+import dialogMemberController from '../controllers/dialogMemberController.js';
 import typingController from '../controllers/typingController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validateDialogId, validateUserId } from '../validators/urlValidators/index.js';
@@ -129,6 +130,60 @@ router.get('/', apiAuth, requirePermission('read'), validateQuery(queryWithFilte
 
 /**
  * @swagger
+ * /api/dialogs/{dialogId}/members:
+ *   get:
+ *     summary: List members of a dialog with filtering
+ *     tags: [DialogMember]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: dialogId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *         description: Фильтры участников в формате queryParser. Поддерживаются поля `userId`, `role`, `isActive`, `unreadCount`, даты и `meta.*`.
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *         description: Поле сортировки (`joinedAt`, `lastSeenAt`, `lastMessageAt`, `unreadCount`, `userId`, `role`, `isActive`).
+ *       - in: query
+ *         name: sortDirection
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *     responses:
+ *       200:
+ *         description: Paginated list of dialog members
+ *       404:
+ *         description: Dialog not found
+ */
+router.get(
+  '/:dialogId/members',
+  apiAuth,
+  requirePermission('read'),
+  validateDialogId,
+  validateQuery(queryWithFilterSchema),
+  dialogMemberController.getDialogMembers
+);
+
+/**
+ * @swagger
  * /api/dialogs/{id}:
  *   get:
  *     summary: Get dialog by ID
@@ -176,11 +231,11 @@ router.post('/', apiAuth, requirePermission('write'), validateBody(createDialogS
 
 /**
  * @swagger
- * /api/dialogs/{dialogId}/user/{userId}/typing:
+ * /api/dialogs/{dialogId}/member/{userId}/typing:
  *   post:
  *     summary: Emit typing indicator for dialog
  *     description: Сообщить участникам диалога, что пользователь начал набирать сообщение. Клиенты самостоятельно скрывают индикатор, если не получают повторный сигнал в течение нескольких секунд.
- *     tags: [Dialogs]
+ *     tags: [DialogMember]
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -202,7 +257,7 @@ router.post('/', apiAuth, requirePermission('write'), validateBody(createDialogS
  *       404:
  *         description: Диалог не найден или пользователь не является участником
  */
-router.post('/:dialogId/user/:userId/typing', apiAuth, requirePermission('write'), validateDialogId, validateUserId, typingController.sendTyping);
+router.post('/:dialogId/member/:userId/typing', apiAuth, requirePermission('write'), validateDialogId, validateUserId, typingController.sendTyping);
 
 
 /**

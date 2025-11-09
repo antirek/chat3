@@ -1,5 +1,5 @@
 import dialogMemberController from '../dialogMemberController.js';
-import { Dialog, DialogMember, Event, Tenant } from '../../models/index.js';
+import { Dialog, DialogMember, Event, Meta, Tenant } from '../../models/index.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../utils/timestampUtils.js';
 
@@ -63,6 +63,97 @@ describe('dialogMemberController', () => {
       createdBy: 'owner',
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()
+    });
+  });
+
+  describe('getDialogMembers', () => {
+    beforeEach(async () => {
+      await DialogMember.create([
+        {
+          tenantId,
+          dialogId: dialog.dialogId,
+          userId: 'alice',
+          role: 'agent',
+          isActive: true,
+          unreadCount: 3,
+          joinedAt: generateTimestamp(),
+          lastSeenAt: generateTimestamp(),
+          lastMessageAt: generateTimestamp()
+        },
+        {
+          tenantId,
+          dialogId: dialog.dialogId,
+          userId: 'bob',
+          role: 'supervisor',
+          isActive: false,
+          unreadCount: 0,
+          joinedAt: generateTimestamp(),
+          lastSeenAt: generateTimestamp(),
+          lastMessageAt: generateTimestamp()
+        },
+        {
+          tenantId,
+          dialogId: dialog.dialogId,
+          userId: 'carol',
+          role: 'agent',
+          isActive: true,
+          unreadCount: 1,
+          joinedAt: generateTimestamp(),
+          lastSeenAt: generateTimestamp(),
+          lastMessageAt: generateTimestamp()
+        }
+      ]);
+
+      await Meta.create([
+        { tenantId, entityType: 'dialogMember', entityId: `${dialog.dialogId}:alice`, key: 'shift', value: 'day', dataType: 'string' },
+        { tenantId, entityType: 'dialogMember', entityId: `${dialog.dialogId}:bob`, key: 'shift', value: 'night', dataType: 'string' },
+        { tenantId, entityType: 'dialogMember', entityId: `${dialog.dialogId}:carol`, key: 'shift', value: 'day', dataType: 'string' },
+        { tenantId, entityType: 'dialogMember', entityId: `${dialog.dialogId}:alice`, key: 'skills', value: 'sales', dataType: 'string' }
+      ]);
+    });
+
+    const createMembersReq = (query = {}) => ({
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      query,
+    });
+
+    test('returns paginated members with meta data', async () => {
+      const req = createMembersReq({ page: 1, limit: 2 });
+      const res = createMockRes();
+
+      await dialogMemberController.getDialogMembers(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.pagination.total).toBe(3);
+      expect(res.body.pagination.pages).toBe(2);
+      expect(res.body.data).toHaveLength(2);
+      expect(res.body.data[0]).toHaveProperty('meta');
+    });
+
+    test('filters members by meta fields', async () => {
+      const req = createMembersReq({ filter: '(meta.shift,eq,day)' });
+      const res = createMockRes();
+
+      await dialogMemberController.getDialogMembers(req, res);
+
+      expect(res.body.pagination.total).toBe(2);
+      const userIds = res.body.data.map((member) => member.userId);
+      expect(userIds.sort()).toEqual(['alice', 'carol']);
+    });
+
+    test('returns 404 when dialog is missing', async () => {
+      const req = {
+        tenantId,
+        params: { dialogId: generateDialogId() },
+        query: {}
+      };
+      const res = createMockRes();
+
+      await dialogMemberController.getDialogMembers(req, res);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.error).toBe('Not Found');
     });
   });
 
