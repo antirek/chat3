@@ -37,6 +37,7 @@ const eventSchema = new mongoose.Schema({
       'message.reaction.add',
       'message.reaction.update',
       'message.reaction.remove',
+      'dialog.typing',
       'tenant.create',
       'tenant.update',
       'tenant.delete'
@@ -108,6 +109,7 @@ eventSchema.virtual('description').get(function() {
     'message.reaction.add': 'Добавлена реакция на сообщение',
     'message.reaction.update': 'Обновлена реакция на сообщение',
     'message.reaction.remove': 'Удалена реакция на сообщение',
+    'dialog.typing': 'Пользователь печатает в диалоге',
     'tenant.create': 'Создан tenant',
     'tenant.update': 'Обновлен tenant',
     'tenant.delete': 'Удален tenant'

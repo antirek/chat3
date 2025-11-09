@@ -1,7 +1,8 @@
 import express from 'express';
 import { dialogController } from '../controllers/dialogController.js';
+import typingController from '../controllers/typingController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
-import { validateDialogId } from '../validators/urlValidators/index.js';
+import { validateDialogId, validateUserId } from '../validators/urlValidators/index.js';
 import { validateBody, validateQuery } from '../validators/middleware.js';
 import { createDialogSchema, queryWithFilterSchema } from '../validators/schemas/index.js';
 
@@ -172,6 +173,36 @@ router.get('/:id', apiAuth, requirePermission('read'), validateDialogId, dialogC
  *         description: Dialog created
  */
 router.post('/', apiAuth, requirePermission('write'), validateBody(createDialogSchema), dialogController.create);
+
+/**
+ * @swagger
+ * /api/dialogs/{dialogId}/user/{userId}/typing:
+ *   post:
+ *     summary: Emit typing indicator for dialog
+ *     description: Сообщить участникам диалога, что пользователь начал набирать сообщение. Клиенты самостоятельно скрывают индикатор, если не получают повторный сигнал в течение нескольких секунд.
+ *     tags: [Dialogs]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: dialogId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID диалога (формат dlg_xxx)
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID пользователя, который печатает
+ *     responses:
+ *       202:
+ *         description: Сигнал принят и событие отправлено участникам
+ *       404:
+ *         description: Диалог не найден или пользователь не является участником
+ */
+router.post('/:dialogId/user/:userId/typing', apiAuth, requirePermission('write'), validateDialogId, validateUserId, typingController.sendTyping);
 
 
 /**

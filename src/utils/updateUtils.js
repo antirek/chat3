@@ -6,6 +6,35 @@ import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from './responseUtils.js';
 import { generateTimestamp } from './timestampUtils.js';
 
+const DEFAULT_TYPING_EXPIRES_MS = 5000;
+
+const DIALOG_UPDATE_EVENTS = [
+  'dialog.create',
+  'dialog.update',
+  'dialog.delete',
+  'dialog.member.add',
+  'dialog.member.remove'
+];
+
+const DIALOG_MEMBER_UPDATE_EVENTS = [
+  'dialog.member.update'
+];
+
+const MESSAGE_UPDATE_EVENTS = [
+  'message.create',
+  'message.update',
+  'message.delete',
+  'message.reaction.add',
+  'message.reaction.update',
+  'message.reaction.remove',
+  'message.status.create',
+  'message.status.update'
+];
+
+const TYPING_EVENTS = [
+  'dialog.typing'
+];
+
 /**
  * Формирует DialogUpdate для всех участников диалога
  */
@@ -276,6 +305,74 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
 }
 
 /**
+ * Формирует TypingUpdate для всех участников диалога (кроме инициатора)
+ */
+export async function createTypingUpdate(tenantId, dialogId, typingUserId, eventId, eventType, eventData = {}) {
+  try {
+    const dialog = await Dialog.findOne({
+      dialogId,
+      tenantId
+    });
+
+    if (!dialog) {
+      console.error(`Dialog with dialogId ${dialogId} not found for typing update`);
+      return;
+    }
+
+    const dialogMembers = await DialogMember.find({
+      tenantId,
+      dialogId: dialog.dialogId,
+      isActive: true
+    }).lean();
+
+    if (dialogMembers.length === 0) {
+      console.log(`No active members found for typing update in dialog ${dialogId}`);
+      return;
+    }
+
+    const expiresInMs = eventData.expiresInMs || DEFAULT_TYPING_EXPIRES_MS;
+    const timestamp = eventData.timestamp || Date.now();
+
+    const updatesPayload = dialogMembers
+      .filter(member => member.userId !== typingUserId)
+      .map(member => ({
+        tenantId,
+        userId: member.userId,
+        dialogId: dialog.dialogId,
+        entityId: dialog.dialogId,
+        eventId,
+        eventType,
+        data: {
+          dialogId: dialog.dialogId,
+          typing: {
+            userId: typingUserId,
+            expiresInMs,
+            timestamp
+          }
+        },
+        published: false
+      }));
+
+    if (updatesPayload.length === 0) {
+      console.log(`No recipients for typing update in dialog ${dialogId}`);
+      return;
+    }
+
+    const savedUpdates = await Update.insertMany(updatesPayload);
+
+    savedUpdates.forEach(update => {
+      publishUpdate(update).catch(err => {
+        console.error(`Error publishing typing update ${update._id}:`, err);
+      });
+    });
+
+    console.log(`Created ${savedUpdates.length} TypingUpdate for dialog ${dialogId}`);
+  } catch (error) {
+    console.error('Error creating TypingUpdate:', error);
+  }
+}
+
+/**
  * Публикует update в RabbitMQ
  */
 async function publishUpdate(update) {
@@ -328,37 +425,17 @@ async function publishUpdate(update) {
  * Определяет тип update из типа события
  */
 export function getUpdateTypeFromEventType(eventType) {
-  const dialogUpdateEvents = [
-    'dialog.create',
-    'dialog.update',
-    'dialog.delete',
-    'dialog.member.add',
-    'dialog.member.remove'
-  ];
-
-  const dialogMemberUpdateEvents = [
-    'dialog.member.update'
-  ];
-
-  const messageUpdateEvents = [
-    'message.create',
-    'message.update',
-    'message.delete',
-    'message.reaction.add',
-    'message.reaction.update',
-    'message.reaction.remove',
-    'message.status.create',
-    'message.status.update'
-  ];
-
-  if (dialogUpdateEvents.includes(eventType)) {
+  if (DIALOG_UPDATE_EVENTS.includes(eventType)) {
     return 'DialogUpdate';
   }
-  if (dialogMemberUpdateEvents.includes(eventType)) {
+  if (DIALOG_MEMBER_UPDATE_EVENTS.includes(eventType)) {
     return 'DialogUpdate'; // Используем тот же routing key, но создаем только для одного участника
   }
-  if (messageUpdateEvents.includes(eventType)) {
+  if (MESSAGE_UPDATE_EVENTS.includes(eventType)) {
     return 'MessageUpdate';
+  }
+  if (TYPING_EVENTS.includes(eventType)) {
+    return 'Typing';
   }
   return null;
 }
@@ -367,33 +444,11 @@ export function getUpdateTypeFromEventType(eventType) {
  * Определяет, нужно ли создавать update для события
  */
 export function shouldCreateUpdate(eventType) {
-  const dialogUpdateEvents = [
-    'dialog.create',
-    'dialog.update',
-    'dialog.delete',
-    'dialog.member.add',
-    'dialog.member.remove'
-  ];
-
-  const dialogMemberUpdateEvents = [
-    'dialog.member.update' // События, которые касаются только одного участника
-  ];
-
-  const messageUpdateEvents = [
-    'message.create',
-    'message.update',
-    'message.delete',
-    'message.reaction.add',
-    'message.reaction.update',
-    'message.reaction.remove',
-    'message.status.create',
-    'message.status.update'
-  ];
-
   return {
-    dialog: dialogUpdateEvents.includes(eventType),
-    dialogMember: dialogMemberUpdateEvents.includes(eventType),
-    message: messageUpdateEvents.includes(eventType)
+    dialog: DIALOG_UPDATE_EVENTS.includes(eventType),
+    dialogMember: DIALOG_MEMBER_UPDATE_EVENTS.includes(eventType),
+    message: MESSAGE_UPDATE_EVENTS.includes(eventType),
+    typing: TYPING_EVENTS.includes(eventType)
   };
 }
 

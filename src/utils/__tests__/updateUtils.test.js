@@ -507,5 +507,109 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       }
     });
   });
+
+  describe('createTypingUpdate', () => {
+    test('should create typing update for other participants', async () => {
+      const dialogId = generateDialogId();
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        name: 'Typing Dialog',
+        createdBy: 'user1'
+      });
+
+      await DialogMember.create([
+        {
+          tenantId,
+          dialogId,
+          userId: 'user1',
+          unreadCount: 0,
+          isActive: true
+        },
+        {
+          tenantId,
+          dialogId,
+          userId: 'user2',
+          unreadCount: 0,
+          isActive: true
+        }
+      ]);
+
+      const typingEvent = await Event.create({
+        tenantId,
+        eventType: 'dialog.typing',
+        entityType: 'dialog',
+        entityId: dialogId,
+        actorId: 'user1',
+        data: {
+          dialogId,
+          userId: 'user1',
+          expiresInMs: 4000,
+          timestamp: 1700000000000
+        }
+      });
+
+      await updateUtils.createTypingUpdate(
+        tenantId,
+        dialogId,
+        'user1',
+        typingEvent._id,
+        'dialog.typing',
+        typingEvent.data
+      );
+
+      const updates = await Update.find({ tenantId, dialogId, eventId: typingEvent._id });
+      expect(updates.length).toBe(1);
+      expect(updates[0].userId).toBe('user2');
+      expect(updates[0].data.typing).toBeDefined();
+      expect(updates[0].data.typing.userId).toBe('user1');
+      expect(updates[0].data.typing.expiresInMs).toBe(4000);
+      expect(updates[0].data.typing.timestamp).toBe(1700000000000);
+    });
+
+    test('should skip typing update when no other members', async () => {
+      const dialogId = generateDialogId();
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        name: 'Solo Dialog',
+        createdBy: 'user1'
+      });
+
+      await DialogMember.create({
+        tenantId,
+        dialogId,
+        userId: 'user1',
+        unreadCount: 0,
+        isActive: true
+      });
+
+      const typingEvent = await Event.create({
+        tenantId,
+        eventType: 'dialog.typing',
+        entityType: 'dialog',
+        entityId: dialogId,
+        actorId: 'user1',
+        data: {
+          dialogId,
+          userId: 'user1'
+        }
+      });
+
+      await updateUtils.createTypingUpdate(
+        tenantId,
+        dialogId,
+        'user1',
+        typingEvent._id,
+        'dialog.typing',
+        typingEvent.data
+      );
+
+      const updates = await Update.find({ tenantId, dialogId, eventId: typingEvent._id });
+      expect(updates.length).toBe(0);
+    });
+  });
 });
 

@@ -119,7 +119,19 @@ async function processEvent(eventData) {
       }
     }
 
-    if (!shouldUpdate.dialog && !shouldUpdate.dialogMember && !shouldUpdate.message) {
+    if (shouldUpdate.typing) {
+      const dialogId = data.dialogId || entityId;
+      const typingUserId = data.userId || eventData.actorId;
+
+      if (dialogId && typingUserId) {
+        await updateUtils.createTypingUpdate(tenantId, dialogId, typingUserId, eventId, eventType, data);
+        console.log(`✅ Created TypingUpdate for dialog ${dialogId}`);
+      } else {
+        console.warn(`⚠️ Missing dialogId or userId for typing event ${eventId}`);
+      }
+    }
+
+    if (!shouldUpdate.dialog && !shouldUpdate.dialogMember && !shouldUpdate.message && !shouldUpdate.typing) {
       console.log(`ℹ️ Event ${eventType} does not require update creation`);
     }
 

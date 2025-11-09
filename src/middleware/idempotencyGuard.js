@@ -1,5 +1,12 @@
 const recentRequests = new Map();
-const TTL_MS = 500; // 0.5 seconds
+const DEFAULT_TTL_MS = 500; // 0.5 seconds
+const CUSTOM_TTL_RULES = [
+  {
+    method: 'POST',
+    pathRegex: /^\/api\/dialogs\/[^/]+\/user\/[^/]+\/typing(?:\/)?$/i,
+    ttlMs: 1000
+  }
+];
 const GUARDED_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 function buildSignature(req) {
@@ -20,6 +27,19 @@ function safeStringify(payload) {
   }
 }
 
+function getTtlForRequest(req) {
+  const pathOnly = req.originalUrl.split('?')[0];
+  const method = req.method.toUpperCase();
+
+  for (const rule of CUSTOM_TTL_RULES) {
+    if (rule.method === method && rule.pathRegex.test(pathOnly)) {
+      return rule.ttlMs;
+    }
+  }
+
+  return DEFAULT_TTL_MS;
+}
+
 export default function idempotencyGuard(req, res, next) {
   if (!GUARDED_METHODS.has(req.method)) {
     return next();
@@ -28,8 +48,9 @@ export default function idempotencyGuard(req, res, next) {
   const signature = buildSignature(req);
   const now = Date.now();
   const existing = recentRequests.get(signature);
+  const ttlMs = getTtlForRequest(req);
 
-  if (existing && now - existing.timestamp < TTL_MS) {
+  if (existing && now - existing.timestamp < existing.ttlMs) {
     console.warn(`[IdempotencyGuard] Duplicate request blocked: ${req.method} ${req.originalUrl}`);
     return res.status(429).json({
       error: 'Too Many Requests',
@@ -42,7 +63,7 @@ export default function idempotencyGuard(req, res, next) {
     if (current && current.timeoutId === timeoutId) {
       recentRequests.delete(signature);
     }
-  }, TTL_MS);
+  }, ttlMs);
 
   if (typeof timeoutId.unref === 'function') {
     timeoutId.unref();
@@ -50,7 +71,8 @@ export default function idempotencyGuard(req, res, next) {
 
   recentRequests.set(signature, {
     timestamp: now,
-    timeoutId
+    timeoutId,
+    ttlMs
   });
 
   return next();

@@ -79,6 +79,7 @@
 | Dialogs | `POST /dialogs` | Создание диалога, указание участников и мета-тегов. | write |
 | Dialogs | `GET /dialogs/:dialogId` | Детали диалога (участники, мета). | read |
 | Dialogs | `DELETE /dialogs/:dialogId` | Удаление диалога. | delete |
+| Dialogs | `POST /dialogs/{dialogId}/user/{userId}/typing` | Сигнал "пользователь печатает" (идемпотентен 1 с). | write |
 | Messages | `GET /dialogs/:dialogId/messages` | Сообщения в диалоге с фильтрами. | read |
 | Messages | `POST /dialogs/:dialogId/messages` | Отправка сообщения (`content`, `type`, `meta`). | write |
 | Messages | `GET /messages` | Глобальный поиск сообщений (все диалоги). | read |
@@ -106,6 +107,14 @@
 - Объект `meta` можно фильтровать по вложенным ключам (`meta.channelType`).
 - Некорректное поле или оператор вызовет `400` с текстом `Invalid filter parameter`.
 - Для `GET /users` используйте такой же синтаксис `filter`, как в `GET /dialogs`. Примеры: `(userId,regex,carl)`; `(name,eq,Alice)`; `(meta.role,eq,manager)`; `(userId,regex,bot)&(meta.region,regex,europe)`.
+
+### Индикатор набора текста
+
+- `POST /dialogs/{dialogId}/user/{userId}/typing` сообщает всем участникам диалога, что пользователь начал печатать.
+- Тело запроса пустое. Аутентификация и права — стандартные (`write`).
+- Эндпоинт идемпотентен в течение 1 секунды, поэтому фронтенд достаточно вызывать его периодически (рекомендуемый интервал — 700–1000 мс).
+- В ответ сервер вернёт `202 Accepted` и рекомендуемый `expiresInMs` (по умолчанию 5000 мс), чтобы клиенты знали, когда скрывать индикатор при отсутствии повторных сигналов.
+- Событие `dialog.typing` публикуется в RabbitMQ (`chat3_events`), после чего Update Worker формирует `Typing`-обновления (routing key `user.{userId}.typing`) в `chat3_updates`. По истечении таймаута клиенты самостоятельно скрывают индикатор, специального `isTyping: false` нет.
 
 ### Типы сообщений и вложений
 
@@ -236,6 +245,7 @@ curl -X POST http://localhost:3000/api/dialogs/64fa1cca6f/messages \
 | Message | `message.create`, `message.update`, `message.delete` | Контент, тип, мета, reactions. |
 | Message Status | `message.status.create`, `message.status.update` | Изменение статусов `unread/delivered/read`. |
 | Message Reaction | `message.reaction.add`, `message.reaction.update`, `message.reaction.remove` | Счётчики реакций. |
+| Dialog Typing | `dialog.typing` | Сигнал о том, что конкретный пользователь печатает (экспирация на клиенте). |
 
 ### Лучшие практики при подписке
 
