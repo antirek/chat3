@@ -12,7 +12,7 @@ export default {
     '!src/index.js',
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
+  coverageReporters: ['text', 'text-summary', 'lcov', 'html'],
   testTimeout: 60000, // Увеличено для MongoDB Memory Server (загрузка может быть долгой)
   // globalSetup и globalTeardown для MongoDB Memory Server
   // Отключены по умолчанию, т.к. нужны только для интеграционных тестов

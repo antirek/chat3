@@ -1,5 +1,5 @@
 import { dialogController } from '../dialogController.js';
-import { Dialog, DialogMember, Meta, Tenant, User } from '../../models/index.js';
+import { Dialog, DialogMember, Meta, Tenant, User, Event } from '../../models/index.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../utils/timestampUtils.js';
 
@@ -12,9 +12,12 @@ function generateDialogId() {
   return result;
 }
 
-const createMockReq = (tenantId, query = {}) => ({
+const createMockReq = (tenantId, query = {}, params = {}, body = {}, apiKey = { name: 'test-key' }) => ({
   tenantId,
-  query
+  query,
+  params,
+  body,
+  apiKey
 });
 
 const createMockRes = () => {
@@ -204,6 +207,280 @@ describe('dialogController.getAll - filter combinations', () => {
     const res = createMockRes();
 
     await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Bad Request');
+  });
+});
+
+describe('dialogController.getAll - sorting modes', () => {
+  let dialogOne;
+  let dialogTwo;
+
+  beforeEach(async () => {
+    await clearDatabase();
+
+    await Tenant.create({
+      tenantId,
+      name: 'Sorting Tenant',
+      domain: 'sorting.chat3.com',
+      type: 'client',
+      isActive: true,
+      createdAt: generateTimestamp()
+    });
+
+    dialogOne = await Dialog.create({
+      dialogId: generateDialogId(),
+      tenantId,
+      createdBy: 'carl',
+      name: 'First dialog',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+
+    dialogTwo = await Dialog.create({
+      dialogId: generateDialogId(),
+      tenantId,
+      createdBy: 'carl',
+      name: 'Second dialog',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp() + 1000
+    });
+
+    await DialogMember.create([
+      { tenantId, dialogId: dialogOne.dialogId, userId: 'alice', unreadCount: 2, isActive: true },
+      { tenantId, dialogId: dialogTwo.dialogId, userId: 'alice', unreadCount: 5, isActive: true }
+    ]);
+  });
+
+  test('sorts by dialog updatedAt when requested', async () => {
+    const req = createMockReq(tenantId, { sort: '(updatedAt,desc)', page: 1, limit: 10 });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data[0].dialogId).toBe(dialogTwo.dialogId);
+    expect(res.body.data[1].dialogId).toBe(dialogOne.dialogId);
+  });
+
+  test('sorts by specific member field when using member sort expression', async () => {
+    const req = createMockReq(tenantId, { sort: '(member[alice].unreadCount,desc)', page: 1, limit: 10 });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data[0].dialogId).toBe(dialogTwo.dialogId);
+    expect(res.body.data[1].dialogId).toBe(dialogOne.dialogId);
+  });
+});
+
+describe('dialogController.getById', () => {
+  let dialog;
+
+  beforeEach(async () => {
+    await clearDatabase();
+
+    await Tenant.create({
+      tenantId,
+      name: 'Tenant',
+      domain: 'tenant.chat3.com',
+      type: 'client',
+      isActive: true,
+      createdAt: generateTimestamp()
+    });
+
+    await User.create(
+      users.map((userId) => ({
+        tenantId,
+        userId,
+        name: userId.toUpperCase(),
+        lastActiveAt: generateTimestamp(),
+        createdAt: generateTimestamp()
+      }))
+    );
+
+    dialog = await Dialog.create({
+      dialogId: generateDialogId(),
+      tenantId,
+      createdBy: 'carl',
+      name: 'Customer Support',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+
+    await DialogMember.create([
+      {
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'alice',
+        unreadCount: 3,
+        lastSeenAt: generateTimestamp(),
+        lastMessageAt: generateTimestamp(),
+        isActive: true
+      }
+    ]);
+
+    await Meta.create([
+      { tenantId, entityType: 'dialog', entityId: dialog.dialogId, key: 'priority', value: 'high', dataType: 'string' },
+      { tenantId, entityType: 'dialogMember', entityId: `${dialog.dialogId}:alice`, key: 'role', value: 'agent', dataType: 'string' }
+    ]);
+  });
+
+  test('returns dialog with meta and member meta', async () => {
+    const req = createMockReq(tenantId, {}, { id: dialog.dialogId });
+    const res = createMockRes();
+
+    await dialogController.getById(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data.dialogId).toBe(dialog.dialogId);
+    expect(res.body.data.meta).toEqual({ priority: 'high' });
+    expect(res.body.data.members).toHaveLength(1);
+    expect(res.body.data.members[0].userId).toBe('alice');
+    expect(res.body.data.members[0].meta).toEqual({ role: 'agent' });
+  });
+
+  test('returns 404 when dialog missing', async () => {
+    const req = createMockReq(tenantId, {}, { id: generateDialogId() });
+    const res = createMockRes();
+
+    await dialogController.getById(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.error).toBe('Not Found');
+  });
+});
+
+describe('dialogController.create', () => {
+  beforeEach(async () => {
+    await clearDatabase();
+
+    await Tenant.create({
+      tenantId,
+      name: 'Tenant',
+      domain: 'tenant.chat3.com',
+      type: 'client',
+      isActive: true,
+      createdAt: generateTimestamp()
+    });
+  });
+
+  test('creates dialog and emits event', async () => {
+    const req = createMockReq(
+      tenantId,
+      {},
+      {},
+      {
+        name: 'New Dialog',
+        createdBy: 'carl'
+      }
+    );
+    const res = createMockRes();
+
+    await dialogController.create(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.message).toBe('Dialog created successfully');
+    expect(res.body.data.name).toBe('New Dialog');
+
+    const storedDialog = await Dialog.findOne({ tenantId, name: 'New Dialog' }).lean();
+    expect(storedDialog).toBeTruthy();
+
+    const event = await Event.findOne({ tenantId, eventType: 'dialog.create' }).lean();
+    expect(event).toBeTruthy();
+    expect(event.entityId).toBe(storedDialog.dialogId);
+    expect(event.data.dialogName).toBe('New Dialog');
+  });
+
+  test('returns 400 when required fields missing', async () => {
+    const req = createMockReq(tenantId, {}, {}, {});
+    const res = createMockRes();
+
+    await dialogController.create(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toContain('Missing required fields');
+  });
+});
+
+describe('dialogController.delete', () => {
+  let dialog;
+
+  beforeEach(async () => {
+    await clearDatabase();
+
+    await Tenant.create({
+      tenantId,
+      name: 'Tenant',
+      domain: 'tenant.chat3.com',
+      type: 'client',
+      isActive: true,
+      createdAt: generateTimestamp()
+    });
+
+    dialog = await Dialog.create({
+      dialogId: generateDialogId(),
+      tenantId,
+      createdBy: 'carl',
+      name: 'To be deleted',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+
+    // Meta is stored using dialogId in production, but controller deletes by _id
+    await Meta.create({
+      tenantId,
+      entityType: 'dialog',
+      entityId: dialog._id.toString(),
+      key: 'status',
+      value: 'archived',
+      dataType: 'string'
+    });
+  });
+
+  test('deletes dialog, removes meta and emits event', async () => {
+    const req = createMockReq(
+      tenantId,
+      {},
+      { id: dialog._id.toString() },
+      {},
+      { name: 'api-key' }
+    );
+    const res = createMockRes();
+
+    await dialogController.delete(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.message).toBe('Dialog deleted successfully');
+
+    const storedDialog = await Dialog.findById(dialog._id);
+    expect(storedDialog).toBeNull();
+
+    const remainingMeta = await Meta.findOne({ entityType: 'dialog', entityId: dialog._id.toString() }).lean();
+    expect(remainingMeta).toBeNull();
+
+    const event = await Event.findOne({ tenantId, eventType: 'dialog.delete' }).lean();
+    expect(event).toBeTruthy();
+    expect(event.entityId).toBe(dialog.dialogId);
+  });
+
+  test('returns 404 when dialog not found', async () => {
+    const req = createMockReq(tenantId, {}, { id: '64fa1cca6f9b1a2b3c4d5e6f' });
+    const res = createMockRes();
+
+    await dialogController.delete(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.error).toBe('Not Found');
+  });
+
+  test('returns 400 for invalid id', async () => {
+    const req = createMockReq(tenantId, {}, { id: 'invalid-id' });
+    const res = createMockRes();
+
+    await dialogController.delete(req, res);
 
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toBe('Bad Request');
