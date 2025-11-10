@@ -4,7 +4,7 @@ import {
   createDialogMemberUpdate,
   createMessageUpdate
 } from '../updateUtils.js';
-import { Dialog, Message, DialogMember, Event, Update } from '../../models/index.js';
+import { Dialog, Message, DialogMember, Event, Update, User, Meta } from '../../models/index.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 
 // Мокируем amqplib перед импортом updateUtils
@@ -342,6 +342,21 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         type: 'internal.text'
       });
 
+      await User.create({
+        tenantId,
+        userId: 'user1',
+        name: 'User One'
+      });
+
+      await Meta.create({
+        tenantId,
+        entityType: 'user',
+        entityId: 'user1',
+        key: 'role',
+        value: 'support',
+        dataType: 'string'
+      });
+
       await DialogMember.create({
         tenantId,
         dialogId,
@@ -362,6 +377,15 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(update).toBeDefined();
       expect(update.data).toBeDefined();
       expect(update.data.content).toBe('Test message');
+      expect(Array.isArray(update.data.statuses)).toBe(true);
+      expect(update.data.meta || {}).toEqual({});
+      expect(update.data.senderInfo).toEqual(
+        expect.objectContaining({
+          userId: 'user1',
+          name: 'User One',
+          meta: expect.objectContaining({ role: 'support' })
+        })
+      );
     });
 
     test('should include status update in message data', async () => {
@@ -467,10 +491,9 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       });
 
       const eventData = {
-        reactionUpdate: {
-          userId: 'user2',
-          reaction: '👍'
-        }
+        userId: 'user2',
+        reaction: '👍',
+        oldReaction: null
       };
 
       await updateUtils.createMessageUpdate(
@@ -501,6 +524,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       if (update.data.reactionUpdate) {
         expect(update.data.reactionUpdate.userId).toBe('user2');
         expect(update.data.reactionUpdate.reaction).toBe('👍');
+        expect(update.data.reactionUpdate.oldReaction).toBeNull();
       } else {
         // Если reactionUpdate нет в data, проверяем, что данные сообщения есть
         expect(update.data.content).toBeDefined();

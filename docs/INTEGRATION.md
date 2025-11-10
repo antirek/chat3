@@ -252,7 +252,7 @@ curl -X POST http://localhost:3000/api/dialogs/64fa1cca6f/messages \
 | Dialog | `dialog.create`, `dialog.update`, `dialog.delete` | Имя, участники, мета-теги. |
 | Dialog Members | `dialog.member.add`, `dialog.member.remove`, `dialog.member.update` | Участник, роль, мета участника. |
 | Message | `message.create`, `message.update`, `message.delete` | Контент, тип, мета, reactions. |
-| Message Status | `message.status.create`, `message.status.update` | Изменение статусов `unread/delivered/read`. |
+| Message Status | `message.status.create`, `message.status.update` | Изменение статусов `unread/delivered/read`; `MessageUpdate` содержит полное сообщение с `meta`, `statuses`, `senderInfo`. |
 | Message Reaction | `message.reaction.add`, `message.reaction.update`, `message.reaction.remove` | Счётчики реакций. |
 | Dialog Typing | `dialog.typing` | Сигнал о том, что конкретный пользователь печатает (экспирация на клиенте). |
 

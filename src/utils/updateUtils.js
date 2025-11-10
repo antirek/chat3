@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Dialog, Message, DialogMember, Meta } from '../models/index.js';
+import { Dialog, Message, DialogMember, Meta, MessageStatus, User } from '../models/index.js';
 import Update from '../models/Update.js';
 import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
@@ -34,6 +34,69 @@ const MESSAGE_UPDATE_EVENTS = [
 const TYPING_EVENTS = [
   'dialog.typing'
 ];
+
+async function getSenderInfo(tenantId, senderId, cache = new Map()) {
+  if (!senderId) {
+    return null;
+  }
+
+  if (cache.has(senderId)) {
+    return cache.get(senderId);
+  }
+
+  const user = await User.findOne({
+    tenantId,
+    userId: senderId
+  })
+    .select('userId name lastActiveAt createdAt updatedAt')
+    .lean();
+
+  const userMeta = await metaUtils.getEntityMeta(tenantId, 'user', senderId);
+
+  if (!user && (!userMeta || Object.keys(userMeta).length === 0)) {
+    cache.set(senderId, null);
+    return null;
+  }
+
+  const senderInfo = {
+    userId: senderId,
+    name: user?.name || null,
+    lastActiveAt: user?.lastActiveAt ?? null,
+    createdAt: user?.createdAt ?? null,
+    updatedAt: user?.updatedAt ?? null,
+    meta: userMeta
+  };
+
+  cache.set(senderId, senderInfo);
+  return senderInfo;
+}
+
+async function buildFullMessagePayload(tenantId, message, senderCache = new Map()) {
+  if (!message) {
+    return null;
+  }
+
+  const messageObj = message.toObject ? message.toObject() : message;
+
+  const meta = (await metaUtils.getEntityMeta(tenantId, 'message', messageObj.messageId)) || {};
+
+  const statuses = await MessageStatus.find({
+    tenantId,
+    messageId: messageObj.messageId
+  })
+    .select('userId status readAt deliveredAt createdAt updatedAt')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const senderInfo = await getSenderInfo(tenantId, messageObj.senderId, senderCache);
+
+  return {
+    ...messageObj,
+    meta,
+    statuses,
+    senderInfo: senderInfo || null
+  };
+}
 
 /**
  * Формирует DialogUpdate для всех участников диалога
@@ -213,9 +276,6 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       return;
     }
 
-    // Получаем метаданные сообщения (messageId - это строка msg_*)
-    const messageMeta = await metaUtils.getEntityMeta(tenantId, 'message', message.messageId);
-
     // dialogId приходит как строка dlg_*
     // Находим Dialog чтобы получить его _id (ObjectId)
     const dialog = await Dialog.findOne({ 
@@ -240,41 +300,39 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       return;
     }
 
-    // Формируем данные сообщения для update (включая контент до 4096 символов)
-    const MAX_CONTENT_LENGTH = 4096;
-    const messageContent = message.content.length > MAX_CONTENT_LENGTH 
-      ? message.content.substring(0, MAX_CONTENT_LENGTH) 
-      : message.content;
+    const senderCache = new Map();
+    const fullMessage = await buildFullMessagePayload(tenantId, message, senderCache);
+    if (!fullMessage) {
+      console.error(`Failed to build message payload for ${messageId}`);
+      return;
+    }
 
-    const messageData = {
-      messageId: message.messageId, // Строковый ID msg_*
-      tenantId: message.tenantId,
-      dialogId: dialog.dialogId, // Строковый ID dlg_* (не ObjectId!)
-      senderId: message.senderId,
-      content: messageContent,
-      type: message.type,
-      reactionCounts: message.reactionCounts || {},
-      createdAt: message.createdAt,
-      updatedAt: message.updatedAt,
-      meta: messageMeta
-    };
+    // Обновляем актуальные счетчики реакций (если пришли в событии)
+    if (eventData.reactionCounts) {
+      fullMessage.reactionCounts = eventData.reactionCounts;
+    } else {
+      fullMessage.reactionCounts = message.reactionCounts || {};
+    }
 
     // Для событий message.status.* добавляем информацию о статусе
     if (eventType.startsWith('message.status.')) {
-      messageData.statusUpdate = {
-        userId: eventData.userId,           // Кто изменил статус
-        status: eventData.newStatus,        // Новый статус
-        oldStatus: eventData.oldStatus      // Старый статус (если есть)
+      fullMessage.statusUpdate = {
+        userId: eventData.userId,
+        status: eventData.newStatus,
+        oldStatus: eventData.oldStatus ?? null
       };
     }
 
     // Для событий message.reaction.* добавляем информацию о реакции
     if (eventType.startsWith('message.reaction.')) {
-      messageData.reactionUpdate = {
-        userId: eventData.userId,           // Кто добавил/удалил реакцию
-        reaction: eventData.reaction        // Какая реакция
+      fullMessage.reactionUpdate = {
+        userId: eventData.userId,
+        reaction: eventData.reaction,
+        oldReaction: eventData.oldReaction ?? null
       };
     }
+
+    fullMessage.dialogId = dialog.dialogId;
 
     // Создаем updates для каждого участника
     const updates = dialogMembers.map(member => ({
@@ -284,7 +342,7 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       entityId: message.messageId, // Update.entityId - это строка msg_*
       eventId: eventId,
       eventType: eventType,
-      data: messageData,
+      data: fullMessage,
       published: false
     }));
 

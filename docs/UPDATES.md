@@ -168,21 +168,59 @@ updateSchema.index({ tenantId: 1, published: 1, createdAt: -1 });
 ```javascript
 {
   _id: ObjectId,
-  tenantId: String,
-  dialogId: ObjectId,
-  senderId: String,
-  content: String,            // До 4096 символов
-  type: String,
-  reactionCounts: {           // Счетчики реакций
+  tenantId: "tnt_demo",
+  dialogId: "dlg_abc123...",
+  messageId: "msg_abc123...",
+  senderId: "user123",
+  content: "Полный текст сообщения (без усечения)",
+  type: "internal.text",
+  reactionCounts: {                 // Актуальные счетчики реакций
     "👍": 5,
     "❤️": 3
   },
-  createdAt: Date,
-  updatedAt: Date,
-  meta: {                     // Мета-теги сообщения
+  createdAt: 1731252312345,
+  updatedAt: 1731252312345,
+  meta: {                           // Все мета-теги сообщения
     channelType: "telegram",
     channelId: "TG0001",
-    // ... другие мета-теги
+    priority: "high"
+  },
+  statuses: [                       // Полный список статусов
+    {
+      userId: "user321",
+      status: "read",
+      readAt: 1731252400000,
+      createdAt: 1731252300000,
+      updatedAt: 1731252400000
+    },
+    {
+      userId: "user654",
+      status: "delivered",
+      deliveredAt: 1731252350000,
+      createdAt: 1731252300000,
+      updatedAt: 1731252350000
+    }
+  ],
+  senderInfo: {                     // Информация об отправителе (если пользователь существует)
+    userId: "user123",
+    name: "Support Agent",
+    lastActiveAt: 1731252000000,
+    createdAt: 1731000000000,
+    updatedAt: 1731252050000,
+    meta: {
+      role: "agent",
+      shift: "evening"
+    }
+  },
+  statusUpdate: {                   // Только для message.status.*
+    userId: "user321",
+    status: "read",
+    oldStatus: "delivered"
+  },
+  reactionUpdate: {                 // Только для message.reaction.*
+    userId: "user654",
+    reaction: "🔥",
+    oldReaction: "👍"
   }
 }
 ```
