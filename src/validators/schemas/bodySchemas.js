@@ -89,7 +89,16 @@ export const createMessageSchema = Joi.object({
     is: Joi.valid(...INTERNAL_MEDIA_MESSAGE_TYPES),
     then: MEDIA_META_SCHEMA,
     otherwise: OPTIONAL_META_SCHEMA
-  })
+  }),
+  quotedMessageId: Joi.string()
+    .trim()
+    .lowercase()
+    .pattern(/^msg_[a-z0-9]{20}$/)
+    .optional()
+    .allow(null, '')
+    .messages({
+      'string.pattern.base': 'quotedMessageId must be in format msg_ followed by 20 lowercase alphanumeric characters'
+    })
 });
 
 /**

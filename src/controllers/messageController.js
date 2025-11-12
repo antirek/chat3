@@ -319,7 +319,7 @@ const messageController = {
   async createMessage(req, res) {
     try {
       const { dialogId } = req.params;
-      const { content, senderId, type = 'internal.text', meta } = req.body;
+      const { content, senderId, type = 'internal.text', meta, quotedMessageId } = req.body;
       const normalizedType = type;
       const messageContent = typeof content === 'string' ? content : '';
       const metaPayload = meta && typeof meta === 'object' ? { ...meta } : {};
@@ -437,6 +437,53 @@ const messageController = {
         }
       }
 
+      // Обработка quotedMessageId: находим цитируемое сообщение с мета-тегами
+      let quotedMessage = null;
+      if (quotedMessageId && typeof quotedMessageId === 'string' && quotedMessageId.trim()) {
+        try {
+          const quotedMsg = await Message.findOne({
+            messageId: quotedMessageId.trim(),
+            tenantId: req.tenantId
+          }).lean();
+
+          if (quotedMsg) {
+            // Получаем мета-теги цитируемого сообщения
+            const quotedMessageMeta = await metaUtils.getEntityMeta(
+              req.tenantId,
+              'message',
+              quotedMsg.messageId
+            );
+
+            // Получаем информацию об отправителе цитируемого сообщения
+            const quotedSenderInfo = await getSenderInfo(req.tenantId, quotedMsg.senderId);
+
+            // Формируем объект quotedMessage с мета-тегами и senderInfo
+            quotedMessage = {
+              messageId: quotedMsg.messageId,
+              dialogId: quotedMsg.dialogId,
+              senderId: quotedMsg.senderId,
+              content: quotedMsg.content,
+              type: quotedMsg.type,
+              createdAt: quotedMsg.createdAt,
+              updatedAt: quotedMsg.updatedAt,
+              meta: quotedMessageMeta || {},
+              senderInfo: quotedSenderInfo || null
+            };
+
+            // Сохраняем quotedMessage в созданное сообщение
+            await Message.findOneAndUpdate(
+              { messageId: message.messageId },
+              { quotedMessage: quotedMessage }
+            );
+          } else {
+            console.warn(`Quoted message ${quotedMessageId} not found`);
+          }
+        } catch (error) {
+          console.error(`Error processing quotedMessageId ${quotedMessageId}:`, error);
+          // Не прерываем создание сообщения, если не удалось найти цитируемое
+        }
+      }
+
       // Получаем мета-теги сообщения для события
       const messageMeta = await metaUtils.getEntityMeta(
         req.tenantId,
@@ -452,7 +499,20 @@ const messageController = {
         ? messageContent.substring(0, MAX_CONTENT_LENGTH) 
         : messageContent;
 
-      // Создаем событие message.create (после сохранения мета-тегов)
+      // Создаем событие message.create (после сохранения мета-тегов и quotedMessage)
+      const eventData = {
+        dialogId: dialogId,
+        dialogName: dialog.name,
+        messageType: type,
+        content: eventContent, // Контент сообщения (до 4096 символов)
+        meta: messageMeta // Добавляем мета-теги сообщения
+      };
+
+      // Добавляем quotedMessage в событие, если оно есть
+      if (quotedMessage) {
+        eventData.quotedMessage = quotedMessage;
+      }
+
       await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'message.create',
@@ -460,16 +520,10 @@ const messageController = {
         entityId: message.messageId,
         actorId: senderId,
         actorType: 'user',
-        data: {
-          dialogId: dialogId,
-          dialogName: dialog.name,
-          messageType: type,
-          content: eventContent, // Контент сообщения (до 4096 символов)
-          meta: messageMeta // Добавляем мета-теги сообщения
-        }
+        data: eventData
       });
 
-      // Get message with meta data
+      // Get message with meta data (включая quotedMessage, если оно было добавлено)
       const messageWithMeta = await Message.findOne({ messageId: message.messageId })
         .select('-__v')
         .populate('tenantId', 'name domain');
@@ -483,7 +537,8 @@ const messageController = {
         data: sanitizeResponse({
           ...messageObj,
           meta: messageMeta,
-          senderInfo: senderInfo || null
+          senderInfo: senderInfo || null,
+          quotedMessage: quotedMessage || null
         }),
         message: 'Message created successfully'
       });

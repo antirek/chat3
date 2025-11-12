@@ -400,13 +400,13 @@
 
         .modal-content {
             background-color: #fefefe;
-            margin: 5% auto;
+            margin: 3% auto;
             padding: 0;
             border: none;
             border-radius: 8px;
-            width: 80%;
-            max-width: 800px;
-            max-height: 80vh;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 90vh;
             overflow: hidden;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
@@ -442,7 +442,28 @@
 
         .modal-body {
             padding: 20px;
-            max-height: 60vh;
+            max-height: calc(90vh - 100px);
+            overflow-y: auto;
+        }
+
+        /* Двухколоночная раскладка для формы и JSON */
+        .modal-form-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .modal-form-left {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .modal-form-right {
+            flex: 1;
+            min-width: 0;
+            position: sticky;
+            top: 0;
+            max-height: calc(90vh - 100px);
             overflow-y: auto;
         }
 
@@ -645,7 +666,8 @@
         }
 
         .form-group select,
-        .form-group textarea {
+        .form-group textarea,
+        .form-group input[type="text"] {
             width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
@@ -690,6 +712,32 @@
 
         .form-actions button[type="submit"]:hover {
             background: #5a6fd8;
+        }
+
+        /* Стили для отображения JSON payload */
+        .payload-preview {
+            margin-top: 0;
+        }
+
+        .payload-preview label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .payload-json {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #495057;
+            min-height: 400px;
         }
 
         /* Стили для мета-тегов */
@@ -956,46 +1004,62 @@
                 <span class="close" onclick="closeAddMessageModal()">&times;</span>
             </div>
             <div class="modal-body">
-                <form id="addMessageForm">
-                    <div class="form-group">
-                        <label for="messageSender">Отправитель:</label>
-                        <select id="messageSender" required>
-                            <option value="carl">Carl</option>
-                            <option value="marta">Marta</option>
-                            <option value="sara">Sara</option>
-                            <option value="kirk">Kirk</option>
-                            <option value="john">John</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="messageType">Тип сообщения:</label>
-                        <select id="messageType" required>
-                            <option value="text">Text</option>
-                            <option value="system">System</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="messageContent">Содержимое:</label>
-                        <textarea id="messageContent" rows="4" required>тест тест</textarea>
-                    </div>
-                    
-                    <!-- Секция мета-тегов -->
-                    <div class="form-group">
-                        <label>Мета-теги:</label>
-                        <div id="metaTagsContainer">
-                            <div class="meta-tag-row">
-                                <input type="text" class="meta-key" placeholder="Ключ (например: channelType)" pattern="[a-zA-Z0-9_]+" title="Только латинские буквы, цифры и подчеркивание">
-                                <input type="text" class="meta-value" placeholder="Значение (например: whatsapp)">
-                                <button type="button" class="remove-meta-btn" onclick="removeMetaTagRow(this)" style="display: none;">✕</button>
+                <div class="modal-form-container">
+                    <div class="modal-form-left">
+                        <form id="addMessageForm">
+                            <div class="form-group">
+                                <label for="messageSender">Отправитель:</label>
+                                <select id="messageSender" required onchange="updatePayloadJson()">
+                                    <option value="carl">Carl</option>
+                                    <option value="marta">Marta</option>
+                                    <option value="sara">Sara</option>
+                                    <option value="kirk">Kirk</option>
+                                    <option value="john">John</option>
+                                </select>
                             </div>
+                            <div class="form-group">
+                                <label for="messageType">Тип сообщения:</label>
+                                <select id="messageType" required onchange="updatePayloadJson()">
+                                    <option value="internal.text">Text</option>
+                                    <option value="system.message">System</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="messageContent">Содержимое:</label>
+                                <textarea id="messageContent" rows="4" required oninput="updatePayloadJson()">тест тест</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="quotedMessageId">Quoted Message ID:</label>
+                                <input type="text" id="quotedMessageId" placeholder="msg_..." oninput="updatePayloadJson()">
+                            </div>
+                            
+                            <!-- Секция мета-тегов -->
+                            <div class="form-group">
+                                <label>Мета-теги:</label>
+                                <div id="metaTagsContainer">
+                                    <div class="meta-tag-row">
+                                        <input type="text" class="meta-key" placeholder="Ключ (например: channelType)" pattern="[a-zA-Z0-9_]+" title="Только латинские буквы, цифры и подчеркивание">
+                                        <input type="text" class="meta-value" placeholder="Значение (например: whatsapp)">
+                                        <button type="button" class="remove-meta-btn" onclick="removeMetaTagRow(this)" style="display: none;">✕</button>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="addMetaTagRow()" class="add-meta-btn">+ Добавить мета-тег</button>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" onclick="closeAddMessageModal()">Отмена</button>
+                                <button type="submit">Добавить</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-form-right">
+                        <!-- Отображение JSON payload -->
+                        <div class="payload-preview">
+                            <label>JSON Payload:</label>
+                            <div id="payloadJson" class="payload-json">{}</div>
                         </div>
-                        <button type="button" onclick="addMetaTagRow()" class="add-meta-btn">+ Добавить мета-тег</button>
                     </div>
-                    <div class="form-actions">
-                        <button type="button" onclick="closeAddMessageModal()">Отмена</button>
-                        <button type="submit">Добавить</button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
@@ -2123,6 +2187,7 @@
             // Сбрасываем форму
             document.getElementById('addMessageForm').reset();
             document.getElementById('messageContent').value = 'тест тест';
+            document.getElementById('quotedMessageId').value = '';
             
             // Сбрасываем мета-теги (оставляем только одну пустую строку)
             const container = document.getElementById('metaTagsContainer');
@@ -2136,6 +2201,12 @@
             
             // Показываем модальное окно
             document.getElementById('addMessageModal').style.display = 'block';
+            
+            // Привязываем обработчики к полям мета-тегов
+            setTimeout(() => {
+                attachMetaTagHandlers();
+                updatePayloadJson();
+            }, 0);
         }
 
         function closeAddMessageModal() {
@@ -2156,12 +2227,15 @@
             `;
             container.appendChild(newRow);
             updateRemoveButtons();
+            attachMetaTagHandlers();
+            updatePayloadJson();
         }
 
         function removeMetaTagRow(button) {
             const row = button.closest('.meta-tag-row');
             row.remove();
             updateRemoveButtons();
+            updatePayloadJson();
         }
 
         function updateRemoveButtons() {
@@ -2192,6 +2266,54 @@
             return Object.keys(metaTags).length > 0 ? metaTags : null;
         }
 
+        // Функция для обновления отображения JSON payload
+        function updatePayloadJson() {
+            const senderId = document.getElementById('messageSender')?.value || '';
+            const type = document.getElementById('messageType')?.value || '';
+            const content = document.getElementById('messageContent')?.value || '';
+            const quotedMessageId = document.getElementById('quotedMessageId')?.value?.trim() || '';
+            const meta = collectMetaTags();
+            
+            const payload = {
+                senderId: senderId,
+                type: type,
+                content: content
+            };
+            
+            if (quotedMessageId) {
+                payload.quotedMessageId = quotedMessageId;
+            }
+            
+            if (meta) {
+                payload.meta = meta;
+            }
+            
+            const payloadJson = document.getElementById('payloadJson');
+            if (payloadJson) {
+                payloadJson.textContent = JSON.stringify(payload, null, 2);
+            }
+        }
+
+        // Функция для привязки обработчиков к полям мета-тегов
+        function attachMetaTagHandlers() {
+            const metaKeys = document.querySelectorAll('.meta-key');
+            const metaValues = document.querySelectorAll('.meta-value');
+            
+            metaKeys.forEach(input => {
+                if (!input.hasAttribute('data-handler-attached')) {
+                    input.addEventListener('input', updatePayloadJson);
+                    input.setAttribute('data-handler-attached', 'true');
+                }
+            });
+            
+            metaValues.forEach(input => {
+                if (!input.hasAttribute('data-handler-attached')) {
+                    input.addEventListener('input', updatePayloadJson);
+                    input.setAttribute('data-handler-attached', 'true');
+                }
+            });
+        }
+
         // Обработчик отправки формы
         document.getElementById('addMessageForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -2207,6 +2329,21 @@
             const meta = collectMetaTags();
 
             try {
+                const payload = {
+                    senderId: senderId,
+                    type: type,
+                    content: content
+                };
+                
+                const quotedMessageId = document.getElementById('quotedMessageId')?.value?.trim();
+                if (quotedMessageId) {
+                    payload.quotedMessageId = quotedMessageId;
+                }
+                
+                if (meta) {
+                    payload.meta = meta;
+                }
+                
                 const response = await fetch(`/api/dialogs/${currentDialogIdForMessage}/messages`, {
                     method: 'POST',
                     headers: {
@@ -2214,12 +2351,7 @@
                         'X-API-Key': apiKey,
                         'X-TENANT-ID': tenantId
                     },
-                    body: JSON.stringify({
-                        senderId: senderId,
-                        type: type,
-                        content: content,
-                        meta: meta
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 if (!response.ok) {

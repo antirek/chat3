@@ -336,13 +336,13 @@
 
         .modal-content {
             background-color: white;
-            margin: 5% auto;
+            margin: 3% auto;
             padding: 0;
             border-radius: 8px;
-            width: 80%;
-            max-width: 800px;
-            max-height: 80vh;
-            overflow-y: auto;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 90vh;
+            overflow: hidden;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
 
@@ -376,6 +376,29 @@
 
         .modal-body {
             padding: 20px;
+            max-height: calc(90vh - 100px);
+            overflow-y: auto;
+        }
+
+        /* Двухколоночная раскладка для формы и JSON */
+        .modal-form-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .modal-form-left {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .modal-form-right {
+            flex: 1;
+            min-width: 0;
+            position: sticky;
+            top: 0;
+            max-height: calc(90vh - 100px);
+            overflow-y: auto;
         }
 
         .json-content {
@@ -441,7 +464,8 @@
         }
 
         .form-group select,
-        .form-group textarea {
+        .form-group textarea,
+        .form-group input[type="text"] {
             width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
@@ -486,6 +510,32 @@
 
         .form-actions button[type="submit"]:hover {
             background: #5a6fd8;
+        }
+
+        /* Стили для отображения JSON payload */
+        .payload-preview {
+            margin-top: 0;
+        }
+
+        .payload-preview label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .payload-json {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #495057;
+            min-height: 400px;
         }
     </style>
 </head>
@@ -600,39 +650,55 @@
                 <span class="close" onclick="closeAddMessageModal()">&times;</span>
             </div>
             <div class="modal-body">
-                <form id="addMessageForm">
-                    <div class="form-group">
-                        <label for="messageDialog">Диалог:</label>
-                        <select id="messageDialog" required>
-                            <option value="">Выберите диалог</option>
-                        </select>
+                <div class="modal-form-container">
+                    <div class="modal-form-left">
+                        <form id="addMessageForm">
+                            <div class="form-group">
+                                <label for="messageDialog">Диалог:</label>
+                                <select id="messageDialog" required onchange="updatePayloadJson()">
+                                    <option value="">Выберите диалог</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="messageSender">Отправитель:</label>
+                                <select id="messageSender" required onchange="updatePayloadJson()">
+                                    <option value="carl">Carl</option>
+                                    <option value="marta">Marta</option>
+                                    <option value="sara">Sara</option>
+                                    <option value="kirk">Kirk</option>
+                                    <option value="john">John</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="messageType">Тип сообщения:</label>
+                                <select id="messageType" required onchange="updatePayloadJson()">
+                                    <option value="internal.text">Text</option>
+                                    <option value="system.message">System</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="messageContent">Содержимое:</label>
+                                <textarea id="messageContent" rows="4" required oninput="updatePayloadJson()">тест тест</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="quotedMessageId">Quoted Message ID:</label>
+                                <input type="text" id="quotedMessageId" placeholder="msg_..." oninput="updatePayloadJson()">
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" onclick="closeAddMessageModal()">Отмена</button>
+                                <button type="submit">Добавить</button>
+                            </div>
+                        </form>
                     </div>
-                    <div class="form-group">
-                        <label for="messageSender">Отправитель:</label>
-                        <select id="messageSender" required>
-                            <option value="carl">Carl</option>
-                            <option value="marta">Marta</option>
-                            <option value="sara">Sara</option>
-                            <option value="kirk">Kirk</option>
-                            <option value="john">John</option>
-                        </select>
+                    <div class="modal-form-right">
+                        <!-- Отображение JSON payload -->
+                        <div class="payload-preview">
+                            <label>JSON Payload:</label>
+                            <div id="payloadJson" class="payload-json">{}</div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="messageType">Тип сообщения:</label>
-                        <select id="messageType" required>
-                            <option value="text">Text</option>
-                            <option value="system">System</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="messageContent">Содержимое:</label>
-                        <textarea id="messageContent" rows="4" required>тест тест</textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" onclick="closeAddMessageModal()">Отмена</button>
-                        <button type="submit">Добавить</button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
@@ -691,6 +757,8 @@
                 });
 
                 console.log('Loaded dialogs:', dialogs.length);
+                // Обновляем JSON payload после загрузки диалогов
+                updatePayloadJson();
             } catch (error) {
                 console.error('Error loading dialogs:', error);
                 alert(`Ошибка загрузки диалогов: ${error.message}`);
@@ -1022,6 +1090,36 @@
         function showAddMessageModal() {
             // Показываем модальное окно
             document.getElementById('addMessageModal').style.display = 'block';
+            // Сбрасываем поле quotedMessageId
+            const quotedMessageIdField = document.getElementById('quotedMessageId');
+            if (quotedMessageIdField) {
+                quotedMessageIdField.value = '';
+            }
+            // Обновляем JSON payload
+            updatePayloadJson();
+        }
+
+        // Функция для обновления отображения JSON payload
+        function updatePayloadJson() {
+            const senderId = document.getElementById('messageSender')?.value || '';
+            const type = document.getElementById('messageType')?.value || '';
+            const content = document.getElementById('messageContent')?.value || '';
+            const quotedMessageId = document.getElementById('quotedMessageId')?.value?.trim() || '';
+            
+            const payload = {
+                senderId: senderId,
+                type: type,
+                content: content
+            };
+            
+            if (quotedMessageId) {
+                payload.quotedMessageId = quotedMessageId;
+            }
+            
+            const payloadJson = document.getElementById('payloadJson');
+            if (payloadJson) {
+                payloadJson.textContent = JSON.stringify(payload, null, 2);
+            }
         }
 
         function closeAddMessageModal() {
@@ -1037,6 +1135,7 @@
             const senderId = document.getElementById('messageSender').value;
             const type = document.getElementById('messageType').value;
             const content = document.getElementById('messageContent').value;
+            const quotedMessageId = document.getElementById('quotedMessageId')?.value?.trim();
 
             if (!dialogId) {
                 alert('Выберите диалог');
@@ -1044,6 +1143,16 @@
             }
 
             try {
+                const payload = {
+                    senderId: senderId,
+                    type: type,
+                    content: content
+                };
+                
+                if (quotedMessageId) {
+                    payload.quotedMessageId = quotedMessageId;
+                }
+                
                 const response = await fetch(`/api/dialogs/${dialogId}/messages`, {
                     method: 'POST',
                     headers: {
@@ -1051,11 +1160,7 @@
                         'X-API-Key': apiKey,
                         'X-TENANT-ID': tenantId
                     },
-                    body: JSON.stringify({
-                        senderId: senderId,
-                        type: type,
-                        content: content
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 if (!response.ok) {

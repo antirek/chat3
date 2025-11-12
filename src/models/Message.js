@@ -54,6 +54,11 @@ const messageSchema = new mongoose.Schema({
     default: {},
     description: 'Агрегированные счетчики реакций: { "👍": 5, "❤️": 3 }'
   },
+  quotedMessage: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+    description: 'Цитируемое сообщение с мета-тегами'
+  },
   createdAt: {
     type: Number,
     default: generateTimestamp,

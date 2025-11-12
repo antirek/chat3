@@ -92,6 +92,64 @@ describe('bodySchemas.createMessageSchema', () => {
     expect(error).toBeUndefined();
     expect(value.meta).toEqual({});
   });
+
+  test('accepts valid quotedMessageId', () => {
+    const { error, value } = validate({
+      senderId: 'user_1',
+      type: 'internal.text',
+      content: 'hello',
+      quotedMessageId: 'msg_abc123def456ghi789j'
+    });
+
+    expect(error).toBeUndefined();
+    expect(value.quotedMessageId).toBe('msg_abc123def456ghi789j');
+  });
+
+  test('rejects invalid quotedMessageId format', () => {
+    const { error } = validate({
+      senderId: 'user_1',
+      type: 'internal.text',
+      content: 'hello',
+      quotedMessageId: 'invalid_format'
+    });
+
+    expect(error).toBeDefined();
+    expect(error?.details?.[0]?.message).toContain('quotedMessageId must be in format msg_');
+  });
+
+  test('allows null or empty quotedMessageId', () => {
+    const { error: error1, value: value1 } = validate({
+      senderId: 'user_1',
+      type: 'internal.text',
+      content: 'hello',
+      quotedMessageId: null
+    });
+
+    expect(error1).toBeUndefined();
+    expect(value1.quotedMessageId).toBeUndefined();
+
+    const { error: error2, value: value2 } = validate({
+      senderId: 'user_1',
+      type: 'internal.text',
+      content: 'hello',
+      quotedMessageId: ''
+    });
+
+    expect(error2).toBeUndefined();
+    expect(value2.quotedMessageId).toBe('');
+  });
+
+  test('normalizes quotedMessageId to lowercase', () => {
+    const { error, value } = validate({
+      senderId: 'user_1',
+      type: 'internal.text',
+      content: 'hello',
+      quotedMessageId: 'MSG_ABC123DEF456GHI789J'
+    });
+
+    expect(error).toBeUndefined();
+    expect(value.quotedMessageId).toBe('msg_abc123def456ghi789j');
+  });
 });
 
 describe('bodySchemas.createUserSchema', () => {
