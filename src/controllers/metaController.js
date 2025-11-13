@@ -40,53 +40,6 @@ const metaController = {
     }
   },
 
-  // Get specific meta key for an entity
-  async getMetaKey(req, res) {
-    try {
-      const { entityType, entityId, key } = req.params;
-
-      // Validate entityType
-      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember'];
-      if (!validEntityTypes.includes(entityType)) {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: `Invalid entityType. Must be one of: ${validEntityTypes.join(', ')}`
-        });
-      }
-
-      // Optional: Verify entity exists
-      await verifyEntityExists(entityType, entityId, req.tenantId);
-
-      // Get meta value
-      const value = await metaUtils.getEntityMetaValue(req.tenantId, entityType, entityId, key);
-
-      if (value === null || value === undefined) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: `Meta key '${key}' not found for ${entityType} ${entityId}`
-        });
-      }
-
-      res.json({
-        data: sanitizeResponse({
-          key,
-          value
-        })
-      });
-    } catch (error) {
-      if (error.statusCode === 404) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: error.message
-        });
-      }
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: error.message
-      });
-    }
-  },
-
   // Set or update meta for an entity
   async setMeta(req, res) {
     try {

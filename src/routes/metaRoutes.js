@@ -10,54 +10,6 @@ const router = express.Router();
 /**
  * @swagger
  * /api/meta/{entityType}/{entityId}/{key}:
- *   get:
- *     summary: Get specific meta key for an entity
- *     tags: [Meta]
- *     security:
- *       - ApiKeyAuth: []
- *     parameters:
- *       - in: path
- *         name: entityType
- *         required: true
- *         schema:
- *           type: string
- *           enum: [user, dialog, message, tenant, system, dialogMember]
- *         description: Entity type
- *       - in: path
- *         name: entityId
- *         required: true
- *         schema:
- *           type: string
- *         description: Entity ID
- *       - in: path
- *         name: key
- *         required: true
- *         schema:
- *           type: string
- *         description: Meta key
- *     responses:
- *       200:
- *         description: Meta value
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: object
- *                   properties:
- *                     key:
- *                       type: string
- *                     value:
- *                       type: string
- *       404:
- *         description: Entity or meta key not found
- */
-router.get('/:entityType/:entityId/:key', apiAuth, requirePermission('read'), validateEntityType, validateEntityId, validateMetaKey, metaController.getMetaKey);
-
-/**
- * @swagger
- * /api/meta/{entityType}/{entityId}/{key}:
  *   put:
  *     summary: Set or update meta tag for an entity
  *     tags: [Meta]

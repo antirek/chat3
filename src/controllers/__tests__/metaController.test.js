@@ -154,58 +154,6 @@ describe('metaController', () => {
     });
   });
 
-  describe('getMetaKey', () => {
-    test('returns single meta key for message', async () => {
-      await Meta.create({
-        tenantId,
-        entityType: 'message',
-        entityId: messageId,
-        key: 'externalId',
-        value: 'crm-42',
-        dataType: 'string',
-        createdBy: 'system'
-      });
-
-      const req = createMockReq({
-        params: {
-          entityType: 'message',
-          entityId: messageId,
-          key: 'externalId'
-        }
-      });
-      const res = createMockRes();
-
-      await metaController.getMetaKey(req, res);
-
-      expect(res.statusCode).toBeUndefined();
-      expect(res.body).toEqual({
-        data: {
-          key: 'externalId',
-          value: 'crm-42'
-        }
-      });
-    });
-
-    test('returns 404 when meta key not found', async () => {
-      const req = createMockReq({
-        params: {
-          entityType: 'message',
-          entityId: messageId,
-          key: 'absent'
-        }
-      });
-      const res = createMockRes();
-
-      await metaController.getMetaKey(req, res);
-
-      expect(res.statusCode).toBe(404);
-      expect(res.body).toEqual({
-        error: 'Not Found',
-        message: "Meta key 'absent' not found for message " + messageId
-      });
-    });
-  });
-
   describe('setMeta', () => {
     test('creates meta for dialog', async () => {
       const req = createMockReq({

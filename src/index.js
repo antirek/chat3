@@ -196,7 +196,8 @@ const startServer = async () => {
                 <li><code>POST /api/dialogs/:id/members/:userId/remove</code></li>
                 <li><code>GET /api/users/:id/dialogs?includeLastMessage=true</code></li>
                 <li><code>GET/POST/DELETE /api/messages/:id/reactions</code></li>
-                <li><code>GET/PUT/DELETE /api/meta/:entityType/:entityId/:key</code></li>
+                <li><code>PUT/DELETE /api/meta/:entityType/:entityId/:key</code></li>
+                <li><code>GET /api/meta/:entityType/:entityId</code></li>
               </ul>
               <p style="margin-bottom: 0; color: #666; font-size: 14px;">
                 💡 Все API запросы требуют заголовок <code>X-API-Key</code>
