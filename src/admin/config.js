@@ -2,7 +2,7 @@ import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import * as AdminJSMongoose from '@adminjs/mongoose';
 
-import { Tenant, User, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember, Event, MessageReaction, Update } from '../models/index.js';
+import { Tenant, User, Dialog, Message, Meta, ApiKey, MessageStatus, DialogMember, Event, MessageReaction, Update, ApiJournal } from '../models/index.js';
 
 // Register the mongoose adapter
 AdminJS.registerAdapter({
@@ -1032,6 +1032,104 @@ const adminOptions = {
                 } catch (error) {
                   console.error('Error formatting update data:', error);
                   // Если ошибка парсинга, оставляем как есть
+                }
+              }
+              return response;
+            }
+          }
+        }
+      }
+    },
+    {
+      resource: ApiJournal,
+      options: {
+        navigation: {
+          name: 'Журналы',
+          icon: 'FileText',
+        },
+        properties: {
+          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          tenantId: {
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+          },
+          method: {
+            type: 'string',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            availableValues: [
+              { value: 'GET', label: 'GET' },
+              { value: 'POST', label: 'POST' },
+              { value: 'PUT', label: 'PUT' },
+              { value: 'PATCH', label: 'PATCH' },
+              { value: 'DELETE', label: 'DELETE' },
+              { value: 'OPTIONS', label: 'OPTIONS' },
+              { value: 'HEAD', label: 'HEAD' },
+            ],
+          },
+          endpoint: {
+            type: 'string',
+            isTitle: true,
+            isVisible: { list: true, show: true, edit: false, filter: true },
+          },
+          statusCode: {
+            type: 'number',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+          },
+          duration: {
+            type: 'number',
+            isVisible: { list: true, show: true, edit: false, filter: false },
+            description: 'Время выполнения запроса в миллисекундах',
+          },
+          requestSize: {
+            type: 'number',
+            isVisible: { list: false, show: true, edit: false, filter: false },
+            description: 'Размер тела запроса в байтах',
+          },
+          responseSize: {
+            type: 'number',
+            isVisible: { list: false, show: true, edit: false, filter: false },
+            description: 'Размер тела ответа в байтах',
+          },
+          requestBody: {
+            type: 'textarea',
+            isVisible: { list: false, show: true, edit: false, filter: false },
+            description: 'Тело запроса (JSON) - сохраняется только для POST/PUT/PATCH запросов',
+            position: 100,
+          },
+          createdAt: {
+            type: 'number',
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            description: 'Timestamp создания записи (микросекунды)',
+          },
+        },
+        listProperties: ['_id', 'method', 'endpoint', 'statusCode', 'duration', 'tenantId', 'createdAt'],
+        showProperties: ['_id', 'tenantId', 'method', 'endpoint', 'statusCode', 'duration', 'requestSize', 'responseSize', 'requestBody', 'createdAt'],
+        editProperties: [], // Только для чтения
+        filterProperties: ['tenantId', 'method', 'endpoint', 'statusCode', 'createdAt'],
+        sort: {
+          sortBy: 'createdAt',
+          direction: 'desc'
+        },
+        actions: {
+          new: {
+            isVisible: false, // Запретить создание записей вручную
+          },
+          edit: {
+            isVisible: false, // Запретить редактирование записей
+          },
+          show: {
+            after: async (response, request, context) => {
+              const { record } = context;
+              if (record && record.params && record.params.requestBody) {
+                try {
+                  // Форматируем requestBody как JSON
+                  const requestBodyValue = typeof record.params.requestBody === 'string' 
+                    ? JSON.parse(record.params.requestBody) 
+                    : record.params.requestBody;
+                  record.params.requestBody = JSON.stringify(requestBodyValue, null, 2);
+                } catch (error) {
+                  // Если не JSON, оставляем как есть
+                  console.error('Error formatting requestBody:', error);
                 }
               }
               return response;

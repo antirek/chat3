@@ -15,6 +15,7 @@ import dialogMemberRoutes from './routes/dialogMemberRoutes.js';
 import userDialogRoutes from './routes/userDialogRoutes.js';
 import metaRoutes from './routes/metaRoutes.js';
 import idempotencyGuard from './middleware/idempotencyGuard.js';
+import { apiJournalMiddleware } from './middleware/apiJournal.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,6 +55,10 @@ const startServer = async () => {
     // Body parser middleware AFTER AdminJS
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
+    
+    // API Journal middleware - логирование всех API запросов
+    app.use(apiJournalMiddleware);
+    
     app.use(idempotencyGuard);
 
     // Swagger UI

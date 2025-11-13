@@ -9,6 +9,7 @@ import DialogMember from './DialogMember.js';
 import Event from './Event.js';
 import MessageReaction from './MessageReaction.js';
 import Update from './Update.js';
+import ApiJournal from './ApiJournal.js';
 
 export {
   Tenant,
@@ -21,6 +22,7 @@ export {
   DialogMember,
   Event,
   MessageReaction,
-  Update
+  Update,
+  ApiJournal
 };
 
