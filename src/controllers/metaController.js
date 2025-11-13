@@ -60,7 +60,7 @@ const metaController = {
       // Get meta value
       const value = await metaUtils.getEntityMetaValue(req.tenantId, entityType, entityId, key);
 
-      if (value === null) {
+      if (value === null || value === undefined) {
         return res.status(404).json({
           error: 'Not Found',
           message: `Meta key '${key}' not found for ${entityType} ${entityId}`
@@ -213,7 +213,7 @@ async function verifyEntityExists(entityType, entityId, tenantId) {
     case 'dialog':
       const dialog = await Dialog.findOne({ dialogId: entityId, tenantId });
       if (!dialog) {
-        const error = new Error('Dialog not found');
+        const error = new Error(`Dialog ${entityId} not found`);
         error.statusCode = 404;
         throw error;
       }
