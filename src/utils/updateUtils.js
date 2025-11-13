@@ -150,6 +150,16 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
           dialogMemberMeta: memberMeta
         };
 
+        // Добавляем dialogInfo с мета-тегами
+        const dialogInfo = {
+          dialogId: dialog.dialogId,
+          name: dialog.name,
+          createdBy: dialog.createdBy,
+          createdAt: dialog.createdAt,
+          updatedAt: dialog.updatedAt,
+          meta: dialogMeta
+        };
+
         return {
           tenantId: tenantId, // tenantId is now a String (tnt_XXXXXXXX)
           userId: member.userId,
@@ -157,7 +167,10 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
           entityId: dialog.dialogId, // Используем строковый dialogId для Update.entityId
           eventId: eventId,
           eventType: eventType,
-          data: dialogData,
+          data: {
+            ...dialogData,
+            dialogInfo
+          },
           published: false
         };
       })
@@ -238,6 +251,16 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
       }
     };
 
+    // Добавляем dialogInfo с мета-тегами
+    const dialogInfo = {
+      dialogId: dialog.dialogId,
+      name: dialog.name,
+      createdBy: dialog.createdBy,
+      createdAt: dialog.createdAt,
+      updatedAt: dialog.updatedAt,
+      meta: dialogMeta
+    };
+
     // Создаем update только для этого участника
     const updateData = {
       tenantId: tenantId,
@@ -246,7 +269,10 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
       entityId: dialog.dialogId,
       eventId: eventId,
       eventType: eventType,
-      data: dialogData,
+      data: {
+        ...dialogData,
+        dialogInfo
+      },
       published: false
     };
 
@@ -334,6 +360,19 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
 
     fullMessage.dialogId = dialog.dialogId;
 
+    // Получаем метаданные диалога для dialogInfo
+    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+
+    // Формируем dialogInfo с мета-тегами
+    const dialogInfo = {
+      dialogId: dialog.dialogId,
+      name: dialog.name,
+      createdBy: dialog.createdBy,
+      createdAt: dialog.createdAt,
+      updatedAt: dialog.updatedAt,
+      meta: dialogMeta
+    };
+
     // Создаем updates для каждого участника
     const updates = dialogMembers.map(member => ({
       tenantId: tenantId, // tenantId is now a String (tnt_XXXXXXXX)
@@ -342,7 +381,10 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       entityId: message.messageId, // Update.entityId - это строка msg_*
       eventId: eventId,
       eventType: eventType,
-      data: fullMessage,
+      data: {
+        ...fullMessage,
+        dialogInfo
+      },
       published: false
     }));
 
@@ -392,6 +434,19 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
     const timestamp = eventData.timestamp || Date.now();
     const userInfo = eventData.userInfo || null;
 
+    // Получаем метаданные диалога для dialogInfo
+    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+
+    // Формируем dialogInfo с мета-тегами
+    const dialogInfo = {
+      dialogId: dialog.dialogId,
+      name: dialog.name,
+      createdBy: dialog.createdBy,
+      createdAt: dialog.createdAt,
+      updatedAt: dialog.updatedAt,
+      meta: dialogMeta
+    };
+
     const updatesPayload = dialogMembers
       .filter(member => member.userId !== typingUserId)
       .map(member => ({
@@ -408,7 +463,8 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
             expiresInMs,
             timestamp,
             userInfo
-          }
+          },
+          dialogInfo
         },
         published: false
       }));
