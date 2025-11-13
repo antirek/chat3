@@ -53,7 +53,8 @@ const MEDIA_META_SCHEMA = BASE_META_SCHEMA.keys({
  */
 export const createDialogSchema = Joi.object({
   name: Joi.string().trim().min(1).max(500).required(),
-  createdBy: Joi.string().trim().min(1).max(100).required()
+  createdBy: Joi.string().trim().min(1).max(100).required(),
+  meta: OPTIONAL_META_SCHEMA
 });
 
 /**

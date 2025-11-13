@@ -397,6 +397,53 @@ describe('dialogController.create', () => {
     expect(event.data.dialogName).toBe('New Dialog');
   });
 
+  test('creates dialog with meta tags', async () => {
+    const req = createMockReq(
+      tenantId,
+      {},
+      {},
+      {
+        name: 'Dialog with Meta',
+        createdBy: 'carl',
+        meta: {
+          department: 'sales',
+          priority: 5,
+          channel: 'telegram'
+        }
+      }
+    );
+    const res = createMockRes();
+
+    await dialogController.create(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.message).toBe('Dialog created successfully');
+    expect(res.body.data.name).toBe('Dialog with Meta');
+    expect(res.body.data.meta).toBeDefined();
+    expect(res.body.data.meta.department).toBe('sales');
+    expect(res.body.data.meta.priority).toBe(5);
+    expect(res.body.data.meta.channel).toBe('telegram');
+
+    // Проверяем, что мета-теги сохранены в базе
+    const storedDialog = await Dialog.findOne({ tenantId, name: 'Dialog with Meta' }).lean();
+    expect(storedDialog).toBeTruthy();
+
+    const metaRecords = await Meta.find({
+      tenantId,
+      entityType: 'dialog',
+      entityId: storedDialog.dialogId
+    }).lean();
+
+    expect(metaRecords).toHaveLength(3);
+    const metaMap = {};
+    metaRecords.forEach(m => {
+      metaMap[m.key] = m.value;
+    });
+    expect(metaMap.department).toBe('sales');
+    expect(metaMap.priority).toBe(5);
+    expect(metaMap.channel).toBe('telegram');
+  });
+
   test('returns 400 when required fields missing', async () => {
     const req = createMockReq(tenantId, {}, {}, {});
     const res = createMockRes();

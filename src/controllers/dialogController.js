@@ -462,7 +462,7 @@ export const dialogController = {
   // Create new dialog
   async create(req, res) {
     try {
-      const { name, createdBy } = req.body;
+      const { name, createdBy, meta: metaPayload } = req.body;
 
       // Basic validation
       if (!name || !createdBy) {
@@ -477,6 +477,35 @@ export const dialogController = {
         name,
         createdBy
       });
+
+      // Add meta data if provided
+      if (metaPayload && typeof metaPayload === 'object') {
+        for (const [key, value] of Object.entries(metaPayload)) {
+          if (typeof value === 'object' && value !== null) {
+            // If value is an object with dataType and value properties
+            await metaUtils.setEntityMeta(
+              req.tenantId,
+              'dialog',
+              dialog.dialogId,
+              key,
+              value.value,
+              value.dataType || 'string'
+            );
+          } else {
+            // If value is a simple value
+            await metaUtils.setEntityMeta(
+              req.tenantId,
+              'dialog',
+              dialog.dialogId,
+              key,
+              value,
+              typeof value === 'number' ? 'number' : 
+              typeof value === 'boolean' ? 'boolean' :
+              Array.isArray(value) ? 'array' : 'string'
+            );
+          }
+        }
+      }
 
       // Создаем событие dialog.create
       await eventUtils.createEvent({
