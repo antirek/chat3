@@ -1096,6 +1096,24 @@ const adminOptions = {
             description: 'Тело запроса (JSON) - сохраняется только для POST/PUT/PATCH запросов',
             position: 100,
           },
+          'requestBody._id': {
+            isVisible: false, // Скрыть автоматически развернутые поля
+          },
+          'requestBody.content': {
+            isVisible: false,
+          },
+          'requestBody.senderId': {
+            isVisible: false,
+          },
+          'requestBody.type': {
+            isVisible: false,
+          },
+          'requestBody.meta': {
+            isVisible: false,
+          },
+          'requestBody.quotedMessageId': {
+            isVisible: false,
+          },
           createdAt: {
             type: 'number',
             isVisible: { list: true, show: true, edit: false, filter: true },
@@ -1120,16 +1138,43 @@ const adminOptions = {
           show: {
             after: async (response, request, context) => {
               const { record } = context;
-              if (record && record.params && record.params.requestBody) {
+              if (record && record.params) {
                 try {
-                  // Форматируем requestBody как JSON
-                  const requestBodyValue = typeof record.params.requestBody === 'string' 
-                    ? JSON.parse(record.params.requestBody) 
-                    : record.params.requestBody;
-                  record.params.requestBody = JSON.stringify(requestBodyValue, null, 2);
+                  // Собираем развернутые поля requestBody.* обратно в объект requestBody
+                  if (!record.params.requestBody || record.params.requestBody === '{}' || record.params.requestBody === '') {
+                    const requestBodyObj = {};
+                    Object.keys(record.params).forEach(key => {
+                      if (key.startsWith('requestBody.') && record.params[key] !== undefined && record.params[key] !== null) {
+                        const requestBodyKey = key.replace('requestBody.', '');
+                        // Обрабатываем вложенные поля типа requestBody.meta.channelId.value
+                        if (requestBodyKey.includes('.')) {
+                          const keys = requestBodyKey.split('.');
+                          let current = requestBodyObj;
+                          for (let i = 0; i < keys.length - 1; i++) {
+                            if (!current[keys[i]]) {
+                              current[keys[i]] = {};
+                            }
+                            current = current[keys[i]];
+                          }
+                          current[keys[keys.length - 1]] = record.params[key];
+                        } else {
+                          requestBodyObj[requestBodyKey] = record.params[key];
+                        }
+                      }
+                    });
+                    if (Object.keys(requestBodyObj).length > 0) {
+                      record.params.requestBody = JSON.stringify(requestBodyObj, null, 2);
+                    }
+                  } else {
+                    // Если requestBody уже есть, форматируем его как JSON
+                    const requestBodyValue = typeof record.params.requestBody === 'string' 
+                      ? JSON.parse(record.params.requestBody) 
+                      : record.params.requestBody;
+                    record.params.requestBody = JSON.stringify(requestBodyValue, null, 2);
+                  }
                 } catch (error) {
-                  // Если не JSON, оставляем как есть
                   console.error('Error formatting requestBody:', error);
+                  // Если ошибка парсинга, оставляем как есть
                 }
               }
               return response;
