@@ -195,10 +195,12 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
 
       await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.create');
 
-      const update = await Update.findOne({ tenantId, dialogId, userId: 'user1' });
+      const update = await Update.findOne({ tenantId, dialogId, userId: 'user1' }).lean();
       expect(update).toBeDefined();
-      expect(update.data.meta).toHaveProperty('channel');
-      expect(update.data.meta.channel).toBe('telegram');
+      expect(update.data.dialog).toBeDefined();
+      expect(update.data.dialog.meta).toHaveProperty('channel');
+      expect(update.data.dialog.meta.channel).toBe('telegram');
+      expect(update.data.member).toBeDefined();
     });
   });
 
@@ -240,8 +242,8 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       });
 
       expect(updates.length).toBe(1);
-      expect(updates[0].data.memberData).toBeDefined();
-      expect(updates[0].data.memberData.unreadCount).toBe(3);
+      expect(updates[0].data.member).toBeDefined();
+      expect(updates[0].data.member.state.unreadCount).toBe(3);
     });
 
     test('should not create update if member does not exist', async () => {
@@ -373,13 +375,14 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         'message.create'
       );
 
-      const update = await Update.findOne({ tenantId, entityId: messageId, userId: 'user1' });
+      const update = await Update.findOne({ tenantId, entityId: messageId, userId: 'user1' }).lean();
       expect(update).toBeDefined();
       expect(update.data).toBeDefined();
-      expect(update.data.content).toBe('Test message');
-      expect(Array.isArray(update.data.statuses)).toBe(true);
-      expect(update.data.meta || {}).toEqual({});
-      expect(update.data.senderInfo).toEqual(
+      expect(update.data.message).toBeDefined();
+      expect(update.data.message.content).toBe('Test message');
+      expect(Array.isArray(update.data.message.statuses)).toBe(true);
+      expect(update.data.message.meta || {}).toEqual({});
+      expect(update.data.message.senderInfo).toEqual(
         expect.objectContaining({
           userId: 'user1',
           name: 'User One',
@@ -449,16 +452,11 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       // Проверяем структуру данных
       // В update.data должны быть поля сообщения + statusUpdate
       expect(update.data).toBeDefined();
-      expect(update.data.messageId).toBe(messageId);
-      
-      // statusUpdate должен быть в data (не в data.messageData)
-      if (update.data.statusUpdate) {
-        expect(update.data.statusUpdate.userId).toBe('user2');
-        expect(update.data.statusUpdate.status).toBe('read');
-      } else {
-        // Если statusUpdate нет в data, проверяем, что данные сообщения есть
-        expect(update.data.content).toBeDefined();
-      }
+      expect(update.data.message).toBeDefined();
+      expect(update.data.message.messageId || update.data.message._id).toBeDefined();
+      expect(update.data.message.statusUpdate).toBeDefined();
+      expect(update.data.message.statusUpdate.userId).toBe('user2');
+      expect(update.data.message.statusUpdate.status).toBe('read');
     });
 
     test('should include reaction update in message data', async () => {
@@ -518,17 +516,11 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       
       // Проверяем структуру данных
       expect(update.data).toBeDefined();
-      expect(update.data.messageId).toBe(messageId);
-      
-      // reactionUpdate должен быть в data (не в data.messageData)
-      if (update.data.reactionUpdate) {
-        expect(update.data.reactionUpdate.userId).toBe('user2');
-        expect(update.data.reactionUpdate.reaction).toBe('👍');
-        expect(update.data.reactionUpdate.oldReaction).toBeNull();
-      } else {
-        // Если reactionUpdate нет в data, проверяем, что данные сообщения есть
-        expect(update.data.content).toBeDefined();
-      }
+      expect(update.data.message).toBeDefined();
+      expect(update.data.message.reactionUpdate).toBeDefined();
+      expect(update.data.message.reactionUpdate.userId).toBe('user2');
+      expect(update.data.message.reactionUpdate.reaction).toBe('👍');
+      expect(update.data.message.reactionUpdate.oldReaction).toBeNull();
     });
   });
 

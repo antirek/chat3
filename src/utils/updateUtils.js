@@ -35,6 +35,81 @@ const TYPING_EVENTS = [
   'dialog.typing'
 ];
 
+function buildDialogSection(dialog, dialogMeta = {}) {
+  if (!dialog) {
+    return null;
+  }
+
+  return {
+    dialogId: dialog.dialogId,
+    tenantId: dialog.tenantId,
+    name: dialog.name,
+    createdBy: dialog.createdBy,
+    createdAt: dialog.createdAt,
+    updatedAt: dialog.updatedAt,
+    meta: dialogMeta || {}
+  };
+}
+
+function buildMemberSection(member, memberMeta = {}, overrides = {}) {
+  if (!member) {
+    return null;
+  }
+
+  const state = {
+    unreadCount: overrides.unreadCount ?? member.unreadCount ?? null,
+    lastSeenAt: overrides.lastSeenAt ?? member.lastSeenAt ?? null,
+    lastMessageAt: overrides.lastMessageAt ?? member.lastMessageAt ?? null,
+    isActive: overrides.isActive ?? member.isActive ?? null
+  };
+
+  return {
+    userId: member.userId,
+    meta: memberMeta || {},
+    state
+  };
+}
+
+function buildContextSection({
+  eventType,
+  dialogId,
+  entityId,
+  messageId = null,
+  reason = null,
+  includedSections = [],
+  updatedFields = []
+}) {
+  const context = {
+    eventType,
+    dialogId,
+    entityId,
+    includedSections,
+    updatedFields
+  };
+
+  if (messageId) {
+    context.messageId = messageId;
+  }
+
+  if (reason) {
+    context.reason = reason;
+  }
+
+  return context;
+}
+
+function cloneSection(section) {
+  if (!section) {
+    return null;
+  }
+
+  if (typeof structuredClone === 'function') {
+    return structuredClone(section);
+  }
+
+  return JSON.parse(JSON.stringify(section));
+}
+
 async function getSenderInfo(tenantId, senderId, cache = new Map()) {
   if (!senderId) {
     return null;
@@ -130,51 +205,41 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
       return;
     }
 
-    // Создаем updates для каждого участника с его мета тегами
-    const updates = await Promise.all(
-      dialogMembers.map(async (member) => {
-        // Получаем мета теги DialogMember для этого участника
-        // entityId для DialogMember meta = dialogId:userId (составной ключ)
+    const dialogSection = buildDialogSection(dialog, dialogMeta);
+    const memberMetaEntries = await Promise.all(
+      dialogMembers.map(async member => {
         const memberId = `${dialog.dialogId}:${member.userId}`;
         const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
-
-        // Формируем данные диалога для update с мета тегами участника
-        const dialogData = {
-          dialogId: dialog.dialogId, // Строковый ID dlg_*
-          tenantId: dialog.tenantId,
-          name: dialog.name,
-          createdBy: dialog.createdBy,
-          createdAt: dialog.createdAt,
-          updatedAt: dialog.updatedAt,
-          meta: dialogMeta,
-          dialogMemberMeta: memberMeta
-        };
-
-        // Добавляем dialogInfo с мета-тегами
-        const dialogInfo = {
-          dialogId: dialog.dialogId,
-          name: dialog.name,
-          createdBy: dialog.createdBy,
-          createdAt: dialog.createdAt,
-          updatedAt: dialog.updatedAt,
-          meta: dialogMeta
-        };
-
-        return {
-          tenantId: tenantId, // tenantId is now a String (tnt_XXXXXXXX)
-          userId: member.userId,
-          dialogId: dialog.dialogId, // Используем строковый dialogId для Update.dialogId
-          entityId: dialog.dialogId, // Используем строковый dialogId для Update.entityId
-          eventId: eventId,
-          eventType: eventType,
-          data: {
-            ...dialogData,
-            dialogInfo
-          },
-          published: false
-        };
+        return { userId: member.userId, meta: memberMeta || {} };
       })
     );
+    const memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
+
+    const updates = dialogMembers.map((member) => {
+      const memberSection = buildMemberSection(member, memberMetaMap.get(member.userId));
+
+      const data = {
+        dialog: dialogSection,
+        member: memberSection,
+        context: buildContextSection({
+          eventType,
+          dialogId: dialog.dialogId,
+          entityId: dialog.dialogId,
+          includedSections: ['dialog', 'member']
+        })
+      };
+
+      return {
+        tenantId: tenantId,
+        userId: member.userId,
+        dialogId: dialog.dialogId,
+        entityId: dialog.dialogId,
+        eventId: eventId,
+        eventType: eventType,
+        data,
+        published: false
+      };
+    });
 
     // Сохраняем updates в БД
     const savedUpdates = await Update.insertMany(updates);
@@ -226,53 +291,43 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
       return;
     }
 
-    // Получаем мета теги DialogMember для этого участника
-    // entityId для DialogMember meta = dialogId:userId (составной ключ)
     const memberId = `${dialog.dialogId}:${member.userId}`;
     const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
+    const memberSection = buildMemberSection(member, memberMeta, {
+      unreadCount: eventData.unreadCount,
+      lastSeenAt: eventData.lastSeenAt
+    });
+    const updatedFields = [];
+    if (Object.prototype.hasOwnProperty.call(eventData, 'unreadCount')) {
+      updatedFields.push('member.state.unreadCount');
+    }
+    if (Object.prototype.hasOwnProperty.call(eventData, 'lastSeenAt')) {
+      updatedFields.push('member.state.lastSeenAt');
+    }
 
-    // Формируем данные диалога для update с мета тегами и данными участника
-    const dialogData = {
-      dialogId: dialog.dialogId,
-      tenantId: dialog.tenantId,
-      name: dialog.name,
-      createdBy: dialog.createdBy,
-      createdAt: dialog.createdAt,
-      updatedAt: dialog.updatedAt,
-      meta: dialogMeta,
-      dialogMemberMeta: memberMeta,
-      // Добавляем данные участника из события
-      memberData: {
-        userId: member.userId,
-        unreadCount: eventData.unreadCount !== undefined ? eventData.unreadCount : member.unreadCount,
-        lastSeenAt: eventData.lastSeenAt || member.lastSeenAt,
-        lastMessageAt: member.lastMessageAt,
-        isActive: member.isActive
-      }
+    const dialogSection = buildDialogSection(dialog, dialogMeta);
+
+    const data = {
+      dialog: dialogSection,
+      member: memberSection,
+      context: buildContextSection({
+        eventType,
+        dialogId: dialog.dialogId,
+        entityId: dialog.dialogId,
+        reason: eventData.reason || eventData.source,
+        includedSections: ['dialog', 'member'],
+        updatedFields
+      })
     };
 
-    // Добавляем dialogInfo с мета-тегами
-    const dialogInfo = {
-      dialogId: dialog.dialogId,
-      name: dialog.name,
-      createdBy: dialog.createdBy,
-      createdAt: dialog.createdAt,
-      updatedAt: dialog.updatedAt,
-      meta: dialogMeta
-    };
-
-    // Создаем update только для этого участника
     const updateData = {
       tenantId: tenantId,
-      userId: userId, // Только для этого пользователя!
+      userId: userId,
       dialogId: dialog.dialogId,
       entityId: dialog.dialogId,
       eventId: eventId,
       eventType: eventType,
-      data: {
-        ...dialogData,
-        dialogInfo
-      },
+      data,
       published: false
     };
 
@@ -326,67 +381,101 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       return;
     }
 
-    const senderCache = new Map();
-    const fullMessage = await buildFullMessagePayload(tenantId, message, senderCache);
-    if (!fullMessage) {
-      console.error(`Failed to build message payload for ${messageId}`);
-      return;
+    const includeFullMessage = ['message.create', 'message.update', 'message.delete'].includes(eventType);
+    let messageSection = {
+      messageId: message.messageId,
+      dialogId: dialog.dialogId,
+      senderId: message.senderId,
+      type: message.type
+    };
+    const includedSections = ['dialog', 'member'];
+    const updatedFields = [];
+
+    if (includeFullMessage) {
+      const senderCache = new Map();
+      const fullMessage = await buildFullMessagePayload(tenantId, message, senderCache);
+      if (!fullMessage) {
+        console.error(`Failed to build message payload for ${messageId}`);
+        return;
+      }
+
+      if (eventData.reactionCounts) {
+        fullMessage.reactionCounts = eventData.reactionCounts;
+      } else {
+        fullMessage.reactionCounts = message.reactionCounts || {};
+      }
+
+      fullMessage.dialogId = dialog.dialogId;
+      messageSection = fullMessage;
+      includedSections.push('message.full');
+      updatedFields.push('message');
     }
 
-    // Обновляем актуальные счетчики реакций (если пришли в событии)
-    if (eventData.reactionCounts) {
-      fullMessage.reactionCounts = eventData.reactionCounts;
-    } else {
-      fullMessage.reactionCounts = message.reactionCounts || {};
-    }
-
-    // Для событий message.status.* добавляем информацию о статусе
     if (eventType.startsWith('message.status.')) {
-      fullMessage.statusUpdate = {
+      messageSection.statusUpdate = {
         userId: eventData.userId,
         status: eventData.newStatus,
         oldStatus: eventData.oldStatus ?? null
       };
+      includedSections.push('message.status');
+      updatedFields.push('message.status');
     }
 
-    // Для событий message.reaction.* добавляем информацию о реакции
     if (eventType.startsWith('message.reaction.')) {
-      fullMessage.reactionUpdate = {
+      messageSection.reactionUpdate = {
         userId: eventData.userId,
         reaction: eventData.reaction,
-        oldReaction: eventData.oldReaction ?? null
+        oldReaction: eventData.oldReaction ?? null,
+        counts: eventData.reactionCounts ?? null
       };
+      includedSections.push('message.reaction');
+      updatedFields.push('message.reaction');
     }
 
-    fullMessage.dialogId = dialog.dialogId;
-
-    // Получаем метаданные диалога для dialogInfo
     const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+    const dialogSection = buildDialogSection(dialog, dialogMeta);
+    const memberMetaEntries = await Promise.all(
+      dialogMembers.map(async member => {
+        const memberId = `${dialog.dialogId}:${member.userId}`;
+        const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
+        return { userId: member.userId, meta: memberMeta || {} };
+      })
+    );
+    const memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
 
-    // Формируем dialogInfo с мета-тегами
-    const dialogInfo = {
-      dialogId: dialog.dialogId,
-      name: dialog.name,
-      createdBy: dialog.createdBy,
-      createdAt: dialog.createdAt,
-      updatedAt: dialog.updatedAt,
-      meta: dialogMeta
-    };
+    const reason =
+      eventData.reason ||
+      (eventType.startsWith('message.status.') ? 'message_status' :
+        eventType.startsWith('message.reaction.') ? 'message_reaction' : null);
 
-    // Создаем updates для каждого участника
-    const updates = dialogMembers.map(member => ({
-      tenantId: tenantId, // tenantId is now a String (tnt_XXXXXXXX)
-      userId: member.userId,
-      dialogId: dialog.dialogId, // Update.dialogId - это строка dlg_*
-      entityId: message.messageId, // Update.entityId - это строка msg_*
-      eventId: eventId,
-      eventType: eventType,
-      data: {
-        ...fullMessage,
-        dialogInfo
-      },
-      published: false
-    }));
+    const updates = dialogMembers.map(member => {
+      const memberSection = buildMemberSection(member, memberMetaMap.get(member.userId));
+      const data = {
+        dialog: dialogSection,
+        member: memberSection,
+        message: cloneSection(messageSection),
+        context: buildContextSection({
+          eventType,
+          dialogId: dialog.dialogId,
+          entityId: message.messageId,
+          messageId: message.messageId,
+          reason,
+          includedSections: [...includedSections],
+          updatedFields: [...updatedFields]
+        })
+      };
+
+      return {
+        tenantId: tenantId,
+        userId: member.userId,
+        dialogId: dialog.dialogId,
+        entityId: message.messageId,
+        eventId: eventId,
+        eventType: eventType,
+        data,
+        published: false
+      };
+    });
 
     // Сохраняем updates в БД
     const savedUpdates = await Update.insertMany(updates);
@@ -436,38 +525,49 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
 
     // Получаем метаданные диалога для dialogInfo
     const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+    const dialogSection = buildDialogSection(dialog, dialogMeta);
+    const memberMetaEntries = await Promise.all(
+      dialogMembers.map(async member => {
+        const meta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', `${dialog.dialogId}:${member.userId}`);
+        return { userId: member.userId, meta: meta || {} };
+      })
+    );
+    const memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
 
-    // Формируем dialogInfo с мета-тегами
-    const dialogInfo = {
-      dialogId: dialog.dialogId,
-      name: dialog.name,
-      createdBy: dialog.createdBy,
-      createdAt: dialog.createdAt,
-      updatedAt: dialog.updatedAt,
-      meta: dialogMeta
+    const typingSection = {
+      userId: typingUserId,
+      expiresInMs,
+      timestamp,
+      userInfo
     };
 
     const updatesPayload = dialogMembers
       .filter(member => member.userId !== typingUserId)
-      .map(member => ({
-        tenantId,
-        userId: member.userId,
-        dialogId: dialog.dialogId,
-        entityId: dialog.dialogId,
-        eventId,
-        eventType,
-        data: {
+      .map(member => {
+        const memberSection = buildMemberSection(member, memberMetaMap.get(member.userId));
+
+        return {
+          tenantId,
+          userId: member.userId,
           dialogId: dialog.dialogId,
-          typing: {
-            userId: typingUserId,
-            expiresInMs,
-            timestamp,
-            userInfo
+          entityId: dialog.dialogId,
+          eventId,
+          eventType,
+          data: {
+            dialog: dialogSection,
+            member: memberSection,
+            typing: typingSection,
+            context: buildContextSection({
+              eventType,
+              dialogId: dialog.dialogId,
+              entityId: dialog.dialogId,
+              reason: eventData.reason || 'typing',
+              includedSections: ['dialog', 'member', 'typing']
+            })
           },
-          dialogInfo
-        },
-        published: false
-      }));
+          published: false
+        };
+      });
 
     if (updatesPayload.length === 0) {
       console.log(`No recipients for typing update in dialog ${dialogId}`);
@@ -545,7 +645,7 @@ export function getUpdateTypeFromEventType(eventType) {
     return 'DialogUpdate';
   }
   if (DIALOG_MEMBER_UPDATE_EVENTS.includes(eventType)) {
-    return 'DialogUpdate'; // Используем тот же routing key, но создаем только для одного участника
+    return 'DialogMemberUpdate';
   }
   if (MESSAGE_UPDATE_EVENTS.includes(eventType)) {
     return 'MessageUpdate';
