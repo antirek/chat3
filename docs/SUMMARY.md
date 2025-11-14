@@ -175,6 +175,7 @@ chat3/
 ### Dialog Members
 - `POST /api/dialogs/:id/members/:userId/add` - Добавить участника
 - `POST /api/dialogs/:id/members/:userId/remove` - Удалить участника
+- `PATCH /api/dialogs/:id/members/:userId/unread` - Принудительно задать unreadCount
 
 ### Message Status
 - `POST /api/messages/:id/status/:userId/:status` - Обновить статус

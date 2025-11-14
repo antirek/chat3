@@ -18,9 +18,10 @@ const createMockRes = () => {
   return res;
 };
 
-const createMockReq = (params = {}) => ({
+const createMockReq = (params = {}, body = {}) => ({
   tenantId,
   params,
+  body,
   apiKey: { name: 'test-key' }
 });
 
@@ -250,6 +251,62 @@ describe('dialogMemberController', () => {
 
       const eventCount = await Event.countDocuments({ tenantId }).lean();
       expect(eventCount).toBe(0);
+    });
+  });
+
+  describe('setUnreadCount', () => {
+    beforeEach(async () => {
+      await DialogMember.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'alice',
+        role: 'agent',
+        isActive: true,
+        unreadCount: 5,
+        joinedAt: generateTimestamp(),
+        lastSeenAt: generateTimestamp(),
+        createdAt: generateTimestamp()
+      });
+    });
+
+    test('updates unread count and creates event', async () => {
+      const req = createMockReq(
+        { dialogId: dialog.dialogId, userId: 'alice' },
+        { unreadCount: 2, reason: 'external-sync' }
+      );
+      req.apiKey = { name: 'sync-service' };
+
+      const res = createMockRes();
+
+      await dialogMemberController.setUnreadCount(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data.unreadCount).toBe(2);
+      expect(res.body.message).toBe('Unread count updated successfully');
+
+      const member = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'alice' }).lean();
+      expect(member.unreadCount).toBe(2);
+
+      const event = await Event.findOne({ tenantId, eventType: 'dialog.member.update' }).lean();
+      expect(event).toBeTruthy();
+      expect(event.actorId).toBe('sync-service');
+      expect(event.data.previousUnreadCount).toBe(5);
+      expect(event.data.unreadCount).toBe(2);
+      expect(event.data.reason).toBe('external-sync');
+    });
+
+    test('rejects unread count greater than current', async () => {
+      const req = createMockReq(
+        { dialogId: dialog.dialogId, userId: 'alice' },
+        { unreadCount: 10 }
+      );
+      const res = createMockRes();
+
+      await dialogMemberController.setUnreadCount(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('Bad Request');
+      expect(res.body.message).toMatch(/greater than current/i);
     });
   });
 });

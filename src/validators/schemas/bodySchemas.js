@@ -158,3 +158,12 @@ export const updateUserSchema = Joi.object({
   name: Joi.string().trim().min(1).max(200).optional()
 });
 
+/**
+ * Схема валидации ручного обновления unreadCount участника диалога
+ */
+export const setUnreadCountSchema = Joi.object({
+  unreadCount: Joi.number().integer().min(0).required(),
+  lastSeenAt: Joi.number().integer().min(0).optional(),
+  reason: Joi.string().trim().min(1).max(100).optional()
+});
+

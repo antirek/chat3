@@ -42,9 +42,9 @@
 | **Сообщения** | `message.create` | Создано новое сообщение | `POST /api/dialogs/:id/messages` | `message` |
 | | `message.update` | Обновлено сообщение | `PUT /api/messages/:id` | `message` |
 | | `message.delete` | Удалено сообщение | `DELETE /api/messages/:id` | `message` |
-| **Участники** | `dialog.member.add` | Добавлен участник | `POST /api/dialogs/:id/members/:userId` | `dialogMember` |
-| | `dialog.member.remove` | Удален участник | `DELETE /api/dialogs/:id/members/:userId` | `dialogMember` |
-| | `dialog.member.update` | Обновлен участник | `PUT /api/dialogs/:id/members/:userId` | `dialogMember` |
+| **Участники** | `dialog.member.add` | Добавлен участник | `POST /api/dialogs/:id/members/:userId/add` | `dialogMember` |
+| | `dialog.member.remove` | Удален участник | `POST /api/dialogs/:id/members/:userId/remove` | `dialogMember` |
+| | `dialog.member.update` | Обновлен участник (например, unreadCount) | `PATCH /api/dialogs/:id/members/:userId/unread`, `POST /api/messages/:id/status/:userId/:status` | `dialogMember` |
 | **Статусы** | `message.status.create` | Создан статус сообщения | `PUT /api/messages/:id/status` (новый) | `messageStatus` |
 | | `message.status.update` | Обновлен статус сообщения | `PUT /api/messages/:id/status` (существующий) | `messageStatus` |
 | **Реакции** | `message.reaction.add` | Добавлена реакция на сообщение | `POST /api/messages/:id/reactions` | `messageReaction` |

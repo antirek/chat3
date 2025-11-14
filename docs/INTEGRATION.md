@@ -90,6 +90,7 @@
 | Message Reactions | `DELETE /messages/:messageId/reactions/:reactionId` | Удаление реакции. | delete |
 | Dialog Members | `POST /dialogs/:dialogId/members/:userId/add` | Добавление участника. | write |
 | Dialog Members | `POST /dialogs/:dialogId/members/:userId/remove` | Удаление участника. | delete |
+| Dialog Members | `PATCH /dialogs/:dialogId/members/:userId/unread` | Принудительно уменьшить `unreadCount` (отметить сообщения прочитанными). | write |
 | Users | `GET /users` | Список пользователей; `includeDialogCount=true` добавляет счётчик диалогов; `filter` в формате `(поле,оператор,значение)` (через `queryParser`) поддерживает `userId`, `name`, `meta.*`. | read |
 | Users | `GET /users/:userId/dialogs` | Диалоги конкретного пользователя с фильтрами. | read |
 | Meta | `GET/PUT/DELETE /meta/:entityType/:entityId/:key` | Работа с мета-тегами любой сущности. | read/write/delete |
@@ -103,6 +104,7 @@
 - `GET /api/dialogs/:dialogId` возвращает только основные поля диалога и его `meta`.
 - Для списка участников используйте `GET /api/dialogs/:dialogId/members?page=1&limit=50&filter=(role,eq,agent)`.
 - Поддерживаются все операторы `queryParser`, включая `meta.*` (например, `(meta.shift,eq,day)`), а также сортировка по `joinedAt`, `lastSeenAt`, `lastMessageAt`, `unreadCount`, `userId`, `role`, `isActive`.
+- Сброс непрочитанных из внешней системы: `PATCH /api/dialogs/:dialogId/members/:userId/unread` с `{"unreadCount":0}` (или любым числом <= текущего количества). Можно передать опциональные поля `lastSeenAt` (микросекунды) и `reason` для аудита.
 
 ### Фильтрация, сортировка и пагинация
 

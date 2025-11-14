@@ -194,6 +194,7 @@ const startServer = async () => {
                 <li><code>POST /api/messages/:id/status/:userId/:status</code></li>
                 <li><code>POST /api/dialogs/:id/members/:userId/add</code></li>
                 <li><code>POST /api/dialogs/:id/members/:userId/remove</code></li>
+                <li><code>PATCH /api/dialogs/:id/members/:userId/unread</code></li>
                 <li><code>GET /api/users/:id/dialogs?includeLastMessage=true</code></li>
                 <li><code>GET/POST/DELETE /api/messages/:id/reactions</code></li>
                 <li><code>PUT/DELETE /api/meta/:entityType/:entityId/:key</code></li>
@@ -275,6 +276,7 @@ const startServer = async () => {
       console.log(`   POST /api/messages/:id/status/:userId/:status`);
       console.log(`   POST /api/dialogs/:id/members/:userId/add`);
       console.log(`   POST /api/dialogs/:id/members/:userId/remove`);
+      console.log(`   PATCH /api/dialogs/:id/members/:userId/unread`);
       console.log(`   GET  /api/users/:userId/dialogs?includeLastMessage=true`);
       console.log(`\n⚠️  Don't forget to generate an API key first!\n`);
     });

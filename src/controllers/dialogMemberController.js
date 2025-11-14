@@ -4,6 +4,7 @@ import * as eventUtils from '../utils/eventUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 const dialogMemberController = {
   // Add member to dialog
@@ -238,6 +239,88 @@ const dialogMemberController = {
       });
     } catch (error) {
       res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  async setUnreadCount(req, res) {
+    try {
+      const { dialogId, userId } = req.params;
+      const { unreadCount, lastSeenAt, reason } = req.body;
+
+      const dialog = await Dialog.findOne({ dialogId, tenantId: req.tenantId }).select('dialogId');
+      if (!dialog) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Dialog not found'
+        });
+      }
+
+      const memberFilter = {
+        tenantId: req.tenantId,
+        dialogId: dialog.dialogId,
+        userId
+      };
+
+      const existingMember = await DialogMember.findOne(memberFilter).lean();
+      if (!existingMember) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Dialog member not found'
+        });
+      }
+
+      if (unreadCount > existingMember.unreadCount) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Unread count cannot be greater than current unread count'
+        });
+      }
+
+      const timestamp = generateTimestamp();
+      const updatePayload = {
+        unreadCount,
+        updatedAt: timestamp
+      };
+
+      if (typeof lastSeenAt === 'number') {
+        updatePayload.lastSeenAt = lastSeenAt;
+      } else if (unreadCount < existingMember.unreadCount) {
+        updatePayload.lastSeenAt = timestamp;
+      }
+
+      const updatedMember = await DialogMember.findOneAndUpdate(
+        memberFilter,
+        updatePayload,
+        { new: true, lean: true }
+      );
+
+      await eventUtils.createEvent({
+        tenantId: req.tenantId,
+        eventType: 'dialog.member.update',
+        entityType: 'dialogMember',
+        entityId: `${dialog.dialogId}:${userId}`,
+        actorId: req.apiKey?.name || 'unknown',
+        actorType: 'api',
+        data: {
+          userId,
+          dialogId: dialog.dialogId,
+          unreadCount: updatedMember.unreadCount,
+          previousUnreadCount: existingMember.unreadCount,
+          lastSeenAt: updatedMember.lastSeenAt,
+          reason: reason || 'external_unread_set',
+          source: 'api'
+        }
+      });
+
+      return res.json({
+        data: sanitizeResponse(updatedMember),
+        message: 'Unread count updated successfully'
+      });
+    } catch (error) {
+      return res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
