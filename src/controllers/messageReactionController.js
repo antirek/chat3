@@ -152,22 +152,57 @@ const messageReactionController = {
       // Получаем обновленное сообщение для получения актуальных счетчиков
       const updatedMessage = await Message.findOne({ messageId: messageId });
 
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: message.dialogId
+      });
+
+      const memberSection = eventUtils.buildMemberSection({
+        userId
+      });
+
+      const actorSection = eventUtils.buildActorSection({
+        actorId: userId,
+        actorType: 'user'
+      });
+
+      const messageSection = eventUtils.buildMessageSection({
+        messageId,
+        dialogId: message.dialogId,
+        senderId: message.senderId,
+        type: message.type,
+        content: message.content,
+        reactionUpdate: {
+          userId,
+          reaction,
+          oldReaction,
+          counts: updatedMessage.reactionCounts
+        }
+      });
+
+      const reactionContext = eventUtils.buildEventContext({
+        eventType,
+        dialogId: message.dialogId,
+        entityId: messageId,
+        messageId,
+        includedSections: ['dialog', 'message.reaction', 'member', 'actor'],
+        updatedFields: ['message.reaction']
+      });
+
       // Создаем событие
       await eventUtils.createEvent({
         tenantId: req.tenantId,
-        eventType: eventType,
+        eventType,
         entityType: 'messageReaction',
-        entityId: `${messageId}_${userId}_${reaction}`, // Составной ID для messageReaction
+        entityId: messageId,
         actorId: userId,
         actorType: 'user',
-        data: {
-          dialogId: message.dialogId, // Добавляем dialogId для генерации MessageUpdate
-          messageId: messageId,
-          userId: userId, // Кто добавил/изменил реакцию
-          reaction: reaction,
-          oldReaction: oldReaction,
-          reactionCounts: updatedMessage.reactionCounts
-        }
+        data: eventUtils.composeEventData({
+          context: reactionContext,
+          dialog: dialogSection,
+          member: memberSection,
+          message: messageSection,
+          actor: actorSection
+        })
       });
 
       res.status(existingReaction ? 200 : 201).json({
@@ -255,21 +290,56 @@ const messageReactionController = {
       // Получаем обновленное сообщение для получения актуальных счетчиков
       const updatedMessage = await Message.findOne({ messageId: messageId });
 
-      // Создаем событие
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: message.dialogId
+      });
+
+      const memberSection = eventUtils.buildMemberSection({
+        userId
+      });
+
+      const actorSection = eventUtils.buildActorSection({
+        actorId: userId,
+        actorType: 'user'
+      });
+
+      const removeContext = eventUtils.buildEventContext({
+        eventType: 'message.reaction.remove',
+        dialogId: message.dialogId,
+        entityId: messageId,
+        messageId,
+        includedSections: ['dialog', 'message.reaction', 'member', 'actor'],
+        updatedFields: ['message.reaction']
+      });
+
+      const removeMessageSection = eventUtils.buildMessageSection({
+        messageId,
+        dialogId: message.dialogId,
+        senderId: message.senderId,
+        type: message.type,
+        content: message.content,
+        reactionUpdate: {
+          userId,
+          reaction: null,
+          oldReaction: reactionToDelete.reaction,
+          counts: updatedMessage.reactionCounts
+        }
+      });
+
       await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'message.reaction.remove',
         entityType: 'messageReaction',
-        entityId: `${messageId}_${userId}_${reactionToDelete.reaction}`, // Составной ID для messageReaction
+        entityId: messageId,
         actorId: userId,
         actorType: 'user',
-        data: {
-          dialogId: message.dialogId, // Добавляем dialogId для генерации MessageUpdate
-          messageId: messageId,
-          userId: userId, // Кто удалил реакцию
-          reaction: reactionToDelete.reaction,
-          reactionCounts: updatedMessage.reactionCounts
-        }
+        data: eventUtils.composeEventData({
+          context: removeContext,
+          dialog: dialogSection,
+          member: memberSection,
+          message: removeMessageSection,
+          actor: actorSection
+        })
       });
 
       res.json({

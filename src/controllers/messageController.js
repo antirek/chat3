@@ -437,6 +437,12 @@ const messageController = {
         }
       }
 
+      const dialogMeta = await metaUtils.getEntityMeta(
+        req.tenantId,
+        'dialog',
+        dialog.dialogId
+      );
+
       // Обработка quotedMessageId: находим цитируемое сообщение с мета-тегами
       let quotedMessage = null;
       if (quotedMessageId && typeof quotedMessageId === 'string' && quotedMessageId.trim()) {
@@ -499,19 +505,40 @@ const messageController = {
         ? messageContent.substring(0, MAX_CONTENT_LENGTH) 
         : messageContent;
 
-      // Создаем событие message.create (после сохранения мета-тегов и quotedMessage)
-      const eventData = {
-        dialogId: dialogId,
-        dialogName: dialog.name,
-        messageType: type,
-        content: eventContent, // Контент сообщения (до 4096 символов)
-        meta: messageMeta // Добавляем мета-теги сообщения
-      };
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        name: dialog.name,
+        createdBy: dialog.createdBy,
+        createdAt: dialog.createdAt,
+        updatedAt: dialog.updatedAt,
+        meta: dialogMeta
+      });
 
-      // Добавляем quotedMessage в событие, если оно есть
-      if (quotedMessage) {
-        eventData.quotedMessage = quotedMessage;
-      }
+      const messageSection = eventUtils.buildMessageSection({
+        messageId: message.messageId,
+        dialogId: dialog.dialogId,
+        senderId,
+        type,
+        content: eventContent,
+        meta: messageMeta,
+        quotedMessage
+      });
+
+      const actorSection = eventUtils.buildActorSection({
+        actorId: senderId,
+        actorType: 'user',
+        info: senderInfo || null
+      });
+
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'message.create',
+        dialogId: dialog.dialogId,
+        entityId: message.messageId,
+        messageId: message.messageId,
+        includedSections: ['dialog', 'message.full', 'actor'],
+        updatedFields: ['message']
+      });
 
       await eventUtils.createEvent({
         tenantId: req.tenantId,
@@ -520,7 +547,12 @@ const messageController = {
         entityId: message.messageId,
         actorId: senderId,
         actorType: 'user',
-        data: eventData
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection,
+          message: messageSection,
+          actor: actorSection
+        })
       });
 
       // Get message with meta data (включая quotedMessage, если оно было добавлено)

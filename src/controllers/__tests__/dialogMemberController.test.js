@@ -176,9 +176,17 @@ describe('dialogMemberController', () => {
       const event = await Event.findOne({ tenantId, eventType: 'dialog.member.add' }).lean();
       expect(event).toBeTruthy();
       expect(event.entityType).toBe('dialogMember');
-      expect(event.entityId).toBe(`${dialog.dialogId}:alice`);
+      expect(event.entityId).toBe(dialog.dialogId);
       expect(event.actorId).toBe('test-key');
-      expect(event.data).toEqual({ userId: 'alice', dialogId: dialog.dialogId });
+      expect(event.data.context).toMatchObject({
+        eventType: 'dialog.member.add',
+        dialogId: dialog.dialogId,
+        entityId: dialog.dialogId
+      });
+      expect(event.data.member).toMatchObject({
+        userId: 'alice'
+      });
+      expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
     });
 
     test('returns 404 if dialog not found', async () => {
@@ -222,12 +230,14 @@ describe('dialogMemberController', () => {
 
       const event = await Event.findOne({ tenantId, eventType: 'dialog.member.remove' }).lean();
       expect(event).toBeTruthy();
-      expect(event.entityId).toBe(`${dialog.dialogId}:alice`);
-      expect(event.data.userId).toBe('alice');
-      expect(event.data.dialogId).toBe(dialog.dialogId);
-      expect(event.data.removedMember).toBeDefined();
-      expect(event.data.removedMember.userId).toBe('alice');
-      expect(event.data.removedMember.unreadCount).toBe(2);
+      expect(event.entityId).toBe(dialog.dialogId);
+      expect(event.data.context).toMatchObject({
+        eventType: 'dialog.member.remove',
+        dialogId: dialog.dialogId
+      });
+      expect(event.data.member).toBeDefined();
+      expect(event.data.member.userId).toBe('alice');
+      expect(event.data.member.state.unreadCount).toBe(2);
     });
 
     test('returns 404 when dialog not found', async () => {
@@ -290,9 +300,8 @@ describe('dialogMemberController', () => {
       const event = await Event.findOne({ tenantId, eventType: 'dialog.member.update' }).lean();
       expect(event).toBeTruthy();
       expect(event.actorId).toBe('sync-service');
-      expect(event.data.previousUnreadCount).toBe(5);
-      expect(event.data.unreadCount).toBe(2);
-      expect(event.data.reason).toBe('external-sync');
+      expect(event.data.member.state.unreadCount).toBe(2);
+      expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
     });
 
     test('rejects unread count greater than current', async () => {

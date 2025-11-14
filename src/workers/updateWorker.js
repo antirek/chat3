@@ -60,6 +60,12 @@ async function processEvent(eventData) {
       data = {}
     } = eventData;
 
+    const context = data.context || {};
+    const dialogPayload = data.dialog || {};
+    const memberPayload = data.member || {};
+    const messagePayload = data.message || {};
+    const typingPayload = data.typing || {};
+
     console.log(`📩 Processing event: ${eventType} (${entityId})`);
 
     // Определяем, нужно ли создавать update
@@ -67,13 +73,12 @@ async function processEvent(eventData) {
     
     if (shouldUpdate.dialog) {
       // Для диалоговых событий нужен dialogId
-      let dialogId;
+      let dialogId = context.dialogId || dialogPayload.dialogId;
       
-      if (entityType === 'dialog') {
+      if (!dialogId && entityType === 'dialog') {
         dialogId = entityId;
-      } else if (entityType === 'dialogMember') {
-        // Для событий dialog.member.* dialogId должен быть в data
-        dialogId = data.dialogId || entityId;
+      } else if (!dialogId && entityType === 'dialogMember') {
+        dialogId = entityId;
       }
       
       if (dialogId) {
@@ -86,8 +91,8 @@ async function processEvent(eventData) {
     
     if (shouldUpdate.dialogMember) {
       // Для событий dialog.member.update создаем update только для конкретного участника
-      const dialogId = data.dialogId;
-      const userId = data.userId;
+      const dialogId = context.dialogId || dialogPayload.dialogId;
+      const userId = memberPayload.userId || data.userId;
       
       if (dialogId && userId) {
         await updateUtils.createDialogMemberUpdate(tenantId, dialogId, userId, eventId, eventType, data);
@@ -99,16 +104,14 @@ async function processEvent(eventData) {
     
     if (shouldUpdate.message) {
       // Для событий сообщений нужен dialogId из data
-      let dialogId;
-      let messageId;
+      let dialogId = context.dialogId || dialogPayload.dialogId || messagePayload.dialogId;
+      let messageId = context.messageId || messagePayload.messageId;
       
-      if (entityType === 'message') {
-        dialogId = data.dialogId || entityId;
+      if (!dialogId && entityType === 'message') {
+        dialogId = entityId;
+      }
+      if (!messageId && entityType === 'message') {
         messageId = entityId;
-      } else if (entityType === 'messageReaction' || entityType === 'messageStatus') {
-        // Для событий реакций и статусов messageId и dialogId должны быть в data
-        dialogId = data.dialogId;
-        messageId = data.messageId;
       }
       
       if (dialogId && messageId) {
@@ -120,8 +123,8 @@ async function processEvent(eventData) {
     }
 
     if (shouldUpdate.typing) {
-      const dialogId = data.dialogId || entityId;
-      const typingUserId = data.userId || eventData.actorId;
+      const dialogId = context.dialogId || dialogPayload.dialogId || entityId;
+      const typingUserId = typingPayload.userId || memberPayload.userId || eventData.actorId;
 
       if (dialogId && typingUserId) {
         await updateUtils.createTypingUpdate(tenantId, dialogId, typingUserId, eventId, eventType, data);

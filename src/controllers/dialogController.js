@@ -507,7 +507,28 @@ export const dialogController = {
         }
       }
 
-      // Создаем событие dialog.create
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        name,
+        createdBy,
+        createdAt: dialog.createdAt,
+        updatedAt: dialog.updatedAt
+      });
+
+      const actorSection = eventUtils.buildActorSection({
+        actorId: createdBy,
+        actorType: 'user'
+      });
+
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'dialog.create',
+        dialogId: dialog.dialogId,
+        entityId: dialog.dialogId,
+        includedSections: ['dialog', 'actor'],
+        updatedFields: ['dialog']
+      });
+
       await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'dialog.create',
@@ -515,9 +536,11 @@ export const dialogController = {
         entityId: dialog.dialogId,
         actorId: createdBy,
         actorType: 'user',
-        data: {
-          dialogName: name
-        }
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection,
+          actor: actorSection
+        })
       });
 
       // Получаем метаданные диалога (если есть)
@@ -566,7 +589,28 @@ export const dialogController = {
         });
       }
 
-      // Создаем событие dialog.delete
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        name: dialog.name,
+        createdBy: dialog.createdBy,
+        createdAt: dialog.createdAt,
+        updatedAt: dialog.updatedAt
+      });
+
+      const actorSection = eventUtils.buildActorSection({
+        actorId: req.apiKey?.name || 'unknown',
+        actorType: 'api'
+      });
+
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'dialog.delete',
+        dialogId: dialog.dialogId,
+        entityId: dialog.dialogId,
+        includedSections: ['dialog', 'actor'],
+        updatedFields: ['dialog']
+      });
+
       await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'dialog.delete',
@@ -574,14 +618,11 @@ export const dialogController = {
         entityId: dialog.dialogId,
         actorId: req.apiKey?.name || 'unknown',
         actorType: 'api',
-        data: {
-          dialogName: dialog.name,
-          deletedDialog: {
-            name: dialog.name,
-            createdBy: dialog.createdBy,
-            createdAt: dialog.createdAt
-          }
-        }
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection,
+          actor: actorSection
+        })
       });
 
       // Удаляем все метаданные диалога

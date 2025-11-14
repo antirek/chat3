@@ -64,22 +64,56 @@ const messageStatusController = {
         }
       ).select('-__v');
 
-      // Создаем событие message.status.update
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: message.dialogId
+      });
+
+      const messageSection = eventUtils.buildMessageSection({
+        messageId,
+        dialogId: message.dialogId,
+        senderId: message.senderId,
+        type: message.type,
+        content: message.content,
+        statusUpdate: {
+          userId,
+          status,
+          oldStatus: oldStatus?.status || null
+        }
+      });
+
+      const memberSection = eventUtils.buildMemberSection({
+        userId
+      });
+
+      const actorSection = eventUtils.buildActorSection({
+        actorId: userId,
+        actorType: 'user'
+      });
+
+      const statusEventType = oldStatus ? 'message.status.update' : 'message.status.create';
+      const statusContext = eventUtils.buildEventContext({
+        eventType: statusEventType,
+        dialogId: message.dialogId,
+        entityId: messageId,
+        messageId,
+        includedSections: ['dialog', 'message.status', 'member', 'actor'],
+        updatedFields: ['message.status']
+      });
+
       await eventUtils.createEvent({
         tenantId: req.tenantId,
-        eventType: oldStatus ? 'message.status.update' : 'message.status.create',
+        eventType: statusEventType,
         entityType: 'messageStatus',
-        entityId: `${messageId}_${userId}`, // Составной ID для messageStatus
+        entityId: messageId,
         actorId: userId,
         actorType: 'user',
-        data: {
-          messageId,
-          userId,
-          senderId: message.senderId, // Добавляем отправителя сообщения для real-time
-          oldStatus: oldStatus?.status || null,
-          newStatus: status,
-          dialogId: message.dialogId
-        }
+        data: eventUtils.composeEventData({
+          context: statusContext,
+          dialog: dialogSection,
+          message: messageSection,
+          member: memberSection,
+          actor: actorSection
+        })
       });
 
       // Обновляем счетчик непрочитанных сообщений при чтении
@@ -93,20 +127,46 @@ const messageStatusController = {
 
       // Если счетчик был обновлен, создаем событие dialog.member.update
       if (updatedMember) {
+        const dialogSection = eventUtils.buildDialogSection({
+          dialogId: message.dialogId
+        });
+
+        const memberSection = eventUtils.buildMemberSection({
+          userId,
+          state: {
+            unreadCount: updatedMember.unreadCount,
+            lastSeenAt: updatedMember.lastSeenAt,
+            lastMessageAt: updatedMember.lastMessageAt,
+            isActive: updatedMember.isActive
+          }
+        });
+
+        const actorSection = eventUtils.buildActorSection({
+          actorId: userId,
+          actorType: 'user'
+        });
+
+        const memberContext = eventUtils.buildEventContext({
+          eventType: 'dialog.member.update',
+          dialogId: message.dialogId,
+          entityId: message.dialogId,
+          includedSections: ['dialog', 'member', 'actor'],
+          updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
+        });
+
         await eventUtils.createEvent({
           tenantId: req.tenantId,
           eventType: 'dialog.member.update',
           entityType: 'dialogMember',
-          entityId: `${message.dialogId}:${userId}`, // Составной ID для dialogMember (dialogId:userId)
+          entityId: message.dialogId,
           actorId: userId,
           actorType: 'user',
-          data: {
-            userId,
-            dialogId: message.dialogId,
-            unreadCount: updatedMember.unreadCount,
-            lastSeenAt: updatedMember.lastSeenAt,
-            reason: 'message_read' // Указываем причину обновления
-          }
+          data: eventUtils.composeEventData({
+            context: memberContext,
+            dialog: dialogSection,
+            member: memberSection,
+            actor: actorSection
+          })
         });
       }
 

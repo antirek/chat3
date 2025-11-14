@@ -27,18 +27,51 @@ const dialogMemberController = {
         dialog.dialogId // Передаем строковый dialogId
       );
 
-      // Создаем событие dialog.member.add
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        name: dialog.name,
+        createdBy: dialog.createdBy,
+        createdAt: dialog.createdAt,
+        updatedAt: dialog.updatedAt
+      });
+
+      const memberSection = eventUtils.buildMemberSection({
+        userId: member.userId,
+        state: {
+          unreadCount: member.unreadCount,
+          lastSeenAt: member.lastSeenAt,
+          lastMessageAt: member.lastMessageAt,
+          isActive: member.isActive
+        }
+      });
+
+      const actorSection = eventUtils.buildActorSection({
+        actorId: req.apiKey?.name || 'unknown',
+        actorType: 'api'
+      });
+
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'dialog.member.add',
+        dialogId: dialog.dialogId,
+        entityId: dialog.dialogId,
+        includedSections: ['dialog', 'member', 'actor'],
+        updatedFields: ['member']
+      });
+
       await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'dialog.member.add',
         entityType: 'dialogMember',
-        entityId: dialogId + ':' + member.userId, // Составной ID для dialogMember (dialogId:userId)
+        entityId: dialog.dialogId,
         actorId: req.apiKey?.name || 'unknown',
         actorType: 'api',
-        data: {
-          userId,
-          dialogId
-        }
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection,
+          member: memberSection,
+          actor: actorSection
+        })
       });
 
       res.status(201).json({
@@ -214,23 +247,51 @@ const dialogMemberController = {
 
       // Создаем событие dialog.member.remove
       if (member) {
+        const dialogSection = eventUtils.buildDialogSection({
+          dialogId: dialog.dialogId,
+          tenantId: dialog.tenantId,
+          name: dialog.name,
+          createdBy: dialog.createdBy,
+          createdAt: dialog.createdAt,
+          updatedAt: dialog.updatedAt
+        });
+
+        const memberSection = eventUtils.buildMemberSection({
+          userId: member.userId,
+          state: {
+            unreadCount: member.unreadCount,
+            lastSeenAt: member.lastSeenAt,
+            lastMessageAt: member.lastMessageAt,
+            isActive: false
+          }
+        });
+
+        const actorSection = eventUtils.buildActorSection({
+          actorId: req.apiKey?.name || 'unknown',
+          actorType: 'api'
+        });
+
+        const eventContext = eventUtils.buildEventContext({
+          eventType: 'dialog.member.remove',
+          dialogId: dialog.dialogId,
+          entityId: dialog.dialogId,
+          includedSections: ['dialog', 'member', 'actor'],
+          updatedFields: ['member']
+        });
+
         await eventUtils.createEvent({
           tenantId: req.tenantId,
           eventType: 'dialog.member.remove',
           entityType: 'dialogMember',
-          entityId: dialogId + ':' + userId, // Составной ID для dialogMember (dialogId:userId)
+          entityId: dialog.dialogId,
           actorId: req.apiKey?.name || 'unknown',
           actorType: 'api',
-          data: {
-            userId,
-            dialogId,
-            removedMember: {
-              userId: member.userId,
-              joinedAt: member.joinedAt,
-              lastSeenAt: member.lastSeenAt,
-              unreadCount: member.unreadCount
-            }
-          }
+          data: eventUtils.composeEventData({
+            context: eventContext,
+            dialog: dialogSection,
+            member: memberSection,
+            actor: actorSection
+          })
         });
       }
 
@@ -297,22 +358,59 @@ const dialogMemberController = {
         { new: true, lean: true }
       );
 
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        name: dialog.name,
+        createdBy: dialog.createdBy,
+        createdAt: dialog.createdAt,
+        updatedAt: dialog.updatedAt
+      });
+
+      const memberSection = eventUtils.buildMemberSection({
+        userId,
+        state: {
+          unreadCount: updatedMember.unreadCount,
+          lastSeenAt: updatedMember.lastSeenAt,
+          lastMessageAt: updatedMember.lastMessageAt,
+          isActive: updatedMember.isActive
+        }
+      });
+
+      const actorSection = eventUtils.buildActorSection({
+        actorId: req.apiKey?.name || 'unknown',
+        actorType: 'api'
+      });
+
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'dialog.member.update',
+        dialogId: dialog.dialogId,
+        entityId: dialog.dialogId,
+        includedSections: ['dialog', 'member', 'actor'],
+        updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
+      });
+
       await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'dialog.member.update',
         entityType: 'dialogMember',
-        entityId: `${dialog.dialogId}:${userId}`,
+        entityId: dialog.dialogId,
         actorId: req.apiKey?.name || 'unknown',
         actorType: 'api',
-        data: {
-          userId,
-          dialogId: dialog.dialogId,
-          unreadCount: updatedMember.unreadCount,
-          previousUnreadCount: existingMember.unreadCount,
-          lastSeenAt: updatedMember.lastSeenAt,
-          reason: reason || 'external_unread_set',
-          source: 'api'
-        }
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection,
+          member: memberSection,
+          actor: actorSection,
+          extra: {
+            delta: {
+              unreadCount: {
+                from: existingMember.unreadCount,
+                to: updatedMember.unreadCount
+              }
+            }
+          }
+        })
       });
 
       return res.json({

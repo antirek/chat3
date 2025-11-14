@@ -117,7 +117,8 @@ describe('typingController.sendTyping', () => {
 
     expect(event).toBeTruthy();
     expect(event.actorId).toBe('alice');
-    expect(event.data.dialogId).toBe(dialog.dialogId);
+    expect(event.data.context.dialogId).toBe(dialog.dialogId);
+    expect(event.data.typing.userId).toBe('alice');
   });
 
   test('returns 404 when dialog not found', async () => {

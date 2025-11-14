@@ -293,16 +293,35 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
 
     const memberId = `${dialog.dialogId}:${member.userId}`;
     const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
+    const eventMemberState = eventData?.member?.state || {};
+    const overrideUnreadCount = eventMemberState.unreadCount !== undefined
+      ? eventMemberState.unreadCount
+      : eventData.unreadCount;
+    const overrideLastSeenAt = eventMemberState.lastSeenAt !== undefined
+      ? eventMemberState.lastSeenAt
+      : eventData.lastSeenAt;
+
     const memberSection = buildMemberSection(member, memberMeta, {
-      unreadCount: eventData.unreadCount,
-      lastSeenAt: eventData.lastSeenAt
+      unreadCount: overrideUnreadCount,
+      lastSeenAt: overrideLastSeenAt,
+      lastMessageAt: eventMemberState.lastMessageAt
     });
-    const updatedFields = [];
-    if (Object.prototype.hasOwnProperty.call(eventData, 'unreadCount')) {
-      updatedFields.push('member.state.unreadCount');
-    }
-    if (Object.prototype.hasOwnProperty.call(eventData, 'lastSeenAt')) {
-      updatedFields.push('member.state.lastSeenAt');
+    let updatedFields = Array.isArray(eventData?.context?.updatedFields)
+      ? [...eventData.context.updatedFields]
+      : [];
+    if (!updatedFields.length) {
+      if (eventMemberState.unreadCount !== undefined) {
+        updatedFields.push('member.state.unreadCount');
+      }
+      if (eventMemberState.lastSeenAt !== undefined) {
+        updatedFields.push('member.state.lastSeenAt');
+      }
+      if (eventData.unreadCount !== undefined && !updatedFields.includes('member.state.unreadCount')) {
+        updatedFields.push('member.state.unreadCount');
+      }
+      if (eventData.lastSeenAt !== undefined && !updatedFields.includes('member.state.lastSeenAt')) {
+        updatedFields.push('member.state.lastSeenAt');
+      }
     }
 
     const dialogSection = buildDialogSection(dialog, dialogMeta);
@@ -314,7 +333,6 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
         eventType,
         dialogId: dialog.dialogId,
         entityId: dialog.dialogId,
-        reason: eventData.reason || eventData.source,
         includedSections: ['dialog', 'member'],
         updatedFields
       })
@@ -391,6 +409,10 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
     const includedSections = ['dialog', 'member'];
     const updatedFields = [];
 
+    const eventMessage = eventData?.message || {};
+    const reactionUpdate = eventMessage.reactionUpdate;
+    const statusUpdate = eventMessage.statusUpdate;
+
     if (includeFullMessage) {
       const senderCache = new Map();
       const fullMessage = await buildFullMessagePayload(tenantId, message, senderCache);
@@ -399,8 +421,8 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
         return;
       }
 
-      if (eventData.reactionCounts) {
-        fullMessage.reactionCounts = eventData.reactionCounts;
+      if (reactionUpdate?.counts) {
+        fullMessage.reactionCounts = reactionUpdate.counts;
       } else {
         fullMessage.reactionCounts = message.reactionCounts || {};
       }
@@ -411,7 +433,11 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       updatedFields.push('message');
     }
 
-    if (eventType.startsWith('message.status.')) {
+    if (statusUpdate) {
+      messageSection.statusUpdate = statusUpdate;
+      includedSections.push('message.status');
+      updatedFields.push('message.status');
+    } else if (eventType.startsWith('message.status.')) {
       messageSection.statusUpdate = {
         userId: eventData.userId,
         status: eventData.newStatus,
@@ -421,7 +447,11 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       updatedFields.push('message.status');
     }
 
-    if (eventType.startsWith('message.reaction.')) {
+    if (reactionUpdate) {
+      messageSection.reactionUpdate = reactionUpdate;
+      includedSections.push('message.reaction');
+      updatedFields.push('message.reaction');
+    } else if (eventType.startsWith('message.reaction.')) {
       messageSection.reactionUpdate = {
         userId: eventData.userId,
         reaction: eventData.reaction,
@@ -519,9 +549,11 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
       return;
     }
 
-    const expiresInMs = eventData.expiresInMs || DEFAULT_TYPING_EXPIRES_MS;
-    const timestamp = eventData.timestamp || Date.now();
-    const userInfo = eventData.userInfo || null;
+    const typingPayload = eventData?.typing || {};
+    const legacyTyping = eventData?.typing ? {} : eventData;
+    const expiresInMs = typingPayload.expiresInMs ?? legacyTyping.expiresInMs ?? DEFAULT_TYPING_EXPIRES_MS;
+    const timestamp = typingPayload.timestamp ?? legacyTyping.timestamp ?? Date.now();
+    const userInfo = typingPayload.userInfo ?? legacyTyping.userInfo ?? null;
 
     // Получаем метаданные диалога для dialogInfo
     const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
@@ -561,7 +593,6 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
               eventType,
               dialogId: dialog.dialogId,
               entityId: dialog.dialogId,
-              reason: eventData.reason || 'typing',
               includedSections: ['dialog', 'member', 'typing']
             })
           },

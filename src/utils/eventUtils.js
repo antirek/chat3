@@ -1,6 +1,187 @@
 import { Event } from '../models/index.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 
+const EVENT_PAYLOAD_VERSION = 2;
+
+function uniqueList(values = []) {
+  return Array.from(new Set((values || []).filter(Boolean)));
+}
+
+export function buildEventContext({
+  eventType,
+  dialogId = null,
+  entityId = null,
+  messageId = null,
+  includedSections = [],
+  updatedFields = []
+}) {
+  return {
+    version: EVENT_PAYLOAD_VERSION,
+    eventType,
+    dialogId: dialogId ?? null,
+    entityId: entityId ?? null,
+    messageId: messageId ?? null,
+    includedSections: uniqueList(includedSections),
+    updatedFields: uniqueList(updatedFields)
+  };
+}
+
+export function buildDialogSection({
+  dialogId,
+  tenantId = null,
+  name = null,
+  createdBy = null,
+  createdAt = null,
+  updatedAt = null,
+  meta = {}
+} = {}) {
+  if (!dialogId) {
+    return null;
+  }
+
+  return {
+    dialogId,
+    tenantId,
+    name,
+    createdBy,
+    createdAt,
+    updatedAt,
+    meta: meta || {}
+  };
+}
+
+export function buildMemberSection({
+  userId,
+  meta = {},
+  state = {}
+} = {}) {
+  if (!userId) {
+    return null;
+  }
+
+  return {
+    userId,
+    meta: meta || {},
+    state: {
+      unreadCount: state.unreadCount ?? null,
+      lastSeenAt: state.lastSeenAt ?? null,
+      lastMessageAt: state.lastMessageAt ?? null,
+      isActive: state.isActive ?? null
+    }
+  };
+}
+
+export function buildMessageSection({
+  messageId,
+  dialogId = null,
+  senderId = null,
+  type = null,
+  content = null,
+  meta = {},
+  statuses = [],
+  reactionCounts = {},
+  quotedMessage = null,
+  attachments = null,
+  statusUpdate = null,
+  reactionUpdate = null
+} = {}) {
+  if (!messageId) {
+    return null;
+  }
+
+  return {
+    messageId,
+    dialogId,
+    senderId,
+    type,
+    content,
+    meta: meta || {},
+    statuses: statuses || [],
+    reactionCounts: reactionCounts || {},
+    quotedMessage: quotedMessage || null,
+    attachments: attachments || null,
+    statusUpdate: statusUpdate || null,
+    reactionUpdate: reactionUpdate || null
+  };
+}
+
+export function buildTypingSection({
+  userId,
+  expiresInMs = null,
+  timestamp = null,
+  userInfo = null
+} = {}) {
+  if (!userId) {
+    return null;
+  }
+
+  return {
+    userId,
+    expiresInMs,
+    timestamp,
+    userInfo: userInfo || null
+  };
+}
+
+export function buildActorSection({
+  actorId,
+  actorType = 'user',
+  info = null
+} = {}) {
+  if (!actorId) {
+    return null;
+  }
+
+  return {
+    actorId,
+    actorType,
+    info: info || null
+  };
+}
+
+export function composeEventData({
+  context,
+  dialog = null,
+  member = null,
+  message = null,
+  typing = null,
+  actor = null,
+  extra = {}
+} = {}) {
+  if (!context) {
+    throw new Error('Event context is required');
+  }
+
+  const payload = {
+    context
+  };
+
+  if (dialog) {
+    payload.dialog = dialog;
+  }
+
+  if (member) {
+    payload.member = member;
+  }
+
+  if (message) {
+    payload.message = message;
+  }
+
+  if (typing) {
+    payload.typing = typing;
+  }
+
+  if (actor) {
+    payload.actor = actor;
+  }
+
+  return {
+    ...payload,
+    ...extra
+  };
+}
+
 /**
  * Создает событие в системе
  * @param {Object} params - Параметры события
@@ -243,6 +424,13 @@ export default {
   getUserEvents,
   getAllEvents,
   deleteOldEvents,
-  getEventStats
+  getEventStats,
+  buildEventContext,
+  buildDialogSection,
+  buildMemberSection,
+  buildMessageSection,
+  buildTypingSection,
+  buildActorSection,
+  composeEventData
 };
 

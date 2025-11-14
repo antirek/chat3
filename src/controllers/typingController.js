@@ -47,6 +47,40 @@ export async function sendTyping(req, res) {
       userId
     );
 
+    const dialogSection = eventUtils.buildDialogSection({
+      dialogId
+    });
+
+    const actorInfo = sanitizeResponse({
+      ...user,
+      meta: userMeta
+    });
+
+    const typingSection = eventUtils.buildTypingSection({
+      userId,
+      expiresInMs: DEFAULT_TYPING_EXPIRES_MS,
+      timestamp: Date.now(),
+      userInfo: actorInfo
+    });
+
+    const actorSection = eventUtils.buildActorSection({
+      actorId: userId,
+      actorType: 'user',
+      info: actorInfo
+    });
+
+    const memberSection = eventUtils.buildMemberSection({
+      userId
+    });
+
+    const typingContext = eventUtils.buildEventContext({
+      eventType: 'dialog.typing',
+      dialogId,
+      entityId: dialogId,
+      includedSections: ['dialog', 'typing', 'member', 'actor'],
+      updatedFields: ['typing']
+    });
+
     await eventUtils.createEvent({
       tenantId,
       eventType: 'dialog.typing',
@@ -54,16 +88,13 @@ export async function sendTyping(req, res) {
       entityId: dialogId,
       actorId: userId,
       actorType: 'user',
-      data: {
-        dialogId,
-        userId,
-        userInfo: sanitizeResponse({
-          ...user,
-          meta: userMeta
-        }),
-        expiresInMs: DEFAULT_TYPING_EXPIRES_MS,
-        timestamp: Date.now()
-      }
+      data: eventUtils.composeEventData({
+        context: typingContext,
+        dialog: dialogSection,
+        typing: typingSection,
+        member: memberSection,
+        actor: actorSection
+      })
     });
 
     return res.status(202).json({

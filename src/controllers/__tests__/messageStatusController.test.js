@@ -118,14 +118,17 @@ describe('messageStatusController.updateMessageStatus', () => {
 
     const event = await Event.findOne({ tenantId, eventType: 'message.status.create' }).lean();
     expect(event).toBeTruthy();
-    expect(event.entityId).toBe(`${message.messageId}_bob`);
-    expect(event.data).toMatchObject({
-      messageId: message.messageId,
-      userId: 'bob',
-      oldStatus: null,
-      newStatus: 'delivered',
+    expect(event.entityId).toBe(message.messageId);
+    expect(event.data.context).toMatchObject({
+      eventType: 'message.status.create',
       dialogId: dialog.dialogId,
-      senderId: 'alice'
+      entityId: message.messageId
+    });
+    expect(event.data.message).toBeDefined();
+    expect(event.data.message.statusUpdate).toMatchObject({
+      userId: 'bob',
+      status: 'delivered',
+      oldStatus: null
     });
   });
 
@@ -172,19 +175,17 @@ describe('messageStatusController.updateMessageStatus', () => {
 
     const statusEvent = await Event.findOne({ tenantId, eventType: 'message.status.update' }).lean();
     expect(statusEvent).toBeTruthy();
-    expect(statusEvent.data.oldStatus).toBe('delivered');
-    expect(statusEvent.data.newStatus).toBe('read');
+    expect(statusEvent.data.message.statusUpdate.oldStatus).toBe('delivered');
+    expect(statusEvent.data.message.statusUpdate.status).toBe('read');
 
     const memberEvent = await Event.findOne({ tenantId, eventType: 'dialog.member.update' }).lean();
     expect(memberEvent).toBeTruthy();
-    expect(memberEvent.entityId).toBe(`${dialog.dialogId}:bob`);
-    expect(memberEvent.data).toMatchObject({
-      userId: 'bob',
-      dialogId: dialog.dialogId,
-      unreadCount: 1,
-      reason: 'message_read'
+    expect(memberEvent.entityId).toBe(dialog.dialogId);
+    expect(memberEvent.data.member).toMatchObject({
+      userId: 'bob'
     });
-    expect(memberEvent.data.lastSeenAt).toBeDefined();
+    expect(memberEvent.data.member.state.unreadCount).toBe(1);
+    expect(memberEvent.data.member.state.lastSeenAt).toBeDefined();
   });
 
   test('returns 400 for invalid status', async () => {

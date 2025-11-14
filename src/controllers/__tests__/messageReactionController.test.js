@@ -165,8 +165,13 @@ describe('messageReactionController', () => {
 
       const event = await Event.findOne({ tenantId, eventType: 'message.reaction.add' }).lean();
       expect(event).toBeTruthy();
-      expect(event.entityId).toBe(`${message.messageId}_bob_🔥`);
-      expect(event.data.reactionCounts).toEqual({ '🔥': 1 });
+      expect(event.entityId).toBe(message.messageId);
+      expect(event.data.message.reactionUpdate).toMatchObject({
+        userId: 'bob',
+        reaction: '🔥',
+        oldReaction: null
+      });
+      expect(event.data.message.reactionUpdate.counts).toEqual({ '🔥': 1 });
     });
 
     test('updates existing reaction and adjusts counts', async () => {
@@ -200,8 +205,10 @@ describe('messageReactionController', () => {
 
       const event = await Event.findOne({ tenantId, eventType: 'message.reaction.update' }).lean();
       expect(event).toBeTruthy();
-      expect(event.data.oldReaction).toBe('👍');
-      expect(event.data.reactionCounts).toEqual({ '❤️': 1 });
+      expect(event.entityId).toBe(message.messageId);
+      expect(event.data.message.reactionUpdate.oldReaction).toBe('👍');
+      expect(event.data.message.reactionUpdate.reaction).toBe('❤️');
+      expect(event.data.message.reactionUpdate.counts).toEqual({ '❤️': 1 });
     });
 
     test('returns 200 with message when reaction unchanged', async () => {
@@ -291,8 +298,13 @@ describe('messageReactionController', () => {
 
       const event = await Event.findOne({ tenantId, eventType: 'message.reaction.remove' }).lean();
       expect(event).toBeTruthy();
-      expect(event.entityId).toBe(`${message.messageId}_bob_🔥`);
-      expect(event.data.reactionCounts || {}).toEqual({});
+      expect(event.entityId).toBe(message.messageId);
+      expect(event.data.message.reactionUpdate).toMatchObject({
+        userId: 'bob',
+        reaction: null,
+        oldReaction: '🔥'
+      });
+      expect(event.data.message.reactionUpdate.counts || {}).toEqual({});
     });
 
     test('returns 404 when reaction not found', async () => {

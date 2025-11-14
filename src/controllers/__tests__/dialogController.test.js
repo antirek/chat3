@@ -394,7 +394,10 @@ describe('dialogController.create', () => {
     const event = await Event.findOne({ tenantId, eventType: 'dialog.create' }).lean();
     expect(event).toBeTruthy();
     expect(event.entityId).toBe(storedDialog.dialogId);
-    expect(event.data.dialogName).toBe('New Dialog');
+    expect(event.data.dialog).toMatchObject({
+      dialogId: storedDialog.dialogId,
+      name: 'New Dialog'
+    });
   });
 
   test('creates dialog with meta tags', async () => {
