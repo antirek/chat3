@@ -1,5 +1,5 @@
 import dialogMemberController from '../dialogMemberController.js';
-import { Dialog, DialogMember, Event, Meta, Tenant } from '../../models/index.js';
+import { Dialog, DialogMember, Event, Meta, Tenant, DialogReadTask } from '../../models/index.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../utils/timestampUtils.js';
 
@@ -282,7 +282,7 @@ describe('dialogMemberController', () => {
     test('updates unread count and creates event', async () => {
       const req = createMockReq(
         { dialogId: dialog.dialogId, userId: 'alice' },
-        { unreadCount: 2, reason: 'external-sync' }
+        { unreadCount: 0, reason: 'external-sync' }
       );
       req.apiKey = { name: 'sync-service' };
 
@@ -291,17 +291,22 @@ describe('dialogMemberController', () => {
       await dialogMemberController.setUnreadCount(req, res);
 
       expect(res.statusCode).toBeUndefined();
-      expect(res.body.data.unreadCount).toBe(2);
+      expect(res.body.data.unreadCount).toBe(0);
       expect(res.body.message).toBe('Unread count updated successfully');
 
       const member = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'alice' }).lean();
-      expect(member.unreadCount).toBe(2);
+      expect(member.unreadCount).toBe(0);
 
       const event = await Event.findOne({ tenantId, eventType: 'dialog.member.update' }).lean();
       expect(event).toBeTruthy();
       expect(event.actorId).toBe('sync-service');
-      expect(event.data.member.state.unreadCount).toBe(2);
+      expect(event.data.member.state.unreadCount).toBe(0);
       expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
+
+      const task = await DialogReadTask.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'alice' }).lean();
+      expect(task).toBeTruthy();
+      expect(task.status).toBe('pending');
+      expect(task.readUntil).toBeGreaterThan(0);
     });
 
     test('rejects unread count greater than current', async () => {

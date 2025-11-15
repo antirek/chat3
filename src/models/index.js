@@ -1,15 +1,16 @@
-import Tenant from './Tenant.js';
-import User from './User.js';
-import Dialog from './Dialog.js';
-import Message from './Message.js';
-import Meta from './Meta.js';
-import ApiKey from './ApiKey.js';
-import MessageStatus from './MessageStatus.js';
-import DialogMember from './DialogMember.js';
-import Event from './Event.js';
-import MessageReaction from './MessageReaction.js';
-import Update from './Update.js';
-import ApiJournal from './ApiJournal.js';
+import Tenant from './data/Tenant.js';
+import User from './data/User.js';
+import Dialog from './data/Dialog.js';
+import Message from './data/Message.js';
+import Meta from './data/Meta.js';
+import ApiKey from './data/ApiKey.js';
+import MessageStatus from './data/MessageStatus.js';
+import DialogMember from './data/DialogMember.js';
+import Event from './operational/Event.js';
+import MessageReaction from './data/MessageReaction.js';
+import Update from './operational/Update.js';
+import ApiJournal from './journals/ApiJournal.js';
+import DialogReadTask from './operational/DialogReadTask.js';
 
 export {
   Tenant,
@@ -23,6 +24,7 @@ export {
   Event,
   MessageReaction,
   Update,
-  ApiJournal
+  ApiJournal,
+  DialogReadTask
 };
 

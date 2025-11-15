@@ -5,6 +5,7 @@ import { sanitizeResponse } from '../utils/responseUtils.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
+import { scheduleDialogReadTask } from '../utils/dialogReadTaskUtils.js';
 
 const dialogMemberController = {
   // Add member to dialog
@@ -412,6 +413,16 @@ const dialogMemberController = {
           }
         })
       });
+
+      if (updatedMember.unreadCount === 0) {
+        await scheduleDialogReadTask({
+          tenantId: req.tenantId,
+          dialogId: dialog.dialogId,
+          userId,
+          readUntil: updatedMember.lastSeenAt,
+          source: 'api.setUnreadCount'
+        });
+      }
 
       return res.json({
         data: sanitizeResponse(updatedMember),

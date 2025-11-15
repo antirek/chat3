@@ -1,5 +1,4 @@
-import MessageReaction from '../models/MessageReaction.js';
-import Message from '../models/Message.js';
+import { MessageReaction, Message } from '../models/index.js';
 
 /**
  * Обновляет счетчики реакций в Message.reactionCounts

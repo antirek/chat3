@@ -1,9 +1,8 @@
-import User from '../models/User.js';
+import { User, DialogMember, Meta } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
-import { DialogMember, Meta } from '../models/index.js';
 
 function appendFilterConditions(target, filtersObject) {
   if (!filtersObject || typeof filtersObject !== 'object') {

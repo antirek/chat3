@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
-import { Dialog, Message, DialogMember, Meta, MessageStatus, User } from '../models/index.js';
-import Update from '../models/Update.js';
+import { Dialog, Message, DialogMember, Meta, MessageStatus, Update, User } from '../models/index.js';
 import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from './responseUtils.js';

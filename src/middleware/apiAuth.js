@@ -1,5 +1,4 @@
-import ApiKey from '../models/ApiKey.js';
-import Tenant from '../models/Tenant.js';
+import { ApiKey, Tenant } from '../models/index.js';
 
 export const apiAuth = async (req, res, next) => {
   try {

@@ -1,4 +1,4 @@
-import ApiJournal from '../models/ApiJournal.js';
+import { ApiJournal } from '../models/index.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
 
 /**

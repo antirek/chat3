@@ -104,7 +104,7 @@
 - `GET /api/dialogs/:dialogId` возвращает только основные поля диалога и его `meta`.
 - Для списка участников используйте `GET /api/dialogs/:dialogId/members?page=1&limit=50&filter=(role,eq,agent)`.
 - Поддерживаются все операторы `queryParser`, включая `meta.*` (например, `(meta.shift,eq,day)`), а также сортировка по `joinedAt`, `lastSeenAt`, `lastMessageAt`, `unreadCount`, `userId`, `role`, `isActive`.
-- Сброс непрочитанных из внешней системы: `PATCH /api/dialogs/:dialogId/members/:userId/unread` с `{"unreadCount":0}` (или любым числом <= текущего количества). Можно передать опциональные поля `lastSeenAt` (микросекунды) и `reason` для аудита.
+- Сброс непрочитанных из внешней системы: `PATCH /api/dialogs/:dialogId/members/:userId/unread` с `{"unreadCount":0}` (или любым числом <= текущего количества). Можно передать опциональные поля `lastSeenAt` (микросекунды) и `reason` для аудита. После успешного сброса создаётся фонова задача, которая отмечает все сообщения диалога как прочитанные (без генерации событий `message.status.*`), поэтому синхронизация `MessageStatus` может занимать несколько секунд.
 
 ### Фильтрация, сортировка и пагинация
 

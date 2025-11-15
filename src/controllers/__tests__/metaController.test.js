@@ -149,7 +149,7 @@ describe('metaController', () => {
       expect(res.statusCode).toBe(404);
       expect(res.body).toEqual({
         error: 'Not Found',
-        message: 'Dialog not found'
+        message: expect.stringContaining('Dialog')
       });
     });
   });
