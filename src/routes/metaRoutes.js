@@ -1,7 +1,11 @@
 import express from 'express';
 import metaController from '../controllers/metaController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
-import { validateEntityType, validateEntityId, validateMetaKey } from '../validators/urlValidators/index.js';
+import { 
+    validateEntityType, 
+    validateEntityId, 
+    validateMetaKey,
+} from '../validators/urlValidators/index.js';
 import { validateBody } from '../validators/middleware.js';
 import { setMetaSchema } from '../validators/schemas/index.js';
 
@@ -52,7 +56,7 @@ const router = express.Router();
  *                 default: string
  *               scope:
  *                 type: string
- *                 description: Optional scope to store value under (например, userId)
+ *                 description: Необязательный контекст (например, userId). Без него значение становится глобальным.
  *             example:
  *               value: "Welcome to the chat!"
  *               dataType: "string"
@@ -63,7 +67,11 @@ const router = express.Router();
  *       404:
  *         description: Entity not found
  */
-router.put('/:entityType/:entityId/:key', apiAuth, requirePermission('write'), validateEntityType, validateEntityId, validateMetaKey, validateBody(setMetaSchema), metaController.setMeta);
+router.put('/:entityType/:entityId/:key', 
+    apiAuth, requirePermission('write'), validateEntityType, 
+    validateEntityId, validateMetaKey, 
+    validateBody(setMetaSchema), 
+    metaController.setMeta);
 
 /**
  * @swagger
@@ -98,14 +106,18 @@ router.put('/:entityType/:entityId/:key', apiAuth, requirePermission('write'), v
  *         required: false
  *         schema:
  *           type: string
- *         description: Scope контекст (если указан — удаляется только запись внутри этого scope)
+ *         description: Scope контекст. Если указан — удаляется только персонализированное значение, иначе глобальное.
  *     responses:
  *       200:
  *         description: Meta deleted successfully
  *       404:
  *         description: Entity or meta key not found
  */
-router.delete('/:entityType/:entityId/:key', apiAuth, requirePermission('delete'), validateEntityType, validateEntityId, validateMetaKey, metaController.deleteMeta);
+router.delete('/:entityType/:entityId/:key', 
+    apiAuth, 
+    requirePermission('delete'), validateEntityType, 
+    validateEntityId, validateMetaKey, 
+    metaController.deleteMeta);
 
 /**
  * @swagger
@@ -134,7 +146,7 @@ router.delete('/:entityType/:entityId/:key', apiAuth, requirePermission('delete'
  *         required: false
  *         schema:
  *           type: string
- *         description: Scope контекст для чтения (если указан — приоритетное значение из этого scope)
+ *         description: Опциональный scope. Если указан – вернётся персонализированное значение с fallback на глобальное.
  *     responses:
  *       200:
  *         description: Meta tags as key-value object
@@ -149,7 +161,8 @@ router.delete('/:entityType/:entityId/:key', apiAuth, requirePermission('delete'
  *       404:
  *         description: Entity not found
  */
-router.get('/:entityType/:entityId', apiAuth, requirePermission('read'), validateEntityType, validateEntityId, metaController.getMeta);
+router.get('/:entityType/:entityId', apiAuth, requirePermission('read'), 
+validateEntityType, validateEntityId, metaController.getMeta);
 
 export default router;
 
