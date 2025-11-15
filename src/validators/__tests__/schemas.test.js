@@ -207,6 +207,16 @@ describe('bodySchemas.setMetaSchema', () => {
     expect(error).toBeUndefined();
     expect(value.dataType).toBe('object');
   });
+
+  test('accepts optional scope', () => {
+    const { error, value } = setMetaSchema.validate({
+      value: 'test',
+      scope: 'user_alice'
+    });
+
+    expect(error).toBeUndefined();
+    expect(value.scope).toBe('user_alice');
+  });
 });
 
 describe('querySchemas', () => {

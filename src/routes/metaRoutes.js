@@ -50,9 +50,13 @@ const router = express.Router();
  *                 type: string
  *                 enum: [string, number, boolean, object, array]
  *                 default: string
+ *               scope:
+ *                 type: string
+ *                 description: Optional scope to store value under (например, userId)
  *             example:
  *               value: "Welcome to the chat!"
  *               dataType: "string"
+ *               scope: "user_alice"
  *     responses:
  *       200:
  *         description: Meta set successfully
@@ -89,6 +93,12 @@ router.put('/:entityType/:entityId/:key', apiAuth, requirePermission('write'), v
  *         schema:
  *           type: string
  *         description: Meta key
+ *       - in: query
+ *         name: scope
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Scope контекст (если указан — удаляется только запись внутри этого scope)
  *     responses:
  *       200:
  *         description: Meta deleted successfully
@@ -119,6 +129,12 @@ router.delete('/:entityType/:entityId/:key', apiAuth, requirePermission('delete'
  *         schema:
  *           type: string
  *         description: Entity ID
+ *       - in: query
+ *         name: scope
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Scope контекст для чтения (если указан — приоритетное значение из этого scope)
  *     responses:
  *       200:
  *         description: Meta tags as key-value object

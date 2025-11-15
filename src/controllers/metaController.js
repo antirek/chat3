@@ -1,4 +1,5 @@
 import * as metaUtils from '../utils/metaUtils.js';
+import { getMetaScopeOptions } from '../utils/metaScopeUtils.js';
 import { Dialog, Message, DialogMember } from '../models/index.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 
@@ -21,7 +22,8 @@ const metaController = {
       await verifyEntityExists(entityType, entityId, req.tenantId);
 
       // Get meta data
-      const meta = await metaUtils.getEntityMeta(req.tenantId, entityType, entityId);
+      const metaScopeOptions = getMetaScopeOptions(req);
+      const meta = await metaUtils.getEntityMeta(req.tenantId, entityType, entityId, metaScopeOptions);
 
       res.json({
         data: sanitizeResponse(meta)
@@ -48,7 +50,7 @@ const metaController = {
       const entityId = decodeURIComponent(rawEntityId || '');
       
       console.log('setMeta: rawEntityId:', rawEntityId, 'decoded entityId:', entityId, 'entityType:', entityType);
-      const { value, dataType = 'string' } = req.body;
+      const { value, dataType = 'string', scope } = req.body;
 
       // Validate entityType
       const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember'];
@@ -79,7 +81,10 @@ const metaController = {
         key,
         value,
         dataType,
-        { createdBy: req.apiKey?.name || 'api' }
+        {
+          createdBy: req.apiKey?.name || 'api',
+          scope
+        }
       );
 
       res.json({
@@ -133,7 +138,14 @@ const metaController = {
       await verifyEntityExists(entityType, entityId, req.tenantId);
 
       // Delete meta
-      const deleted = await metaUtils.deleteEntityMeta(req.tenantId, entityType, entityId, key);
+      const metaScopeOptions = getMetaScopeOptions(req);
+      const deleted = await metaUtils.deleteEntityMeta(
+        req.tenantId,
+        entityType,
+        entityId,
+        key,
+        metaScopeOptions
+      );
 
       if (!deleted) {
         return res.status(404).json({

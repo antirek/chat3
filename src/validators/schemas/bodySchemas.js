@@ -121,7 +121,8 @@ export const setMetaSchema = Joi.object({
     Joi.array(),
     Joi.object()
   ).required(),
-  dataType: Joi.string().valid('string', 'number', 'boolean', 'object', 'array').default('string')
+  dataType: Joi.string().valid('string', 'number', 'boolean', 'object', 'array').default('string'),
+  scope: Joi.string().trim().min(1).max(100).optional()
 });
 
 /**

@@ -1,16 +1,19 @@
 import mongoose from 'mongoose';
 import { DialogMember, Dialog, Message, Meta, MessageStatus, MessageReaction, User } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
+import { getMetaScopeOptions } from '../utils/metaScopeUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 
-async function getSenderInfo(tenantId, senderId, cache = new Map()) {
+async function getSenderInfo(tenantId, senderId, cache = new Map(), metaOptions) {
   if (!senderId) {
     return null;
   }
 
-  if (cache.has(senderId)) {
-    return cache.get(senderId);
+  const cacheKey = metaOptions?.scope ? `${senderId}:${metaOptions.scope}` : senderId;
+
+  if (cache.has(cacheKey)) {
+    return cache.get(cacheKey);
   }
 
   const user = await User.findOne({
@@ -20,10 +23,10 @@ async function getSenderInfo(tenantId, senderId, cache = new Map()) {
     .select('userId name lastActiveAt createdAt updatedAt')
     .lean();
 
-  const meta = await metaUtils.getEntityMeta(tenantId, 'user', senderId);
+  const meta = await metaUtils.getEntityMeta(tenantId, 'user', senderId, metaOptions);
 
   if (!user && (!meta || Object.keys(meta).length === 0)) {
-    cache.set(senderId, null);
+    cache.set(cacheKey, null);
     return null;
   }
 
@@ -36,8 +39,40 @@ async function getSenderInfo(tenantId, senderId, cache = new Map()) {
     meta
   };
 
-  cache.set(senderId, senderInfo);
+  cache.set(cacheKey, senderInfo);
   return senderInfo;
+}
+
+function mergeMetaRecordsForScope(records = [], scope) {
+  if (!records.length) {
+    return {};
+  }
+
+  const result = {};
+
+  if (scope) {
+    records
+      .filter(record => record.scope === scope)
+      .forEach((record) => {
+        result[record.key] = record.value;
+      });
+
+    records
+      .filter(record => record.scope === null || typeof record.scope === 'undefined')
+      .forEach((record) => {
+        if (!Object.prototype.hasOwnProperty.call(result, record.key)) {
+          result[record.key] = record.value;
+        }
+      });
+  } else {
+    records
+      .filter(record => record.scope === null || typeof record.scope === 'undefined')
+      .forEach((record) => {
+        result[record.key] = record.value;
+      });
+  }
+
+  return result;
 }
 
 const userDialogController = {
@@ -48,6 +83,14 @@ const userDialogController = {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
+      const metaScopeOptions = getMetaScopeOptions(req, userId);
+      const targetScope = metaScopeOptions?.scope ?? null;
+      const fetchMeta = (entityType, entityId) => metaUtils.getEntityMeta(
+        req.tenantId,
+        entityType,
+        entityId,
+        metaScopeOptions
+      );
 
       let dialogIds = null;
 
@@ -67,10 +110,15 @@ const userDialogController = {
           
           // Обрабатываем meta фильтры
           if (Object.keys(metaFilters).length > 0) {
-            const metaQuery = {
+          const metaQuery = {
               tenantId: req.tenantId, // tenantId теперь строка (tnt_*)
               entityType: 'dialog'
             };
+          if (targetScope) {
+            metaQuery.scope = { $in: [targetScope, null] };
+          } else {
+            metaQuery.scope = null;
+          }
 
             // Проходим по всем meta фильтрам
             for (const [key, condition] of Object.entries(metaFilters)) {
@@ -710,19 +758,28 @@ const userDialogController = {
       }).select('userId name').lean();
 
       // Загружаем meta для отправителей (для всех senderIds, даже если пользователя нет в User)
-      const sendersMeta = await Meta.find({
+      const sendersMetaQuery = {
         tenantId: req.tenantId,
         entityType: 'user',
         entityId: { $in: senderIds }
-      }).lean();
+      };
+      if (targetScope) {
+        sendersMetaQuery.scope = { $in: [targetScope, null] };
+      } else {
+        sendersMetaQuery.scope = null;
+      }
 
-      // Группируем meta по userId
-      const metaBySender = {};
-      sendersMeta.forEach(meta => {
-        if (!metaBySender[meta.entityId]) {
-          metaBySender[meta.entityId] = {};
+      const sendersMetaRecords = await Meta.find(sendersMetaQuery).lean();
+      const groupedSenderMeta = {};
+      sendersMetaRecords.forEach((record) => {
+        if (!groupedSenderMeta[record.entityId]) {
+          groupedSenderMeta[record.entityId] = [];
         }
-        metaBySender[meta.entityId][meta.key] = meta.value;
+        groupedSenderMeta[record.entityId].push(record);
+      });
+      const metaBySender = {};
+      Object.entries(groupedSenderMeta).forEach(([entityId, records]) => {
+        metaBySender[entityId] = mergeMetaRecordsForScope(records, targetScope);
       });
 
       // Создаем Map отправителей
@@ -755,7 +812,7 @@ const userDialogController = {
       let finalDialogs = await Promise.all(
         paginatedDialogs.map(async (dialog) => {
           // Получаем meta теги для диалога
-          const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
+          const dialogMeta = await fetchMeta('dialog', dialog.dialogId);
 
           // Получаем последнее сообщение
           const lastMsg = lastMessagesMap.get(dialog.dialogId);
@@ -816,6 +873,13 @@ const userDialogController = {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 50;
       const skip = (page - 1) * limit;
+      const metaScopeOptions = getMetaScopeOptions(req, userId);
+      const fetchMeta = (entityType, entityId) => metaUtils.getEntityMeta(
+        req.tenantId,
+        entityType,
+        entityId,
+        metaScopeOptions
+      );
 
       // 1. Проверяем, что пользователь является участником диалога
       const member = await DialogMember.findOne({
@@ -941,7 +1005,7 @@ const userDialogController = {
       let contextUserInfo = null;
       if (contextUser) {
         // Пользователь существует в User модели
-        const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+        const contextUserMeta = await fetchMeta('user', userId);
         contextUserInfo = {
           userId: contextUser.userId,
           name: contextUser.name || null,
@@ -954,7 +1018,7 @@ const userDialogController = {
       } else {
         // Fallback: пользователь не существует в Chat3 API, но может быть meta теги
         // Используем getMeta для получения данных пользователя (например, avatar)
-        const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+        const contextUserMeta = await fetchMeta('user', userId);
         if (contextUserMeta && Object.keys(contextUserMeta).length > 0) {
           // Есть meta теги, создаем userInfo только на основе meta
           contextUserInfo = {
@@ -986,7 +1050,7 @@ const userDialogController = {
           }).lean();
 
           // Получаем метаданные сообщения
-          const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', message.messageId);
+          const messageMeta = await fetchMeta('message', message.messageId);
 
           // Формируем обогащенное сообщение с контекстом пользователя
           const contextData = {
@@ -1001,7 +1065,7 @@ const userDialogController = {
             contextData.userInfo = contextUserInfo;
           }
 
-          const senderInfo = await getSenderInfo(req.tenantId, message.senderId, senderInfoCache);
+          const senderInfo = await getSenderInfo(req.tenantId, message.senderId, senderInfoCache, metaScopeOptions);
 
           return {
             ...message,
@@ -1040,6 +1104,13 @@ const userDialogController = {
   async getUserDialogMessage(req, res) {
     try {
       const { userId, dialogId, messageId } = req.params;
+      const metaScopeOptions = getMetaScopeOptions(req, userId);
+      const fetchMeta = (entityType, entityId) => metaUtils.getEntityMeta(
+        req.tenantId,
+        entityType,
+        entityId,
+        metaScopeOptions
+      );
 
       // 1. Проверяем, что пользователь является участником диалога
       const member = await DialogMember.findOne({
@@ -1093,7 +1164,7 @@ const userDialogController = {
       }).lean();
 
       // 7. Получаем метаданные сообщения
-      const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', message.messageId);
+      const messageMeta = await fetchMeta('message', message.messageId);
 
       // 7.5. Загружаем информацию о пользователе из контекста
       const contextUser = await User.findOne({
@@ -1104,7 +1175,7 @@ const userDialogController = {
       let contextUserInfo = null;
       if (contextUser) {
         // Пользователь существует в User модели
-        const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+        const contextUserMeta = await fetchMeta('user', userId);
         contextUserInfo = {
           userId: contextUser.userId,
           name: contextUser.name || null,
@@ -1116,7 +1187,7 @@ const userDialogController = {
       } else {
         // Fallback: пользователь не существует в Chat3 API, но может быть meta теги
         // Используем getMeta для получения данных пользователя (например, avatar)
-        const contextUserMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+        const contextUserMeta = await fetchMeta('user', userId);
         if (contextUserMeta && Object.keys(contextUserMeta).length > 0) {
           // Есть meta теги, создаем userInfo только на основе meta
           contextUserInfo = {
@@ -1143,7 +1214,7 @@ const userDialogController = {
         contextData.userInfo = contextUserInfo;
       }
 
-      const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
+      const senderInfo = await getSenderInfo(req.tenantId, message.senderId, undefined, metaScopeOptions);
 
       const enrichedMessage = {
         ...message,

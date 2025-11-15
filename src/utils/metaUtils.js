@@ -1,38 +1,101 @@
 import { Meta } from '../models/index.js';
+import { generateTimestamp } from './timestampUtils.js';
+
+export function normalizeScope(rawScope) {
+  if (typeof rawScope !== 'string') {
+    return null;
+  }
+  const trimmed = rawScope.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function getScopeDetails(options = {}) {
+  const provided = Object.prototype.hasOwnProperty.call(options, 'scope');
+  const value = provided ? normalizeScope(options.scope) : null;
+  return {
+    provided,
+    value,
+    preferScoped: Boolean(provided && value)
+  };
+}
+
+function applyScopeCondition(query, scopeDetails, includeFallback = true) {
+  if (scopeDetails.preferScoped && includeFallback) {
+    query.scope = { $in: [scopeDetails.value, null] };
+  } else if (scopeDetails.preferScoped && !includeFallback) {
+    query.scope = scopeDetails.value;
+  } else {
+    query.scope = null;
+  }
+}
+
+function pickMetaByScope(records, scopeDetails) {
+  const result = {};
+  if (scopeDetails.preferScoped) {
+    records
+      .filter(record => record.scope === scopeDetails.value)
+      .forEach((record) => {
+        result[record.key] = record.value;
+      });
+
+    records
+      .filter(record => record.scope === null || typeof record.scope === 'undefined')
+      .forEach((record) => {
+        if (!Object.prototype.hasOwnProperty.call(result, record.key)) {
+          result[record.key] = record.value;
+        }
+      });
+  } else {
+    records
+      .filter(record => record.scope === null || typeof record.scope === 'undefined')
+      .forEach((record) => {
+        result[record.key] = record.value;
+      });
+  }
+  return result;
+}
 
 /**
  * Утилиты для работы с метаданными
  */
 
 // Получить все метаданные для сущности в виде объекта {key: value}
-export async function getEntityMeta(tenantId, entityType, entityId) {
+export async function getEntityMeta(tenantId, entityType, entityId, options = {}) {
   try {
-    const metaRecords = await Meta.find({
+    const scopeDetails = getScopeDetails(options);
+    const query = {
       tenantId,
       entityType,
       entityId
-    }).lean();
+    };
+    applyScopeCondition(query, scopeDetails);
+
+    const metaRecords = await Meta.find(query).lean();
 
     // Преобразуем в объект { key: value }
-    const metaObject = {};
-    metaRecords.forEach(record => {
-      metaObject[record.key] = record.value;
-    });
-
-    return metaObject;
+    return pickMetaByScope(metaRecords, scopeDetails);
   } catch (error) {
     throw new Error(`Failed to get entity meta: ${error.message}`);
   }
 }
 
 // Получить все метаданные для сущности в виде массива с полной информацией
-export async function getEntityMetaFull(tenantId, entityType, entityId) {
+export async function getEntityMetaFull(tenantId, entityType, entityId, options = {}) {
   try {
-    const metaRecords = await Meta.find({
+    const scopeDetails = getScopeDetails(options);
+    const query = {
       tenantId,
       entityType,
       entityId
-    })
+    };
+
+    if (scopeDetails.preferScoped) {
+      applyScopeCondition(query, scopeDetails);
+    } else if (scopeDetails.provided) {
+      query.scope = null;
+    }
+
+    const metaRecords = await Meta.find(query)
       .select('-__v')
       .lean();
 
@@ -45,22 +108,26 @@ export async function getEntityMetaFull(tenantId, entityType, entityId) {
 // Установить или обновить метаданные
 export async function setEntityMeta(tenantId, entityType, entityId, key, value, dataType = 'string', options = {}) {
   try {
+    const scopeValue = normalizeScope(options.scope) ?? null;
     const meta = await Meta.findOneAndUpdate(
       {
         tenantId,
         entityType,
         entityId,
-        key
+        key,
+        scope: scopeValue
       },
       {
         value,
         dataType,
         createdBy: options.createdBy,
-        updatedAt: new Date()
+        scope: scopeValue,
+        updatedAt: generateTimestamp()
       },
       {
         upsert: true,
-        new: true
+        new: true,
+        setDefaultsOnInsert: true
       }
     );
 
@@ -71,13 +138,15 @@ export async function setEntityMeta(tenantId, entityType, entityId, key, value, 
 }
 
 // Удалить метаданные
-export async function deleteEntityMeta(tenantId, entityType, entityId, key) {
+export async function deleteEntityMeta(tenantId, entityType, entityId, key, options = {}) {
   try {
+    const scopeValue = normalizeScope(options.scope) ?? null;
     const result = await Meta.deleteOne({
       tenantId,
       entityType,
       entityId,
-      key
+      key,
+      scope: scopeValue
     });
 
     return result.deletedCount > 0;
@@ -87,29 +156,43 @@ export async function deleteEntityMeta(tenantId, entityType, entityId, key) {
 }
 
 // Получить конкретное значение метаданных
-export async function getEntityMetaValue(tenantId, entityType, entityId, key, defaultValue = null) {
+export async function getEntityMetaValue(tenantId, entityType, entityId, key, defaultValue = null, options = {}) {
   try {
-    const meta = await Meta.findOne({
+    const scopeDetails = getScopeDetails(options);
+    const query = {
       tenantId,
       entityType,
       entityId,
       key
-    }).lean();
+    };
+    applyScopeCondition(query, scopeDetails);
 
-    return meta ? meta.value : defaultValue;
+    const records = await Meta.find(query).lean();
+
+    if (scopeDetails.preferScoped) {
+      const scoped = records.find(record => record.scope === scopeDetails.value);
+      if (scoped) {
+        return scoped.value;
+      }
+    }
+
+    const fallback = records.find(record => record.scope === null || typeof record.scope === 'undefined');
+    return fallback ? fallback.value : defaultValue;
   } catch (error) {
     throw new Error(`Failed to get entity meta value: ${error.message}`);
   }
 }
 
 // Построить MongoDB query для фильтрации по метаданным
-export async function buildMetaQuery(tenantId, entityType, metaFilters) {
+export async function buildMetaQuery(tenantId, entityType, metaFilters, options = {}) {
   try {
     if (!metaFilters || Object.keys(metaFilters).length === 0) {
       return null;
     }
 
     console.log('buildMetaQuery called with:', { tenantId, entityType, metaFilters });
+
+    const scopeDetails = getScopeDetails(options);
 
     // Для каждого мета-фильтра находим соответствующие entityId
     const allEntityIds = new Set();
@@ -123,6 +206,7 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters) {
         entityType,
         key
       };
+      applyScopeCondition(metaQuery, scopeDetails);
       
       // Если value - это объект с операторами MongoDB (например, { $ne: "armor" })
       if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
@@ -135,11 +219,15 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters) {
           
           // Находим все entityId, которые НЕ имеют этого значения
           // Сначала получаем все entityId с этим ключом
-          const allWithKey = await Meta.find({
+          const allWithKeyQuery = {
             tenantId,
             entityType,
             key
-          }).select('entityId').lean();
+          };
+          applyScopeCondition(allWithKeyQuery, scopeDetails);
+          const allWithKey = await Meta.find(allWithKeyQuery)
+            .select('entityId')
+            .lean();
           
           // Затем получаем entityId с конкретным значением (которые нужно исключить)
           const excludeQuery = {
@@ -148,6 +236,7 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters) {
             key,
             value: value.$ne
           };
+          applyScopeCondition(excludeQuery, scopeDetails);
           
           const excludeRecords = await Meta.find(excludeQuery).select('entityId').lean();
           const excludeIds = new Set(excludeRecords.map(r => r.entityId.toString()));

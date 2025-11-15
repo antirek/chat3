@@ -24,11 +24,13 @@ const createMockRes = () => {
 const createMockReq = ({
   params = {},
   body = {},
-  apiKey = { name: 'test-key' }
+  apiKey = { name: 'test-key' },
+  query = {}
 } = {}) => ({
   tenantId,
   params,
   body,
+  query,
   apiKey
 });
 
@@ -152,6 +154,38 @@ describe('metaController', () => {
         message: expect.stringContaining('Dialog')
       });
     });
+
+    test('prioritizes scoped meta values when scope provided', async () => {
+      await Meta.create([
+        {
+          tenantId,
+          entityType: 'dialog',
+          entityId: dialogId,
+          key: 'name',
+          value: 'Default Name',
+          dataType: 'string'
+        },
+        {
+          tenantId,
+          entityType: 'dialog',
+          entityId: dialogId,
+          key: 'name',
+          value: 'Personal Name',
+          dataType: 'string',
+          scope: 'user_alice'
+        }
+      ]);
+
+      const req = createMockReq({
+        params: { entityType: 'dialog', entityId: dialogId },
+        query: { scope: 'user_alice' }
+      });
+      const res = createMockRes();
+
+      await metaController.getMeta(req, res);
+
+      expect(res.body.data.name).toBe('Personal Name');
+    });
   });
 
   describe('setMeta', () => {
@@ -255,6 +289,34 @@ describe('metaController', () => {
         message: expect.stringContaining('Invalid DialogMember entityId format')
       });
     });
+
+    test('stores scoped meta entry when scope provided', async () => {
+      const req = createMockReq({
+        params: {
+          entityType: 'dialog',
+          entityId: dialogId,
+          key: 'title'
+        },
+        body: {
+          value: 'Scoped Title',
+          scope: 'user_alice'
+        }
+      });
+      const res = createMockRes();
+
+      await metaController.setMeta(req, res);
+
+      const scopedMeta = await Meta.findOne({
+        tenantId,
+        entityType: 'dialog',
+        entityId: dialogId,
+        key: 'title',
+        scope: 'user_alice'
+      }).lean();
+
+      expect(scopedMeta).toBeTruthy();
+      expect(scopedMeta.value).toBe('Scoped Title');
+    });
   });
 
   describe('deleteMeta', () => {
@@ -309,6 +371,58 @@ describe('metaController', () => {
         error: 'Not Found',
         message: "Meta key 'absent' not found for dialog " + dialogId
       });
+    });
+
+    test('deletes only scoped meta when scope query provided', async () => {
+      await Meta.create([
+        {
+          tenantId,
+          entityType: 'dialog',
+          entityId: dialogId,
+          key: 'summary',
+          value: 'Default summary',
+          dataType: 'string'
+        },
+        {
+          tenantId,
+          entityType: 'dialog',
+          entityId: dialogId,
+          key: 'summary',
+          value: 'Personal summary',
+          dataType: 'string',
+          scope: 'user_alice'
+        }
+      ]);
+
+      const req = createMockReq({
+        params: {
+          entityType: 'dialog',
+          entityId: dialogId,
+          key: 'summary'
+        },
+        query: { scope: 'user_alice' }
+      });
+      const res = createMockRes();
+
+      await metaController.deleteMeta(req, res);
+
+      const defaultMeta = await Meta.findOne({
+        tenantId,
+        entityType: 'dialog',
+        entityId: dialogId,
+        key: 'summary',
+        scope: null
+      }).lean();
+      const scopedMeta = await Meta.findOne({
+        tenantId,
+        entityType: 'dialog',
+        entityId: dialogId,
+        key: 'summary',
+        scope: 'user_alice'
+      }).lean();
+
+      expect(defaultMeta).toBeTruthy();
+      expect(scopedMeta).toBeNull();
     });
   });
 });
