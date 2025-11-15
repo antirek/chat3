@@ -411,15 +411,21 @@ const messageController = {
       // Add meta data if provided
       if (metaPayload && typeof metaPayload === 'object') {
         for (const [key, value] of Object.entries(metaPayload)) {
-          if (typeof value === 'object' && value !== null) {
-            // If value is an object with dataType and value properties
+          const metaOptions = {
+            createdBy: senderId,
+            scope: typeof value === 'object' && value !== null ? value.scope : undefined
+          };
+
+          if (typeof value === 'object' && value !== null && Object.prototype.hasOwnProperty.call(value, 'value')) {
+            // If value is an object with dataType/value/scope properties
             await metaUtils.setEntityMeta(
               req.tenantId,
               'message',
               message.messageId,
               key,
               value.value,
-              value.dataType || 'string'
+              value.dataType || 'string',
+              metaOptions
             );
           } else {
             // If value is a simple value
@@ -431,7 +437,8 @@ const messageController = {
               value,
               typeof value === 'number' ? 'number' : 
               typeof value === 'boolean' ? 'boolean' :
-              Array.isArray(value) ? 'array' : 'string'
+              Array.isArray(value) ? 'array' : 'string',
+              metaOptions
             );
           }
         }

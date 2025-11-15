@@ -223,6 +223,21 @@ router.get('/:id', apiAuth, requirePermission('read'), validateDialogId, dialogC
  *                 type: string
  *               createdBy:
  *                 type: string
+ *               meta:
+ *                 type: object
+ *                 additionalProperties: true
+ *                 description: |
+ *                   Произвольные мета-теги. Можно передать простые значения (`"channel": "whatsapp"`) или расширенный объект
+ *                   `{ "value": "...", "dataType": "...", "scope": "user_123" }`, чтобы сразу задать тип и персональный `scope`.
+ *                 example:
+ *                   name: "VIP чат"
+ *                   createdBy: "agent_42"
+ *                   meta:
+ *                     channel: "whatsapp"
+ *                     greeting:
+ *                       value: "Здравствуйте!"
+ *                       dataType: "string"
+ *                       scope: "user_alice"
  *     responses:
  *       201:
  *         description: Dialog created
