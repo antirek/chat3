@@ -103,6 +103,14 @@ export const createMessageSchema = Joi.object({
 });
 
 /**
+ * Схема валидации обновления содержимого сообщения
+ * Разрешаем изменять только поле content
+ */
+export const updateMessageContentSchema = Joi.object({
+  content: Joi.string().trim().min(1).max(10000).required()
+});
+
+/**
  * Схема валидации добавления реакции
  */
 export const addReactionSchema = Joi.object({

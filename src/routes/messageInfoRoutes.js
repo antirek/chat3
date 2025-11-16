@@ -2,8 +2,8 @@ import express from 'express';
 import messageController from '../controllers/messageController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validateMessageId } from '../validators/urlValidators/index.js';
-import { validateQuery } from '../validators/middleware.js';
-import { messagesQuerySchema } from '../validators/schemas/index.js';
+import { validateBody, validateQuery } from '../validators/middleware.js';
+import { messagesQuerySchema, updateMessageContentSchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -194,5 +194,67 @@ router.get('/', apiAuth, requirePermission('read'), validateQuery(messagesQueryS
  *         description: Internal Server Error
  */
 router.get('/:messageId', apiAuth, requirePermission('read'), validateMessageId, messageController.getMessageById);
+
+/**
+ * @swagger
+ * /api/messages/{messageId}:
+ *   put:
+ *     summary: Update message content
+ *     description: Updates only the content of the message. All other fields remain unchanged.
+ *     tags: [Messages]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: messageId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the message to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: New message content
+ *                 example: "Updated message text"
+ *     responses:
+ *       200:
+ *         description: Message content updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ *                   example: "Message content updated successfully"
+ *       400:
+ *         description: Bad Request - Invalid content or validation error
+ *       401:
+ *         description: Unauthorized - Invalid API key
+ *       403:
+ *         description: Forbidden - Insufficient permissions
+ *       404:
+ *         description: Message not found
+ *       500:
+ *         description: Internal Server Error
+ */
+router.put(
+  '/:messageId',
+  apiAuth,
+  requirePermission('write'),
+  validateMessageId,
+  validateBody(updateMessageContentSchema),
+  messageController.updateMessageContent
+);
 
 export default router;

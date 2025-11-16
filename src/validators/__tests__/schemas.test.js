@@ -3,7 +3,8 @@ import {
   createUserSchema,
   createTenantSchema,
   updateTenantSchema,
-  setMetaSchema
+  setMetaSchema,
+  updateMessageContentSchema
 } from '../schemas/bodySchemas.js';
 import {
   paginationSchema,
@@ -216,6 +217,23 @@ describe('bodySchemas.setMetaSchema', () => {
 
     expect(error).toBeUndefined();
     expect(value.scope).toBe('user_alice');
+  });
+});
+
+describe('bodySchemas.updateMessageContentSchema', () => {
+  const validate = (payload) => updateMessageContentSchema.validate(payload, { abortEarly: false });
+
+  test('accepts non-empty content', () => {
+    const { error, value } = validate({ content: 'updated text' });
+
+    expect(error).toBeUndefined();
+    expect(value.content).toBe('updated text');
+  });
+
+  test('rejects empty content', () => {
+    const { error } = validate({ content: '' });
+
+    expect(error).toBeDefined();
   });
 });
 

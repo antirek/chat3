@@ -311,3 +311,77 @@ describe('messageController.createMessage - unread handling', () => {
     expect(statuses).toHaveLength(0);
   });
 });
+
+describe('messageController.updateMessageContent', () => {
+  let dialog;
+  let message;
+
+  const createRequest = (body = {}) => ({
+    tenantId,
+    params: { messageId: message.messageId },
+    body,
+    apiKey: { name: 'test-key' }
+  });
+
+  const createResponse = () => createMockRes();
+
+  beforeEach(async () => {
+    dialog = await Dialog.create({
+      tenantId,
+      dialogId: generateDialogId(),
+      name: 'Dialog for update',
+      createdBy: 'alice',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+
+    message = await Message.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'alice',
+      content: 'Original content',
+      type: 'internal.text',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+  });
+
+  test('updates only content and keeps other fields unchanged', async () => {
+    const req = createRequest({ content: 'Updated content' });
+    const res = createResponse();
+
+    await messageController.updateMessageContent(req, res);
+
+    expect(res.body.data.content).toBe('Updated content');
+    expect(res.body.data.meta).toEqual(expect.objectContaining({ updated: true }));
+
+    const updated = await Message.findOne({ tenantId, messageId: message.messageId }).lean();
+    expect(updated.content).toBe('Updated content');
+    expect(updated.senderId).toBe(message.senderId);
+    expect(updated.type).toBe(message.type);
+
+    const metaRecords = await Meta.find({
+      tenantId,
+      entityType: 'message',
+      entityId: message.messageId
+    }).lean();
+
+    const updatedMeta = metaRecords.reduce((acc, m) => {
+      acc[m.key] = m.value;
+      return acc;
+    }, {});
+
+    expect(updatedMeta.updated).toBe(true);
+  });
+
+  test('returns 400 when clearing content of internal.text message', async () => {
+    const req = createRequest({ content: '   ' });
+    const res = createResponse();
+
+    await messageController.updateMessageContent(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Bad Request');
+  });
+});

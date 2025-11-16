@@ -3,6 +3,7 @@ import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
+import { generateTimestamp } from '../utils/timestampUtils.js';
 
 /**
  * Helper function to enrich messages with meta data and statuses
@@ -647,6 +648,172 @@ const messageController = {
           meta,
           senderInfo: senderInfo || null
         })
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  // Update message content (only content can be changed)
+  async updateMessageContent(req, res) {
+    try {
+      const { messageId } = req.params;
+      const { content } = req.body;
+
+      const message = await Message.findOne({
+        messageId,
+        tenantId: req.tenantId
+      });
+
+      if (!message) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Message not found'
+        });
+      }
+
+      const newContent = typeof content === 'string' ? content : '';
+
+      if (message.type === 'internal.text' && newContent.trim().length === 0) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'content is required for internal.text messages'
+        });
+      }
+
+      const oldContent = message.content;
+      if (oldContent === newContent) {
+        // Ничего не меняем, но возвращаем текущее состояние
+        const meta = await metaUtils.getEntityMeta(
+          req.tenantId,
+          'message',
+          message.messageId
+        );
+
+        const messageStatuses = await MessageStatus.find({
+          messageId: message.messageId,
+          tenantId: req.tenantId
+        })
+          .select('userId status readAt createdAt')
+          .sort({ createdAt: -1 })
+          .lean();
+
+        const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
+
+        const messageObj = message.toObject();
+
+        return res.json({
+          data: sanitizeResponse({
+            ...messageObj,
+            statuses: messageStatuses,
+            meta,
+            senderInfo: senderInfo || null
+          }),
+          message: 'Message content is unchanged'
+        });
+      }
+
+      message.content = newContent;
+      message.updatedAt = generateTimestamp();
+      await message.save();
+
+      // Отмечаем сообщение как обновлённое через мета-тег
+      await metaUtils.setEntityMeta(
+        req.tenantId,
+        'message',
+        message.messageId,
+        'updated',
+        true,
+        'boolean',
+        {
+          createdBy: req.apiKey?.name || 'unknown'
+        }
+      );
+
+      const meta = await metaUtils.getEntityMeta(
+        req.tenantId,
+        'message',
+        message.messageId
+      );
+
+      const messageStatuses = await MessageStatus.find({
+        messageId: message.messageId,
+        tenantId: req.tenantId
+      })
+        .select('userId status readAt createdAt')
+        .sort({ createdAt: -1 })
+        .lean();
+
+      const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
+
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: message.dialogId
+      });
+
+      const MAX_CONTENT_LENGTH = 4096;
+      const eventContent = newContent.length > MAX_CONTENT_LENGTH
+        ? newContent.substring(0, MAX_CONTENT_LENGTH)
+        : newContent;
+
+      const messageSection = eventUtils.buildMessageSection({
+        messageId: message.messageId,
+        dialogId: message.dialogId,
+        senderId: message.senderId,
+        type: message.type,
+        content: eventContent,
+        meta
+      });
+
+      const actorSection = eventUtils.buildActorSection({
+        actorId: req.apiKey?.name || 'unknown',
+        actorType: 'api'
+      });
+
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'message.update',
+        dialogId: message.dialogId,
+        entityId: message.messageId,
+        messageId: message.messageId,
+        includedSections: ['dialog', 'message', 'actor'],
+        updatedFields: ['message.content']
+      });
+
+      await eventUtils.createEvent({
+        tenantId: req.tenantId,
+        eventType: 'message.update',
+        entityType: 'message',
+        entityId: message.messageId,
+        actorId: req.apiKey?.name || 'unknown',
+        actorType: 'api',
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection,
+          message: messageSection,
+          actor: actorSection,
+          extra: {
+            delta: {
+              content: {
+                from: oldContent,
+                to: newContent
+              }
+            }
+          }
+        })
+      });
+
+      const messageObj = message.toObject();
+
+      res.json({
+        data: sanitizeResponse({
+          ...messageObj,
+          statuses: messageStatuses,
+          meta,
+          senderInfo: senderInfo || null
+        }),
+        message: 'Message content updated successfully'
       });
     } catch (error) {
       res.status(500).json({
