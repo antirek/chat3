@@ -1,7 +1,7 @@
 import express from 'express';
 import dialogMemberController from '../controllers/dialogMemberController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
-import { validateDialogId } from '../validators/urlValidators/index.js';
+import { validateDialogId, validateUserId } from '../validators/urlValidators/index.js';
 import { validateBody } from '../validators/middleware.js';
 import { setUnreadCountSchema, addDialogMemberSchema } from '../validators/schemas/index.js';
 
