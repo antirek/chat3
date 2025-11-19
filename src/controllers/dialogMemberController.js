@@ -6,12 +6,21 @@ import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
 import { scheduleDialogReadTask } from '../utils/dialogReadTaskUtils.js';
+import * as userUtils from '../utils/userUtils.js';
 
 const dialogMemberController = {
   // Add member to dialog
   async addDialogMember(req, res) {
     try {
-      const { dialogId, userId } = req.params;
+      const { dialogId } = req.params;
+      const { userId, type, name } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Missing required field: userId'
+        });
+      }
 
       // Найти Dialog по dialogId для получения ObjectId
       const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: req.tenantId });
@@ -21,6 +30,12 @@ const dialogMemberController = {
           message: 'Dialog not found'
         });
       }
+
+      // Проверяем и создаем пользователя, если его нет
+      await userUtils.ensureUserExists(req.tenantId, userId, {
+        type,
+        name
+      });
 
       const member = await unreadCountUtils.addDialogMember(
         req.tenantId,

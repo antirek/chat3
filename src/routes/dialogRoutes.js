@@ -217,27 +217,60 @@ router.get('/:id', apiAuth, requirePermission('read'), validateDialogId, dialogC
  *           schema:
  *             type: object
  *             required:
+ *               - name
  *               - createdBy
  *             properties:
  *               name:
  *                 type: string
+ *                 description: Название диалога
  *               createdBy:
  *                 type: string
+ *                 description: ID создателя диалога
+ *               members:
+ *                 type: array
+ *                 description: Массив участников диалога
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - userId
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                       description: ID пользователя (обязательное поле)
+ *                     type:
+ *                       type: string
+ *                       description: Тип пользователя (user, bot, contact и т.д.)
+ *                     name:
+ *                       type: string
+ *                       description: Имя пользователя
+ *                 example:
+ *                   - userId: "carl"
+ *                     type: "user"
+ *                     name: "Carl Johnson"
+ *                   - userId: "bot_123"
+ *                     type: "bot"
+ *                     name: "Support Bot"
  *               meta:
  *                 type: object
  *                 additionalProperties: true
  *                 description: |
  *                   Произвольные мета-теги. Можно передать простые значения (`"channel": "whatsapp"`) или расширенный объект
  *                   `{ "value": "...", "dataType": "...", "scope": "user_123" }`, чтобы сразу задать тип и персональный `scope`.
- *                 example:
- *                   name: "VIP чат"
- *                   createdBy: "agent_42"
- *                   meta:
- *                     channel: "whatsapp"
- *                     greeting:
- *                       value: "Здравствуйте!"
- *                       dataType: "string"
- *                       scope: "user_alice"
+ *             example:
+ *               name: "VIP чат"
+ *               createdBy: "agent_42"
+ *               members:
+ *                 - userId: "carl"
+ *                   type: "user"
+ *                   name: "Carl Johnson"
+ *                 - userId: "bot_123"
+ *                   type: "bot"
+ *               meta:
+ *                 channel: "whatsapp"
+ *                 greeting:
+ *                   value: "Здравствуйте!"
+ *                   dataType: "string"
+ *                   scope: "user_alice"
  *     responses:
  *       201:
  *         description: Dialog created

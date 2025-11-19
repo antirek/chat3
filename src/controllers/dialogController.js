@@ -3,6 +3,8 @@ import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
+import * as userUtils from '../utils/userUtils.js';
+import * as unreadCountUtils from '../utils/unreadCountUtils.js';
 
 export const dialogController = {
   // Get all dialogs for current tenant
@@ -490,7 +492,7 @@ export const dialogController = {
   // Create new dialog
   async create(req, res) {
     try {
-      const { name, createdBy, meta: metaPayload } = req.body;
+      const { name, createdBy, members, meta: metaPayload } = req.body;
 
       // Basic validation
       if (!name || !createdBy) {
@@ -505,6 +507,24 @@ export const dialogController = {
         name,
         createdBy
       });
+
+      // Обрабатываем участников, если они предоставлены
+      if (Array.isArray(members) && members.length > 0) {
+        for (const memberData of members) {
+          // Проверяем и создаем пользователя, если его нет
+          await userUtils.ensureUserExists(req.tenantId, memberData.userId, {
+            type: memberData.type,
+            name: memberData.name
+          });
+
+          // Добавляем участника в диалог
+          await unreadCountUtils.addDialogMember(
+            req.tenantId,
+            memberData.userId,
+            dialog.dialogId
+          );
+        }
+      }
 
       // Add meta data if provided
       if (metaPayload && typeof metaPayload === 'object') {

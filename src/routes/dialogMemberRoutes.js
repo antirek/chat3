@@ -1,15 +1,15 @@
 import express from 'express';
 import dialogMemberController from '../controllers/dialogMemberController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
-import { validateDialogId, validateUserId } from '../validators/urlValidators/index.js';
+import { validateDialogId } from '../validators/urlValidators/index.js';
 import { validateBody } from '../validators/middleware.js';
-import { setUnreadCountSchema } from '../validators/schemas/index.js';
+import { setUnreadCountSchema, addDialogMemberSchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
 /**
  * @swagger
- * /api/dialogs/{dialogId}/members/{userId}/add:
+ * /api/dialogs/{dialogId}/members/add:
  *   post:
  *     summary: Add a member to a dialog
  *     tags: [DialogMember]
@@ -22,13 +22,27 @@ const router = express.Router();
  *         schema:
  *           type: string
  *         description: Dialog ID
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID to add to dialog
- *         example: "carl"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: User ID to add to dialog
+ *                 example: "carl"
+ *               type:
+ *                 type: string
+ *                 description: User type (user, bot, contact, etc.)
+ *                 example: "user"
+ *               name:
+ *                 type: string
+ *                 description: User name
+ *                 example: "Carl Johnson"
  *     responses:
  *       201:
  *         description: Member added to dialog successfully
@@ -46,12 +60,16 @@ const router = express.Router();
  *                       type: string
  *                 message:
  *                   type: string
+ *       400:
+ *         description: Bad Request - Missing required fields
  *       401:
  *         description: Unauthorized - Invalid API key
  *       403:
  *         description: Forbidden - Insufficient permissions
+ *       404:
+ *         description: Dialog not found
  */
-router.post('/:dialogId/members/:userId/add', apiAuth, requirePermission('write'), validateDialogId, validateUserId, dialogMemberController.addDialogMember);
+router.post('/:dialogId/members/add', apiAuth, requirePermission('write'), validateDialogId, validateBody(addDialogMemberSchema), dialogMemberController.addDialogMember);
 
 /**
  * @swagger
