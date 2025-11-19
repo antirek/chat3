@@ -4,7 +4,7 @@ import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from './responseUtils.js';
 import { generateTimestamp } from './timestampUtils.js';
-import { extractUserType, getUserType } from './userTypeUtils.js';
+import { getUserType } from './userTypeUtils.js';
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 

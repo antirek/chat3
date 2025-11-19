@@ -33,18 +33,18 @@ export function extractUserType(userId) {
 }
 
 /**
- * Получает тип пользователя из модели User или использует fallback на extractUserType
+ * Получает тип пользователя из модели User
  * @param {string} tenantId - ID тенанта
  * @param {string} userId - ID пользователя
- * @returns {Promise<string>} Тип пользователя
+ * @returns {Promise<string>} Тип пользователя (по умолчанию 'user')
  */
 export async function getUserType(tenantId, userId) {
   try {
     if (!userId || typeof userId !== 'string') {
-      return 'usr';
+      return 'user';
     }
 
-    // Пытаемся получить тип из модели User
+    // Получаем тип из модели User
     const user = await User.findOne({
       tenantId: tenantId,
       userId: userId
@@ -54,12 +54,12 @@ export async function getUserType(tenantId, userId) {
       return user.type;
     }
 
-    // Fallback: извлекаем тип из префикса userId
-    return extractUserType(userId);
+    // Если пользователь не найден или тип не указан, возвращаем дефолтное значение 'user'
+    return 'user';
   } catch (error) {
     console.error(`Error getting user type for ${userId}:`, error);
-    // В случае ошибки используем fallback
-    return extractUserType(userId);
+    // В случае ошибки возвращаем дефолтное значение
+    return 'user';
   }
 }
 

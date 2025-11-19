@@ -120,14 +120,14 @@ describe('userTypeUtils', () => {
       expect(userType).toBe('user'); // default from schema
     });
 
-    test('should use extractUserType as fallback if user not found', async () => {
+    test('should return default user type if user not found', async () => {
       const userType = await getUserType(tenantId, 'usr_123');
-      expect(userType).toBe('usr'); // fallback to extractUserType
+      expect(userType).toBe('user'); // default from User model
     });
 
-    test('should use extractUserType as fallback if user not found (no prefix)', async () => {
+    test('should return default user type if user not found (no prefix)', async () => {
       const userType = await getUserType(tenantId, 'carl');
-      expect(userType).toBe('usr'); // fallback to extractUserType default
+      expect(userType).toBe('user'); // default from User model
     });
 
     test('should handle different user types', async () => {
@@ -143,10 +143,10 @@ describe('userTypeUtils', () => {
       expect(userType).toBe('contact');
     });
 
-    test('should handle error gracefully and use fallback', async () => {
+    test('should handle error gracefully and return default', async () => {
       // Pass invalid tenantId to trigger error
       const userType = await getUserType('invalid_tenant', 'user1');
-      expect(userType).toBe('usr'); // fallback
+      expect(userType).toBe('user'); // default from User model
     });
   });
   });

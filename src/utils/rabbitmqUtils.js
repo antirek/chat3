@@ -1,5 +1,5 @@
 import amqp from 'amqplib';
-import { extractUserType, getUserType } from './userTypeUtils.js';
+import { getUserType } from './userTypeUtils.js';
 
 let connection = null;
 let channel = null;
@@ -269,13 +269,10 @@ export async function ensureUserUpdatesQueue(userId, tenantId = null) {
       }
     });
 
-    // Получаем тип пользователя из модели User или используем fallback
-    let userType;
+    // Получаем тип пользователя из модели User
+    let userType = 'user'; // Дефолтное значение
     if (tenantId) {
       userType = await getUserType(tenantId, userId);
-    } else {
-      // Fallback: извлекаем тип из префикса userId
-      userType = extractUserType(userId);
     }
     
     // Привязываем очередь к exchange updates с routing key user.{type}.{userId}.*
