@@ -13,6 +13,7 @@ export const dialogController = {
       const skip = (page - 1) * limit;
 
       let dialogIds = null;
+      let regularFilters = {};
 
       // Фильтрация по метаданным и участникам
       if (req.query.filter) {
@@ -21,7 +22,8 @@ export const dialogController = {
           const parsedFilters = parseFilters(req.query.filter);
           
           // Извлекаем meta фильтры и member фильтры
-          const { metaFilters, regularFilters, memberFilters } = extractMetaFilters(parsedFilters);
+          const { metaFilters, regularFilters: extractedRegularFilters, memberFilters } = extractMetaFilters(parsedFilters);
+          regularFilters = extractedRegularFilters;
           
           // Обрабатываем meta фильтры
           if (Object.keys(metaFilters).length > 0) {
@@ -111,9 +113,6 @@ export const dialogController = {
             }
           }
           
-          // Применяем обычные фильтры к query
-          Object.assign(req.query, regularFilters);
-          
         } catch (error) {
           return res.status(400).json({
             error: 'Bad Request',
@@ -123,6 +122,11 @@ export const dialogController = {
       }
 
       const query = { tenantId: req.tenantId };
+      
+      // Применяем обычные фильтры (например, dialogId) к query
+      // Но если есть dialogId в regularFilters, обрабатываем его отдельно
+      const { dialogId: regularDialogId, ...otherRegularFilters } = regularFilters;
+      Object.assign(query, otherRegularFilters);
       
       // Если есть фильтрация по meta или member, ограничиваем выборку
       if (dialogIds !== null) {
@@ -139,8 +143,32 @@ export const dialogController = {
           });
         }
         
+        // Если также есть regularFilters.dialogId, делаем пересечение
+        if (regularDialogId !== undefined) {
+          // Преобразуем regularDialogId в массив для сравнения
+          const regularDialogIdArray = Array.isArray(regularDialogId) ? regularDialogId : [regularDialogId];
+          // Пересечение: оставляем только те dialogIds, которые есть и в dialogIds, и в regularDialogId
+          dialogIds = dialogIds.filter(id => regularDialogIdArray.includes(id));
+          
+          if (dialogIds.length === 0) {
+            // Нет диалогов, удовлетворяющих обоим условиям
+            return res.json({
+              data: sanitizeResponse([]),
+              pagination: {
+                page,
+                limit,
+                total: 0,
+                pages: 0
+              }
+            });
+          }
+        }
+        
         // Все dialogIds теперь строки dialogId (meta и member фильтры преобразованы)
         query.dialogId = { $in: dialogIds };
+      } else if (regularDialogId !== undefined) {
+        // Если нет dialogIds из meta/member фильтров, но есть regularDialogId
+        query.dialogId = regularDialogId;
       }
 
       // Проверяем, нужна ли сортировка по полям DialogMember

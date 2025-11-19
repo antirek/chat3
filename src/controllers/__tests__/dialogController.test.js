@@ -215,6 +215,63 @@ describe('dialogController.getAll - filter combinations', () => {
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toBe('Bad Request');
   });
+
+  test('filters dialogs by dialogId (regular filter)', async () => {
+    const req = createMockReq(tenantId, { filter: `(dialogId,eq,${dialogA.dialogId})`, page: 1, limit: 10 });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].dialogId).toBe(dialogA.dialogId);
+    expect(res.body.pagination.total).toBe(1);
+  });
+
+  test('filters dialogs by dialogId returns empty when not found', async () => {
+    const req = createMockReq(tenantId, { filter: '(dialogId,eq,dlg_nonexistent123456789)', page: 1, limit: 10 });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(0);
+    expect(res.body.pagination.total).toBe(0);
+  });
+
+  test('filters dialogs by dialogId combined with meta filter', async () => {
+    // dialogA имеет meta.department = 'sales'
+    // Фильтр должен найти только dialogA, так как он единственный с department=sales и указанным dialogId
+    const req = createMockReq(tenantId, { 
+      filter: `(meta.department,eq,sales)&(dialogId,eq,${dialogA.dialogId})`, 
+      page: 1, 
+      limit: 10 
+    });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].dialogId).toBe(dialogA.dialogId);
+  });
+
+  test('filters dialogs by dialogId combined with meta filter returns empty when no intersection', async () => {
+    // dialogC имеет meta.department = 'engineering'
+    // Фильтр по department=sales и dialogId=dialogC должен вернуть пустой результат
+    const req = createMockReq(tenantId, { 
+      filter: `(meta.department,eq,sales)&(dialogId,eq,${dialogC.dialogId})`, 
+      page: 1, 
+      limit: 10 
+    });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(0);
+    expect(res.body.pagination.total).toBe(0);
+  });
 });
 
 describe('dialogController.getAll - sorting modes', () => {
