@@ -93,6 +93,7 @@ const userDialogController = {
       );
 
       let dialogIds = null;
+      let regularFilters = {};
 
       // Фильтрация по метаданным
       if (req.query.filter) {
@@ -103,7 +104,8 @@ const userDialogController = {
           console.log('Parsed filters:', parsedFilters);
           
           // Извлекаем meta фильтры и member фильтры
-          const { metaFilters, regularFilters, memberFilters } = extractMetaFilters(parsedFilters);
+          const { metaFilters, regularFilters: extractedRegularFilters, memberFilters } = extractMetaFilters(parsedFilters);
+          regularFilters = extractedRegularFilters;
           console.log('Meta filters:', metaFilters);
           console.log('Regular filters:', regularFilters);
           console.log('Member filters:', memberFilters);
@@ -438,10 +440,6 @@ const userDialogController = {
             }
           }
           
-          // Применяем обычные фильтры к query
-          Object.assign(req.query, regularFilters);
-          console.log('Regular filters applied:', regularFilters);
-          
         } catch (error) {
           return res.status(400).json({
             error: 'Bad Request',
@@ -456,6 +454,13 @@ const userDialogController = {
         tenantId: req.tenantId,
         isActive: true
       };
+      
+      // Применяем обычные фильтры (например, dialogId) к dialogMembersQuery
+      // Но если есть dialogId в regularFilters, обрабатываем его отдельно
+      const { dialogId: regularDialogId, ...otherRegularFilters } = regularFilters;
+      
+      // Применяем другие regularFilters (если есть) - но в getUserDialogs обычно это не нужно,
+      // так как мы работаем с DialogMember, а не напрямую с Dialog
 
       // Применяем обычные фильтры (unreadCount, lastSeenAt, etc.)
       if (req.query.unreadCount !== undefined) {
@@ -545,8 +550,34 @@ const userDialogController = {
             }
           });
         }
+        
+        // Если также есть regularFilters.dialogId, делаем пересечение
+        if (regularDialogId !== undefined) {
+          // Преобразуем regularDialogId в массив для сравнения
+          const regularDialogIdArray = Array.isArray(regularDialogId) ? regularDialogId : [regularDialogId];
+          // Пересечение: оставляем только те dialogIds, которые есть и в dialogIds, и в regularDialogId
+          dialogIds = dialogIds.filter(id => regularDialogIdArray.includes(id));
+          
+          if (dialogIds.length === 0) {
+            // Нет диалогов, удовлетворяющих обоим условиям
+            return res.json({
+              data: [],
+              pagination: {
+                page,
+                limit,
+                total: 0,
+                pages: 0
+              }
+            });
+          }
+        }
+        
         console.log('Applying dialogIds filter:', dialogIds.length, 'dialogs');
         dialogMembersQuery.dialogId = { $in: dialogIds };
+      } else if (regularDialogId !== undefined) {
+        // Если нет dialogIds из meta/member фильтров, но есть regularDialogId
+        const regularDialogIdArray = Array.isArray(regularDialogId) ? regularDialogId : [regularDialogId];
+        dialogMembersQuery.dialogId = regularDialogIdArray.length === 1 ? regularDialogIdArray[0] : { $in: regularDialogIdArray };
       }
 
       console.log('Final dialogMembersQuery:', JSON.stringify(dialogMembersQuery, null, 2));

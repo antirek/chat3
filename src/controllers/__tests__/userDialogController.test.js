@@ -406,6 +406,145 @@ describe('userDialogController', () => {
     });
   });
 
+  describe('getUserDialogs - dialogId filter', () => {
+    let userId1;
+    let dialog1, dialog2, dialog3;
+
+    beforeEach(async () => {
+      userId1 = 'usr_mu7cgrut';
+
+      await User.create({
+        userId: userId1,
+        tenantId,
+        name: 'Test User',
+        lastActiveAt: generateTimestamp(),
+        createdAt: generateTimestamp()
+      });
+
+      dialog1 = await Dialog.create({
+        dialogId: 'dlg_vxlpjst3qr1we1jogf9p',
+        tenantId,
+        createdBy: userId1,
+        name: 'Dialog 1',
+        createdAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
+      });
+
+      dialog2 = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId1,
+        name: 'Dialog 2',
+        createdAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
+      });
+
+      dialog3 = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId1,
+        name: 'Dialog 3',
+        createdAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
+      });
+
+      // Create dialog members - user1 is member of all dialogs
+      await DialogMember.create([
+        { userId: userId1, dialogId: dialog1.dialogId, tenantId, role: 'member', isActive: true, unreadCount: 0, joinedAt: generateTimestamp(), lastSeenAt: generateTimestamp(), lastMessageAt: generateTimestamp(), createdAt: generateTimestamp() },
+        { userId: userId1, dialogId: dialog2.dialogId, tenantId, role: 'member', isActive: true, unreadCount: 0, joinedAt: generateTimestamp(), lastSeenAt: generateTimestamp(), lastMessageAt: generateTimestamp(), createdAt: generateTimestamp() },
+        { userId: userId1, dialogId: dialog3.dialogId, tenantId, role: 'member', isActive: true, unreadCount: 0, joinedAt: generateTimestamp(), lastSeenAt: generateTimestamp(), lastMessageAt: generateTimestamp(), createdAt: generateTimestamp() }
+      ]);
+    });
+
+    test('should filter dialogs by dialogId (regular filter)', async () => {
+      const req = createMockReq(
+        { userId: userId1 },
+        { page: 1, limit: 10, filter: `(dialogId,eq,${dialog1.dialogId})` }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body).toBeDefined();
+      const response = res.body;
+      expect(response.data).toHaveLength(1);
+      expect(response.data[0].dialogId).toBe(dialog1.dialogId);
+      expect(response.pagination.total).toBe(1);
+    });
+
+    test('should return empty when dialogId not found', async () => {
+      const req = createMockReq(
+        { userId: userId1 },
+        { page: 1, limit: 10, filter: '(dialogId,eq,dlg_nonexistent123456789)' }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body).toBeDefined();
+      const response = res.body;
+      expect(response.data).toHaveLength(0);
+      expect(response.pagination.total).toBe(0);
+    });
+
+    test('should filter dialogs by dialogId combined with meta filter', async () => {
+      // Add meta tag to dialog1
+      await Meta.create({
+        entityType: 'dialog',
+        entityId: dialog1.dialogId,
+        tenantId,
+        key: 'department',
+        value: 'sales',
+        dataType: 'string',
+        createdAt: generateTimestamp()
+      });
+
+      const req = createMockReq(
+        { userId: userId1 },
+        { page: 1, limit: 10, filter: `(meta.department,eq,sales)&(dialogId,eq,${dialog1.dialogId})` }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body).toBeDefined();
+      const response = res.body;
+      expect(response.data).toHaveLength(1);
+      expect(response.data[0].dialogId).toBe(dialog1.dialogId);
+    });
+
+    test('should return empty when dialogId combined with meta filter has no intersection', async () => {
+      // Add meta tag to dialog2 (not dialog1)
+      await Meta.create({
+        entityType: 'dialog',
+        entityId: dialog2.dialogId,
+        tenantId,
+        key: 'department',
+        value: 'sales',
+        dataType: 'string',
+        createdAt: generateTimestamp()
+      });
+
+      // Filter by department=sales and dialogId=dialog1 (which doesn't have sales)
+      const req = createMockReq(
+        { userId: userId1 },
+        { page: 1, limit: 10, filter: `(meta.department,eq,sales)&(dialogId,eq,${dialog1.dialogId})` }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body).toBeDefined();
+      const response = res.body;
+      expect(response.data).toHaveLength(0);
+      expect(response.pagination.total).toBe(0);
+    });
+  });
+
   describe('getUserDialogs - combined filters', () => {
     let userId1, userId2, userId3;
     let dialog1, dialog2, dialog3;
