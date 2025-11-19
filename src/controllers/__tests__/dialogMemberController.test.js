@@ -161,7 +161,10 @@ describe('dialogMemberController', () => {
 
   describe('addDialogMember', () => {
     test('adds member and creates event', async () => {
-      const req = createMockReq({ dialogId: dialog.dialogId, userId: 'alice' });
+      const req = createMockReq(
+        { dialogId: dialog.dialogId },
+        { userId: 'alice' }
+      );
       const res = createMockRes();
 
       await dialogMemberController.addDialogMember(req, res);
@@ -190,8 +193,47 @@ describe('dialogMemberController', () => {
       expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
     });
 
+    test('adds member with type and name, creates user if not exists', async () => {
+      const req = createMockReq(
+        { dialogId: dialog.dialogId },
+        { userId: 'newuser', type: 'bot', name: 'New Bot' }
+      );
+      const res = createMockRes();
+
+      await dialogMemberController.addDialogMember(req, res);
+
+      expect(res.statusCode).toBe(201);
+      
+      // Проверяем, что пользователь создан
+      const { User } = await import('../../models/index.js');
+      const user = await User.findOne({ tenantId, userId: 'newuser' }).lean();
+      expect(user).toBeTruthy();
+      expect(user.type).toBe('bot');
+      expect(user.name).toBe('New Bot');
+
+      const member = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'newuser' }).lean();
+      expect(member).toBeTruthy();
+    });
+
+    test('returns 400 when userId missing in body', async () => {
+      const req = createMockReq(
+        { dialogId: dialog.dialogId },
+        {}
+      );
+      const res = createMockRes();
+
+      await dialogMemberController.addDialogMember(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('Bad Request');
+      expect(res.body.message).toContain('userId');
+    });
+
     test('returns 404 if dialog not found', async () => {
-      const req = createMockReq({ dialogId: 'dlg_missing', userId: 'alice' });
+      const req = createMockReq(
+        { dialogId: 'dlg_missing' },
+        { userId: 'alice' }
+      );
       const res = createMockRes();
 
       await dialogMemberController.addDialogMember(req, res);
@@ -337,8 +379,8 @@ describe('dialogMemberController', () => {
       });
 
       const req = createMockReq(
-        { dialogId: dialog.dialogId, userId: 'bob' },
-        { role: 'member' }
+        { dialogId: dialog.dialogId },
+        { userId: 'bob' }
       );
       const res = createMockRes();
 

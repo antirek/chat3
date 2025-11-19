@@ -504,6 +504,83 @@ describe('dialogController.create', () => {
     expect(metaMap.channel).toBe('telegram');
   });
 
+  test('creates dialog with members array', async () => {
+    const req = createMockReq(
+      tenantId,
+      {},
+      {},
+      {
+        name: 'Dialog with Members',
+        createdBy: 'carl',
+        members: [
+          { userId: 'alice', type: 'user', name: 'Alice Smith' },
+          { userId: 'bob', type: 'bot', name: 'Bob Bot' }
+        ]
+      }
+    );
+    const res = createMockRes();
+
+    await dialogController.create(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.message).toBe('Dialog created successfully');
+
+    const storedDialog = await Dialog.findOne({ tenantId, name: 'Dialog with Members' }).lean();
+    expect(storedDialog).toBeTruthy();
+
+    // Проверяем, что пользователи созданы
+    const alice = await User.findOne({ tenantId, userId: 'alice' }).lean();
+    expect(alice).toBeTruthy();
+    expect(alice.type).toBe('user');
+    expect(alice.name).toBe('Alice Smith');
+
+    const bob = await User.findOne({ tenantId, userId: 'bob' }).lean();
+    expect(bob).toBeTruthy();
+    expect(bob.type).toBe('bot');
+    expect(bob.name).toBe('Bob Bot');
+
+    // Проверяем, что участники добавлены в диалог
+    const members = await DialogMember.find({ tenantId, dialogId: storedDialog.dialogId }).lean();
+    expect(members).toHaveLength(2);
+    expect(members.map(m => m.userId)).toContain('alice');
+    expect(members.map(m => m.userId)).toContain('bob');
+  });
+
+  test('creates dialog with members, updates existing users', async () => {
+    // Создаем существующего пользователя
+    await User.create({
+      tenantId,
+      userId: 'existing',
+      type: 'user',
+      name: 'Old Name',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+
+    const req = createMockReq(
+      tenantId,
+      {},
+      {},
+      {
+        name: 'Dialog with Existing User',
+        createdBy: 'carl',
+        members: [
+          { userId: 'existing', type: 'bot', name: 'New Name' }
+        ]
+      }
+    );
+    const res = createMockRes();
+
+    await dialogController.create(req, res);
+
+    expect(res.statusCode).toBe(201);
+
+    // Проверяем, что пользователь обновлен
+    const user = await User.findOne({ tenantId, userId: 'existing' }).lean();
+    expect(user.type).toBe('bot');
+    expect(user.name).toBe('New Name');
+  });
+
   test('returns 400 when required fields missing', async () => {
     const req = createMockReq(tenantId, {}, {}, {});
     const res = createMockRes();
