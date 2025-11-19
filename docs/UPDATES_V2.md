@@ -6,7 +6,7 @@
 
 1. **Единый конверт `data`** с секциями `dialog`, `member`, `message`, `typing`, `context`.
 2. **Персональные мета-теги (`dialogMemberMeta`) теперь приходят во всех апдейтах**, а не только в `DialogUpdate`.
-3. **Routing key для `dialog.member.update`** вынесен в отдельное значение `user.{userId}.dialogmemberupdate`.
+3. **Routing key для `dialog.member.update`** вынесен в отдельное значение `user.{type}.{userId}.dialogmemberupdate` (где `type` извлекается из префикса `userId` или `usr` по умолчанию).
 4. **Больше никакого `dialogInfo` и дублирования корневых полей** — весь контекст лежит в `data.dialog`.
 5. **“Тяжёлые” события сообщений разделены:** `message.create/update/delete` несут полный срез, а `message.status.*` и `message.reaction.*` доставляют дельты.
 
@@ -67,7 +67,7 @@
 | Событие | `message` | `typing` | Доп. сведения |
 | --- | --- | --- | --- |
 | `dialog.create/update/delete`, `dialog.member.add/remove` | — | — | Только `dialog` + `member`. |
-| `dialog.member.update` | — | — | `member.state` обновляется, routing key: `user.{id}.dialogmemberupdate`. |
+| `dialog.member.update` | — | — | `member.state` обновляется, routing key: `user.{type}.{id}.dialogmemberupdate` (где `type` извлекается из префикса `userId` или `usr` по умолчанию). |
 | `message.create/update/delete` | Полный документ сообщения (content, meta, statuses, senderInfo) | — | `includedSections` содержит `message.full`. |
 | `message.status.*` | `{ messageId, dialogId, senderId, statusUpdate }` | — | Только дельта статуса, без полного контента. |
 | `message.reaction.*` | `{ messageId, dialogId, senderId, reactionUpdate, counts? }` | — | Если контроллер передал новые `reactionCounts`, они попадают в `reactionUpdate.counts`. |
@@ -77,14 +77,22 @@
 
 ## Routing keys
 
-| Update type | Routing key |
-| --- | --- |
-| `DialogUpdate` | `user.{userId}.dialogupdate` |
-| `DialogMemberUpdate` | `user.{userId}.dialogmemberupdate` |
-| `MessageUpdate` | `user.{userId}.messageupdate` |
-| `Typing` | `user.{userId}.typing` |
+Формат routing key: `user.{type}.{userId}.{updateType}`
 
-Теперь можно подписываться выборочно — например, выделить очередь только для unread-дельт, не обрабатывая все `DialogUpdate`.
+Где:
+- `type` — тип пользователя, извлекается из префикса `userId` (до первого подчеркивания). Если префикса нет, используется `usr` по умолчанию.
+  - Примеры: `usr_123` → `usr`, `cnt_456` → `cnt`, `bot_789` → `bot`, `carl` → `usr`.
+- `userId` — полный идентификатор пользователя.
+- `updateType` — тип обновления (`dialogupdate`, `dialogmemberupdate`, `messageupdate`, `typing`).
+
+| Update type | Routing key | Пример |
+| --- | --- | --- |
+| `DialogUpdate` | `user.{type}.{userId}.dialogupdate` | `user.usr.usr_123.dialogupdate` |
+| `DialogMemberUpdate` | `user.{type}.{userId}.dialogmemberupdate` | `user.cnt.cnt_456.dialogmemberupdate` |
+| `MessageUpdate` | `user.{type}.{userId}.messageupdate` | `user.usr.carl.messageupdate` |
+| `Typing` | `user.{type}.{userId}.typing` | `user.bot.bot_789.typing` |
+
+Теперь можно подписываться выборочно — например, выделить очередь только для unread-дельт, не обрабатывая все `DialogUpdate`. Также можно подписаться на все пользователи определённого типа, используя паттерн `user.{type}.*.*` (например, `user.cnt.*.*` для всех контактов).
 
 ## Примеры
 

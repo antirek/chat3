@@ -130,7 +130,7 @@
 - Тело запроса пустое. Аутентификация и права — стандартные (`write`).
 - Эндпоинт идемпотентен в течение 1 секунды, поэтому фронтенд достаточно вызывать его периодически (рекомендуемый интервал — 700–1000 мс).
 - В ответ сервер вернёт `202 Accepted` и рекомендуемый `expiresInMs` (по умолчанию 5000 мс), чтобы клиенты знали, когда скрывать индикатор при отсутствии повторных сигналов.
-- Событие `dialog.typing` публикуется в RabbitMQ (`chat3_events`), после чего Update Worker формирует `Typing`-обновления (routing key `user.{userId}.typing`) в `chat3_updates`. По истечении таймаута клиенты самостоятельно скрывают индикатор, специального `isTyping: false` нет.
+- Событие `dialog.typing` публикуется в RabbitMQ (`chat3_events`), после чего Update Worker формирует `Typing`-обновления (routing key `user.{type}.{userId}.typing`) в `chat3_updates`. По истечении таймаута клиенты самостоятельно скрывают индикатор, специального `isTyping: false` нет.
 
 ### Типы сообщений и вложений
 
@@ -385,9 +385,16 @@ Updates — материалы для конечных клиентов. На и
 ### Схема
 
 - Exchange: `chat3_updates` (topic).
-- Routing key: `user.{userId}.{updateType}`.
+- Routing key: `user.{type}.{userId}.{updateType}`.
+  - `type` — тип пользователя, извлекается из префикса `userId` (до первого подчеркивания). Если префикса нет, используется `usr` по умолчанию.
+    - Примеры: `usr_123` → `usr`, `cnt_456` → `cnt`, `bot_789` → `bot`, `carl` → `usr`.
   - `updateType = dialogupdate` — изменения диалогов.
   - `updateType = messageupdate` — сообщения, реакции, статусы.
+  - `updateType = typingupdate` — индикатор набора текста.
+- Примеры routing keys:
+  - `user.usr.usr_123.messageupdate` — обновление сообщения для пользователя `usr_123`.
+  - `user.cnt.cnt_456.dialogupdate` — обновление диалога для контакта `cnt_456`.
+  - `user.usr.carl.messageupdate` — обновление сообщения для пользователя без префикса (тип `usr` по умолчанию).
 - Очередь на стороне внешней системы обычно создаётся под конкретного пользователя или сервис.
 - Update хранится в MongoDB (`updates` коллекция) перед отправкой в RabbitMQ. Поля `published` и `publishedAt` позволяют отслеживать доставку.
 
@@ -424,7 +431,12 @@ Updates — материалы для конечных клиентов. На и
 ### Практики обработки Updates
 
 - Создавайте отдельные очереди для каждого пользователя: `user_${userId}_queue`.
-- Привязывайте очередь к `chat3_updates` по маске `user.${userId}.*` или `user.${userId}.messageupdate`.
+- Привязывайте очередь к `chat3_updates` по маске `user.{type}.${userId}.*` или `user.{type}.${userId}.messageupdate`, где `{type}` — тип пользователя из префикса `userId` (или `usr` по умолчанию).
+  - Примеры:
+    - Для `usr_123`: `user.usr.usr_123.*` или `user.usr.usr_123.messageupdate`.
+    - Для `cnt_456`: `user.cnt.cnt_456.*` или `user.cnt.cnt_456.dialogupdate`.
+    - Для `carl` (без префикса): `user.usr.carl.*` или `user.usr.carl.messageupdate`.
+  - Для подписки на все пользователи определённого типа используйте паттерн `user.{type}.*.*` (например, `user.cnt.*.*` для всех контактов).
 - Учитывайте, что при повторном подключении воркер выставляет `published=false` => Update может быть перепубликован.
 - Используйте `channel.ack` только после успешного обновления пользовательского интерфейса/бэкенда.
 - Для консистентности храните `eventId` и `entityId`, чтобы игнорировать дубликаты.
@@ -434,16 +446,25 @@ Updates — материалы для конечных клиентов. На и
 ```javascript
 import amqp from 'amqplib';
 
+// Функция для извлечения типа пользователя из userId
+function extractUserType(userId) {
+  if (!userId || typeof userId !== 'string') return 'usr';
+  const underscoreIndex = userId.indexOf('_');
+  return underscoreIndex === -1 ? 'usr' : userId.substring(0, underscoreIndex);
+}
+
 async function subscribeToUserUpdates(userId) {
   const connection = await amqp.connect(process.env.RABBITMQ_URL);
   const channel = await connection.createChannel();
 
   const exchange = 'chat3_updates';
   const queue = `user_${userId}_queue`;
+  const userType = extractUserType(userId); // Извлекаем тип из userId
 
   await channel.assertExchange(exchange, 'topic', { durable: true });
   await channel.assertQueue(queue, { durable: true });
-  await channel.bindQueue(queue, exchange, `user.${userId}.*`);
+  // Используем новый формат: user.{type}.{userId}.*
+  await channel.bindQueue(queue, exchange, `user.${userType}.${userId}.*`);
 
   channel.consume(queue, (msg) => {
     if (!msg) return;
@@ -459,7 +480,10 @@ async function subscribeToUserUpdates(userId) {
   });
 }
 
-subscribeToUserUpdates('agent_42').catch(console.error);
+// Примеры использования:
+subscribeToUserUpdates('usr_123').catch(console.error);  // user.usr.usr_123.*
+subscribeToUserUpdates('cnt_456').catch(console.error);  // user.cnt.cnt_456.*
+subscribeToUserUpdates('carl').catch(console.error);     // user.usr.carl.*
 ```
 
 ---

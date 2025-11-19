@@ -4,6 +4,7 @@ import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from './responseUtils.js';
 import { generateTimestamp } from './timestampUtils.js';
+import { extractUserType } from './userTypeUtils.js';
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 
@@ -638,8 +639,11 @@ async function publishUpdate(update) {
       return;
     }
     
-    // Публикуем в exchange chat3_updates с routing key user.{userId}.{updateType}
-    const routingKey = `user.${sanitizedUpdate.userId}.${updateType.toLowerCase()}`;
+    // Извлекаем тип пользователя из userId (usr, cnt, bot и т.д.)
+    const userType = extractUserType(sanitizedUpdate.userId);
+    
+    // Публикуем в exchange chat3_updates с routing key user.{type}.{userId}.{updateType}
+    const routingKey = `user.${userType}.${sanitizedUpdate.userId}.${updateType.toLowerCase()}`;
     
     const published = await rabbitmqUtils.publishUpdate(sanitizedUpdate, routingKey);
     

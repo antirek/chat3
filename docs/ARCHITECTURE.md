@@ -474,7 +474,7 @@ sequenceDiagram
 - Запуск: `./start-worker.sh`
 
 **3. Update Delivery (Доставка обновлений)**
-- Updates публикуются с routing key `user.{userId}.{updateType}`
+- Updates публикуются с routing key `user.{type}.{userId}.{updateType}` (где `type` извлекается из префикса `userId` или `usr` по умолчанию)
 - Клиенты подписываются на свои updates
 - Два типа updates: `DialogUpdate` и `MessageUpdate`
 

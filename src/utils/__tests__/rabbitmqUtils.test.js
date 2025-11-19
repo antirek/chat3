@@ -121,7 +121,8 @@ describe('rabbitmqUtils - Integration Tests with Fake RabbitMQ', () => {
         data: { name: 'Test Dialog' }
       };
 
-      const routingKey = 'user.user1.dialogupdate';
+      // Новый формат: user.{type}.{userId}.{updateType}
+      const routingKey = 'user.usr.user1.dialogupdate';
       const result = await rabbitmqUtils.publishUpdate(update, routingKey);
 
       expect(result).toBe(true);
@@ -136,7 +137,7 @@ describe('rabbitmqUtils - Integration Tests with Fake RabbitMQ', () => {
         data: {}
       };
 
-      const result = await rabbitmqUtils.publishUpdate(update, 'user.user1.dialogupdate');
+      const result = await rabbitmqUtils.publishUpdate(update, 'user.usr.user1.dialogupdate');
 
       expect(result).toBe(false);
     });
@@ -170,10 +171,37 @@ describe('rabbitmqUtils - Integration Tests with Fake RabbitMQ', () => {
   });
 
   describe('ensureUserUpdatesQueue', () => {
-    test('should create user updates queue', async () => {
+    test('should create user updates queue with default type (usr)', async () => {
       await rabbitmqUtils.initRabbitMQ();
 
       const userId = 'user1';
+      const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(userId);
+
+      expect(queueName).toBe(`user_${userId}_updates`);
+    });
+
+    test('should create user updates queue with usr prefix', async () => {
+      await rabbitmqUtils.initRabbitMQ();
+
+      const userId = 'usr_123';
+      const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(userId);
+
+      expect(queueName).toBe(`user_${userId}_updates`);
+    });
+
+    test('should create user updates queue with cnt prefix', async () => {
+      await rabbitmqUtils.initRabbitMQ();
+
+      const userId = 'cnt_456';
+      const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(userId);
+
+      expect(queueName).toBe(`user_${userId}_updates`);
+    });
+
+    test('should create user updates queue with bot prefix', async () => {
+      await rabbitmqUtils.initRabbitMQ();
+
+      const userId = 'bot_789';
       const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(userId);
 
       expect(queueName).toBe(`user_${userId}_updates`);

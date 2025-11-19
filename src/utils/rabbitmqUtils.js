@@ -1,4 +1,5 @@
 import amqp from 'amqplib';
+import { extractUserType } from './userTypeUtils.js';
 
 let connection = null;
 let channel = null;
@@ -266,8 +267,11 @@ export async function ensureUserUpdatesQueue(userId) {
       }
     });
 
-    // Привязываем очередь к exchange updates с routing key user.{userId}.*
-    await channel.bindQueue(queueName, UPDATES_EXCHANGE_NAME, `user.${userId}.*`);
+    // Извлекаем тип пользователя из userId (usr, cnt, bot и т.д.)
+    const userType = extractUserType(userId);
+    
+    // Привязываем очередь к exchange updates с routing key user.{type}.{userId}.*
+    await channel.bindQueue(queueName, UPDATES_EXCHANGE_NAME, `user.${userType}.${userId}.*`);
 
     return queueName;
   } catch (error) {
