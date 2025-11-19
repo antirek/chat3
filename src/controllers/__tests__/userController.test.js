@@ -126,8 +126,32 @@ describe('userController.getUsers', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body).toBeDefined();
     expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  test('filters by userId with eq operator and underscore in value', async () => {
+    // Создаем пользователя с userId содержащим подчеркивание
+    await User.create({
+      tenantId,
+      userId: 'cnt_72a454kho',
+      name: 'Test Contact',
+      type: 'contact',
+      createdAt: generateTimestamp()
+    });
+
+    const req = createMockReq({
+      filter: '(userId,eq,cnt_72a454kho)',
+      page: '1',
+      limit: '10'
+    });
+    const res = createMockRes();
+
+    await getUsers(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body).toBeDefined();
+    expect(Array.isArray(res.body.data)).toBe(true);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0].userId).toBe('agent_carl');
+    expect(res.body.data[0].userId).toBe('cnt_72a454kho');
     expect(res.body.pagination).toEqual({
       page: 1,
       limit: 10,
