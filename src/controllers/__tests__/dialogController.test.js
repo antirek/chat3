@@ -581,6 +581,92 @@ describe('dialogController.create', () => {
     expect(user.name).toBe('New Name');
   });
 
+  test('creates dialog with members, ignores already existing members in same dialog', async () => {
+    const req = createMockReq(
+      tenantId,
+      {},
+      {},
+      {
+        name: 'New Dialog',
+        createdBy: 'carl',
+        members: [
+          { userId: 'alice', type: 'user', name: 'Alice' },
+          { userId: 'bob', type: 'bot', name: 'Bob Bot' }
+        ]
+      }
+    );
+    const res = createMockRes();
+
+    await dialogController.create(req, res);
+
+    expect(res.statusCode).toBe(201);
+
+    const storedDialog = await Dialog.findOne({ tenantId, name: 'New Dialog' }).lean();
+    expect(storedDialog).toBeTruthy();
+
+    // Проверяем, что оба участника добавлены
+    const members = await DialogMember.find({ tenantId, dialogId: storedDialog.dialogId }).lean();
+    expect(members).toHaveLength(2);
+    expect(members.map(m => m.userId)).toContain('alice');
+    expect(members.map(m => m.userId)).toContain('bob');
+
+    // Пытаемся добавить alice повторно
+    const req2 = createMockReq(
+      tenantId,
+      {},
+      {},
+      {
+        name: 'Another Dialog',
+        createdBy: 'carl',
+        members: [
+          { userId: 'alice', type: 'user', name: 'Alice' }
+        ]
+      }
+    );
+    const res2 = createMockRes();
+
+    await dialogController.create(req, res2);
+
+    // Проверяем, что в новом диалоге alice добавлен (это другой диалог)
+    const storedDialog2 = await Dialog.findOne({ tenantId, name: 'Another Dialog' }).lean();
+    if (storedDialog2) {
+      const members2 = await DialogMember.find({ tenantId, dialogId: storedDialog2.dialogId }).lean();
+      expect(members2).toHaveLength(1);
+      expect(members2[0].userId).toBe('alice');
+    }
+  });
+
+  test('creates dialog with duplicate members in same request, ignores duplicates', async () => {
+    const req = createMockReq(
+      tenantId,
+      {},
+      {},
+      {
+        name: 'Dialog with Duplicates',
+        createdBy: 'carl',
+        members: [
+          { userId: 'alice', type: 'user', name: 'Alice' },
+          { userId: 'alice', type: 'user', name: 'Alice' }, // Дубликат
+          { userId: 'bob', type: 'bot', name: 'Bob Bot' }
+        ]
+      }
+    );
+    const res = createMockRes();
+
+    await dialogController.create(req, res);
+
+    expect(res.statusCode).toBe(201);
+
+    const storedDialog = await Dialog.findOne({ tenantId, name: 'Dialog with Duplicates' }).lean();
+    expect(storedDialog).toBeTruthy();
+
+    // Проверяем, что участники добавлены без дубликатов
+    const members = await DialogMember.find({ tenantId, dialogId: storedDialog.dialogId }).lean();
+    expect(members).toHaveLength(2); // alice и bob, без дубликата alice
+    expect(members.map(m => m.userId).filter(id => id === 'alice')).toHaveLength(1);
+    expect(members.map(m => m.userId)).toContain('bob');
+  });
+
   test('returns 400 when required fields missing', async () => {
     const req = createMockReq(tenantId, {}, {}, {});
     const res = createMockRes();

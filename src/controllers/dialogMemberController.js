@@ -31,6 +31,24 @@ const dialogMemberController = {
         });
       }
 
+      // Проверяем, существует ли участник уже в диалоге
+      const existingMember = await DialogMember.findOne({
+        tenantId: req.tenantId,
+        dialogId: dialog.dialogId,
+        userId
+      }).lean();
+
+      if (existingMember) {
+        // Участник уже существует - просто возвращаем успешный ответ
+        return res.status(200).json({
+          data: sanitizeResponse({
+            userId,
+            dialogId: dialog.dialogId
+          }),
+          message: 'Member already exists in dialog'
+        });
+      }
+
       // Проверяем и создаем пользователя, если его нет
       await userUtils.ensureUserExists(req.tenantId, userId, {
         type,

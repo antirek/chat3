@@ -229,6 +229,46 @@ describe('dialogMemberController', () => {
       expect(res.body.message).toContain('userId');
     });
 
+    test('returns 200 if member already exists in dialog', async () => {
+      // Создаем существующего участника
+      await DialogMember.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'alice',
+        role: 'member',
+        isActive: true,
+        unreadCount: 0,
+        lastSeenAt: generateTimestamp(),
+        lastMessageAt: generateTimestamp(),
+        createdAt: generateTimestamp()
+      });
+
+      const req = createMockReq(
+        { dialogId: dialog.dialogId },
+        { userId: 'alice' }
+      );
+      const res = createMockRes();
+
+      await dialogMemberController.addDialogMember(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toBe('Member already exists in dialog');
+      expect(res.body.data.userId).toBe('alice');
+      expect(res.body.data.dialogId).toBe(dialog.dialogId);
+
+      // Проверяем, что событие не создано
+      const event = await Event.findOne({ tenantId, eventType: 'dialog.member.add' }).lean();
+      expect(event).toBeNull();
+
+      // Проверяем, что участник остался один (не дублировался)
+      const memberCount = await DialogMember.countDocuments({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'alice'
+      });
+      expect(memberCount).toBe(1);
+    });
+
     test('returns 404 if dialog not found', async () => {
       const req = createMockReq(
         { dialogId: 'dlg_missing' },

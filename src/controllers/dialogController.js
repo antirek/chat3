@@ -511,6 +511,18 @@ export const dialogController = {
       // Обрабатываем участников, если они предоставлены
       if (Array.isArray(members) && members.length > 0) {
         for (const memberData of members) {
+          // Проверяем, существует ли участник уже в диалоге
+          const existingMember = await DialogMember.findOne({
+            tenantId: req.tenantId,
+            dialogId: dialog.dialogId,
+            userId: memberData.userId
+          }).lean();
+
+          if (existingMember) {
+            // Участник уже существует - пропускаем
+            continue;
+          }
+
           // Проверяем и создаем пользователя, если его нет
           await userUtils.ensureUserExists(req.tenantId, memberData.userId, {
             type: memberData.type,
