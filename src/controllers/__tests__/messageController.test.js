@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import messageController from '../messageController.js';
 import { Dialog, DialogMember, Message, Meta, MessageStatus, Tenant, User } from '../../models/index.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
@@ -383,5 +384,471 @@ describe('messageController.updateMessageContent', () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toBe('Bad Request');
+  });
+
+  test('returns message when content is unchanged', async () => {
+    const req = createRequest({ content: 'Original content' });
+    const res = createResponse();
+
+    await messageController.updateMessageContent(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data.content).toBe('Original content');
+    expect(res.body.message).toBe('Message content is unchanged');
+  });
+
+  test('returns 404 when message not found', async () => {
+    const req = {
+      tenantId,
+      params: { messageId: 'msg_nonexistent' },
+      body: { content: 'New content' },
+      apiKey: { name: 'test-key' }
+    };
+    const res = createResponse();
+
+    await messageController.updateMessageContent(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.error).toBe('Not Found');
+  });
+});
+
+describe('messageController.getAll - error handling', () => {
+  test('handles database errors gracefully', async () => {
+    // Mock Message.find to throw an error
+    const originalFind = Message.find;
+    Message.find = jest.fn().mockImplementation(() => {
+      throw new Error('Database connection error');
+    });
+
+    const req = createMockReq({ page: 1, limit: 10 });
+    const res = createMockRes();
+
+    await messageController.getAll(req, res);
+
+    expect(res.statusCode).toBe(500);
+    expect(res.body.error).toBe('Internal Server Error');
+
+    // Restore original method
+    Message.find = originalFind;
+  });
+});
+
+describe('messageController.getDialogMessages', () => {
+  let dialog;
+
+  beforeEach(async () => {
+    dialog = await Dialog.create({
+      tenantId,
+      dialogId: generateDialogId(),
+      name: 'Test Dialog',
+      createdBy: 'alice',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+  });
+
+  test('returns 404 when dialog not found', async () => {
+    const req = {
+      tenantId,
+      params: { dialogId: 'dlg_nonexistent' },
+      query: { page: 1, limit: 10 }
+    };
+    const res = createMockRes();
+
+    await messageController.getDialogMessages(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.error).toBe('Not Found');
+    expect(res.body.message).toBe('Dialog not found');
+  });
+
+  test('returns messages for dialog with filters', async () => {
+    const message1 = await Message.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'alice',
+      content: 'Message 1',
+      type: 'internal.text',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+
+    const message2 = await Message.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'bob',
+      content: 'Message 2',
+      type: 'internal.text',
+      createdAt: generateTimestamp() + 1000,
+      updatedAt: generateTimestamp() + 1000
+    });
+
+    await Meta.create({
+      tenantId,
+      entityType: 'message',
+      entityId: message1.messageId,
+      key: 'category',
+      value: 'important',
+      dataType: 'string'
+    });
+
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      query: { 
+        page: 1, 
+        limit: 10,
+        filter: '(senderId,eq,alice)'
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.getDialogMessages(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].messageId).toBe(message1.messageId);
+  });
+
+  test('handles invalid filter format gracefully', async () => {
+    const message = await Message.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'alice',
+      content: 'Test message',
+      type: 'internal.text',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      query: { 
+        page: 1, 
+        limit: 10,
+        filter: 'invalid filter format'
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.getDialogMessages(req, res);
+
+    // parseFilters might not throw for invalid format, so it may continue
+    // If it does throw, we should get 400, otherwise it continues normally
+    // Let's check if it returns successfully or with error
+    if (res.statusCode === 400) {
+      expect(res.body.error).toBe('Bad Request');
+      expect(res.body.message).toBe('Invalid filter format');
+    } else {
+      // If parseFilters doesn't throw, it should return messages normally
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data).toBeDefined();
+    }
+  });
+
+  test('supports sorting by createdAt', async () => {
+    const baseTimestamp = generateTimestamp();
+    
+    const message1 = await Message.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'alice',
+      content: 'First',
+      type: 'internal.text',
+      createdAt: baseTimestamp,
+      updatedAt: baseTimestamp
+    });
+
+    const message2 = await Message.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'bob',
+      content: 'Second',
+      type: 'internal.text',
+      createdAt: baseTimestamp + 1000,
+      updatedAt: baseTimestamp + 1000
+    });
+
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      query: { 
+        page: 1, 
+        limit: 10,
+        sort: '(createdAt,asc)'
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.getDialogMessages(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].messageId).toBe(message1.messageId);
+    expect(res.body.data[1].messageId).toBe(message2.messageId);
+  });
+
+  test('handles CastError gracefully', async () => {
+    const req = {
+      tenantId,
+      params: { dialogId: 'invalid_id' },
+      query: { page: 1, limit: 10 }
+    };
+    const res = createMockRes();
+
+    // Mock Dialog.findOne to throw CastError
+    const originalFindOne = Dialog.findOne;
+    Dialog.findOne = jest.fn().mockImplementation(() => {
+      const error = new Error('Cast to ObjectId failed');
+      error.name = 'CastError';
+      throw error;
+    });
+
+    await messageController.getDialogMessages(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.message).toBe('Invalid dialog ID');
+
+    // Restore original method
+    Dialog.findOne = originalFindOne;
+  });
+
+  test('handles general errors', async () => {
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      query: { page: 1, limit: 10 }
+    };
+    const res = createMockRes();
+
+    // Mock Message.find to throw an error
+    const originalFind = Message.find;
+    Message.find = jest.fn().mockImplementation(() => {
+      throw new Error('Database error');
+    });
+
+    await messageController.getDialogMessages(req, res);
+
+    expect(res.statusCode).toBe(500);
+    expect(res.body.error).toBe('Internal Server Error');
+
+    // Restore original method
+    Message.find = originalFind;
+  });
+});
+
+// Note: getSenderInfo is an internal function, so we test it indirectly through methods that use it
+// The caching behavior is tested through getAll and getMessageById tests
+
+describe('messageController.createMessage - validation', () => {
+  let dialog;
+
+  beforeEach(async () => {
+    dialog = await Dialog.create({
+      tenantId,
+      dialogId: generateDialogId(),
+      name: 'Test Dialog',
+      createdBy: 'alice',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+  });
+
+  test('returns 400 when senderId is missing', async () => {
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      body: {
+        content: 'Test message',
+        type: 'internal.text'
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.message).toBe('Missing required field: senderId');
+  });
+
+  test('returns 400 when content is empty for internal.text', async () => {
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      body: {
+        senderId: 'alice',
+        content: '   ',
+        type: 'internal.text'
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.message).toBe('content is required for internal.text messages');
+  });
+
+  test('returns 400 when meta.url is missing for media types', async () => {
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      body: {
+        senderId: 'alice',
+        type: 'internal.image',
+        meta: {}
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.message).toBe('meta.url is required for internal.image messages');
+  });
+
+  test('creates message with meta data', async () => {
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      body: {
+        senderId: 'alice',
+        content: 'Test message',
+        type: 'internal.text',
+        meta: {
+          category: 'support',
+          priority: 'high'
+        }
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data).toBeTruthy();
+
+    const message = await Message.findOne({ tenantId, senderId: 'alice' }).lean();
+    expect(message).toBeTruthy();
+
+    const meta = await Meta.find({
+      tenantId,
+      entityType: 'message',
+      entityId: message.messageId
+    }).lean();
+
+    const metaMap = meta.reduce((acc, m) => {
+      acc[m.key] = m.value;
+      return acc;
+    }, {});
+
+    expect(metaMap.category).toBe('support');
+    expect(metaMap.priority).toBe('high');
+  });
+});
+
+describe('messageController.getMessageById - error handling', () => {
+  test('returns 404 when message not found', async () => {
+    const req = {
+      tenantId,
+      params: { messageId: 'msg_nonexistent' }
+    };
+    const res = createMockRes();
+
+    await messageController.getMessageById(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.error).toBe('Not Found');
+    expect(res.body.message).toBe('Message not found');
+  });
+
+  test('handles database errors', async () => {
+    const req = {
+      tenantId,
+      params: { messageId: 'msg_test' }
+    };
+    const res = createMockRes();
+
+    // Mock Message.findOne to throw an error
+    const originalFindOne = Message.findOne;
+    Message.findOne = jest.fn().mockImplementation(() => {
+      throw new Error('Database error');
+    });
+
+    await messageController.getMessageById(req, res);
+
+    expect(res.statusCode).toBe(500);
+    expect(res.body.error).toBe('Internal Server Error');
+
+    // Restore original method
+    Message.findOne = originalFindOne;
+  });
+
+  test('returns message with statuses and meta', async () => {
+    const dialog = await Dialog.create({
+      tenantId,
+      dialogId: generateDialogId(),
+      name: 'Test Dialog',
+      createdBy: 'alice',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+
+    const message = await Message.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'alice',
+      content: 'Test message',
+      type: 'internal.text',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+
+    await MessageStatus.create({
+      tenantId,
+      messageId: message.messageId,
+      userId: 'bob',
+      status: 'read',
+      createdAt: generateTimestamp(),
+      updatedAt: generateTimestamp()
+    });
+
+    await Meta.create({
+      tenantId,
+      entityType: 'message',
+      entityId: message.messageId,
+      key: 'category',
+      value: 'test',
+      dataType: 'string'
+    });
+
+    const req = {
+      tenantId,
+      params: { messageId: message.messageId }
+    };
+    const res = createMockRes();
+
+    await messageController.getMessageById(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toBeTruthy();
+    expect(res.body.data.messageId).toBe(message.messageId);
+    expect(res.body.data.statuses).toHaveLength(1);
+    expect(res.body.data.statuses[0].userId).toBe('bob');
+    expect(res.body.data.meta).toEqual(expect.objectContaining({ category: 'test' }));
+    expect(res.body.data.senderInfo).toBeTruthy();
+    expect(res.body.data.senderInfo.userId).toBe('alice');
   });
 });

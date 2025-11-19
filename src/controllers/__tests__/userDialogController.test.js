@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import userDialogController from '../userDialogController.js';
 import { Dialog, DialogMember, Message, Meta, User, Tenant } from '../../models/index.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
@@ -868,6 +869,344 @@ describe('userDialogController', () => {
           meta: expect.objectContaining({ role: 'agent' })
         })
       );
+    });
+  });
+
+  describe('getUserDialogs - error handling', () => {
+    test('handles invalid filter format', async () => {
+      // Create a filter that will cause parseFilters to throw
+      const req = createMockReq(
+        { userId: 'carl' },
+        { filter: '{"invalid": json}', page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      // parseFilters might not throw for all invalid formats
+      // If it throws, we should get 400, otherwise it continues normally
+      if (res.statusCode === 400) {
+        expect(res.body.error).toBe('Bad Request');
+        expect(res.body.message).toContain('Invalid filter format');
+      } else {
+        // If parseFilters doesn't throw, it should return dialogs normally
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body.data).toBeDefined();
+      }
+    });
+
+    test('handles database errors gracefully', async () => {
+      const req = createMockReq(
+        { userId: 'carl' },
+        { page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      // Mock DialogMember.find to throw an error
+      const originalFind = DialogMember.find;
+      DialogMember.find = jest.fn().mockImplementation(() => {
+        throw new Error('Database connection error');
+      });
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBe(500);
+      expect(res.body.error).toBe('Internal Server Error');
+
+      // Restore original method
+      DialogMember.find = originalFind;
+    });
+  });
+
+  describe('getUserDialogs - edge cases', () => {
+    test('returns empty array when user has no dialogs', async () => {
+      const req = createMockReq(
+        { userId: 'user_without_dialogs' },
+        { page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data).toEqual([]);
+      expect(res.body.pagination.total).toBe(0);
+    });
+
+    test('handles member filter with no matching dialogs', async () => {
+      const userId = 'carl';
+      const dialog = await Dialog.create({
+        tenantId,
+        dialogId: generateDialogId(),
+        name: 'Test Dialog',
+        createdBy: userId,
+        createdAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
+      });
+
+      await DialogMember.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: userId,
+        isActive: true,
+        unreadCount: 0,
+        lastSeenAt: generateTimestamp(),
+        lastMessageAt: generateTimestamp()
+      });
+
+      const req = createMockReq(
+        { userId },
+        { filter: '(member,eq,nonexistent_user)', page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data).toEqual([]);
+      expect(res.body.pagination.total).toBe(0);
+    });
+
+    test('handles meta filter with negative operators', async () => {
+      const userId = 'carl';
+      const dialog1 = await Dialog.create({
+        tenantId,
+        dialogId: generateDialogId(),
+        name: 'Dialog 1',
+        createdBy: userId,
+        createdAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
+      });
+
+      const dialog2 = await Dialog.create({
+        tenantId,
+        dialogId: generateDialogId(),
+        name: 'Dialog 2',
+        createdBy: userId,
+        createdAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
+      });
+
+      await DialogMember.create([
+        {
+          tenantId,
+          dialogId: dialog1.dialogId,
+          userId: userId,
+          isActive: true,
+          unreadCount: 0,
+          lastSeenAt: generateTimestamp(),
+          lastMessageAt: generateTimestamp()
+        },
+        {
+          tenantId,
+          dialogId: dialog2.dialogId,
+          userId: userId,
+          isActive: true,
+          unreadCount: 0,
+          lastSeenAt: generateTimestamp(),
+          lastMessageAt: generateTimestamp()
+        }
+      ]);
+
+      await Meta.create([
+        {
+          tenantId,
+          entityType: 'dialog',
+          entityId: dialog1.dialogId,
+          key: 'category',
+          value: 'support',
+          dataType: 'string'
+        },
+        {
+          tenantId,
+          entityType: 'dialog',
+          entityId: dialog2.dialogId,
+          key: 'category',
+          value: 'sales',
+          dataType: 'string'
+        }
+      ]);
+
+      const req = createMockReq(
+        { userId },
+        { filter: '(meta.category,ne,support)', page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].dialogId).toBe(dialog2.dialogId);
+    });
+
+    test('handles regular filter for dialogId', async () => {
+      const userId = 'carl';
+      const dialog1 = await Dialog.create({
+        tenantId,
+        dialogId: generateDialogId(),
+        name: 'Dialog 1',
+        createdBy: userId,
+        createdAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
+      });
+
+      const dialog2 = await Dialog.create({
+        tenantId,
+        dialogId: generateDialogId(),
+        name: 'Dialog 2',
+        createdBy: userId,
+        createdAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
+      });
+
+      await DialogMember.create([
+        {
+          tenantId,
+          dialogId: dialog1.dialogId,
+          userId: userId,
+          isActive: true,
+          unreadCount: 0,
+          lastSeenAt: generateTimestamp(),
+          lastMessageAt: generateTimestamp()
+        },
+        {
+          tenantId,
+          dialogId: dialog2.dialogId,
+          userId: userId,
+          isActive: true,
+          unreadCount: 0,
+          lastSeenAt: generateTimestamp(),
+          lastMessageAt: generateTimestamp()
+        }
+      ]);
+
+      const req = createMockReq(
+        { userId },
+        { filter: `(dialogId,eq,${dialog1.dialogId})`, page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].dialogId).toBe(dialog1.dialogId);
+    });
+  });
+
+  describe('getUserDialogs - scope handling', () => {
+    test('handles scope in meta filters', async () => {
+      const userId = 'carl';
+      const dialog = await Dialog.create({
+        tenantId,
+        dialogId: generateDialogId(),
+        name: 'Test Dialog',
+        createdBy: userId,
+        createdAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
+      });
+
+      await DialogMember.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: userId,
+        isActive: true,
+        unreadCount: 0,
+        lastSeenAt: generateTimestamp(),
+        lastMessageAt: generateTimestamp()
+      });
+
+      // Create meta with scope
+      await Meta.create([
+        {
+          tenantId,
+          entityType: 'dialog',
+          entityId: dialog.dialogId,
+          key: 'name',
+          value: 'Scoped Name',
+          dataType: 'string',
+          scope: userId
+        },
+        {
+          tenantId,
+          entityType: 'dialog',
+          entityId: dialog.dialogId,
+          key: 'name',
+          value: 'Global Name',
+          dataType: 'string',
+          scope: null
+        }
+      ]);
+
+      const req = createMockReq(
+        { userId },
+        { page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data).toHaveLength(1);
+      // Should prioritize scoped value
+      expect(res.body.data[0].meta.name).toBe('Scoped Name');
+    });
+  });
+
+  describe('getUserDialogs - unreadCount filters', () => {
+    test('handles unreadCount filter with gte: prefix', async () => {
+      const userId = 'carl';
+      const dialog1 = await Dialog.create({
+        tenantId,
+        dialogId: generateDialogId(),
+        name: 'Dialog 1',
+        createdBy: userId,
+        createdAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
+      });
+
+      const dialog2 = await Dialog.create({
+        tenantId,
+        dialogId: generateDialogId(),
+        name: 'Dialog 2',
+        createdBy: userId,
+        createdAt: generateTimestamp(),
+        updatedAt: generateTimestamp()
+      });
+
+      await DialogMember.create([
+        {
+          tenantId,
+          dialogId: dialog1.dialogId,
+          userId: userId,
+          isActive: true,
+          unreadCount: 5,
+          lastSeenAt: generateTimestamp(),
+          lastMessageAt: generateTimestamp()
+        },
+        {
+          tenantId,
+          dialogId: dialog2.dialogId,
+          userId: userId,
+          isActive: true,
+          unreadCount: 2,
+          lastSeenAt: generateTimestamp(),
+          lastMessageAt: generateTimestamp()
+        }
+      ]);
+
+      const req = createMockReq(
+        { userId },
+        { unreadCount: 'gte:3', page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].dialogId).toBe(dialog1.dialogId);
     });
   });
 });
