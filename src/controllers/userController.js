@@ -103,7 +103,11 @@ export async function getUsers(req, res) {
 
     // Добавляем фильтр по tenantId
     const andConditions = [{ tenantId: req.tenantId }];
-    appendFilterConditions(andConditions, regularFilters);
+    
+    // Применяем regularFilters (включая type)
+    if (regularFilters && Object.keys(regularFilters).length > 0) {
+      appendFilterConditions(andConditions, regularFilters);
+    }
 
     if (metaFilters && Object.keys(metaFilters).length > 0) {
       const userIdsFromMeta = await findUserIdsByMeta(metaFilters, req.tenantId);
@@ -248,7 +252,7 @@ export async function getUserById(req, res) {
  */
 export async function createUser(req, res) {
   try {
-    const { userId, name } = req.body;
+    const { userId, name, type } = req.body;
 
     // Проверяем, что пользователь не существует
     const existingUser = await User.findOne({
@@ -268,6 +272,7 @@ export async function createUser(req, res) {
       userId: userId,
       tenantId: req.tenantId,
       name: name,
+      type: type || 'user',
       lastActiveAt: generateTimestamp()
     });
 
@@ -298,7 +303,7 @@ export async function createUser(req, res) {
 export async function updateUser(req, res) {
   try {
     const { userId } = req.params;
-    const { name } = req.body;
+    const { name, type } = req.body;
 
     const user = await User.findOne({
       userId: userId,
@@ -312,13 +317,44 @@ export async function updateUser(req, res) {
       });
     }
 
-    // Обновляем поля
-    if (name !== undefined) user.name = name;
+    // Формируем объект обновления
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (type !== undefined) {
+      updateData.type = type;
+    }
 
-    await user.save();
+    // Используем updateOne для явного обновления, затем загружаем обновленного пользователя
+    const updateResult = await User.updateOne(
+      {
+        userId: userId,
+        tenantId: req.tenantId
+      },
+      { $set: updateData }
+    );
+
+    if (updateResult.matchedCount === 0) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'User not found'
+      });
+    }
+
+    // Загружаем обновленного пользователя
+    const updatedUser = await User.findOne({
+      userId: userId,
+      tenantId: req.tenantId
+    }).lean();
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'User not found after update'
+      });
+    }
 
     res.json({
-      data: sanitizeResponse(user.toObject())
+      data: sanitizeResponse(updatedUser)
     });
   } catch (error) {
     console.error('Error in updateUser:', error);

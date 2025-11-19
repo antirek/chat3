@@ -1,5 +1,5 @@
 import amqp from 'amqplib';
-import { extractUserType } from './userTypeUtils.js';
+import { extractUserType, getUserType } from './userTypeUtils.js';
 
 let connection = null;
 let channel = null;
@@ -250,8 +250,10 @@ export function getRabbitMQInfo() {
 
 /**
  * Создает или получает очередь для пользователя user_{userId}_updates
+ * @param {string} userId - ID пользователя
+ * @param {string} tenantId - ID тенанта (опционально, для получения типа из User модели)
  */
-export async function ensureUserUpdatesQueue(userId) {
+export async function ensureUserUpdatesQueue(userId, tenantId = null) {
   if (!isConnected || !channel) {
     throw new Error('RabbitMQ is not connected');
   }
@@ -267,8 +269,14 @@ export async function ensureUserUpdatesQueue(userId) {
       }
     });
 
-    // Извлекаем тип пользователя из userId (usr, cnt, bot и т.д.)
-    const userType = extractUserType(userId);
+    // Получаем тип пользователя из модели User или используем fallback
+    let userType;
+    if (tenantId) {
+      userType = await getUserType(tenantId, userId);
+    } else {
+      // Fallback: извлекаем тип из префикса userId
+      userType = extractUserType(userId);
+    }
     
     // Привязываем очередь к exchange updates с routing key user.{type}.{userId}.*
     await channel.bindQueue(queueName, UPDATES_EXCHANGE_NAME, `user.${userType}.${userId}.*`);

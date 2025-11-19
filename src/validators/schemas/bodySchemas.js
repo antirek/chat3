@@ -157,14 +157,16 @@ export const updateTenantSchema = Joi.object({
  */
 export const createUserSchema = Joi.object({
   userId: Joi.string().trim().lowercase().min(1).max(100).required(),
-  name: Joi.string().trim().min(1).max(200).optional()
+  name: Joi.string().trim().min(1).max(200).optional(),
+  type: Joi.string().trim().min(1).max(50).default('user').optional()
 });
 
 /**
  * Схема валидации обновления пользователя
  */
 export const updateUserSchema = Joi.object({
-  name: Joi.string().trim().min(1).max(200).optional()
+  name: Joi.string().trim().min(1).max(200).optional(),
+  type: Joi.string().trim().min(1).max(50).optional()
 });
 
 /**

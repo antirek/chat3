@@ -1,5 +1,7 @@
+import { User } from '../models/index.js';
+
 /**
- * Извлекает тип пользователя из userId на основе префикса
+ * Извлекает тип пользователя из userId на основе префикса (fallback метод)
  * 
  * Правила:
  * - Если userId содержит подчеркивание, тип = часть до первого подчеркивания
@@ -28,5 +30,36 @@ export function extractUserType(userId) {
   }
   
   return userId.substring(0, underscoreIndex);
+}
+
+/**
+ * Получает тип пользователя из модели User или использует fallback на extractUserType
+ * @param {string} tenantId - ID тенанта
+ * @param {string} userId - ID пользователя
+ * @returns {Promise<string>} Тип пользователя
+ */
+export async function getUserType(tenantId, userId) {
+  try {
+    if (!userId || typeof userId !== 'string') {
+      return 'usr';
+    }
+
+    // Пытаемся получить тип из модели User
+    const user = await User.findOne({
+      tenantId: tenantId,
+      userId: userId
+    }).select('type').lean();
+
+    if (user && user.type) {
+      return user.type;
+    }
+
+    // Fallback: извлекаем тип из префикса userId
+    return extractUserType(userId);
+  } catch (error) {
+    console.error(`Error getting user type for ${userId}:`, error);
+    // В случае ошибки используем fallback
+    return extractUserType(userId);
+  }
 }
 

@@ -4,7 +4,7 @@ import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from './responseUtils.js';
 import { generateTimestamp } from './timestampUtils.js';
-import { extractUserType } from './userTypeUtils.js';
+import { extractUserType, getUserType } from './userTypeUtils.js';
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 
@@ -683,8 +683,8 @@ async function publishUpdate(update) {
       return;
     }
     
-    // Извлекаем тип пользователя из userId (usr, cnt, bot и т.д.)
-    const userType = extractUserType(sanitizedUpdate.userId);
+    // Получаем тип пользователя из модели User или используем fallback
+    const userType = await getUserType(sanitizedUpdate.tenantId, sanitizedUpdate.userId);
     
     // Публикуем в exchange chat3_updates с routing key user.{type}.{userId}.{updateType}
     const routingKey = `user.${userType}.${sanitizedUpdate.userId}.${updateType.toLowerCase()}`;

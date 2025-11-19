@@ -20,6 +20,12 @@ const userSchema = new mongoose.Schema({
     trim: true,
     description: 'Имя пользователя'
   },
+  type: {
+    type: String,
+    trim: true,
+    default: 'user',
+    description: 'Тип пользователя (user, bot, contact и т.д.)'
+  },
   lastActiveAt: {
     type: Number,
     description: 'Timestamp последней активности в миллисекундах с микросекундами'

@@ -170,7 +170,55 @@ describe('userController.getUsers', () => {
     });
   });
 
-  test('includes dialogCount when includeDialogCount=true', async () => {
+    test('filters by type field', async () => {
+      // Очищаем базу перед тестом
+      await User.deleteMany({ tenantId });
+      
+      // Создаем пользователей с разными типами
+      await User.create([
+        { tenantId, userId: 'user1', name: 'User 1', type: 'user', createdAt: generateTimestamp() },
+        { tenantId, userId: 'bot1', name: 'Bot 1', type: 'bot', createdAt: generateTimestamp() },
+        { tenantId, userId: 'contact1', name: 'Contact 1', type: 'contact', createdAt: generateTimestamp() }
+      ]);
+
+      const req = createMockReq({ filter: '(type,eq,user)', page: 1, limit: 10 });
+      const res = createMockRes();
+
+      await getUsers(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].type).toBe('user');
+      expect(res.body.data[0].userId).toBe('user1');
+    });
+
+    test('filters by type with in operator', async () => {
+      // Очищаем базу перед тестом
+      await User.deleteMany({ tenantId });
+      
+      // Создаем пользователей с разными типами
+      await User.create([
+        { tenantId, userId: 'user1', name: 'User 1', type: 'user', createdAt: generateTimestamp() },
+        { tenantId, userId: 'bot1', name: 'Bot 1', type: 'bot', createdAt: generateTimestamp() },
+        { tenantId, userId: 'contact1', name: 'Contact 1', type: 'contact', createdAt: generateTimestamp() },
+        { tenantId, userId: 'agent1', name: 'Agent 1', type: 'agent', createdAt: generateTimestamp() }
+      ]);
+
+      const req = createMockReq({ filter: '(type,in,[user,bot])', page: 1, limit: 10 });
+      const res = createMockRes();
+
+      await getUsers(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data).toHaveLength(2);
+      const types = res.body.data.map(u => u.type);
+      expect(types).toContain('user');
+      expect(types).toContain('bot');
+      expect(types).not.toContain('contact');
+      expect(types).not.toContain('agent');
+    });
+
+    test('includes dialogCount when includeDialogCount=true', async () => {
     await DialogMember.create([
       {
         tenantId,
@@ -325,6 +373,29 @@ describe('userController.createUser', () => {
     const stored = await User.findOne({ tenantId, userId: 'new_user' }).lean();
     expect(stored).toBeTruthy();
     expect(stored.name).toBe('Newbie');
+    expect(stored.type).toBe('user'); // default type
+  });
+
+  test('creates user with custom type', async () => {
+    const req = {
+      tenantId,
+      body: {
+        userId: 'bot_123',
+        name: 'Bot User',
+        type: 'bot'
+      }
+    };
+    const res = createMockRes();
+
+    await createUser(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.userId).toBe('bot_123');
+    expect(res.body.data.type).toBe('bot');
+
+    const stored = await User.findOne({ tenantId, userId: 'bot_123' }).lean();
+    expect(stored).toBeTruthy();
+    expect(stored.type).toBe('bot');
   });
 
   test('returns 409 when user already exists', async () => {
@@ -388,6 +459,58 @@ describe('userController.updateUser', () => {
 
     const stored = await User.findOne({ tenantId, userId: 'agent_carl' }).lean();
     expect(stored.name).toBe('Carl Updated');
+  });
+
+  test('updates user type', async () => {
+    await User.create({
+      tenantId,
+      userId: 'user_to_update',
+      name: 'Original User',
+      type: 'user',
+      createdAt: generateTimestamp()
+    });
+
+    const req = {
+      tenantId,
+      params: { userId: 'user_to_update' },
+      body: { type: 'bot' }
+    };
+    const res = createMockRes();
+
+    await updateUser(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data.type).toBe('bot');
+
+    const stored = await User.findOne({ tenantId, userId: 'user_to_update' }).lean();
+    expect(stored.type).toBe('bot');
+  });
+
+  test('updates user name and type together', async () => {
+    await User.create({
+      tenantId,
+      userId: 'user_to_update2',
+      name: 'Original User',
+      type: 'user',
+      createdAt: generateTimestamp()
+    });
+
+    const req = {
+      tenantId,
+      params: { userId: 'user_to_update2' },
+      body: { name: 'Updated Name', type: 'contact' }
+    };
+    const res = createMockRes();
+
+    await updateUser(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data.name).toBe('Updated Name');
+    expect(res.body.data.type).toBe('contact');
+
+    const stored = await User.findOne({ tenantId, userId: 'user_to_update2' }).lean();
+    expect(stored.name).toBe('Updated Name');
+    expect(stored.type).toBe('contact');
   });
 
   test('returns 404 when user missing', async () => {

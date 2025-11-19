@@ -76,6 +76,9 @@ const router = express.Router();
  *                       name:
  *                         type: string
  *                         example: "Carl Johnson"
+ *                       type:
+ *                         type: string
+ *                         example: "user"
  *                       lastActiveAt:
  *                         type: string
  *                         example: "1730891234567.123456"
@@ -140,6 +143,9 @@ router.get('/', apiAuth, userController.getUsers);
  *                     name:
  *                       type: string
  *                       example: "Alice Wonder"
+ *                     type:
+ *                       type: string
+ *                       example: "user"
  *                     lastActiveAt:
  *                       type: string
  *                       example: "1730891234567.123456"
@@ -189,6 +195,10 @@ router.get('/:userId', apiAuth, validateUserId, userController.getUserById);
  *                 type: string
  *                 description: Имя пользователя (опционально)
  *                 example: "John Doe"
+ *               type:
+ *                 type: string
+ *                 description: Тип пользователя (user, bot, contact и т.д.). По умолчанию 'user'
+ *                 example: "bot"
  *     responses:
  *       201:
  *         description: Пользователь создан
@@ -227,7 +237,7 @@ router.post('/', apiAuth, validateBody(createUserSchema), userController.createU
  *     description: |
  *       Обновить данные пользователя.
  *       
- *       Можно обновить только поле name. Для других полей используйте Meta API.
+ *       Можно обновить поля name и type. Для других полей используйте Meta API.
  *     tags: [Users]
  *     security:
  *       - ApiKeyAuth: []
@@ -249,6 +259,10 @@ router.post('/', apiAuth, validateBody(createUserSchema), userController.createU
  *                 type: string
  *                 description: Новое имя пользователя
  *                 example: "John Smith"
+ *               type:
+ *                 type: string
+ *                 description: Тип пользователя (user, bot, contact и т.д.)
+ *                 example: "bot"
  *     responses:
  *       200:
  *         description: Пользователь обновлен

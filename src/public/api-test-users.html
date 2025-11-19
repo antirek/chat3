@@ -399,6 +399,35 @@
             max-height: 300px;
             overflow-y: auto;
         }
+
+        .pagination {
+            padding: 15px 20px;
+            border-top: 1px solid #e9ecef;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pagination-info {
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .pagination-controls input {
+            width: 60px;
+            padding: 4px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -416,7 +445,7 @@
     <div class="container">
         <div class="controls">
             <button class="btn-success" onclick="showCreateModal()">➕ Создать пользователя</button>
-            <button class="btn-primary" onclick="loadUsers()">🔄 Обновить список</button>
+            <button class="btn-primary" onclick="loadUsers(currentPage, currentLimit)">🔄 Обновить список</button>
         </div>
 
         <div class="filter-panel">
@@ -431,6 +460,12 @@
                     <optgroup label="name">
                         <option value="(name,regex,Alice)">Имя содержит "Alice"</option>
                         <option value="(name,regex,Support)">Имя содержит "Support"</option>
+                    </optgroup>
+                    <optgroup label="type">
+                        <option value="(type,in,[user,bot])">type в списке [user, bot]</option>
+                        <option value="(type,eq,user)">type = user</option>
+                        <option value="(type,eq,bot)">type = bot</option>
+                        <option value="(type,eq,contact)">type = contact</option>
                     </optgroup>
                     <optgroup label="meta.*">
                         <option value="(meta.role,eq,manager)">meta.role = manager</option>
@@ -453,6 +488,26 @@
         <div class="content" id="usersList">
             <div class="loading">Загрузка...</div>
         </div>
+        <div class="pagination" id="pagination" style="display: none;">
+            <div class="pagination-info" id="paginationInfo"></div>
+            <div class="pagination-controls">
+                <button class="btn-secondary btn-small" onclick="goToFirstPage()">⏮ Первая</button>
+                <button class="btn-secondary btn-small" onclick="goToPreviousPage()">◀ Предыдущая</button>
+                <span style="font-size: 12px; margin: 0 8px;">Страница</span>
+                <input type="number" id="currentPageInput" min="1" value="1" onchange="goToPage(parseInt(this.value))">
+                <span style="font-size: 12px; margin: 0 8px;">из</span>
+                <span id="totalPages" style="font-size: 12px;">1</span>
+                <button class="btn-secondary btn-small" onclick="goToNextPage()">Следующая ▶</button>
+                <button class="btn-secondary btn-small" onclick="goToLastPage()">Последняя ⏭</button>
+                <span style="font-size: 12px; margin-left: 12px;">Показать:</span>
+                <select id="pageLimit" onchange="changeLimit(parseInt(this.value))" style="padding: 4px 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px;">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+        </div>
     </div>
 
     <!-- Modal для создания пользователя -->
@@ -470,6 +525,15 @@
                     <div class="form-group">
                         <label for="createName">Имя</label>
                         <input type="text" id="createName" placeholder="John Doe">
+                    </div>
+                    <div class="form-group">
+                        <label for="createType">Тип</label>
+                        <select id="createType">
+                            <option value="user" selected>user</option>
+                            <option value="bot">bot</option>
+                            <option value="contact">contact</option>
+                            <option value="agent">agent</option>
+                        </select>
                     </div>
                     <div class="form-actions">
                         <button type="button" class="btn-secondary" onclick="closeCreateModal()">Отмена</button>
@@ -492,6 +556,15 @@
                     <div class="form-group">
                         <label for="editName">Имя</label>
                         <input type="text" id="editName" placeholder="John Doe">
+                    </div>
+                    <div class="form-group">
+                        <label for="editType">Тип</label>
+                        <select id="editType">
+                            <option value="user">user</option>
+                            <option value="bot">bot</option>
+                            <option value="contact">contact</option>
+                            <option value="agent">agent</option>
+                        </select>
                     </div>
                     <div class="form-actions">
                         <button type="button" class="btn-secondary" onclick="closeEditModal()">Отмена</button>
@@ -529,6 +602,10 @@
     <script>
         const tenantId = 'tnt_default';
         let currentUserFilter = '';
+        let currentPage = 1;
+        let currentLimit = 20;
+        let totalPages = 1;
+        let totalUsers = 0;
 
         // Получить API Key
         function getApiKey() {
@@ -536,7 +613,7 @@
         }
 
         // Загрузить список пользователей
-        async function loadUsers() {
+        async function loadUsers(page = currentPage, limit = currentLimit) {
             try {
                 const apiKey = getApiKey();
 
@@ -544,8 +621,12 @@
                     throw new Error('API Key не указан');
                 }
 
+                currentPage = page;
+                currentLimit = limit;
+
                 const params = new URLSearchParams({
-                    limit: '100'
+                    page: page.toString(),
+                    limit: limit.toString()
                 });
 
                 if (currentUserFilter) {
@@ -565,15 +646,82 @@
 
                 const data = await response.json();
 
+                totalUsers = data.pagination?.total || 0;
+                totalPages = data.pagination?.pages || 1;
+
                 if (data.data && data.data.length > 0) {
                     renderUsers(data.data);
+                    updatePagination();
                 } else {
                     document.getElementById('usersList').innerHTML = '<div class="no-data">Пользователи не найдены</div>';
+                    updatePagination();
                 }
             } catch (error) {
                 console.error('Error loading users:', error);
                 document.getElementById('usersList').innerHTML = `<div class="error">Ошибка загрузки: ${error.message}</div>`;
+                document.getElementById('pagination').style.display = 'none';
             }
+        }
+
+        // Обновить элементы пагинации
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            const paginationInfo = document.getElementById('paginationInfo');
+            const currentPageInput = document.getElementById('currentPageInput');
+            const totalPagesSpan = document.getElementById('totalPages');
+            const pageLimit = document.getElementById('pageLimit');
+
+            if (totalUsers === 0) {
+                pagination.style.display = 'none';
+                return;
+            }
+
+            pagination.style.display = 'flex';
+            currentPageInput.value = currentPage;
+            currentPageInput.max = totalPages;
+            totalPagesSpan.textContent = totalPages;
+            pageLimit.value = currentLimit;
+
+            const start = (currentPage - 1) * currentLimit + 1;
+            const end = Math.min(currentPage * currentLimit, totalUsers);
+            paginationInfo.textContent = `Показано ${start}-${end} из ${totalUsers} пользователей`;
+        }
+
+        // Навигация по страницам
+        function goToFirstPage() {
+            if (currentPage > 1) {
+                loadUsers(1, currentLimit);
+            }
+        }
+
+        function goToPreviousPage() {
+            if (currentPage > 1) {
+                loadUsers(currentPage - 1, currentLimit);
+            }
+        }
+
+        function goToNextPage() {
+            if (currentPage < totalPages) {
+                loadUsers(currentPage + 1, currentLimit);
+            }
+        }
+
+        function goToLastPage() {
+            if (currentPage < totalPages) {
+                loadUsers(totalPages, currentLimit);
+            }
+        }
+
+        function goToPage(page) {
+            if (page >= 1 && page <= totalPages) {
+                loadUsers(page, currentLimit);
+            } else {
+                document.getElementById('currentPageInput').value = currentPage;
+            }
+        }
+
+        function changeLimit(limit) {
+            loadUsers(1, limit);
         }
 
         // Отобразить список пользователей
@@ -584,6 +732,7 @@
                         <tr>
                             <th>User ID</th>
                             <th>Имя</th>
+                            <th>Тип</th>
                             <th>Последняя активность</th>
                             <th>Создан</th>
                             <th>Действия</th>
@@ -594,6 +743,7 @@
                             <tr>
                                 <td><strong>${user.userId}</strong></td>
                                 <td>${user.name || '-'}</td>
+                                <td><span style="background: #e3f2fd; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">${user.type || 'user'}</span></td>
                                 <td>${formatTimestamp(user.lastActiveAt)}</td>
                                 <td>${formatTimestamp(user.createdAt)}</td>
                                 <td>
@@ -635,7 +785,8 @@
 
             const userData = {
                 userId: document.getElementById('createUserId').value.trim().toLowerCase(),
-                name: document.getElementById('createName').value.trim() || undefined
+                name: document.getElementById('createName').value.trim() || undefined,
+                type: document.getElementById('createType').value || 'user'
             };
 
             try {
@@ -657,7 +808,7 @@
                 }
 
                 closeCreateModal();
-                loadUsers();
+                loadUsers(1, currentLimit);
                 alert('Пользователь успешно создан!');
             } catch (error) {
                 console.error('Error creating user:', error);
@@ -685,6 +836,14 @@
 
                 document.getElementById('editUserId').value = user.userId;
                 document.getElementById('editName').value = user.name || '';
+                
+                // Устанавливаем тип пользователя
+                const editTypeElement = document.getElementById('editType');
+                if (editTypeElement) {
+                    const userType = user.type || 'user';
+                    editTypeElement.value = userType;
+                    console.log('Setting editType to:', userType); // Для отладки
+                }
 
                 document.getElementById('editModal').style.display = 'block';
             } catch (error) {
@@ -703,9 +862,24 @@
             event.preventDefault();
 
             const userId = document.getElementById('editUserId').value;
+            const editTypeElement = document.getElementById('editType');
+            
+            // Читаем значение из select элемента
+            let editTypeValue = 'user'; // значение по умолчанию
+            if (editTypeElement) {
+                editTypeValue = editTypeElement.value;
+                // Если значение пустое или не выбрано, используем значение по умолчанию
+                if (!editTypeValue || editTypeValue.trim() === '') {
+                    editTypeValue = 'user';
+                }
+            }
+            
             const userData = {
-                name: document.getElementById('editName').value.trim() || undefined
+                name: document.getElementById('editName').value.trim() || undefined,
+                type: editTypeValue
             };
+            
+            console.log('Updating user:', userId, 'with type:', editTypeValue, 'full data:', userData); // Для отладки
 
             try {
                 const apiKey = getApiKey();
@@ -726,7 +900,7 @@
                 }
 
                 closeEditModal();
-                loadUsers();
+                loadUsers(currentPage, currentLimit);
                 alert('Пользователь успешно обновлен!');
             } catch (error) {
                 console.error('Error updating user:', error);
@@ -756,7 +930,7 @@
                     throw new Error(error.message || 'Failed to delete user');
                 }
 
-                loadUsers();
+                loadUsers(currentPage, currentLimit);
                 alert('Пользователь успешно удален!');
             } catch (error) {
                 console.error('Error deleting user:', error);
@@ -807,13 +981,13 @@
             const input = document.getElementById('userFilterInput');
             const rawValue = input ? input.value.trim() : '';
             currentUserFilter = rawValue;
-            await loadUsers();
+            await loadUsers(1, currentLimit);
         }
 
         async function clearUserFilter() {
             currentUserFilter = '';
             clearUserFilterField();
-            await loadUsers();
+            await loadUsers(1, currentLimit);
         }
 
         // Загрузить meta теги

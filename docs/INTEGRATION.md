@@ -92,6 +92,9 @@
 | Dialog Members | `POST /dialogs/:dialogId/members/:userId/remove` | Удаление участника. | delete |
 | Dialog Members | `PATCH /dialogs/:dialogId/members/:userId/unread` | Принудительно уменьшить `unreadCount` (отметить сообщения прочитанными). | write |
 | Users | `GET /users` | Список пользователей; `includeDialogCount=true` добавляет счётчик диалогов; `filter` в формате `(поле,оператор,значение)` (через `queryParser`) поддерживает `userId`, `name`, `meta.*`. | read |
+| Users | `GET /users/:userId` | Информация о пользователе, включая поле `type` (тип пользователя: `user`, `bot`, `contact` и т.д.). | read |
+| Users | `POST /users` | Создание пользователя. Можно указать `type` (опционально, по умолчанию `user`). | write |
+| Users | `PUT /users/:userId` | Обновление пользователя. Можно изменить `name` и `type`. | write |
 | Users | `GET /users/:userId/dialogs` | Диалоги конкретного пользователя с фильтрами. | read |
 | Meta | `GET/PUT/DELETE /meta/:entityType/:entityId/:key` | Работа с мета-тегами любой сущности. | read/write/delete |
 
@@ -102,7 +105,16 @@
 
 > Полные описания полей и примеры см. в `docs/API.md` (REST) и `docs/FILTER_RULES.md` (фильтры).
 
-- Ответы `GET /messages` и `GET /dialogs/:dialogId/messages` содержат объект `senderInfo`, если пользователь с `senderId` существует. В структуру входят `userId`, `name`, временные метки и `meta` (все мета-теги пользователя).
+- Ответы `GET /messages` и `GET /dialogs/:dialogId/messages` содержат объект `senderInfo`, если пользователь с `senderId` существует. В структуру входят `userId`, `name`, `type` (тип пользователя), временные метки и `meta` (все мета-теги пользователя).
+
+#### Управление типом пользователя
+
+- При создании пользователя (`POST /users`) можно указать поле `type` (опционально, по умолчанию `user`). Тип используется в routing keys для RabbitMQ updates.
+- При обновлении пользователя (`PUT /users/:userId`) можно изменить поле `type`.
+- Тип пользователя влияет на routing key в формате `user.{type}.{userId}.{updateType}`:
+  - Если пользователь существует в БД, используется значение поля `type` из модели `User`.
+  - Если пользователь не найден в БД, используется fallback: извлечение типа из префикса `userId` или `usr` по умолчанию.
+- Примеры типов: `user` (обычный пользователь), `bot` (бот), `contact` (контакт), `agent` (агент) и т.д.
 
 #### Получение участников диалога
 
@@ -386,15 +398,22 @@ Updates — материалы для конечных клиентов. На и
 
 - Exchange: `chat3_updates` (topic).
 - Routing key: `user.{type}.{userId}.{updateType}`.
-  - `type` — тип пользователя, извлекается из префикса `userId` (до первого подчеркивания). Если префикса нет, используется `usr` по умолчанию.
-    - Примеры: `usr_123` → `usr`, `cnt_456` → `cnt`, `bot_789` → `bot`, `carl` → `usr`.
+  - `type` — тип пользователя, определяется следующим образом:
+    1. **Приоритетно**: извлекается из поля `type` модели `User` (если пользователь существует в БД).
+    2. **Fallback**: извлекается из префикса `userId` (до первого подчеркивания), если пользователь не найден в БД.
+    3. **По умолчанию**: `usr`, если префикса нет или пользователь не найден.
+    - Примеры:
+      - Пользователь с `userId='bot_123'` и `type='bot'` в БД → `bot`
+      - Пользователь с `userId='carl'` и `type='user'` в БД → `user`
+      - Пользователь не найден в БД, `userId='usr_123'` → `usr` (из префикса)
+      - Пользователь не найден в БД, `userId='carl'` → `usr` (по умолчанию)
   - `updateType = dialogupdate` — изменения диалогов.
   - `updateType = messageupdate` — сообщения, реакции, статусы.
   - `updateType = typingupdate` — индикатор набора текста.
 - Примеры routing keys:
-  - `user.usr.usr_123.messageupdate` — обновление сообщения для пользователя `usr_123`.
-  - `user.cnt.cnt_456.dialogupdate` — обновление диалога для контакта `cnt_456`.
-  - `user.usr.carl.messageupdate` — обновление сообщения для пользователя без префикса (тип `usr` по умолчанию).
+  - `user.bot.bot_123.messageupdate` — обновление сообщения для бота `bot_123` (тип из модели User).
+  - `user.contact.cnt_456.dialogupdate` — обновление диалога для контакта `cnt_456` (тип из модели User).
+  - `user.usr.carl.messageupdate` — обновление сообщения для пользователя `carl` (тип `usr` по умолчанию или из модели User).
 - Очередь на стороне внешней системы обычно создаётся под конкретного пользователя или сервис.
 - Update хранится в MongoDB (`updates` коллекция) перед отправкой в RabbitMQ. Поля `published` и `publishedAt` позволяют отслеживать доставку.
 
@@ -431,12 +450,15 @@ Updates — материалы для конечных клиентов. На и
 ### Практики обработки Updates
 
 - Создавайте отдельные очереди для каждого пользователя: `user_${userId}_queue`.
-- Привязывайте очередь к `chat3_updates` по маске `user.{type}.${userId}.*` или `user.{type}.${userId}.messageupdate`, где `{type}` — тип пользователя из префикса `userId` (или `usr` по умолчанию).
+- Привязывайте очередь к `chat3_updates` по маске `user.{type}.${userId}.*` или `user.{type}.${userId}.messageupdate`, где `{type}` определяется следующим образом:
+  1. **Рекомендуется**: получить тип из модели `User` через REST API (`GET /api/users/:userId`) и использовать поле `type`.
+  2. **Альтернатива**: извлечь тип из префикса `userId` (до первого подчеркивания) или использовать `usr` по умолчанию.
   - Примеры:
-    - Для `usr_123`: `user.usr.usr_123.*` или `user.usr.usr_123.messageupdate`.
-    - Для `cnt_456`: `user.cnt.cnt_456.*` или `user.cnt.cnt_456.dialogupdate`.
-    - Для `carl` (без префикса): `user.usr.carl.*` или `user.usr.carl.messageupdate`.
-  - Для подписки на все пользователи определённого типа используйте паттерн `user.{type}.*.*` (например, `user.cnt.*.*` для всех контактов).
+    - Для пользователя `usr_123` с `type='user'` в БД: `user.user.usr_123.*` или `user.user.usr_123.messageupdate`.
+    - Для контакта `cnt_456` с `type='contact'` в БД: `user.contact.cnt_456.*` или `user.contact.cnt_456.dialogupdate`.
+    - Для бота `bot_789` с `type='bot'` в БД: `user.bot.bot_789.*` или `user.bot.bot_789.messageupdate`.
+    - Для пользователя `carl` без префикса (тип `usr` по умолчанию или из БД): `user.usr.carl.*` или `user.usr.carl.messageupdate`.
+  - Для подписки на все пользователи определённого типа используйте паттерн `user.{type}.*.*` (например, `user.bot.*.*` для всех ботов, `user.contact.*.*` для всех контактов).
 - Учитывайте, что при повторном подключении воркер выставляет `published=false` => Update может быть перепубликован.
 - Используйте `channel.ack` только после успешного обновления пользовательского интерфейса/бэкенда.
 - Для консистентности храните `eventId` и `entityId`, чтобы игнорировать дубликаты.
@@ -445,25 +467,41 @@ Updates — материалы для конечных клиентов. На и
 
 ```javascript
 import amqp from 'amqplib';
+import axios from 'axios';
 
-// Функция для извлечения типа пользователя из userId
+// Функция для получения типа пользователя из модели User (рекомендуется)
+async function getUserType(tenantId, userId, apiKey) {
+  try {
+    const response = await axios.get(`http://localhost:3000/api/users/${userId}`, {
+      headers: { 'x-api-key': apiKey, 'x-tenant-id': tenantId }
+    });
+    return response.data.data.type || 'user'; // По умолчанию 'user'
+  } catch (error) {
+    // Fallback: извлекаем тип из префикса userId
+    return extractUserType(userId);
+  }
+}
+
+// Функция для извлечения типа пользователя из userId (fallback)
 function extractUserType(userId) {
   if (!userId || typeof userId !== 'string') return 'usr';
   const underscoreIndex = userId.indexOf('_');
   return underscoreIndex === -1 ? 'usr' : userId.substring(0, underscoreIndex);
 }
 
-async function subscribeToUserUpdates(userId) {
+async function subscribeToUserUpdates(userId, tenantId, apiKey) {
   const connection = await amqp.connect(process.env.RABBITMQ_URL);
   const channel = await connection.createChannel();
 
   const exchange = 'chat3_updates';
   const queue = `user_${userId}_queue`;
-  const userType = extractUserType(userId); // Извлекаем тип из userId
+  
+  // Получаем тип из модели User (рекомендуется) или используем fallback
+  const userType = await getUserType(tenantId, userId, apiKey);
 
   await channel.assertExchange(exchange, 'topic', { durable: true });
   await channel.assertQueue(queue, { durable: true });
-  // Используем новый формат: user.{type}.{userId}.*
+  // Используем формат: user.{type}.{userId}.*
   await channel.bindQueue(queue, exchange, `user.${userType}.${userId}.*`);
 
   channel.consume(queue, (msg) => {
@@ -481,9 +519,16 @@ async function subscribeToUserUpdates(userId) {
 }
 
 // Примеры использования:
-subscribeToUserUpdates('usr_123').catch(console.error);  // user.usr.usr_123.*
-subscribeToUserUpdates('cnt_456').catch(console.error);  // user.cnt.cnt_456.*
-subscribeToUserUpdates('carl').catch(console.error);     // user.usr.carl.*
+// Рекомендуется: получать тип из модели User
+subscribeToUserUpdates('bot_123', 'tnt_default', 'your_api_key').catch(console.error);  // user.bot.bot_123.*
+subscribeToUserUpdates('cnt_456', 'tnt_default', 'your_api_key').catch(console.error);  // user.contact.cnt_456.*
+subscribeToUserUpdates('carl', 'tnt_default', 'your_api_key').catch(console.error);     // user.user.carl.* или user.usr.carl.*
+
+// Альтернатива: использовать fallback (если нет доступа к REST API)
+function subscribeToUserUpdatesWithFallback(userId) {
+  const userType = extractUserType(userId);
+  // ... остальной код аналогичен
+}
 ```
 
 ---
