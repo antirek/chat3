@@ -10,6 +10,11 @@ services:
     restart: unless-stopped
     ports:
       - "3002:3000"
+    volumes:
+      # Hot reload для статических файлов (HTML, CSS, JS)
+      - ./src/public:/app/src/public:ro
+      # Hot reload для исходного кода (опционально, для разработки)
+      - ./src:/app/src:ro
     command: "npm run start:server"
     environment:
       - NODE_ENV=production
