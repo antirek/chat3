@@ -67,7 +67,8 @@ metaSchema.pre('save', function(next) {
 });
 
 // Compound indexes for uniqueness and queries
-metaSchema.index({ tenantId: 1, entityType: 1, entityId: 1, key: 1, scope: 1 });
+// Unique index: ensures one meta entry per tenant/entity/key/scope combination
+metaSchema.index({ tenantId: 1, entityType: 1, entityId: 1, key: 1, scope: 1 }, { unique: true });
 metaSchema.index({ entityType: 1, entityId: 1, scope: 1 });
 metaSchema.index({ key: 1, scope: 1 });
 // Unique index for participant records (ensures one participant entry per user per dialog)

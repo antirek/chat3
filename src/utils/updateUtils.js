@@ -176,7 +176,7 @@ async function buildFullMessagePayload(tenantId, message, senderCache = new Map(
 /**
  * Формирует DialogUpdate для всех участников диалога
  */
-export async function createDialogUpdate(tenantId, dialogId, eventId, eventType) {
+export async function createDialogUpdate(tenantId, dialogId, eventId, eventType, eventData = {}) {
   try {
     // dialogId всегда приходит как строка dlg_*
     // Находим Dialog по строковому dialogId
@@ -200,14 +200,54 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
       isActive: true
     }).lean();
 
-    if (dialogMembers.length === 0) {
-      console.log(`No active members found for dialog ${dialogId}`);
+    // Для события dialog.member.remove нужно также создать update для удаляемого пользователя
+    let removedMember = null;
+    if (eventType === 'dialog.member.remove' && eventData.member) {
+      const removedUserId = eventData.member.userId;
+      if (removedUserId) {
+        // Проверяем, не является ли удаляемый пользователь уже в списке активных
+        const isAlreadyInList = dialogMembers.some(m => m.userId === removedUserId);
+        
+        if (!isAlreadyInList) {
+          // Получаем информацию об удаляемом участнике (даже если он уже неактивен)
+          removedMember = await DialogMember.findOne({
+            tenantId: tenantId,
+            dialogId: dialog.dialogId,
+            userId: removedUserId
+          }).lean();
+          
+          // Если не нашли в БД, создаем объект из данных события
+          if (!removedMember && eventData.member) {
+            removedMember = {
+              userId: removedUserId,
+              tenantId: tenantId,
+              dialogId: dialog.dialogId,
+              unreadCount: eventData.member.state?.unreadCount ?? 0,
+              lastSeenAt: eventData.member.state?.lastSeenAt ?? null,
+              lastMessageAt: eventData.member.state?.lastMessageAt ?? null,
+              isActive: false,
+              role: eventData.member.role || 'member'
+            };
+          }
+        }
+      }
+    }
+
+    if (dialogMembers.length === 0 && !removedMember) {
+      console.log(`No active members found for dialog ${dialogId} and no removed member to notify`);
       return;
     }
 
     const dialogSection = buildDialogSection(dialog, dialogMeta);
+    
+    // Собираем всех участников для создания updates (активные + удаляемый, если есть)
+    const allMembersForUpdates = [...dialogMembers];
+    if (removedMember) {
+      allMembersForUpdates.push(removedMember);
+    }
+    
     const memberMetaEntries = await Promise.all(
-      dialogMembers.map(async member => {
+      allMembersForUpdates.map(async member => {
         const memberId = `${dialog.dialogId}:${member.userId}`;
         const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
         return { userId: member.userId, meta: memberMeta || {} };
@@ -215,8 +255,12 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType)
     );
     const memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
 
-    const updates = dialogMembers.map((member) => {
-      const memberSection = buildMemberSection(member, memberMetaMap.get(member.userId));
+    const updates = allMembersForUpdates.map((member) => {
+      // Для удаляемого пользователя устанавливаем isActive: false
+      const isRemovedMember = removedMember && member.userId === removedMember.userId;
+      const memberOverrides = isRemovedMember ? { isActive: false } : {};
+      
+      const memberSection = buildMemberSection(member, memberMetaMap.get(member.userId), memberOverrides);
 
       const data = {
         dialog: dialogSection,

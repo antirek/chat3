@@ -82,7 +82,7 @@ async function processEvent(eventData) {
       }
       
       if (dialogId) {
-        await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, eventType);
+        await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, eventType, data);
         console.log(`✅ Created DialogUpdate for event ${eventId}`);
       } else {
         console.warn(`⚠️ No dialogId found for event ${eventId}`);

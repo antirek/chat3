@@ -202,6 +202,69 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(update.data.dialog.meta.channel).toBe('telegram');
       expect(update.data.member).toBeDefined();
     });
+
+    test('should create update for removed member in dialog.member.remove event', async () => {
+      const dialogId = generateDialogId();
+      const eventId = await createEventAndGetId('dialog.member.remove');
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        name: 'Test Dialog',
+        createdBy: 'user1'
+      });
+
+      // Создаем участников
+      const member1 = await DialogMember.create({
+        tenantId,
+        dialogId,
+        userId: 'user1',
+        unreadCount: 5,
+        isActive: true
+      });
+
+      const member2 = await DialogMember.create({
+        tenantId,
+        dialogId,
+        userId: 'user2',
+        unreadCount: 3,
+        isActive: true
+      });
+
+      // Удаляем user2 из диалога (устанавливаем isActive: false)
+      await DialogMember.updateOne(
+        { tenantId, dialogId, userId: 'user2' },
+        { isActive: false }
+      );
+
+      // Создаем eventData с информацией об удаляемом пользователе
+      const eventData = {
+        member: {
+          userId: 'user2',
+          state: {
+            unreadCount: 3,
+            lastSeenAt: member2.lastSeenAt,
+            lastMessageAt: member2.lastMessageAt,
+            isActive: false
+          }
+        }
+      };
+
+      await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.member.remove', eventData);
+
+      // Проверяем, что updates созданы для всех участников, включая удаляемого
+      const updates = await Update.find({ tenantId, dialogId, eventId });
+      expect(updates.length).toBe(2); // user1 (активный) + user2 (удаляемый)
+      
+      const userIds = updates.map(u => u.userId);
+      expect(userIds).toContain('user1');
+      expect(userIds).toContain('user2');
+
+      // Проверяем, что для удаляемого пользователя isActive: false
+      const removedUserUpdate = updates.find(u => u.userId === 'user2');
+      expect(removedUserUpdate).toBeDefined();
+      expect(removedUserUpdate.data.member.state.isActive).toBe(false);
+    });
   });
 
   describe('createDialogMemberUpdate', () => {
