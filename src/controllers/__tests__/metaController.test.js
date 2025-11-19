@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import metaController from '../metaController.js';
 import { Dialog, DialogMember, Message, Meta } from '../../models/index.js';
 import {
@@ -423,6 +424,195 @@ describe('metaController', () => {
 
       expect(defaultMeta).toBeTruthy();
       expect(scopedMeta).toBeNull();
+    });
+  });
+
+  describe('getMeta - error handling', () => {
+    test('handles database errors gracefully', async () => {
+      const dialog = await Dialog.create({
+        tenantId,
+        dialogId: generateId('dlg_'),
+        name: 'Test Dialog',
+        createdBy: 'alice',
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+
+      const req = createMockReq({
+        params: { entityType: 'dialog', entityId: dialog.dialogId, key: 'test' }
+      });
+      const res = createMockRes();
+
+      // Mock Dialog.findOne to throw an error in verifyEntityExists
+      const originalFindOne = Dialog.findOne;
+      Dialog.findOne = jest.fn().mockImplementation(() => {
+        throw new Error('Database error');
+      });
+
+      await metaController.getMeta(req, res);
+
+      expect(res.statusCode).toBe(500);
+      expect(res.body.error).toBe('Internal Server Error');
+
+      // Restore original method
+      Dialog.findOne = originalFindOne;
+    });
+  });
+
+  describe('setMeta - error handling', () => {
+    test('handles 500 errors when not 404 or 400', async () => {
+      const dialog = await Dialog.create({
+        tenantId,
+        dialogId: generateId('dlg_'),
+        name: 'Test Dialog',
+        createdBy: 'alice',
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+
+      const req = createMockReq({
+        params: { entityType: 'dialog', entityId: dialog.dialogId, key: 'test' },
+        body: { value: 'test value', dataType: 'string' }
+      });
+      const res = createMockRes();
+
+      // Mock Dialog.findOne to throw an error in verifyEntityExists
+      const originalFindOne = Dialog.findOne;
+      Dialog.findOne = jest.fn().mockImplementation(() => {
+        throw new Error('Unexpected database error');
+      });
+
+      await metaController.setMeta(req, res);
+
+      expect(res.statusCode).toBe(500);
+      expect(res.body.error).toBe('Internal Server Error');
+
+      // Restore original method
+      Dialog.findOne = originalFindOne;
+    });
+
+    test('handles ObjectId cast errors', async () => {
+      const req = createMockReq({
+        params: { entityType: 'dialog', entityId: 'invalid_objectid', key: 'test' },
+        body: { value: 'test value', dataType: 'string' }
+      });
+      const res = createMockRes();
+
+      // Mock Dialog.findOne to throw ObjectId cast error
+      const originalFindOne = Dialog.findOne;
+      Dialog.findOne = jest.fn().mockImplementation(() => {
+        const error = new Error('Cast to ObjectId failed for value "invalid_objectid"');
+        throw error;
+      });
+
+      await metaController.setMeta(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('Bad Request');
+      expect(res.body.message).toContain('Invalid entityId format');
+
+      // Restore original method
+      Dialog.findOne = originalFindOne;
+    });
+  });
+
+  describe('deleteMeta - error handling', () => {
+    test('handles database errors gracefully', async () => {
+      const dialog = await Dialog.create({
+        tenantId,
+        dialogId: generateId('dlg_'),
+        name: 'Test Dialog',
+        createdBy: 'alice',
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+
+      const req = createMockReq({
+        params: { entityType: 'dialog', entityId: dialog.dialogId, key: 'test' },
+        query: {}
+      });
+      const res = createMockRes();
+
+      // Mock Meta.deleteOne to throw an error
+      const originalDeleteOne = Meta.deleteOne;
+      Meta.deleteOne = jest.fn().mockImplementation(() => {
+        throw new Error('Database error');
+      });
+
+      await metaController.deleteMeta(req, res);
+
+      expect(res.statusCode).toBe(500);
+      expect(res.body.error).toBe('Internal Server Error');
+
+      // Restore original method
+      Meta.deleteOne = originalDeleteOne;
+    });
+
+    test('handles scope parameter in query', async () => {
+      const dialog = await Dialog.create({
+        tenantId,
+        dialogId: generateId('dlg_'),
+        name: 'Test Dialog',
+        createdBy: 'alice',
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+
+      // Create meta with scope and without scope
+      await Meta.create([
+        {
+          tenantId,
+          entityType: 'dialog',
+          entityId: dialog.dialogId,
+          key: 'name',
+          value: 'Scoped Name',
+          dataType: 'string',
+          scope: 'user_alice'
+        },
+        {
+          tenantId,
+          entityType: 'dialog',
+          entityId: dialog.dialogId,
+          key: 'name',
+          value: 'Global Name',
+          dataType: 'string',
+          scope: null
+        }
+      ]);
+
+      const req = createMockReq({
+        params: { entityType: 'dialog', entityId: dialog.dialogId, key: 'name' },
+        query: { scope: 'user_alice' }
+      });
+      const res = createMockRes();
+
+      await metaController.deleteMeta(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.message).toBe('Meta deleted successfully');
+
+      // Verify scoped meta is deleted
+      const scopedMeta = await Meta.findOne({
+        tenantId,
+        entityType: 'dialog',
+        entityId: dialog.dialogId,
+        key: 'name',
+        scope: 'user_alice'
+      }).lean();
+
+      expect(scopedMeta).toBeNull();
+
+      // Verify global meta still exists
+      const globalMeta = await Meta.findOne({
+        tenantId,
+        entityType: 'dialog',
+        entityId: dialog.dialogId,
+        key: 'name',
+        scope: null
+      }).lean();
+
+      expect(globalMeta).toBeTruthy();
+      expect(globalMeta.value).toBe('Global Name');
     });
   });
 });

@@ -110,7 +110,7 @@ const metaController = {
         console.error('ObjectId cast error detected:', error.message);
         return res.status(400).json({
           error: 'Bad Request',
-          message: `Invalid entityId format for ${entityType}. For dialogMember, use format: dialogId:userId`
+          message: `Invalid entityId format for ${req.params.entityType}. For dialogMember, use format: dialogId:userId`
         });
       }
       res.status(500).json({
