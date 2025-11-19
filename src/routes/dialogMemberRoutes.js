@@ -12,6 +12,9 @@ const router = express.Router();
  * /api/dialogs/{dialogId}/members/add:
  *   post:
  *     summary: Add a member to a dialog
+ *     description: |
+ *       Добавляет участника в диалог. Пользователь автоматически создается в коллекции `User`, если его нет.
+ *       Если пользователь уже существует, опциональные поля (`type`, `name`) обновляются, если они предоставлены и отличаются от текущих значений.
  *     tags: [DialogMember]
  *     security:
  *       - ApiKeyAuth: []
@@ -37,11 +40,16 @@ const router = express.Router();
  *                 example: "carl"
  *               type:
  *                 type: string
- *                 description: User type (user, bot, contact, etc.)
+ *                 description: |
+ *                   User type (user, bot, contact, etc.). Опциональное поле.
+ *                   При добавлении участника система автоматически проверяет существование пользователя в коллекции `User`.
+ *                   Если пользователь не существует, он создается с указанным типом. Если существует, тип будет обновлен.
  *                 example: "user"
  *               name:
  *                 type: string
- *                 description: User name
+ *                 description: |
+ *                   User name. Опциональное поле.
+ *                   Если пользователь не существует, он создается с указанным именем. Если существует, имя будет обновлено.
  *                 example: "Carl Johnson"
  *     responses:
  *       201:

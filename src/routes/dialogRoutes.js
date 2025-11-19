@@ -228,7 +228,11 @@ router.get('/:id', apiAuth, requirePermission('read'), validateDialogId, dialogC
  *                 description: ID создателя диалога
  *               members:
  *                 type: array
- *                 description: Массив участников диалога
+ *                 description: |
+ *                   Массив участников диалога. Каждый участник должен содержать обязательное поле `userId` и опциональные поля `type` и `name`.
+ *                   При создании диалога система автоматически проверяет существование каждого пользователя в коллекции `User`.
+ *                   Если пользователь не существует, он создается автоматически с указанными полями.
+ *                   Если пользователь уже существует, опциональные поля (`type`, `name`) обновляются, если они предоставлены и отличаются от текущих значений.
  *                 items:
  *                   type: object
  *                   required:
@@ -239,10 +243,10 @@ router.get('/:id', apiAuth, requirePermission('read'), validateDialogId, dialogC
  *                       description: ID пользователя (обязательное поле)
  *                     type:
  *                       type: string
- *                       description: Тип пользователя (user, bot, contact и т.д.)
+ *                       description: Тип пользователя (user, bot, contact и т.д.). Если пользователь не существует, будет создан с этим типом. Если существует, тип будет обновлен.
  *                     name:
  *                       type: string
- *                       description: Имя пользователя
+ *                       description: Имя пользователя. Если пользователь не существует, будет создан с этим именем. Если существует, имя будет обновлено.
  *                 example:
  *                   - userId: "carl"
  *                     type: "user"
