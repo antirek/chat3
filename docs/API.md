@@ -1,486 +1,486 @@
-# 🚀 Chat3 REST API Documentation
+# API Документация Chat3
 
-## 📖 Обзор
+## Базовый URL
 
-REST API для управления чат-системой с мультитенантностью. Все запросы требуют аутентификации через API ключ.
+```
+http://localhost:3000/api
+```
 
-## 🔐 Аутентификация
+## Аутентификация
 
-API использует ключи для аутентификации. Ключ передается в заголовке `X-API-Key`.
+Все API запросы требуют заголовок `X-API-Key`:
+
+```http
+X-API-Key: your-api-key-here
+X-Tenant-ID: tnt_default
+```
 
 ### Генерация API ключа
 
 ```bash
-npm run generate-api-key
+npm run generate-key
 ```
 
-Пример сгенерированного ключа:
-```
-chat3_ff4448ef59df326327b90f49b8ecd00f9f909fec3420323faff758396be23a69
+## Общие заголовки
+
+- `X-API-Key` (обязательно) - API ключ для аутентификации
+- `X-Tenant-ID` (опционально) - ID тенанта, по умолчанию `tnt_default`
+- `X-Idempotency-Key` (опционально) - Ключ для идемпотентности запросов
+
+## Формат ответов
+
+### Успешный ответ
+
+```json
+{
+  "data": { ... },
+  "message": "Опциональное сообщение"
+}
 ```
 
-### Использование API ключа
+### Ошибка
 
-Добавьте заголовок в каждый запрос:
-```
-X-API-Key: chat3_ваш_ключ_здесь
-```
-
-## 📍 Базовый URL
-
-```
-http://localhost:3000
+```json
+{
+  "error": "Error Type",
+  "message": "Описание ошибки"
+}
 ```
 
-## 🎯 Endpoints
+## Пагинация
+
+Большинство endpoints поддерживают пагинацию:
+
+- `page` - номер страницы (по умолчанию: 1)
+- `limit` - количество элементов на странице (по умолчанию: 10-50)
+
+Ответ с пагинацией:
+
+```json
+{
+  "data": [ ... ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 100,
+    "pages": 10
+  }
+}
+```
+
+## Фильтрация
+
+Поддерживается два формата фильтров:
+
+### 1. JSON формат
+
+```json
+{
+  "meta": {
+    "type": "internal"
+  }
+}
+```
+
+### 2. Операторный формат (рекомендуется)
+
+```
+(field,operator,value)
+```
+
+**Операторы:**
+- `eq` - равно
+- `ne` - не равно
+- `in` - в массиве: `(type,in,[user,bot])`
+- `nin` - не в массиве
+- `gt` - больше
+- `gte` - больше или равно
+- `lt` - меньше
+- `lte` - меньше или равно
+- `regex` - регулярное выражение
+- `exists` - существование поля
+
+**Комбинирование (AND):**
+```
+(meta.type,eq,internal)&(meta.channelType,ne,telegram)
+```
+
+**Примеры:**
+- `(userId,eq,cnt_72a454kho)` - точное совпадение
+- `(name,regex,^John)` - имя начинается с John
+- `(type,in,[user,bot])` - тип в списке
+- `(meta.role,eq,manager)` - фильтр по meta тегу
+
+## Endpoints
 
 ### Tenants (Организации)
 
 #### GET /api/tenants
-Получить список всех организаций (с пагинацией)
+Получить список организаций
 
-**Query Parameters:**
-- `page` (integer, optional) - Номер страницы (по умолчанию: 1)
-- `limit` (integer, optional) - Элементов на странице (по умолчанию: 10)
-
-**Response:**
-```json
-{
-  "data": [
-    {
-      "_id": "507f1f77bcf86cd799439011",
-      "name": "Demo Company",
-      "domain": "demo.chat3.com",
-      "isActive": true,
-      "settings": {},
-      "createdAt": "2025-10-21T10:00:00.000Z",
-      "updatedAt": "2025-10-21T10:00:00.000Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 1,
-    "pages": 1
-  }
-}
-```
+**Query параметры:**
+- `page` - номер страницы
+- `limit` - количество на странице
 
 #### GET /api/tenants/:id
 Получить организацию по ID
 
-**Parameters:**
-- `id` (string, required) - MongoDB ObjectId организации
-
-**Response:**
-```json
-{
-  "data": {
-    "_id": "507f1f77bcf86cd799439011",
-    "name": "Demo Company",
-    "domain": "demo.chat3.com",
-    "isActive": true,
-    "settings": {},
-    "createdAt": "2025-10-21T10:00:00.000Z",
-    "updatedAt": "2025-10-21T10:00:00.000Z"
-  }
-}
-```
-
 #### POST /api/tenants
-Создать новую организацию
+Создать организацию
 
-**Request Body:**
+**Body:**
 ```json
 {
-  "name": "New Company",
-  "domain": "newcompany.com",
-  "isActive": true,
-  "settings": {
-    "maxUsers": 100
-  }
-}
-```
-
-**Response:** `201 Created`
-```json
-{
-  "data": {
-    "_id": "507f1f77bcf86cd799439012",
-    "name": "New Company",
-    "domain": "newcompany.com",
-    "isActive": true,
-    "settings": {
-      "maxUsers": 100
-    },
-    "createdAt": "2025-10-21T10:30:00.000Z",
-    "updatedAt": "2025-10-21T10:30:00.000Z"
-  },
-  "message": "Tenant created successfully"
+  "tenantId": "tnt_myorg",
+  "name": "My Organization",
+  "domain": "myorg.chat3.com",
+  "type": "client",
+  "isActive": true
 }
 ```
 
 #### PUT /api/tenants/:id
 Обновить организацию
 
-**Request Body:**
-```json
-{
-  "name": "Updated Company Name",
-  "isActive": false
-}
-```
-
-**Response:**
-```json
-{
-  "data": { ... },
-  "message": "Tenant updated successfully"
-}
-```
-
 #### DELETE /api/tenants/:id
 Удалить организацию
-
-**Response:**
-```json
-{
-  "message": "Tenant deleted successfully"
-}
-```
 
 ---
 
 ### Users (Пользователи)
 
 #### GET /api/users
-Получить список пользователей текущей организации
+Получить список пользователей
 
-**Query Parameters:**
-- `page` (integer, optional) - Номер страницы
-- `limit` (integer, optional) - Элементов на странице
-- `role` (string, optional) - Фильтр по роли: `admin`, `user`, `moderator`
-- `isActive` (boolean, optional) - Фильтр по статусу активности
+**Query параметры:**
+- `page`, `limit` - пагинация
+- `filter` - фильтр (например: `(userId,eq,carl)`)
+- `sort` - сортировка в формате JSON: `{"createdAt":-1}`
+- `includeDialogCount` - включить количество диалогов пользователя
 
-**Response:**
-```json
-{
-  "data": [
-    {
-      "_id": "507f1f77bcf86cd799439013",
-      "tenantId": {
-        "_id": "507f1f77bcf86cd799439011",
-        "name": "Demo Company",
-        "domain": "demo.chat3.com"
-      },
-      "username": "john_doe",
-      "email": "john@demo.com",
-      "firstName": "John",
-      "lastName": "Doe",
-      "role": "user",
-      "isActive": true,
-      "lastSeen": "2025-10-21T10:00:00.000Z",
-      "createdAt": "2025-10-21T09:00:00.000Z",
-      "updatedAt": "2025-10-21T10:00:00.000Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 3,
-    "pages": 1
-  }
-}
-```
+**Примеры фильтров:**
+- `(userId,eq,carl)` - пользователь с userId = carl
+- `(type,in,[user,bot])` - пользователи типа user или bot
+- `(name,regex,^John)` - имя начинается с John
+- `(meta.role,eq,manager)` - фильтр по meta тегу
 
-#### GET /api/users/:id
-Получить пользователя по ID
-
-**Response:**
-```json
-{
-  "data": {
-    "_id": "507f1f77bcf86cd799439013",
-    "username": "john_doe",
-    "email": "john@demo.com",
-    ...
-  }
-}
-```
+#### GET /api/users/:userId
+Получить пользователя по userId
 
 #### POST /api/users
-Создать нового пользователя
+Создать пользователя
 
-**Request Body:**
+**Body:**
 ```json
 {
-  "username": "jane_smith",
-  "email": "jane@demo.com",
-  "password": "secure_password",
-  "firstName": "Jane",
-  "lastName": "Smith",
-  "role": "user",
-  "isActive": true
+  "userId": "carl",
+  "name": "Carl Johnson",
+  "type": "user"
 }
 ```
 
-**Response:** `201 Created`
-```json
-{
-  "data": {
-    "_id": "507f1f77bcf86cd799439014",
-    "username": "jane_smith",
-    "email": "jane@demo.com",
-    "firstName": "Jane",
-    "lastName": "Smith",
-    "role": "user",
-    "isActive": true,
-    ...
-  },
-  "message": "User created successfully"
-}
-```
+**Валидация:**
+- `userId` не может содержать точку (`.`)
+- `type` по умолчанию: `user`
 
-#### PUT /api/users/:id
+#### PUT /api/users/:userId
 Обновить пользователя
 
-**Request Body:**
+**Body:**
 ```json
 {
-  "firstName": "Jane Updated",
-  "role": "moderator",
-  "isActive": true
+  "name": "New Name",
+  "type": "bot"
 }
 ```
 
-**Response:**
-```json
-{
-  "data": { ... },
-  "message": "User updated successfully"
-}
-```
-
-#### DELETE /api/users/:id
+#### DELETE /api/users/:userId
 Удалить пользователя
 
-**Response:**
-```json
-{
-  "message": "User deleted successfully"
-}
-```
+#### POST /api/users/:userId/activity
+Обновить время последней активности
 
 ---
 
-## 🔒 Права доступа (Permissions)
+### Dialogs (Диалоги)
 
-API ключи могут иметь следующие права:
-- `read` - Чтение данных (GET запросы)
-- `write` - Создание и обновление (POST, PUT запросы)
-- `delete` - Удаление данных (DELETE запросы)
+#### GET /api/dialogs
+Получить список диалогов
 
-## ❌ Коды ошибок
+**Query параметры:**
+- `page`, `limit` - пагинация
+- `filter` - фильтр
+- `sort` - сортировка
 
-### 400 Bad Request
-Неверный формат запроса или валидация не прошла
+**Примеры фильтров:**
+- `(meta.type,eq,internal)` - диалоги типа internal
+- `(meta.channelType,eq,whatsapp)` - WhatsApp диалоги
+- `(dialogId,eq,dlg_...)` - конкретный диалог
+
+#### GET /api/dialogs/:id
+Получить диалог по ID
+
+#### POST /api/dialogs
+Создать диалог
+
+**Body:**
 ```json
 {
-  "error": "Validation Error",
-  "message": "User validation failed: email is required"
-}
-```
-
-### 401 Unauthorized
-Отсутствует или неверный API ключ
-```json
-{
-  "error": "Unauthorized",
-  "message": "API key is required. Please provide it in the X-API-Key header."
-}
-```
-
-### 403 Forbidden
-Недостаточно прав для выполнения операции
-```json
-{
-  "error": "Forbidden",
-  "message": "Permission 'delete' is required"
-}
-```
-
-### 404 Not Found
-Ресурс не найден
-```json
-{
-  "error": "Not Found",
-  "message": "User not found"
-}
-```
-
-### 409 Conflict
-Конфликт при создании (дубликат)
-```json
-{
-  "error": "Conflict",
-  "message": "User with this email already exists in this tenant"
-}
-```
-
-### 500 Internal Server Error
-Внутренняя ошибка сервера
-```json
-{
-  "error": "Internal Server Error",
-  "message": "Database connection failed"
-}
-```
-
----
-
-## 📝 Примеры использования
-
-### cURL
-
-Получить список пользователей:
-```bash
-curl -H "X-API-Key: chat3_ваш_ключ" \
-  http://localhost:3000/api/users
-```
-
-Создать пользователя:
-```bash
-curl -X POST \
-  -H "X-API-Key: chat3_ваш_ключ" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "newuser",
-    "email": "newuser@demo.com",
-    "password": "password123",
-    "firstName": "New",
-    "lastName": "User"
-  }' \
-  http://localhost:3000/api/users
-```
-
-### JavaScript (fetch)
-
-```javascript
-const apiKey = 'chat3_ваш_ключ';
-
-// GET запрос
-fetch('http://localhost:3000/api/users', {
-  headers: {
-    'X-API-Key': apiKey
+  "name": "VIP чат",
+  "createdBy": "agent_42",
+  "members": [
+    {
+      "userId": "carl",
+      "type": "user",
+      "name": "Carl Johnson"
+    },
+    {
+      "userId": "bot_123",
+      "type": "bot",
+      "name": "Support Bot"
+    }
+  ],
+  "meta": {
+    "channel": "whatsapp",
+    "greeting": {
+      "value": "Здравствуйте!",
+      "dataType": "string",
+      "scope": "user_alice"
+    }
   }
-})
-  .then(res => res.json())
-  .then(data => console.log(data));
-
-// POST запрос
-fetch('http://localhost:3000/api/users', {
-  method: 'POST',
-  headers: {
-    'X-API-Key': apiKey,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    username: 'newuser',
-    email: 'newuser@demo.com',
-    password: 'password123',
-    firstName: 'New',
-    lastName: 'User'
-  })
-})
-  .then(res => res.json())
-  .then(data => console.log(data));
+}
 ```
 
-### Python (requests)
+**Примечания:**
+- При создании диалога с `members`, пользователи автоматически создаются/обновляются в коллекции `User`
+- Если участник уже существует в диалоге, он игнорируется
 
-```python
-import requests
+#### DELETE /api/dialogs/:id
+Удалить диалог
 
-api_key = 'chat3_ваш_ключ'
-headers = {'X-API-Key': api_key}
+---
 
-# GET запрос
-response = requests.get('http://localhost:3000/api/users', headers=headers)
-print(response.json())
+### Messages (Сообщения)
 
-# POST запрос
-data = {
-    'username': 'newuser',
-    'email': 'newuser@demo.com',
-    'password': 'password123',
-    'firstName': 'New',
-    'lastName': 'User'
+#### GET /api/dialogs/:dialogId/messages
+Получить сообщения диалога
+
+**Query параметры:**
+- `page`, `limit` - пагинация
+- `filter` - фильтр
+- `sort` - сортировка
+
+**Примеры фильтров:**
+- `(type,eq,internal.text)` - текстовые сообщения
+- `(senderId,eq,carl)` - сообщения от carl
+- `(meta.channelType,eq,whatsapp)` - WhatsApp сообщения
+
+#### POST /api/dialogs/:dialogId/messages
+Создать сообщение
+
+**Body:**
+```json
+{
+  "senderId": "carl",
+  "content": "Hello!",
+  "type": "internal.text"
 }
-response = requests.post('http://localhost:3000/api/users', 
-                        json=data, 
-                        headers=headers)
-print(response.json())
+```
+
+#### GET /api/messages/:messageId
+Получить сообщение по ID
+
+#### PUT /api/messages/:messageId/content
+Обновить содержимое сообщения
+
+**Body:**
+```json
+{
+  "content": "Updated content"
+}
+```
+
+**Примечания:**
+- Можно изменить только поле `content`
+- Автоматически создается событие `message.update`
+- Устанавливается meta тег `updated`
+
+---
+
+### Message Status (Статусы сообщений)
+
+#### POST /api/messages/:messageId/status/:userId/:status
+Обновить статус сообщения
+
+**Статусы:**
+- `sent` - отправлено
+- `delivered` - доставлено
+- `read` - прочитано
+
+---
+
+### Message Reactions (Реакции)
+
+#### GET /api/messages/:messageId/reactions
+Получить реакции на сообщение
+
+#### POST /api/messages/:messageId/reactions
+Добавить/обновить реакцию
+
+**Body:**
+```json
+{
+  "userId": "carl",
+  "reaction": "👍"
+}
+```
+
+#### DELETE /api/messages/:messageId/reactions/:reaction
+Удалить реакцию
+
+---
+
+### Dialog Members (Участники диалогов)
+
+#### GET /api/dialogs/:dialogId/members
+Получить участников диалога
+
+**Query параметры:**
+- `filter` - фильтр
+- `sort` - сортировка
+
+#### POST /api/dialogs/:dialogId/members/add
+Добавить участника в диалог
+
+**Body:**
+```json
+{
+  "userId": "carl",
+  "type": "user",
+  "name": "Carl Johnson"
+}
+```
+
+**Примечания:**
+- Пользователь автоматически создается/обновляется в коллекции `User`
+- Если участник уже существует в диалоге, возвращается 200 без создания дубликата
+
+#### POST /api/dialogs/:dialogId/members/:userId/remove
+Удалить участника из диалога
+
+#### PATCH /api/dialogs/:dialogId/members/:userId/unread
+Установить количество непрочитанных сообщений
+
+**Body:**
+```json
+{
+  "unreadCount": 5,
+  "lastSeenAt": 1763551369397.6482,
+  "reason": "Manual update"
+}
 ```
 
 ---
 
-## 🧪 Swagger UI
+### User Dialogs (Диалоги пользователя)
+
+#### GET /api/users/:userId/dialogs
+Получить диалоги пользователя
+
+**Query параметры:**
+- `page`, `limit` - пагинация
+- `filter` - фильтр
+- `includeLastMessage` - включить последнее сообщение
+- `scope` - scope для meta тегов
+
+#### GET /api/users/:userId/dialogs/:dialogId/messages
+Получить сообщения диалога пользователя
+
+#### GET /api/users/:userId/dialogs/:dialogId/messages/:messageId
+Получить сообщение из диалога пользователя
+
+---
+
+### Meta Tags (Мета-теги)
+
+#### GET /api/meta/:entityType/:entityId
+Получить все meta теги сущности
+
+**Query параметры:**
+- `scope` - персональный scope для приоритетных значений
+
+**Entity Types:**
+- `dialog` - диалог
+- `message` - сообщение
+- `user` - пользователь
+
+**Пример:**
+```
+GET /api/meta/dialog/dlg_abc123?scope=user_alice
+```
+
+#### PUT /api/meta/:entityType/:entityId/:key
+Установить meta тег
+
+**Body (простое значение):**
+```json
+{
+  "value": "whatsapp"
+}
+```
+
+**Body (расширенное значение):**
+```json
+{
+  "value": "Здравствуйте!",
+  "dataType": "string",
+  "scope": "user_alice"
+}
+```
+
+**Примечания:**
+- `scope` - опциональный персональный scope
+- При получении meta тегов, scoped значения имеют приоритет
+
+#### DELETE /api/meta/:entityType/:entityId/:key
+Удалить meta тег
+
+**Query параметры:**
+- `scope` - удалить только scoped значение
+
+---
+
+### Typing (Индикатор печати)
+
+#### POST /api/dialogs/:dialogId/member/:userId/typing
+Отправить индикатор печати
+
+**Body:**
+```json
+{
+  "isTyping": true
+}
+```
+
+---
+
+## Коды ответов
+
+- `200` - Успешно
+- `201` - Создано
+- `204` - Нет содержимого (успешное удаление)
+- `400` - Неверный запрос
+- `401` - Не авторизован
+- `403` - Доступ запрещен
+- `404` - Не найдено
+- `409` - Конфликт (например, пользователь уже существует)
+- `500` - Внутренняя ошибка сервера
+
+## Swagger UI
 
 Интерактивная документация доступна по адресу:
+
 ```
 http://localhost:3000/api-docs
 ```
-
-В Swagger UI вы можете:
-1. Просмотреть все endpoints
-2. Протестировать запросы
-3. Увидеть примеры ответов
-4. Нажать "Authorize" и ввести API ключ для тестирования
-
----
-
-## 🔧 Управление API ключами
-
-### Создать новый ключ
-
-```bash
-# Использовать первую организацию
-npm run generate-api-key
-
-# Указать ID организации
-npm run generate-api-key 507f1f77bcf86cd799439011
-
-# С именем
-npm run generate-api-key 507f1f77bcf86cd799439011 "Production Key"
-
-# С ограниченными правами (только чтение)
-npm run generate-api-key 507f1f77bcf86cd799439011 "Read Only Key" read
-
-# С несколькими правами
-npm run generate-api-key 507f1f77bcf86cd799439011 "Write Key" read,write
-```
-
-### Управление через админ-панель
-
-API ключи также можно создавать и управлять ими через админ-панель:
-```
-http://localhost:3000/admin
-```
-
-В разделе "ApiKeys" вы можете:
-- Просмотреть все ключи
-- Создать новые
-- Деактивировать ключи
-- Установить срок действия
-- Изменить права доступа
-
----
-
-## 🎓 Дополнительная информация
-
-- Все даты возвращаются в формате ISO 8601
-- Все ID используют формат MongoDB ObjectId
-- Пагинация доступна для всех списочных endpoints
-- Пароли пользователей не возвращаются в ответах API
-- Пользователи автоматически привязываются к организации API ключа
 

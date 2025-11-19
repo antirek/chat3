@@ -1,592 +1,394 @@
-# 📊 Система событий Chat3
-
-> ℹ️ **Версия схемы:** описание актуального JSON-формата находится в `docs/EVENTS_V2.md`. Этот документ сохраняет полный справочник по типам событий.
+# Система событий Chat3
 
 ## Обзор
 
-Система событий (Events) позволяет отслеживать все действия в Chat3 для:
-- **Аудита** - кто, что и когда изменил
-- **Аналитики** - статистика по действиям пользователей
-- **Отладки** - восстановление последовательности действий
-- **Триггеров** - будущая интеграция с внешними системами
+Chat3 использует событийно-ориентированную архитектуру. Все изменения в системе генерируют события, которые сохраняются в MongoDB и публикуются в RabbitMQ.
 
-## Модель данных
+## Модель Event
 
 ```javascript
 {
-  _id: ObjectId,
-  tenantId: ObjectId,           // Tenant к которому относится событие
-  eventType: String,            // Тип события (см. ниже)
-  entityType: String,           // Тип сущности (dialog, message, etc.)
-  entityId: ObjectId,           // ID сущности
-  actorId: String,              // ID пользователя/системы инициатора
-  actorType: String,            // Тип актора: user, system, bot, api
-  data: Object,                 // Дополнительные данные события
-  metadata: {                   // Метаданные запроса
-    ipAddress: String,
-    userAgent: String,
-    apiKeyId: ObjectId,
-    source: String
-  },
-  createdAt: Date              // Время создания события
+  eventId: "evt_...",        // Уникальный ID события
+  tenantId: "tnt_default",   // ID тенанта
+  eventType: "dialog.create", // Тип события
+  entityType: "dialog",      // Тип сущности
+  entityId: "dlg_...",       // ID сущности
+  actorId: "carl",           // ID пользователя, инициировавшего событие
+  actorType: "api",          // Тип актора (user, system, bot, api)
+  data: { ... },             // Данные события
+  createdAt: 1763551369397.6482  // Timestamp создания
 }
 ```
 
 ## Типы событий
 
-Все события системы сведены в единую таблицу:
+### Dialog Events
 
-| Категория | Тип события | Описание | API Endpoint | Entity Type |
-|-----------|-------------|----------|--------------|-------------|
-| **Диалоги** | `dialog.create` | Создан новый диалог | `POST /api/dialogs` | `dialog` |
-| | `dialog.update` | Обновлен диалог | `PUT /api/dialogs/:id` | `dialog` |
-| | `dialog.delete` | Удален диалог | `DELETE /api/dialogs/:id` | `dialog` |
-| **Сообщения** | `message.create` | Создано новое сообщение | `POST /api/dialogs/:id/messages` | `message` |
-| | `message.update` | Обновлено сообщение | `PUT /api/messages/:id` | `message` |
-| | `message.delete` | Удалено сообщение | `DELETE /api/messages/:id` | `message` |
-| **Участники** | `dialog.member.add` | Добавлен участник | `POST /api/dialogs/:id/members/:userId/add` | `dialogMember` |
-| | `dialog.member.remove` | Удален участник | `POST /api/dialogs/:id/members/:userId/remove` | `dialogMember` |
-| | `dialog.member.update` | Обновлен участник (например, unreadCount) | `PATCH /api/dialogs/:id/members/:userId/unread`, `POST /api/messages/:id/status/:userId/:status` | `dialogMember` |
-| **Статусы** | `message.status.create` | Создан статус сообщения | `PUT /api/messages/:id/status` (новый) | `messageStatus` |
-| | `message.status.update` | Обновлен статус сообщения | `PUT /api/messages/:id/status` (существующий) | `messageStatus` |
-| **Реакции** | `message.reaction.add` | Добавлена реакция на сообщение | `POST /api/messages/:id/reactions` | `messageReaction` |
-| | `message.reaction.update` | Обновлена реакция на сообщение | `POST /api/messages/:id/reactions` (существующая) | `messageReaction` |
-| | `message.reaction.remove` | Удалена реакция на сообщение | `DELETE /api/messages/:id/reactions/:reaction` | `messageReaction` |
+#### dialog.create
+Создание диалога
 
+**Routing Key:** `dialog.dialog.create`
 
-### Примеры данных событий
-
-#### `dialog.create`
+**Data:**
 ```json
 {
-  "dialogName": "Общий чат",
-  "createdBy": "carl"
-}
-```
-
-#### `dialog.delete`
-```json
-{
-  "dialogName": "Старый чат",
-  "deletedDialog": {
-    "name": "Старый чат",
+  "context": {
+    "eventType": "dialog.create",
+    "dialogId": "dlg_...",
+    "entityId": "dlg_...",
+    "includedSections": ["dialog", "actor"]
+  },
+  "dialog": {
+    "dialogId": "dlg_...",
+    "tenantId": "tnt_default",
+    "name": "VIP чат",
     "createdBy": "carl",
-    "createdAt": "2025-10-31T12:00:00.000Z"
+    "createdAt": 1763551369397.6482,
+    "updatedAt": 1763551369397.6482,
+    "meta": {}
+  },
+  "actor": {
+    "actorId": "api-key-name",
+    "actorType": "api"
   }
 }
 ```
 
-#### `message.create`
+#### dialog.update
+Обновление диалога
+
+**Routing Key:** `dialog.dialog.update`
+
+#### dialog.delete
+Удаление диалога
+
+**Routing Key:** `dialog.dialog.delete`
+
+### Dialog Member Events
+
+#### dialog.member.add
+Добавление участника в диалог
+
+**Routing Key:** `dialogMember.dialog.member.add`
+
+**Data:**
 ```json
 {
-  "dialogId": "6541a1b2c3d4e5f6g7h8i9j0",
-  "dialogName": "Общий чат",
-  "messageType": "text",
-  "content": "Текст сообщения (до 4096 символов)",
-  "meta": {
-    "channelType": "whatsapp",
-    "channelId": "123456789",
-    "mediaUrl": "https://example.com/media.jpg"
-  }
+  "context": {
+    "eventType": "dialog.member.add",
+    "dialogId": "dlg_...",
+    "entityId": "dlg_...",
+    "includedSections": ["dialog", "member", "actor"]
+  },
+  "dialog": { ... },
+  "member": {
+    "userId": "carl",
+    "meta": {},
+    "state": {
+      "unreadCount": 0,
+      "lastSeenAt": 1763551369397.6482,
+      "lastMessageAt": null,
+      "isActive": true
+    }
+  },
+  "actor": { ... }
 }
 ```
 
-**Примечание:** 
-- Поле `content` содержит текст сообщения (ограничено до 4096 символов)
-- Поле `meta` содержит все мета-теги сообщения (если они были установлены при создании)
-- Если сообщение длиннее 4096 символов, оно автоматически обрезается, используйте `entityId` для получения полного контента из API
+#### dialog.member.remove
+Удаление участника из диалога
 
-#### `dialog.member.add`
+**Routing Key:** `dialogMember.dialog.member.remove`
+
+#### dialog.member.update
+Обновление участника диалога
+
+**Routing Key:** `dialogMember.dialog.member.update`
+
+### Message Events
+
+#### message.create
+Создание сообщения
+
+**Routing Key:** `message.message.create`
+
+**Data:**
 ```json
 {
-  "userId": "carl",
-  "dialogId": "6541a1b2c3d4e5f6g7h8i9j0"
+  "context": {
+    "eventType": "message.create",
+    "dialogId": "dlg_...",
+    "entityId": "msg_...",
+    "messageId": "msg_...",
+    "includedSections": ["dialog", "message", "actor"]
+  },
+  "dialog": { ... },
+  "message": {
+    "messageId": "msg_...",
+    "dialogId": "dlg_...",
+    "senderId": "carl",
+    "type": "internal.text",
+    "content": "Hello!",
+    "meta": {},
+    "statuses": [],
+    "reactionCounts": {}
+  },
+  "actor": { ... }
 }
 ```
 
-#### `dialog.member.remove`
+#### message.update
+Обновление сообщения
+
+**Routing Key:** `message.message.update`
+
+**Примечание:** Создается при обновлении содержимого сообщения через `PUT /api/messages/:messageId/content`
+
+#### message.delete
+Удаление сообщения
+
+**Routing Key:** `message.message.delete`
+
+### Message Status Events
+
+#### message.status.create
+Создание статуса сообщения
+
+**Routing Key:** `messageStatus.message.status.create`
+
+**Data:**
 ```json
 {
-  "userId": "marta",
-  "dialogId": "6541a1b2c3d4e5f6g7h8i9j0",
-  "removedMember": {
-    "userId": "marta",
-    "joinedAt": "2025-10-25T10:00:00.000Z",
-    "lastSeenAt": "2025-10-30T15:30:00.000Z",
-    "unreadCount": 5
-  }
+  "context": {
+    "eventType": "message.status.create",
+    "dialogId": "dlg_...",
+    "entityId": "msg_...",
+    "messageId": "msg_...",
+    "includedSections": ["dialog", "message", "statusUpdate", "actor"]
+  },
+  "dialog": { ... },
+  "message": { ... },
+  "statusUpdate": {
+    "userId": "carl",
+    "status": "read",
+    "readAt": 1763551369397.6482,
+    "createdAt": 1763551369397.6482
+  },
+  "actor": { ... }
 }
 ```
 
-#### `message.status.update`
+#### message.status.update
+Обновление статуса сообщения
+
+**Routing Key:** `messageStatus.message.status.update`
+
+### Message Reaction Events
+
+#### message.reaction.add
+Добавление реакции на сообщение
+
+**Routing Key:** `messageReaction.message.reaction.add`
+
+**Data:**
 ```json
 {
-  "messageId": "6541a1b2c3d4e5f6g7h8i9j0",
-  "userId": "carl",
-  "oldStatus": "unread",
-  "newStatus": "read",
-  "dialogId": "6541a1b2c3d4e5f6g7h8i9j0"
+  "context": {
+    "eventType": "message.reaction.add",
+    "dialogId": "dlg_...",
+    "entityId": "msg_...",
+    "messageId": "msg_...",
+    "includedSections": ["dialog", "message", "reactionUpdate", "actor"]
+  },
+  "dialog": { ... },
+  "message": { ... },
+  "reactionUpdate": {
+    "userId": "carl",
+    "reaction": "👍",
+    "createdAt": 1763551369397.6482
+  },
+  "actor": { ... }
 }
 ```
 
-#### `message.reaction.add`
+#### message.reaction.update
+Обновление реакции
+
+**Routing Key:** `messageReaction.message.reaction.update`
+
+#### message.reaction.remove
+Удаление реакции
+
+**Routing Key:** `messageReaction.message.reaction.remove`
+
+### Typing Events
+
+#### dialog.typing
+Индикатор печати
+
+**Routing Key:** `dialog.dialog.typing`
+
+**Data:**
 ```json
 {
-  "messageId": "6541a1b2c3d4e5f6g7h8i9j0",
-  "reaction": "👍",
-  "reactionCounts": {
-    "👍": 5,
-    "❤️": 3
-  }
+  "context": {
+    "eventType": "dialog.typing",
+    "dialogId": "dlg_...",
+    "entityId": "dlg_...",
+    "includedSections": ["dialog", "typing", "actor"]
+  },
+  "dialog": { ... },
+  "typing": {
+    "userId": "carl",
+    "isTyping": true,
+    "expiresAt": 1763551369402.6482
+  },
+  "actor": { ... }
 }
 ```
 
-#### `message.reaction.update`
-```json
-{
-  "messageId": "6541a1b2c3d4e5f6g7h8i9j0",
-  "reaction": "❤️",
-  "oldReaction": "👍",
-  "reactionCounts": {
-    "👍": 4,
-    "❤️": 4
-  }
-}
-```
+**Примечание:** Typing события не создают Updates, они публикуются напрямую в RabbitMQ
 
-#### `message.reaction.remove`
-```json
-{
-  "messageId": "6541a1b2c3d4e5f6g7h8i9j0",
-  "reaction": "👍",
-  "reactionCounts": {
-    "👍": 4,
-    "❤️": 3
-  }
-}
-```
+### Tenant Events
 
-## Доступ к событиям
+#### tenant.create
+Создание тенанта
 
-События создаются автоматически при операциях в системе и **не доступны через REST API**. 
+**Routing Key:** `tenant.tenant.create`
 
-Для доступа к событиям используйте:
-1. **AdminJS** (`http://localhost:3000/admin`) - просмотр событий через веб-интерфейс администратора
-2. **RabbitMQ** - подписка на события через очередь `chat3_events`
-3. **MongoDB** - прямые запросы к коллекции `events`
+#### tenant.update
+Обновление тенанта
 
-## Индексы MongoDB
+**Routing Key:** `tenant.tenant.update`
 
-Для оптимизации запросов созданы следующие индексы:
+#### tenant.delete
+Удаление тенанта
 
-- `tenantId` - основной индекс
-- `eventType` - для фильтрации по типу
-- `entityType` - для фильтрации по типу сущности
-- `entityId` - для фильтрации по ID сущности
-- `createdAt` - для сортировки по времени
-- `tenantId + eventType + createdAt` - составной индекс
-- `tenantId + entityType + entityId + createdAt` - составной индекс
-- `tenantId + actorId + createdAt` - составной индекс
+**Routing Key:** `tenant.tenant.delete`
 
-## Лучшие практики
+## RabbitMQ Exchange
 
-### 1. Регулярная очистка
+### Exchange: chat3_events
 
-Рекомендуется периодически удалять старые события для экономии места через AdminJS или прямые запросы к MongoDB.
-
-### 2. Мониторинг через RabbitMQ
-
-Подписывайтесь на очередь `chat3_events` для real-time мониторинга событий.
-
-### 3. Аудит через AdminJS
-
-Используйте AdminJS для просмотра и анализа событий в веб-интерфейсе.
-
-## Типы акторов
-
-- **user** - обычный пользователь
-- **system** - системное действие
-- **bot** - действие бота
-- **api** - действие через API (без явного пользователя)
-
-## Безопасность
-
-- Все запросы требуют API ключ с правом `read`
-- Удаление событий требует право `delete`
-- События изолированы по tenant'ам
-- Метаданные включают IP адрес и User-Agent для аудита
-
-## 🐰 Интеграция с RabbitMQ
-
-### Обзор
-
-Все события автоматически публикуются в RabbitMQ для:
-- **Реального времени** - мгновенная обработка событий
-- **Масштабируемости** - распределенная обработка
-- **Интеграций** - подключение внешних систем
-- **Аналитики** - потоковая обработка данных
-
-### Конфигурация
-
-Используйте скрипт `start.sh` для запуска с предустановленными переменными окружения:
-
-```bash
-./start.sh
-```
-
-Или установите переменные окружения вручную:
-
-```bash
-export RABBITMQ_HOST=localhost
-export RABBITMQ_PORT=5672
-export RABBITMQ_USER=rmuser
-export RABBITMQ_PASSWORD=rmpassword
-export RABBITMQ_VHOST=/
-export RABBITMQ_EXCHANGE=chat3_events
-npm start
-```
-
-**Переменные окружения:**
-- `RABBITMQ_HOST` - хост RabbitMQ (по умолчанию: localhost)
-- `RABBITMQ_PORT` - порт RabbitMQ (по умолчанию: 5672)
-- `RABBITMQ_USER` - пользователь RabbitMQ (по умолчанию: rmuser)
-- `RABBITMQ_PASSWORD` - пароль RabbitMQ (по умолчанию: rmpassword)
-- `RABBITMQ_VHOST` - vhost RabbitMQ (по умолчанию: /)
-- `RABBITMQ_EXCHANGE` - exchange для событий (по умолчанию: chat3_events)
-- `RABBITMQ_URL` - полный URL (переопределяет все вышеперечисленные, если установлен)
-
-**По умолчанию (без переменных окружения):**
-- URL: `amqp://rmuser:rmpassword@localhost:5672/`
-- Exchange: `chat3_events`
-- Type: `topic` (для гибкой маршрутизации)
-
-### Создание пользователя RabbitMQ
-
-Если используете Docker Compose, создайте пользователя `rmuser`:
-
-```bash
-docker-compose up -d rabbitmq
-./docker/create-rabbitmq-user.sh
-```
+- **Тип:** topic
+- **Durable:** true
 
 ### Routing Keys
 
-События публикуются с routing keys в формате:
-```
-{entityType}.{action}.{tenantId}
-```
+Формат: `{entityType}.{eventType}`
 
 **Примеры:**
-- `dialog.create.6541a1b2c3d4e5f6g7h8i9j0` - создание диалога
-- `message.create.6541a1b2c3d4e5f6g7h8i9j0` - создание сообщения
-- `dialogMember.add.6541a1b2c3d4e5f6g7h8i9j0` - добавление участника
-- `messageStatus.update.6541a1b2c3d4e5f6g7h8i9j0` - обновление статуса
+- `dialog.dialog.create`
+- `message.message.create`
+- `dialogMember.dialog.member.add`
+- `messageStatus.message.status.create`
+- `messageReaction.message.reaction.add`
+- `dialog.dialog.typing`
 
-### Автоматическая очередь chat3_events
-
-При запуске сервера автоматически создается очередь `chat3_events` со следующими параметрами:
-
-- **Имя**: `chat3_events`
-- **TTL**: 1 час (3600 секунд / 3600000 мс)
-- **Durable**: Да (переживет перезапуск RabbitMQ)
-- **Routing**: Все события (`#`) автоматически попадают в эту очередь
-
-**Особенности:**
-- Сообщения автоматически удаляются через 1 час после попадания в очередь
-- Очередь предотвращает накопление старых событий
-- Все события системы автоматически маршрутизируются в эту очередь
-- Очередь создается при первом подключении к RabbitMQ
-
-**Использование:**
-Можно подписаться на эту очередь для обработки всех событий в реальном времени:
+### Подписка на события
 
 ```javascript
-import amqp from 'amqplib';
+// Подписка на все события диалогов
+channel.bindQueue(queueName, 'chat3_events', 'dialog.*');
 
-const connection = await amqp.connect('amqp://rmuser:rmpassword@localhost:5672');
-const channel = await connection.createChannel();
+// Подписка на все события сообщений
+channel.bindQueue(queueName, 'chat3_events', 'message.*');
 
-// Используем очередь chat3_events (уже создана сервером)
-await channel.assertQueue('chat3_events', {
-  durable: true,
-  arguments: { 'x-message-ttl': 3600000 }
-});
+// Подписка на конкретное событие
+channel.bindQueue(queueName, 'chat3_events', 'dialog.dialog.create');
 
-channel.consume('chat3_events', (msg) => {
-  if (msg) {
-    const event = JSON.parse(msg.content.toString());
-    console.log('Event:', event.eventType);
-    channel.ack(msg);
-  }
-});
+// Подписка на все события
+channel.bindQueue(queueName, 'chat3_events', '#');
 ```
 
-### Паттерны подписки (для дополнительных очередей)
+## Структура данных события
 
-Если вы создаете дополнительные очереди, используйте wildcard паттерны для подписки на группы событий:
+### Context Section
 
-```javascript
-// Все события диалогов
-'dialog.*.*'
-
-// Все события создания
-'*.create.*'
-
-// Все события конкретного tenant
-'*.*.6541a1b2c3d4e5f6g7h8i9j0'
-
-// Все события
-'#'
-
-// Создание и удаление диалогов
-'dialog.create.*'
-'dialog.delete.*'
-```
-
-### Пример подписчика (Node.js)
-
-```javascript
-import amqp from 'amqplib';
-
-async function subscribeToEvents() {
-  const connection = await amqp.connect('amqp://rmuser:rmpassword@localhost:5672');
-  const channel = await connection.createChannel();
-  
-  const exchange = 'chat3_events';
-  const queueName = 'chat3_events'; // Очередь по умолчанию (создана сервером)
-  
-  await channel.assertExchange(exchange, 'topic', { durable: true });
-  
-  // Используем очередь chat3_events (создана сервером с TTL 1 час)
-  await channel.assertQueue(queueName, {
-    durable: true,
-    arguments: { 'x-message-ttl': 3600000 } // TTL 1 час
-  });
-  
-  // Очередь уже привязана к exchange с routing key '#' на сервере
-  // Все события автоматически попадают в эту очередь
-  
-  console.log('Waiting for events from queue:', queueName);
-  
-  channel.consume(queueName, (msg) => {
-    if (msg) {
-      const event = JSON.parse(msg.content.toString());
-      console.log('Received event:', event);
-      
-      // Обработка события
-      processEvent(event);
-      
-      // Подтверждаем обработку
-      channel.ack(msg);
-    }
-  });
-}
-
-function processEvent(event) {
-  switch (event.eventType) {
-    case 'dialog.create':
-      console.log('New dialog created:', event.data.dialogName);
-      break;
-    case 'message.create':
-      console.log('New message in dialog:', event.data.dialogId);
-      break;
-    // ... другие события
-  }
-}
-
-subscribeToEvents();
-```
-
-### Пример подписчика (Python)
-
-```python
-import pika
-import json
-
-def callback(ch, method, properties, body):
-    event = json.loads(body)
-    print(f"Received event: {event['eventType']}")
-    
-    # Обработка события
-    process_event(event)
-    
-    # Подтверждаем обработку
-    ch.basic_ack(delivery_tag=method.delivery_tag)
-
-def process_event(event):
-    if event['eventType'] == 'message.create':
-        print(f"New message: {event['data']['contentLength']} chars")
-
-# Подключение
-credentials = pika.PlainCredentials('rmuser', 'rmpassword')
-connection = pika.BlockingConnection(
-    pika.ConnectionParameters(
-        host='localhost',
-        credentials=credentials
-    )
-)
-channel = connection.channel()
-
-# Используем очередь chat3_events (создана сервером с TTL 1 час)
-queue_name = 'chat3_events'
-channel.queue_declare(
-    queue=queue_name,
-    durable=True,
-    arguments={'x-message-ttl': 3600000}  # TTL 1 час
-)
-
-# Очередь уже привязана к exchange с routing key '#' на сервере
-# Все события автоматически попадают в эту очередь
-
-print('Waiting for events...')
-channel.basic_consume(
-    queue=queue_name,
-    on_message_callback=callback
-)
-
-channel.start_consuming()
-```
-
-### Структура сообщения
-
-Каждое сообщение в RabbitMQ содержит:
-
-**Headers:**
-```javascript
-{
-  eventType: 'message.create',
-  entityType: 'message',
-  tenantId: '6541a1b2c3d4e5f6g7h8i9j0',
-  contentType: 'application/json',
-  timestamp: 1698765432000
-}
-```
-
-**Body (JSON):**
 ```json
 {
-  "_id": "6541a1b2c3d4e5f6g7h8i9j0",
-  "tenantId": "6541a1b2c3d4e5f6g7h8i9j0",
-  "eventType": "message.create",
-  "entityType": "message",
-  "entityId": "6541a1b2c3d4e5f6g7h8i9j1",
-  "actorId": "carl",
-  "actorType": "user",
-  "data": {
-    "dialogId": "6541a1b2c3d4e5f6g7h8i9j2",
-    "dialogName": "Общий чат",
-    "messageType": "text",
-    "content": "Текст сообщения (до 4096 символов)",
-    "meta": {
-      "channelType": "whatsapp",
-      "channelId": "123456789"
-    }
-  },
-  "metadata": {
-    "ipAddress": "192.168.1.100",
-    "userAgent": "Mozilla/5.0...",
-    "apiKeyId": "6541a1b2c3d4e5f6g7h8i9j3",
-    "source": "api"
-  },
-  "createdAt": "2025-10-31T16:00:00.000Z"
+  "version": 2,
+  "eventType": "dialog.create",
+  "dialogId": "dlg_...",
+  "entityId": "dlg_...",
+  "messageId": null,
+  "includedSections": ["dialog", "actor"],
+  "updatedFields": []
 }
 ```
 
-**Примечание:** Поле `content` в `data` ограничено до 4096 символов. Если сообщение длиннее, оно автоматически обрезается. Для получения полного контента используйте `entityId` и запрос к API.
+### Dialog Section
 
-### Отказоустойчивость
-
-Система спроектирована для работы без RabbitMQ:
-
-1. **События всегда сохраняются в MongoDB** - даже если RabbitMQ недоступен
-2. **Автоматическое переподключение** - попытка reconnect каждые 5 секунд
-3. **Graceful degradation** - приложение продолжает работать
-4. **Логирование** - все ошибки RabbitMQ логируются
-
-### Мониторинг
-
-Проверить статус RabbitMQ:
-
-```bash
-curl http://localhost:3000/
-```
-
-Ответ:
 ```json
 {
-  "message": "Chat3 API is running",
-  "rabbitmq": {
-    "url": "amqp://localhost:5672",
-    "exchange": "chat3_events",
-    "exchangeType": "topic",
-    "connected": true
+  "dialogId": "dlg_...",
+  "tenantId": "tnt_default",
+  "name": "VIP чат",
+  "createdBy": "carl",
+  "createdAt": 1763551369397.6482,
+  "updatedAt": 1763551369397.6482,
+  "meta": {}
+}
+```
+
+### Member Section
+
+```json
+{
+  "userId": "carl",
+  "meta": {},
+  "state": {
+    "unreadCount": 0,
+    "lastSeenAt": 1763551369397.6482,
+    "lastMessageAt": null,
+    "isActive": true
   }
 }
 ```
 
-### Docker Compose
+### Message Section
 
-Быстрый запуск RabbitMQ с management UI:
-
-```yaml
-version: '3.8'
-services:
-  rabbitmq:
-    image: rabbitmq:3-management
-    ports:
-      - "5672:5672"   # AMQP
-      - "15672:15672" # Management UI
-    environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-
-volumes:
-  rabbitmq_data:
+```json
+{
+  "messageId": "msg_...",
+  "dialogId": "dlg_...",
+  "senderId": "carl",
+  "type": "internal.text",
+  "content": "Hello!",
+  "meta": {},
+  "statuses": [],
+  "reactionCounts": {},
+  "senderInfo": {
+    "userId": "carl",
+    "name": "Carl Johnson",
+    "lastActiveAt": 1763551369397.6482,
+    "meta": {}
+  }
+}
 ```
 
-Запуск:
-```bash
-docker-compose up -d
+### Actor Section
+
+```json
+{
+  "actorId": "api-key-name",
+  "actorType": "api"
+}
 ```
 
-Management UI: http://localhost:15672 (admin/admin)
+## Обработка событий
 
-### Кейсы использования
+События обрабатываются Update Worker:
 
-#### 1. Уведомления в реальном времени
-```javascript
-// Подписка на новые сообщения для отправки push-уведомлений
-channel.bindQueue(queue, exchange, 'message.create.*');
-```
+1. Событие публикуется в RabbitMQ exchange `chat3_events`
+2. Update Worker получает событие из очереди `update_worker_queue`
+3. Worker определяет, нужно ли создавать Update
+4. Если нужно, создаются Update записи для всех затронутых пользователей
+5. Updates публикуются в RabbitMQ exchange `chat3_updates`
 
-#### 2. Аналитика и отчеты
-```javascript
-// Подписка на все события для аналитики
-channel.bindQueue(queue, exchange, '#');
-```
+## Версионирование
 
-#### 3. Интеграция с внешними системами
-```javascript
-// Синхронизация с CRM при создании диалогов
-channel.bindQueue(queue, exchange, 'dialog.create.*');
-```
+События используют версию payload: `version: 2`
 
-#### 4. Аудит и безопасность
-```javascript
-// Мониторинг критичных действий
-channel.bindQueue(queue, exchange, '*.delete.*');
-```
-
-## Будущие улучшения
-
-- [x] Интеграция с RabbitMQ для событий в реальном времени
-- [ ] WebSocket уведомления на основе событий RabbitMQ
-- [ ] Экспорт событий в различные форматы (CSV, JSON)
-- [ ] Триггеры на основе событий
-- [ ] Интеграция с внешними системами аналитики (Kafka, Elasticsearch)
-- [ ] Расширенные фильтры и поиск
-- [ ] Агрегированные отчеты
-- [ ] Dead Letter Queue для failed events
+При изменении структуры данных события версия должна быть увеличена.
 

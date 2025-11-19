@@ -118,7 +118,7 @@ export const dialogController = {
         } catch (error) {
           return res.status(400).json({
             error: 'Bad Request',
-            message: `Invalid filter format. ${error.message}. Examples: {"meta":{"key":"value"}} or (meta.key,eq,value) or (meta.key,ne,value)&(meta.key2,in,[val1,val2])`
+            message: `Invalid filter format. ${error.message}. Examples: (meta.key,eq,value) or (meta.key,ne,value)&(meta.key2,in,[val1,val2])`
           });
         }
       }
