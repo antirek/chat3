@@ -69,7 +69,21 @@ describe('urlValidators', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  test('validateUserId ensures non-empty string', () => {
+    test('validateUserId rejects userId with dot', () => {
+      const req = { params: { userId: 'user.ewrjdpfp3254ds' } };
+      const res = createRes();
+      const next = jest.fn();
+
+      validateUserId(req, res, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('Bad Request');
+      expect(res.body.message).toBe('userId не может содержать точку');
+      expect(res.body.field).toBe('userId');
+    });
+
+    test('validateUserId ensures non-empty string', () => {
     const req = { params: { userId: '' } };
     const res = createRes();
     const next = jest.fn();

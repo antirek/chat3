@@ -156,7 +156,14 @@ export const updateTenantSchema = Joi.object({
  * Схема валидации создания пользователя
  */
 export const createUserSchema = Joi.object({
-  userId: Joi.string().trim().lowercase().min(1).max(100).required(),
+  userId: Joi.string()
+    .trim()
+    .lowercase()
+    .min(1)
+    .max(100)
+    .pattern(/^[^.]*$/, { name: 'no dots' })
+    .message('userId не может содержать точку')
+    .required(),
   name: Joi.string().trim().min(1).max(200).optional(),
   type: Joi.string().trim().min(1).max(50).default('user').optional()
 });

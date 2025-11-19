@@ -30,6 +30,15 @@ export const validateUserId = (req, res, next) => {
     });
   }
   
+  // Проверка, что userId не содержит точку
+  if (userId.includes('.')) {
+    return res.status(400).json({
+      error: 'Bad Request',
+      message: 'userId не может содержать точку',
+      field: 'userId'
+    });
+  }
+  
   next();
 };
 

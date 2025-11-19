@@ -164,6 +164,30 @@ describe('bodySchemas.createUserSchema', () => {
     expect(error).toBeUndefined();
     expect(value.userId).toBe('agent_abc');
   });
+
+  test('rejects userId with dot', () => {
+    const { error } = createUserSchema.validate({
+      userId: 'user.ewrjdpfp3254ds'
+    });
+    expect(error).toBeDefined();
+    expect(error.details[0].message).toContain('точку');
+  });
+
+  test('rejects userId with multiple dots', () => {
+    const { error } = createUserSchema.validate({
+      userId: 'user.test.example'
+    });
+    expect(error).toBeDefined();
+    expect(error.details[0].message).toContain('точку');
+  });
+
+  test('accepts userId without dot', () => {
+    const { error, value } = createUserSchema.validate({
+      userId: 'user_ewrjdpfp3254ds'
+    });
+    expect(error).toBeUndefined();
+    expect(value.userId).toBe('user_ewrjdpfp3254ds');
+  });
 });
 
 describe('bodySchemas.createTenantSchema', () => {
