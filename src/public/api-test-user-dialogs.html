@@ -326,7 +326,8 @@
         .form-actions button {
             padding: 6px 12px;
             font-size: 12px;
-            border: 1px solid #ced4da;
+            font-weight: 500;
+            border: none;
             border-radius: 4px;
             cursor: pointer;
             background: white;
@@ -335,6 +336,45 @@
 
         .form-actions button:hover {
             background: #e9ecef;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        /* Более специфичные селекторы для кнопок в формах */
+        .form-actions button.btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .form-actions button.btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .form-actions button.btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .form-actions button.btn-secondary:hover {
+            background: #5a6268;
         }
 
         .form-actions button.primary {
@@ -650,30 +690,14 @@
         }
 
         .form-actions button {
-            padding: 8px 16px;
+            padding: 6px 12px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px;
+            font-weight: 500;
         }
 
-        .form-actions button[type="button"] {
-            background: #6c757d;
-            color: white;
-        }
-
-        .form-actions button[type="button"]:hover {
-            background: #5a6268;
-        }
-
-        .form-actions button[type="submit"] {
-            background: #667eea;
-            color: white;
-        }
-
-        .form-actions button[type="submit"]:hover {
-            background: #5a6fd8;
-        }
 
         /* Стили для отображения JSON payload */
         .payload-preview {
@@ -798,8 +822,8 @@
                     <small style="display: block; margin-top: 6px; color: #6c757d;">Поддерживаются поля `userId`, `name`, а также `meta.*`. Операторы: eq, regex, in, nin, gt, gte, lt, lte, ne и др.</small>
                 </div>
                 <div class="form-actions" style="margin-top: 8px;">
-                    <button class="primary" type="button" onclick="applyUserFilter()">Применить</button>
-                    <button type="button" onclick="clearUserFilter()">Сбросить</button>
+                    <button class="btn-primary" type="button" onclick="applyUserFilter()">Применить</button>
+                    <button class="btn-secondary" type="button" onclick="clearUserFilter()">Очистить</button>
                 </div>
             </div>
             <div class="panel-content" id="usersList">
@@ -877,8 +901,8 @@
                     </div>
                 </div>
                 <div class="form-actions">
-                    <button onclick="applyFilter()" class="primary">Применить</button>
-                    <button onclick="clearFilter()">Очистить</button>
+                    <button onclick="applyFilter()" class="btn-primary">Применить</button>
+                    <button onclick="clearFilter()" class="btn-secondary">Очистить</button>
                 </div>
             </div>
             <div class="panel-content" id="dialogsList">
@@ -924,8 +948,8 @@
                     </div>
                 </div>
                 <div class="form-actions">
-                    <button onclick="applyMessageFilter()">Применить</button>
-                    <button onclick="clearMessageFilter()">Очистить</button>
+                    <button onclick="applyMessageFilter()" class="btn-primary">Применить</button>
+                    <button onclick="clearMessageFilter()" class="btn-secondary">Очистить</button>
                 </div>
             </div>
             <div class="panel-content" id="messagesList">
@@ -1103,8 +1127,8 @@
                                 <small style="display: block; margin-top: 6px; color: #6c757d;">Поддерживаются поля `userId`, `isActive`, `unreadCount`, `joinedAt`, `meta.*`. Операторы: eq, ne, regex, in, nin, gt, gte, lt, lte.</small>
                             </div>
                             <div class="form-actions" style="margin-top: 8px;">
-                                <button class="primary" type="button" onclick="applyMemberFilter()">Применить</button>
-                                <button type="button" onclick="clearMemberFilter()">Сбросить</button>
+                                <button class="btn-primary" type="button" onclick="applyMemberFilter()">Применить</button>
+                                <button class="btn-secondary" type="button" onclick="clearMemberFilter()">Очистить</button>
                             </div>
                         </div>
                         <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Текущие участники:</h3>
@@ -1155,8 +1179,8 @@
                         <button type="button" onclick="addMemberMetaRow()">+ Добавить тег</button>
                     </div>
                     <div class="meta-editor-actions" id="memberMetaSaveActions" style="display: none;">
-                        <button type="button" class="primary" onclick="saveMemberMetaChanges()">Сохранить</button>
-                        <button type="button" onclick="cancelMemberMetaEditing()">Отмена</button>
+                        <button type="button" class="btn-primary" onclick="saveMemberMetaChanges()">Сохранить</button>
+                        <button type="button" class="btn-secondary" onclick="cancelMemberMetaEditing()">Отмена</button>
                     </div>
                     <div id="memberMetaStatus" class="status-message"></div>
                 </div>
