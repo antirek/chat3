@@ -36,19 +36,6 @@
             gap: 15px;
         }
 
-        .back-link {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 6px;
-            transition: background-color 0.2s;
-        }
-
-        .back-link:hover {
-            background-color: #f0f0f0;
-        }
-
         h1 {
             font-size: 18px;
             color: #333;
@@ -414,7 +401,6 @@
 <body>
     <div class="header">
         <div class="header-left">
-            <a href="/" class="back-link">← Назад</a>
             <h1>👤 Пользователи - Управление пользователями и meta тегами</h1>
         </div>
         <!-- API Key и Tenant ID теперь берутся из родительского окна (api-test.html) -->
@@ -464,7 +450,6 @@
         </div>
 
         <div class="content" id="usersList">
-            <div class="loading">Загрузка...</div>
         </div>
         <div class="pagination" id="pagination" style="display: none;">
             <div class="pagination-info" id="paginationInfo"></div>

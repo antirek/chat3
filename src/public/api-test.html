@@ -549,13 +549,15 @@
             iframe.src = urlWithParams;
             
             // Обновляем заголовок
-            let title = 'Загрузка...';
+            let title = '';
             if (pageUrl.includes('user-dialogs')) {
                 title = '👥 Пользователи + Диалоги + Сообщения';
             } else if (pageUrl.includes('test-dialogs')) {
                 title = '💬 Диалоги + Сообщения';
             } else if (pageUrl.includes('test-messages')) {
                 title = '📝 Сообщения';
+            } else if (pageUrl.includes('test-users')) {
+                title = '👤 Пользователи';
             }
             document.getElementById('contentTitle').textContent = title;
             
