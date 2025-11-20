@@ -20,36 +20,6 @@
             flex-direction: column;
         }
 
-        .header {
-            background: white;
-            padding: 15px 20px;
-            border-bottom: 1px solid #ddd;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .api-key-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .back-link {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 6px;
-            transition: background-color 0.2s;
-        }
-
-        .back-link:hover {
-            background-color: #f0f0f0;
-        }
-
         .container {
             display: flex;
             flex: 1;
@@ -201,29 +171,6 @@
 
         .btn-secondary:hover {
             background: #5a6268;
-        }
-
-        .api-key-section input {
-            flex: 1;
-            max-width: 400px;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .api-key-section button {
-            padding: 8px 16px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        .api-key-section button:hover {
-            background: #5a6fd8;
         }
 
         .pagination {
@@ -481,16 +428,7 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="api-key-section">
-            <label for="apiKey" style="font-weight: 600; color: #333;">API Key:</label>
-            <input type="text" id="apiKey" placeholder="Введите API Key" value="chat3_a5aab286afb089b16d185e425fc5bd9105b610b7e377b8e20f54d4e89bc99c76">
-            <label for="tenantId" style="font-weight: 600; color: #333; margin-left: 10px;">Tenant ID:</label>
-            <input type="text" id="tenantId" placeholder="Tenant ID" value="tnt_default" style="width: 150px;">
-            <button onclick="setApiKey()">Установить</button>
-        </div>
-        <a href="index.html" class="back-link">← Назад к выбору интерфейса</a>
-    </div>
+    <!-- API Key и Tenant ID теперь берутся из родительского окна (api-test.html) -->
 
     <div class="container">
         <!-- Диалоги -->
@@ -606,20 +544,28 @@
         let currentMessageFilter = null;
         let currentMessageSort = null;
 
-        // Установка API ключа
-        function setApiKey() {
-            const apiKeyInput = document.getElementById('apiKey');
-            const tenantIdInput = document.getElementById('tenantId');
-            apiKey = apiKeyInput.value.trim();
-            tenantId = tenantIdInput.value.trim() || 'tnt_default';
-            
-            if (!apiKey) {
-                alert('Пожалуйста, введите API ключ');
+        // Получение параметров из URL
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                apiKey: params.get('apiKey') || '',
+                tenantId: params.get('tenantId') || 'tnt_default'
+            };
+        }
+
+        // Установка API ключа из внешних данных (из родительского окна или URL)
+        function setApiKeyFromExternal(extApiKey, extTenantId) {
+            if (!extApiKey) {
+                console.warn('API Key не предоставлен');
                 return;
             }
             
-            console.log('API Key set:', apiKey);
-            console.log('Tenant ID set:', tenantId);
+            // Устанавливаем значения в переменные
+            apiKey = extApiKey;
+            tenantId = extTenantId || 'tnt_default';
+            
+            console.log('API Key set from external:', apiKey);
+            console.log('Tenant ID set from external:', tenantId);
             
             // Загружаем диалоги
             loadDialogsWithFilter('');
@@ -1098,11 +1044,24 @@
 
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
-            // Автоматически устанавливаем API ключ из поля ввода
-            const apiKeyInput = document.getElementById('apiKey');
-            if (apiKeyInput.value.trim()) {
-                setApiKey();
+            // Проверяем URL параметры (от родительского окна)
+            const urlParams = getUrlParams();
+            if (urlParams.apiKey) {
+                setApiKeyFromExternal(urlParams.apiKey, urlParams.tenantId);
+            } else {
+                console.warn('API Key не найден в URL параметрах. Ожидается передача от родительского окна.');
             }
+
+            // Обработка сообщений от родительского окна
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'setApiCredentials') {
+                    const extApiKey = event.data.apiKey;
+                    const extTenantId = event.data.tenantId;
+                    if (extApiKey) {
+                        setApiKeyFromExternal(extApiKey, extTenantId);
+                    }
+                }
+            });
         });
 
         // Функция для показа текущего URL запроса
