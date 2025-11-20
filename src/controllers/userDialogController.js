@@ -459,10 +459,21 @@ const userDialogController = {
       // Но если есть dialogId в regularFilters, обрабатываем его отдельно
       const { dialogId: regularDialogId, ...otherRegularFilters } = regularFilters;
       
-      // Применяем другие regularFilters (если есть) - но в getUserDialogs обычно это не нужно,
-      // так как мы работаем с DialogMember, а не напрямую с Dialog
+      // Применяем другие regularFilters к dialogMembersQuery (unreadCount, lastSeenAt и т.д.)
+      // Эти поля есть в модели DialogMember
+      if (Object.keys(otherRegularFilters).length > 0) {
+        // Применяем фильтры для полей DialogMember
+        const allowedFields = ['unreadCount', 'lastSeenAt', 'lastMessageAt', 'isActive'];
+        for (const [field, condition] of Object.entries(otherRegularFilters)) {
+          if (allowedFields.includes(field)) {
+            dialogMembersQuery[field] = condition;
+            console.log(`Applied regular filter ${field}:`, condition);
+          }
+        }
+      }
 
-      // Применяем обычные фильтры (unreadCount, lastSeenAt, etc.)
+      // Применяем обычные фильтры (unreadCount, lastSeenAt, etc.) из query параметров
+      // (для обратной совместимости, если фильтр приходит не через filter параметр)
       if (req.query.unreadCount !== undefined) {
         console.log('req.query.unreadCount:', req.query.unreadCount, 'type:', typeof req.query.unreadCount);
         
