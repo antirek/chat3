@@ -251,6 +251,80 @@
             background: #e9ecef;
         }
 
+        .info-button {
+            padding: 4px 10px;
+            font-size: 11px;
+            border: 1px solid #7c8ff0;
+            background: #7c8ff0;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            max-height: 25px;
+            min-width: 69px;
+            margin-bottom: 6px;
+        }
+
+        .info-button:hover {
+            background: #6d7ee0;
+            border-color: #6d7ee0;
+        }
+
+        .action-button {
+            padding: 4px 10px;
+            font-size: 11px;
+            border: 1px solid transparent;
+            background: #f8f9fa;
+            color: #495057;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            margin-bottom: 6px;
+        }
+
+        .action-button:last-child {
+            margin-right: 0;
+        }
+
+        .action-button:hover {
+            opacity: 0.9;
+        }
+
+        .action-button.messages-button {
+            background: #68d391;
+            color: white;
+            border-color: #68d391;
+        }
+
+        .action-button.messages-button:hover {
+            background: #5abf7d;
+            border-color: #5abf7d;
+        }
+
+        .action-button.members-button {
+            background: #63b3ed;
+            color: white;
+            border-color: #63b3ed;
+        }
+
+        .action-button.members-button:hover {
+            background: #4fa3dd;
+            border-color: #4fa3dd;
+        }
+
+        .action-button.reactions-button {
+            background: #f655a0;
+            color: white;
+            border-color: #f655a0;
+        }
+
+        .action-button.reactions-button:hover {
+            background: #e0448f;
+            border-color: #e0448f;
+        }
+
         /* Форма фильтрации */
         .filter-form {
             padding: 15px;
@@ -358,6 +432,16 @@
             background: #5a6268;
         }
 
+        .btn-success {
+            background: #48bb78;
+            color: white;
+            border: none;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
         /* Более специфичные селекторы для кнопок в формах */
         .form-actions button.btn-primary {
             background: #667eea;
@@ -375,6 +459,15 @@
 
         .form-actions button.btn-secondary:hover {
             background: #5a6268;
+        }
+
+        .form-actions button.btn-success {
+            background: #2f855a;
+            color: white;
+        }
+
+        .form-actions button.btn-success:hover {
+            background: #38a169;
         }
 
         .form-actions button.primary {
@@ -765,7 +858,7 @@
         }
 
         .add-meta-btn {
-            background: #28a745;
+            background: #48bb78;
             color: white;
             border: none;
             border-radius: 4px;
@@ -1018,12 +1111,13 @@
                                         <button type="button" class="remove-meta-btn" onclick="removeMetaTagRow(this)" style="display: none;">✕</button>
                                     </div>
                                 </div>
-                                <button type="button" onclick="addMetaTagRow()" class="add-meta-btn">+ Добавить мета-тег</button>
+                                <button type="button" onclick="addMetaTagRow()" class="add-meta-btn">➕ Добавить мета-тег</button>
                             </div>
                             
                             <div class="form-actions">
-                                <button type="button" onclick="closeAddMessageModal()">Отмена</button>
-                                <button type="submit">Добавить</button>
+                                <button type="submit" class="btn-success">Добавить</button>
+                                <button type="button" class="btn-secondary" onclick="closeAddMessageModal()">Отмена</button>
+                                
                             </div>
                         </form>
                     </div>
@@ -1453,9 +1547,9 @@
                                         <td>${dialog.context?.unreadCount || 0}</td>
                                         <td>${formatLastSeen(dialog.context?.lastSeenAt)}</td>
                                         <td>
-                                            <button onclick="event.stopPropagation(); showAddMessageModal('${dialog.dialogId}', '${dialog.name}')">Сообщения</button>
-                                            <button onclick="event.stopPropagation(); showMembersModal('${dialog.dialogId}', '${dialog.name}')">Участники</button>
-                                            <button onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">Инфо</button>
+                                            <button class="action-button messages-button" onclick="event.stopPropagation(); showAddMessageModal('${dialog.dialogId}', '${dialog.name}')">💬 Сообщения</button>
+                                            <button class="action-button members-button" onclick="event.stopPropagation(); showMembersModal('${dialog.dialogId}', '${dialog.name}')">👥 Участники</button>
+                                            <button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">ℹ️ Инфо</button>
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -1617,8 +1711,8 @@
                                             ${ctx.myReaction || '-'}
                                         </td>
                                         <td>
-                                            <button onclick="showMessageInfo('${message.messageId}')">Инфо</button>
-                                            <button onclick="showReactionModal('${message.messageId}')" style="margin-left: 5px;">Реакции</button>
+                                            <button class="info-button" onclick="showMessageInfo('${message.messageId}')">ℹ️ Инфо</button>
+                                            <button class="action-button reactions-button" onclick="showReactionModal('${message.messageId}')">😊 Реакции</button>
                                         </td>
                                     </tr>
                                 `;
@@ -2620,7 +2714,7 @@
                                     <td style="padding: 8px; text-align: center;">
                                         <button onclick="removeMember('${dialogId}', '${member.userId}')" 
                                                 style="padding: 4px 12px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                            Удалить
+                                            🗑️ Удалить
                                         </button>
                                     </td>
                                 </tr>

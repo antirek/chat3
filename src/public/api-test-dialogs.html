@@ -336,6 +336,25 @@
             background: #e9ecef;
         }
 
+        .info-button {
+            padding: 4px 10px;
+            font-size: 11px;
+            border: 1px solid #8ba0f5;
+            background: #8ba0f5;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            max-height: 25px;
+            min-width: 69px;
+        }
+
+        .info-button:hover {
+            background: #7c8ff0;
+            border-color: #7c8ff0;
+        }
+
         /* Модальное окно */
         .modal {
             display: none;
@@ -745,7 +764,7 @@
                                         <td>${dialog.name}</td>
                                         <td>${formatUpdatedAt(dialog.updatedAt)}</td>
                                         <td>${formatMembers(dialog.members)}</td>
-                                        <td><button onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">Инфо</button></td>
+                                        <td><button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">ℹ️ Инфо</button></td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -883,7 +902,7 @@
                                         <td>${formatMessageTime(message.createdAt)}</td>
                                         <td class="message-content">${message.content}</td>
                                         <td>${message.type}</td>
-                                        <td><button onclick="showMessageInfo('${message.messageId}')">Инфо</button></td>
+                                        <td><button class="info-button" onclick="showMessageInfo('${message.messageId}')">ℹ️ Инфо</button></td>
                                     </tr>
                                 `).join('')}
                             </tbody>

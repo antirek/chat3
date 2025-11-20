@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            /* max-width: 1200px; */
             margin: 0 auto;
             padding: 20px;
         }
@@ -178,17 +178,17 @@
             border-bottom: 1px solid #e9ecef;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 5px;
             flex-wrap: wrap;
         }
 
         .pagination button {
-            padding: 4px 8px;
+            padding: 5px 10px;
             border: 1px solid #ddd;
             background: white;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 11px;
+            font-size: 12px;
         }
 
         .pagination button:hover:not(:disabled) {
@@ -221,7 +221,7 @@
             padding: 8px 12px;
             text-align: left;
             border-bottom: 1px solid #e9ecef;
-            font-size: 11px;
+            font-size: 13px;
         }
 
         th {
@@ -258,8 +258,7 @@
         }
 
         .message-id {
-            font-family: monospace;
-            font-size: 11px;
+            font-size: 13px;
             max-width: 120px;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -269,7 +268,7 @@
 
         table button {
             padding: 3px 6px;
-            font-size: 10px;
+            font-size: 11px;
             border: 1px solid #ced4da;
             background: white;
             border-radius: 3px;
@@ -278,6 +277,25 @@
 
         table button:hover {
             background: #e9ecef;
+        }
+
+        .info-button {
+            padding: 4px 10px;
+            font-size: 11px;
+            border: 1px solid #8ba0f5;
+            background: #8ba0f5;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            max-height: 25px;
+            min-width: 69px;
+        }
+
+        .info-button:hover {
+            background: #7c8ff0;
+            border-color: #7c8ff0;
         }
 
         .no-data {
@@ -833,7 +851,7 @@
                                 <td class="message-content">${message.content}</td>
                                 <td>${message.type}</td>
                                 <td>
-                                    <button onclick="event.stopPropagation(); showMessageInfo('${message.messageId}')">Инфо</button>
+                                    <button class="info-button" onclick="event.stopPropagation(); showMessageInfo('${message.messageId}')">ℹ️ Инфо</button>
                                 </td>
                             </tr>
                         `).join('')}
