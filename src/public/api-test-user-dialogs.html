@@ -1616,7 +1616,7 @@
                                         <td>${dialog.context?.unreadCount || 0}</td>
                                         <td>${formatLastSeen(dialog.context?.lastSeenAt)}</td>
                                         <td class="actions-column">
-                                            <button class="action-button add-message-button" onclick="event.stopPropagation(); showAddMessageModal('${dialog.dialogId}', '${dialog.name}')">➕ Добавить сообщение</button>
+                                            <button class="action-button add-message-button" onclick="event.stopPropagation(); showAddMessageModal('${dialog.dialogId}', '${dialog.name}')">💬 Отправить сообщение</button>
                                             <button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">ℹ️ Инфо</button>
                                             <button class="action-button members-button" onclick="event.stopPropagation(); selectDialogMembers('${dialog.dialogId}', '${dialog.name}')">👥 Участники</button>
                                             <button class="action-button messages-button" onclick="selectDialog('${dialog.dialogId}', '${dialog.name}')">📝 Сообщения</button>
