@@ -988,13 +988,12 @@
                     </select>
                     <div class="input-with-clear">
                         <input type="text" id="userFilterInput" placeholder="Например: (userId,regex,carl)&(meta.role,eq,manager)">
-                        <button class="clear-field" type="button" onclick="clearUserFilterField()" title="Очистить поле">✕</button>
+                        <button class="clear-field" type="button" onclick="clearUserFilter()" title="Очистить поле">✕</button>
                     </div>
                     <small style="display: block; margin-top: 6px; color: #6c757d;">Поддерживаются поля `userId`, `name`, а также `meta.*`. Операторы: eq, regex, in, nin, gt, gte, lt, lte, ne и др.</small>
                 </div>
                 <div class="form-actions" style="margin-top: 8px;">
                     <button class="btn-primary" type="button" onclick="applyUserFilter()">Применить</button>
-                    <button class="btn-secondary" type="button" onclick="clearUserFilter()">Очистить</button>
                 </div>
             </div>
             <div class="panel-content" id="usersList">
@@ -1068,12 +1067,11 @@
                     </select>
                     <div class="input-with-clear">
                         <input type="text" id="filterValue" placeholder="Введите или выберите фильтр" />
-                        <button class="clear-field" onclick="clearFilterField()" title="Очистить фильтр">✕</button>
+                        <button class="clear-field" onclick="clearFilter()" title="Очистить фильтр">✕</button>
                     </div>
                 </div>
                 <div class="form-actions">
                     <button onclick="applyFilter()" class="btn-primary">Применить</button>
-                    <button onclick="clearFilter()" class="btn-secondary">Очистить</button>
                 </div>
             </div>
             <div class="panel-content" id="dialogsList">
@@ -1115,12 +1113,11 @@
                     </select>
                     <div class="input-with-clear">
                         <input type="text" id="messageFilterInput" placeholder="Введите или выберите фильтр сообщений">
-                        <button type="button" class="clear-field" onclick="clearMessageFilterField()">✕</button>
+                        <button type="button" class="clear-field" onclick="clearMessageFilter()">✕</button>
                     </div>
                 </div>
                 <div class="form-actions">
                     <button onclick="applyMessageFilter()" class="btn-primary">Применить</button>
-                    <button onclick="clearMessageFilter()" class="btn-secondary">Очистить</button>
                 </div>
             </div>
             <div class="panel-content" id="messagesList">

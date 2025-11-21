@@ -503,7 +503,7 @@
                     </select>
                     <div class="input-with-clear">
                         <input type="text" id="filterValue" placeholder="Введите или выберите фильтр" />
-                        <button class="clear-field" onclick="clearFilterField()" title="Очистить фильтр">✕</button>
+                        <button class="clear-field" onclick="clearAll()" title="Очистить фильтр">✕</button>
                     </div>
                 </div>
                 
@@ -527,13 +527,12 @@
                     </select>
                     <div class="input-with-clear">
                         <input type="text" id="sortValue" placeholder="Введите или выберите сортировку" />
-                        <button class="clear-field" onclick="clearSortField()" title="Очистить сортировку">✕</button>
+                        <button class="clear-field" onclick="clearAll()" title="Очистить сортировку">✕</button>
                     </div>
                 </div>
                 
                 <div class="form-actions">
                     <button class="btn-primary" onclick="applyCombined()">Применить</button>
-                    <button class="btn-secondary" onclick="clearAll()">Очистить</button>
                 </div>
             </div>
             
