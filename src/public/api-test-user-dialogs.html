@@ -158,6 +158,11 @@
             background: #e9ecef;
         }
 
+        .actions-column {
+            padding: 0;
+            font-size: 0;
+        }
+
         .sort-indicator {
             margin-left: 5px;
             color: #6c757d;
@@ -252,7 +257,7 @@
         }
 
         .info-button {
-            padding: 4px 10px;
+            padding: 4px 6px;
             font-size: 11px;
             border: 1px solid #7c8ff0;
             background: #7c8ff0;
@@ -262,8 +267,7 @@
             font-weight: 500;
             transition: background-color 0.2s;
             max-height: 25px;
-            min-width: 69px;
-            margin-bottom: 6px;
+            margin-bottom: 1px;
         }
 
         .info-button:hover {
@@ -272,7 +276,7 @@
         }
 
         .action-button {
-            padding: 4px 10px;
+            padding: 4px 5px;
             font-size: 11px;
             border: 1px solid transparent;
             background: #f8f9fa;
@@ -281,7 +285,7 @@
             cursor: pointer;
             font-weight: 500;
             transition: all 0.2s;
-            margin-bottom: 6px;
+            margin-right: 1px;
         }
 
         .action-button:last-child {
@@ -950,11 +954,6 @@
             background: #218838;
         }
 
-        /* Стили для кнопок в колонке Действия */
-        td button {
-            margin-right: 5px;
-        }
-
         td button:last-child {
             margin-right: 0;
         }
@@ -1616,10 +1615,10 @@
                                         <td>${dialog.name}</td>
                                         <td>${dialog.context?.unreadCount || 0}</td>
                                         <td>${formatLastSeen(dialog.context?.lastSeenAt)}</td>
-                                        <td>
+                                        <td class="actions-column">
                                             <button class="action-button add-message-button" onclick="event.stopPropagation(); showAddMessageModal('${dialog.dialogId}', '${dialog.name}')">➕ Добавить сообщение</button>
-                                            <button class="action-button members-button" onclick="event.stopPropagation(); selectDialogMembers('${dialog.dialogId}', '${dialog.name}')">👥 Участники</button>
                                             <button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">ℹ️ Инфо</button>
+                                            <button class="action-button members-button" onclick="event.stopPropagation(); selectDialogMembers('${dialog.dialogId}', '${dialog.name}')">👥 Участники</button>
                                             <button class="action-button messages-button" onclick="selectDialog('${dialog.dialogId}', '${dialog.name}')">📝 Сообщения</button>
                                         </td>
                                     </tr>
@@ -1843,7 +1842,7 @@
                                         <td style="font-size: 20px;">
                                             ${ctx.myReaction || '-'}
                                         </td>
-                                        <td>
+                                        <td class="actions-column">
                                             <button class="info-button" onclick="showMessageInfo('${message.messageId}')">ℹ️ Инфо</button>
                                             <button class="action-button reactions-button" onclick="showReactionModal('${message.messageId}')">😊 Реакции</button>
                                         </td>
