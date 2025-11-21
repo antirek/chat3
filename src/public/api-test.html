@@ -193,7 +193,6 @@
         }
 
         .sidebar {
-            width: 280px;
             background: white;
             border-right: 1px solid #e9ecef;
             display: flex;
@@ -205,6 +204,7 @@
             padding: 20px;
             background: #f8f9fa;
             border-bottom: 1px solid #e9ecef;
+            
         }
 
         .sidebar-header h2 {
@@ -222,11 +222,14 @@
             flex: 1;
             overflow-y: auto;
             padding: 10px 0;
+            width: 80px;
         }
 
         .nav-link {
-            display: block;
-            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
             color: #333;
             text-decoration: none;
             border-left: 3px solid transparent;
@@ -248,22 +251,9 @@
         }
 
         .nav-link-icon {
-            font-size: 18px;
-            margin-right: 10px;
-        }
-
-        .nav-link-title {
+            font-size: 28px;
             display: block;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 3px;
-        }
-
-        .nav-link-desc {
-            display: block;
-            font-size: 11px;
-            color: #6c757d;
-            line-height: 1.4;
+            line-height: 1;
         }
 
         .content {
@@ -405,53 +395,39 @@
     <div class="container">
         <!-- Sidebar с навигацией -->
         <div class="sidebar">
-            <div class="sidebar-header">
+            <!-- <div class="sidebar-header">
                 <h2>Тестовые интерфейсы</h2>
                 <p>Выберите интерфейс для тестирования</p>
-            </div>
+            </div> -->
             <div class="nav-links">
                 <a class="nav-link" onclick="loadPage('api-test-user-dialogs.html', this)" data-page="api-test-user-dialogs.html">
-                    <span class="nav-link-icon">👥</span>
-                    <span class="nav-link-title">Пользователи + Диалоги + Сообщения</span>
-                    <span class="nav-link-desc">Трехколоночный интерфейс с фильтрацией по пользователям</span>
+                    <span class="nav-link-icon" title="Пользователи + Диалоги + Сообщения">👥</span>
                 </a>
                 
                 <a class="nav-link" onclick="loadPage('api-test-dialogs.html', this)" data-page="api-test-dialogs.html">
-                    <span class="nav-link-icon">💬</span>
-                    <span class="nav-link-title">Диалоги + Сообщения</span>
-                    <span class="nav-link-desc">Двухколоночный интерфейс для работы с диалогами</span>
+                    <span class="nav-link-icon" title="Диалоги + Сообщения">💬</span>
                 </a>
                 
                 <a class="nav-link" onclick="loadPage('api-test-messages.html', this)" data-page="api-test-messages.html">
-                    <span class="nav-link-icon">📝</span>
-                    <span class="nav-link-title">Сообщения</span>
-                    <span class="nav-link-desc">Глобальный поиск и фильтрация сообщений</span>
+                    <span class="nav-link-icon" title="Сообщения">📝</span>
                 </a>
                 
                 <a class="nav-link" onclick="loadPage('api-test-users.html', this)" data-page="api-test-users.html">
-                    <span class="nav-link-icon">👤</span>
-                    <span class="nav-link-title">Пользователи</span>
-                    <span class="nav-link-desc">Управление пользователями и meta тегами</span>
+                    <span class="nav-link-icon" title="Пользователи">👤</span>
                 </a>
 
                 <div style="border-top: 1px solid #e9ecef; margin: 10px 0;"></div>
 
                 <a class="nav-link" onclick="openExternal('/admin')" data-page="admin">
-                    <span class="nav-link-icon">📊</span>
-                    <span class="nav-link-title">AdminJS</span>
-                    <span class="nav-link-desc">Панель администратора (откроется в новой вкладке)</span>
+                    <span class="nav-link-icon" title="AdminJS">📊</span>
                 </a>
 
                 <a class="nav-link" onclick="openExternal('/api-docs')" data-page="api-docs">
-                    <span class="nav-link-icon">📚</span>
-                    <span class="nav-link-title">Swagger API Docs</span>
-                    <span class="nav-link-desc">Интерактивная документация API</span>
+                    <span class="nav-link-icon" title="Swagger API Docs">📚</span>
                 </a>
 
                 <a class="nav-link" onclick="openExternal('/health')" data-page="health">
-                    <span class="nav-link-icon">💚</span>
-                    <span class="nav-link-title">Health Check</span>
-                    <span class="nav-link-desc">Статус API и доступные endpoints</span>
+                    <span class="nav-link-icon" title="Health Check">💚</span>
                 </a>
             </div>
         </div>
