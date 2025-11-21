@@ -221,7 +221,6 @@
         .nav-links {
             flex: 1;
             overflow-y: auto;
-            padding: 10px 0;
             width: 80px;
         }
 
@@ -434,9 +433,9 @@
 
         <!-- Контент область -->
         <div class="content">
-            <div class="content-header">
+            <!-- <div class="content-header">
                 <div class="content-title" id="contentTitle">Выберите интерфейс</div>
-            </div>
+            </div> -->
             <div class="iframe-container">
                 <div class="welcome-screen" id="welcomeScreen">
                     <div class="welcome-icon">🧪</div>
@@ -524,18 +523,18 @@
             
             iframe.src = urlWithParams;
             
-            // Обновляем заголовок
-            let title = '';
-            if (pageUrl.includes('user-dialogs')) {
-                title = '👥 Пользователи + Диалоги + Сообщения';
-            } else if (pageUrl.includes('test-dialogs')) {
-                title = '💬 Диалоги + Сообщения';
-            } else if (pageUrl.includes('test-messages')) {
-                title = '📝 Сообщения';
-            } else if (pageUrl.includes('test-users')) {
-                title = '👤 Пользователи';
-            }
-            document.getElementById('contentTitle').textContent = title;
+            // // Обновляем заголовок
+            // let title = '';
+            // if (pageUrl.includes('user-dialogs')) {
+            //     title = '👥 Пользователи + Диалоги + Сообщения';
+            // } else if (pageUrl.includes('test-dialogs')) {
+            //     title = '💬 Диалоги + Сообщения';
+            // } else if (pageUrl.includes('test-messages')) {
+            //     title = '📝 Сообщения';
+            // } else if (pageUrl.includes('test-users')) {
+            //     title = '👤 Пользователи';
+            // }
+            // document.getElementById('contentTitle').textContent = title;
             
             currentPage = pageUrl;
             

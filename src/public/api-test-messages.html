@@ -21,7 +21,6 @@
         .container {
             /* max-width: 1200px; */
             margin: 0 auto;
-            padding: 20px;
         }
 
         .messages-panel {
@@ -32,21 +31,25 @@
         }
 
         .panel-header {
-            background: #667eea;
-            color: white;
+            background: #f8f9fa;
             padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+            color: #495057;
+            font-size: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            min-height: 59px;
         }
 
         .panel-header h2 {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
         }
 
         .url-button {
-            background: rgba(255,255,255,0.2);
+            background: #48bb78;
             color: white;
             border: none;
             padding: 6px 12px;
@@ -58,7 +61,11 @@
         }
 
         .url-button:hover {
-            background: rgba(255,255,255,0.3);
+            background: #38a169;
+        }
+
+        .url-button.url {
+            background: #667eea;
         }
 
         .filter-form {
@@ -536,7 +543,7 @@
         <div class="messages-panel">
             <div class="panel-header">
                 <h2>📝 Сообщения</h2>
-                <button onclick="showCurrentMessageUrl()" class="url-button" title="Показать URL запроса">🔗 URL</button>
+                <button onclick="showCurrentMessageUrl()" class="url-button url" title="Показать URL запроса">🔗 URL</button>
             </div>
 
             <div class="filter-form" id="messagesFilterForm">
