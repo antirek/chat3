@@ -43,12 +43,12 @@ export const apiAuth = async (req, res, next) => {
     tenantId = tenantId.toLowerCase().trim();
 
     // 4. Validate tenant exists
-    const tenant = await Tenant.findOne({ tenantId: tenantId, isActive: true });
+    const tenant = await Tenant.findOne({ tenantId: tenantId });
     
     if (!tenant) {
       return res.status(404).json({
         error: 'Not Found',
-        message: `Tenant '${tenantId}' not found or inactive`
+        message: `Tenant '${tenantId}' not found`
       });
     }
 
