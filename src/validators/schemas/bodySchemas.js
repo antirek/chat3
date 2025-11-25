@@ -157,7 +157,7 @@ export const setMetaSchema = Joi.object({
  */
 export const createTenantSchema = Joi.object({
   tenantId: Joi.string().trim().max(20).optional(),
-  name: Joi.string().trim().min(1).max(200).required(),
+  name: Joi.string().trim().min(1).max(200).optional(),
   domain: Joi.string().trim().min(1).max(200).optional(),
   isActive: Joi.boolean().default(true)
 });

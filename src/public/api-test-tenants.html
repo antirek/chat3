@@ -695,11 +695,8 @@
             const tenantIdValue = document.getElementById('createTenantId').value.trim();
             if (tenantIdValue) {
                 tenantData.tenantId = tenantIdValue;
-            } else {
-                // Если tenantId не указан, требуется хотя бы name для создания
-                tenantData.name = 'Default Tenant';
-                tenantData.domain = 'default.chat3.com';
             }
+            // name и domain теперь опциональны, будут сгенерированы автоматически если не указаны
 
             try {
                 const apiKey = getApiKey();
