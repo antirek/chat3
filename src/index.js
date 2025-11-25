@@ -14,6 +14,7 @@ import messageReactionRoutes from './routes/messageReactionRoutes.js';
 import dialogMemberRoutes from './routes/dialogMemberRoutes.js';
 import userDialogRoutes from './routes/userDialogRoutes.js';
 import metaRoutes from './routes/metaRoutes.js';
+import initRoutes from './routes/initRoutes.js';
 import idempotencyGuard from './middleware/idempotencyGuard.js';
 import { apiJournalMiddleware } from './middleware/apiJournal.js';
 
@@ -78,6 +79,7 @@ const startServer = async () => {
     app.use('/api/dialogs', dialogMemberRoutes);
     app.use('/api/users', userDialogRoutes);
     app.use('/api/meta', metaRoutes);
+    app.use('/api/init', initRoutes);
 
     // API Test page
     app.get('/api-test', (req, res) => {
