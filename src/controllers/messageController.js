@@ -1,4 +1,4 @@
-import { Message, Dialog, MessageStatus, User } from '../models/index.js';
+import { Message, Dialog, MessageStatus, User, Event, Update } from '../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
@@ -814,6 +814,57 @@ const messageController = {
           senderInfo: senderInfo || null
         }),
         message: 'Message content updated successfully'
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  // Get events for a message
+  async getMessageEvents(req, res) {
+    try {
+      const { messageId } = req.params;
+      const tenantId = req.tenantId;
+      const limit = parseInt(req.query.limit) || 100;
+
+      // Получаем все события, связанные с этим сообщением
+      // События могут иметь разные entityType: 'message', 'messageReaction', 'messageStatus'
+      // но все они имеют entityId = messageId
+      const events = await Event.find({
+        tenantId,
+        entityId: messageId,
+        entityType: { $in: ['message', 'messageReaction', 'messageStatus'] }
+      })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean();
+
+      // Для каждого события получаем количество обновлений
+      const eventsWithUpdates = await Promise.all(
+        events.map(async (event) => {
+          try {
+            const updatesCount = await Update.countDocuments({
+              tenantId,
+              eventId: event._id
+            });
+            return {
+              ...event,
+              updatesCount
+            };
+          } catch (err) {
+            return {
+              ...event,
+              updatesCount: 0
+            };
+          }
+        })
+      );
+
+      res.json({
+        data: eventsWithUpdates
       });
     } catch (error) {
       res.status(500).json({

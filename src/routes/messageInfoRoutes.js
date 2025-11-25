@@ -127,6 +127,50 @@ router.get('/', apiAuth, requirePermission('read'), validateQuery(messagesQueryS
 
 /**
  * @swagger
+ * /api/messages/{messageId}/events:
+ *   get:
+ *     summary: Get events for a message
+ *     tags: [Messages]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: messageId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the message
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: Maximum number of events to return
+ *     responses:
+ *       200:
+ *         description: List of events for the message
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Unauthorized - Invalid API key
+ *       403:
+ *         description: Forbidden - Insufficient permissions
+ *       404:
+ *         description: Message not found
+ *       500:
+ *         description: Internal Server Error
+ */
+router.get('/:messageId/events', apiAuth, requirePermission('read'), validateMessageId, messageController.getMessageEvents);
+
+/**
+ * @swagger
  * /api/messages/{messageId}:
  *   get:
  *     summary: Get a message by ID
