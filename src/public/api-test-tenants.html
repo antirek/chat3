@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - Тенанты - Chat3</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+            color: #495057;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 59px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        h1 {
+            font-size: 16px;
+            color: #495057;
+            font-weight: 600;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            overflow: hidden;
+        }
+
+        .controls {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            background: #f8f9fa;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-small {
+            padding: 4px 10px;
+            font-size: 11px;
+            margin-right: 5px;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8f9fa;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 13px;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px;
+            font-size: 13px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .modal-header h2 {
+            font-size: 16px;
+            margin: 0;
+            color: #333;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #495057;
+            font-size: 13px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 4px;
+            color: #6c757d;
+            font-size: 11px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .form-actions button {
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .pagination {
+            padding: 15px 20px;
+            border-top: 1px solid #e9ecef;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pagination-info {
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .pagination-controls input {
+            width: 60px;
+            padding: 4px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .badge-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-type {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1>🏢 Тенанты - Управление организациями</h1>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <button class="btn-success" onclick="showCreateModal()">➕ Создать тенант</button>
+            <button class="btn-primary" onclick="loadTenants(currentPage, currentLimit)">🔄 Обновить список</button>
+        </div>
+
+        <div class="content" id="tenantsList">
+            <div class="loading">Загрузка...</div>
+        </div>
+        <div class="pagination" id="pagination" style="display: none;">
+            <div class="pagination-info" id="paginationInfo"></div>
+            <div class="pagination-controls">
+                <button class="btn-secondary btn-small" onclick="goToFirstPage()">⏮ Первая</button>
+                <button class="btn-secondary btn-small" onclick="goToPreviousPage()">◀ Предыдущая</button>
+                <span style="font-size: 12px; margin: 0 8px;">Страница</span>
+                <input type="number" id="currentPageInput" min="1" value="1" onchange="goToPage(parseInt(this.value))">
+                <span style="font-size: 12px; margin: 0 8px;">из</span>
+                <span id="totalPages" style="font-size: 12px;">1</span>
+                <button class="btn-secondary btn-small" onclick="goToNextPage()">Следующая ▶</button>
+                <button class="btn-secondary btn-small" onclick="goToLastPage()">Последняя ⏭</button>
+                <span style="font-size: 12px; margin-left: 12px;">Показать:</span>
+                <select id="pageLimit" onchange="changeLimit(parseInt(this.value))" style="padding: 4px 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px;">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal для создания тенанта -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Создать тенант</h2>
+            </div>
+            <div class="modal-body">
+                <form id="createForm" onsubmit="createTenant(event)">
+                    <div class="form-group">
+                        <label for="createTenantId">Tenant ID</label>
+                        <input type="text" id="createTenantId" placeholder="my_tenant" maxlength="20">
+                        <small>Опционально. Максимум 20 символов. Если не указан, будет сгенерирован автоматически.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="createName">Название *</label>
+                        <input type="text" id="createName" required placeholder="My Company">
+                    </div>
+                    <div class="form-group">
+                        <label for="createDomain">Домен</label>
+                        <input type="text" id="createDomain" placeholder="mycompany.com">
+                        <small>Опционально. Должен быть уникальным.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="createType">Тип</label>
+                        <select id="createType">
+                            <option value="client" selected>client</option>
+                            <option value="system">system</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="createIsActive">Активен</label>
+                        <select id="createIsActive">
+                            <option value="true" selected>Да</option>
+                            <option value="false">Нет</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeCreateModal()">Отмена</button>
+                        <button type="submit" class="btn-success">Создать</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal для редактирования тенанта -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Редактировать тенант</h2>
+            </div>
+            <div class="modal-body">
+                <form id="editForm" onsubmit="updateTenant(event)">
+                    <input type="hidden" id="editTenantId">
+                    <div class="form-group">
+                        <label for="editName">Название</label>
+                        <input type="text" id="editName" placeholder="My Company">
+                    </div>
+                    <div class="form-group">
+                        <label for="editDomain">Домен</label>
+                        <input type="text" id="editDomain" placeholder="mycompany.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="editIsActive">Активен</label>
+                        <select id="editIsActive">
+                            <option value="true">Да</option>
+                            <option value="false">Нет</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeEditModal()">Отмена</button>
+                        <button type="submit" class="btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let apiKey = '';
+        let tenantId = 'tnt_default';
+        let currentPage = 1;
+        let currentLimit = 20;
+        let totalPages = 1;
+        let totalTenants = 0;
+
+        // Получение параметров из URL
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                apiKey: params.get('apiKey') || '',
+                tenantId: params.get('tenantId') || 'tnt_default'
+            };
+        }
+
+        // Установка API ключа из внешних данных (из родительского окна или URL)
+        function setApiKeyFromExternal(extApiKey, extTenantId) {
+            if (!extApiKey) {
+                console.warn('API Key не предоставлен');
+                return;
+            }
+            
+            apiKey = extApiKey;
+            tenantId = extTenantId || 'tnt_default';
+            
+            console.log('API Key set from external:', apiKey);
+            console.log('Tenant ID set from external:', tenantId);
+            
+            loadTenants(1);
+        }
+
+        // Получить API Key
+        function getApiKey() {
+            return apiKey;
+        }
+
+        // Загрузить список тенантов
+        async function loadTenants(page = currentPage, limit = currentLimit) {
+            try {
+                const apiKey = getApiKey();
+
+                if (!apiKey) {
+                    throw new Error('API Key не указан');
+                }
+
+                currentPage = page;
+                currentLimit = limit;
+
+                const params = new URLSearchParams({
+                    page: page.toString(),
+                    limit: limit.toString()
+                });
+
+                document.getElementById('tenantsList').innerHTML = '<div class="loading">Загрузка...</div>';
+
+                const response = await fetch(`/api/tenants?${params.toString()}`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                totalTenants = data.pagination?.total || 0;
+                totalPages = data.pagination?.pages || 1;
+
+                if (data.data && data.data.length > 0) {
+                    renderTenants(data.data);
+                    updatePagination();
+                } else {
+                    document.getElementById('tenantsList').innerHTML = '<div class="no-data">Тенанты не найдены</div>';
+                    updatePagination();
+                }
+            } catch (error) {
+                console.error('Error loading tenants:', error);
+                document.getElementById('tenantsList').innerHTML = `<div class="error">Ошибка загрузки: ${error.message}</div>`;
+                document.getElementById('pagination').style.display = 'none';
+            }
+        }
+
+        // Обновить элементы пагинации
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            const paginationInfo = document.getElementById('paginationInfo');
+            const currentPageInput = document.getElementById('currentPageInput');
+            const totalPagesSpan = document.getElementById('totalPages');
+            const pageLimit = document.getElementById('pageLimit');
+
+            if (totalTenants === 0) {
+                pagination.style.display = 'none';
+                return;
+            }
+
+            pagination.style.display = 'flex';
+            currentPageInput.value = currentPage;
+            currentPageInput.max = totalPages;
+            totalPagesSpan.textContent = totalPages;
+            pageLimit.value = currentLimit;
+
+            const start = (currentPage - 1) * currentLimit + 1;
+            const end = Math.min(currentPage * currentLimit, totalTenants);
+            paginationInfo.textContent = `Показано ${start}-${end} из ${totalTenants} тенантов`;
+        }
+
+        // Навигация по страницам
+        function goToFirstPage() {
+            if (currentPage > 1) {
+                loadTenants(1, currentLimit);
+            }
+        }
+
+        function goToPreviousPage() {
+            if (currentPage > 1) {
+                loadTenants(currentPage - 1, currentLimit);
+            }
+        }
+
+        function goToNextPage() {
+            if (currentPage < totalPages) {
+                loadTenants(currentPage + 1, currentLimit);
+            }
+        }
+
+        function goToLastPage() {
+            if (currentPage < totalPages) {
+                loadTenants(totalPages, currentLimit);
+            }
+        }
+
+        function goToPage(page) {
+            if (page >= 1 && page <= totalPages) {
+                loadTenants(page, currentLimit);
+            } else {
+                document.getElementById('currentPageInput').value = currentPage;
+            }
+        }
+
+        function changeLimit(limit) {
+            loadTenants(1, limit);
+        }
+
+        // Отобразить список тенантов
+        function renderTenants(tenants) {
+            const html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tenant ID</th>
+                            <th>Название</th>
+                            <th>Домен</th>
+                            <th>Тип</th>
+                            <th>Статус</th>
+                            <th>Создан</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tenants.map(tenant => `
+                            <tr>
+                                <td><strong>${tenant.tenantId || '-'}</strong></td>
+                                <td>${tenant.name || '-'}</td>
+                                <td>${tenant.domain || '-'}</td>
+                                <td><span class="badge badge-type">${tenant.type || 'client'}</span></td>
+                                <td><span class="badge ${tenant.isActive ? 'badge-active' : 'badge-inactive'}">${tenant.isActive ? 'Активен' : 'Неактивен'}</span></td>
+                                <td>${formatTimestamp(tenant.createdAt)}</td>
+                                <td>
+                                    <button class="btn-primary btn-small" onclick="showEditModal('${tenant._id}')">✏️ Редактировать</button>
+                                    <button class="btn-danger btn-small" onclick="deleteTenant('${tenant._id}')">🗑️ Удалить</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('tenantsList').innerHTML = html;
+        }
+
+        // Форматировать timestamp
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '-';
+            const ts = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
+            const date = new Date(ts);
+            return date.toLocaleString('ru-RU');
+        }
+
+        // Показать modal создания
+        function showCreateModal() {
+            document.getElementById('createModal').style.display = 'block';
+            document.getElementById('createForm').reset();
+        }
+
+        // Закрыть modal создания
+        function closeCreateModal() {
+            document.getElementById('createModal').style.display = 'none';
+        }
+
+        // Создать тенант
+        async function createTenant(event) {
+            event.preventDefault();
+
+            const tenantData = {
+                name: document.getElementById('createName').value.trim(),
+                domain: document.getElementById('createDomain').value.trim() || undefined,
+                type: document.getElementById('createType').value || 'client',
+                isActive: document.getElementById('createIsActive').value === 'true'
+            };
+
+            const tenantIdValue = document.getElementById('createTenantId').value.trim();
+            if (tenantIdValue) {
+                tenantData.tenantId = tenantIdValue;
+            }
+
+            try {
+                const apiKey = getApiKey();
+
+                const response = await fetch('/api/tenants', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    },
+                    body: JSON.stringify(tenantData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to create tenant');
+                }
+
+                closeCreateModal();
+                loadTenants(1, currentLimit);
+                alert('Тенант успешно создан!');
+            } catch (error) {
+                console.error('Error creating tenant:', error);
+                alert('Ошибка создания тенанта: ' + error.message);
+            }
+        }
+
+        // Показать modal редактирования
+        async function showEditModal(tenantMongoId) {
+            try {
+                const apiKey = getApiKey();
+
+                const response = await fetch(`/api/tenants/${tenantMongoId}`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load tenant');
+                }
+
+                const { data: tenant } = await response.json();
+
+                document.getElementById('editTenantId').value = tenantMongoId;
+                document.getElementById('editName').value = tenant.name || '';
+                document.getElementById('editDomain').value = tenant.domain || '';
+                document.getElementById('editIsActive').value = tenant.isActive ? 'true' : 'false';
+
+                document.getElementById('editModal').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading tenant:', error);
+                alert('Ошибка загрузки данных тенанта');
+            }
+        }
+
+        // Закрыть modal редактирования
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        // Обновить тенант
+        async function updateTenant(event) {
+            event.preventDefault();
+
+            const tenantMongoId = document.getElementById('editTenantId').value;
+            const tenantData = {
+                name: document.getElementById('editName').value.trim() || undefined,
+                domain: document.getElementById('editDomain').value.trim() || undefined,
+                isActive: document.getElementById('editIsActive').value === 'true'
+            };
+
+            try {
+                const apiKey = getApiKey();
+
+                const response = await fetch(`/api/tenants/${tenantMongoId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    },
+                    body: JSON.stringify(tenantData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to update tenant');
+                }
+
+                closeEditModal();
+                loadTenants(currentPage, currentLimit);
+                alert('Тенант успешно обновлен!');
+            } catch (error) {
+                console.error('Error updating tenant:', error);
+                alert('Ошибка обновления тенанта: ' + error.message);
+            }
+        }
+
+        // Удалить тенант
+        async function deleteTenant(tenantMongoId) {
+            if (!confirm('Вы уверены, что хотите удалить этот тенант?')) {
+                return;
+            }
+
+            try {
+                const apiKey = getApiKey();
+
+                const response = await fetch(`/api/tenants/${tenantMongoId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to delete tenant');
+                }
+
+                loadTenants(currentPage, currentLimit);
+                alert('Тенант успешно удален!');
+            } catch (error) {
+                console.error('Error deleting tenant:', error);
+                alert('Ошибка удаления тенанта: ' + error.message);
+            }
+        }
+
+        // Инициализация при загрузке страницы
+        window.addEventListener('DOMContentLoaded', function() {
+            const params = getUrlParams();
+            if (params.apiKey) {
+                setApiKeyFromExternal(params.apiKey, params.tenantId);
+            }
+        });
+
+        // Обработка сообщений от родительского окна
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'setApiCredentials') {
+                setApiKeyFromExternal(event.data.apiKey, event.data.tenantId);
+            }
+        });
+
+        // Закрытие модальных окон при клике вне их
+        window.onclick = function(event) {
+            const createModal = document.getElementById('createModal');
+            const editModal = document.getElementById('editModal');
+            if (event.target === createModal) {
+                closeCreateModal();
+            }
+            if (event.target === editModal) {
+                closeEditModal();
+            }
+        };
+    </script>
+</body>
+</html>
+
