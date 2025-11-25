@@ -378,38 +378,81 @@
 
         .pagination {
             padding: 15px 20px;
-            border-top: 1px solid #e9ecef;
             background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
         }
 
         .pagination-info {
-            font-size: 13px;
-            color: #6c757d;
+            font-size: 11px;
+            color: #666;
+            margin-left: 10px;
         }
 
         .pagination-controls {
             display: flex;
-            gap: 8px;
+            gap: 5px;
             align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .pagination-controls button,
+        .pagination-controls button.btn-secondary,
+        .pagination-controls button.btn-small {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #333;
+            margin-right: 0;
+        }
+
+        .pagination-controls button:hover:not(:disabled),
+        .pagination-controls button.btn-secondary:hover:not(:disabled) {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .pagination-controls button:disabled,
+        .pagination-controls button.btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .pagination-controls input {
             width: 60px;
             padding: 4px 8px;
-            border: 1px solid #ced4da;
+            border: 1px solid #667eea;
             border-radius: 4px;
             font-size: 12px;
             text-align: center;
+            background: #667eea;
+            color: white;
+        }
+
+        .pagination-controls span {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .pagination-controls select {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            background: white;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="header-left">
-            <h1>👤 Пользователи - Управление пользователями и meta тегами</h1>
+            <h1>👤 Пользователи</h1>
         </div>
         <!-- API Key и Tenant ID теперь берутся из родительского окна (api-test.html) -->
     </div>
@@ -417,7 +460,6 @@
     <div class="container">
         <div class="controls">
             <button class="btn-success" onclick="showCreateModal()">➕ Создать пользователя</button>
-            <button class="btn-primary" onclick="loadUsers(currentPage, currentLimit)">🔄 Обновить список</button>
         </div>
 
         <div class="filter-panel">
@@ -456,21 +498,20 @@
             </div>
         </div>
 
-        <div class="content" id="usersList">
-        </div>
+        
         <div class="pagination" id="pagination" style="display: none;">
             <div class="pagination-info" id="paginationInfo"></div>
             <div class="pagination-controls">
                 <button class="btn-secondary btn-small" onclick="goToFirstPage()">⏮ Первая</button>
-                <button class="btn-secondary btn-small" onclick="goToPreviousPage()">◀ Предыдущая</button>
-                <span style="font-size: 12px; margin: 0 8px;">Страница</span>
+                <button class="btn-secondary btn-small" onclick="goToPreviousPage()">← Предыдущая</button>
+                <span>Страница</span>
                 <input type="number" id="currentPageInput" min="1" value="1" onchange="goToPage(parseInt(this.value))">
-                <span style="font-size: 12px; margin: 0 8px;">из</span>
-                <span id="totalPages" style="font-size: 12px;">1</span>
-                <button class="btn-secondary btn-small" onclick="goToNextPage()">Следующая ▶</button>
+                <span>из</span>
+                <span id="totalPages">1</span>
+                <button class="btn-secondary btn-small" onclick="goToNextPage()">Следующая →</button>
                 <button class="btn-secondary btn-small" onclick="goToLastPage()">Последняя ⏭</button>
-                <span style="font-size: 12px; margin-left: 12px;">Показать:</span>
-                <select id="pageLimit" onchange="changeLimit(parseInt(this.value))" style="padding: 4px 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px;">
+                <span>Показать:</span>
+                <select id="pageLimit" onchange="changeLimit(parseInt(this.value))">
                     <option value="10">10</option>
                     <option value="20" selected>20</option>
                     <option value="50">50</option>
@@ -478,6 +519,8 @@
                 </select>
             </div>
         </div>
+
+        <div class="content" id="usersList"></div>
     </div>
 
     <!-- Modal для создания пользователя -->
