@@ -328,6 +328,51 @@
             background: #e3f2fd;
             color: #1976d2;
         }
+
+        .meta-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .meta-section h3 {
+            font-size: 14px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .meta-tag-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .meta-tag-row input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .meta-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .json-viewer {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -381,29 +426,6 @@
                         <input type="text" id="createTenantId" placeholder="my_tenant" maxlength="20">
                         <small>Опционально. Максимум 20 символов. Если не указан, будет сгенерирован автоматически.</small>
                     </div>
-                    <div class="form-group">
-                        <label for="createName">Название *</label>
-                        <input type="text" id="createName" required placeholder="My Company">
-                    </div>
-                    <div class="form-group">
-                        <label for="createDomain">Домен</label>
-                        <input type="text" id="createDomain" placeholder="mycompany.com">
-                        <small>Опционально. Должен быть уникальным.</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="createType">Тип</label>
-                        <select id="createType">
-                            <option value="client" selected>client</option>
-                            <option value="system">system</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="createIsActive">Активен</label>
-                        <select id="createIsActive">
-                            <option value="true" selected>Да</option>
-                            <option value="false">Нет</option>
-                        </select>
-                    </div>
                     <div class="form-actions">
                         <button type="button" class="btn-secondary" onclick="closeCreateModal()">Отмена</button>
                         <button type="submit" class="btn-success">Создать</button>
@@ -420,28 +442,49 @@
                 <h2>Редактировать тенант</h2>
             </div>
             <div class="modal-body">
-                <form id="editForm" onsubmit="updateTenant(event)">
-                    <input type="hidden" id="editTenantId">
-                    <div class="form-group">
-                        <label for="editName">Название</label>
-                        <input type="text" id="editName" placeholder="My Company">
+                <p style="color: #6c757d; margin-bottom: 15px;">Редактирование тенанта отключено. Используйте мета-теги для хранения дополнительной информации.</p>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeEditModal()">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal для управления meta тегами -->
+    <div id="metaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🏷️ Meta теги тенанта</h2>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="metaTenantId">
+                <div class="meta-list" id="metaList"></div>
+                <div class="meta-section">
+                    <h3>Добавить Meta тег</h3>
+                    <div class="meta-tag-row">
+                        <input type="text" id="newMetaKey" placeholder="key (например: company)">
+                        <input type="text" id="newMetaValue" placeholder="value (например: My Company)">
+                        <button class="btn-success btn-small" onclick="addMetaTag()">➕ Добавить</button>
                     </div>
-                    <div class="form-group">
-                        <label for="editDomain">Домен</label>
-                        <input type="text" id="editDomain" placeholder="mycompany.com">
-                    </div>
-                    <div class="form-group">
-                        <label for="editIsActive">Активен</label>
-                        <select id="editIsActive">
-                            <option value="true">Да</option>
-                            <option value="false">Нет</option>
-                        </select>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn-secondary" onclick="closeEditModal()">Отмена</button>
-                        <button type="submit" class="btn-primary">Сохранить</button>
-                    </div>
-                </form>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeMetaModal()">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal для просмотра JSON -->
+    <div id="infoModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>📋 Информация о тенанте</h2>
+            </div>
+            <div class="modal-body">
+                <div class="json-viewer" id="jsonViewer"></div>
+                <div class="form-actions" style="margin-top: 15px;">
+                    <button type="button" class="btn-secondary" onclick="closeInfoModal()">Закрыть</button>
+                </div>
             </div>
         </div>
     </div>
@@ -601,10 +644,6 @@
                     <thead>
                         <tr>
                             <th>Tenant ID</th>
-                            <th>Название</th>
-                            <th>Домен</th>
-                            <th>Тип</th>
-                            <th>Статус</th>
                             <th>Создан</th>
                             <th>Действия</th>
                         </tr>
@@ -613,13 +652,10 @@
                         ${tenants.map(tenant => `
                             <tr>
                                 <td><strong>${tenant.tenantId || '-'}</strong></td>
-                                <td>${tenant.name || '-'}</td>
-                                <td>${tenant.domain || '-'}</td>
-                                <td><span class="badge badge-type">${tenant.type || 'client'}</span></td>
-                                <td><span class="badge ${tenant.isActive ? 'badge-active' : 'badge-inactive'}">${tenant.isActive ? 'Активен' : 'Неактивен'}</span></td>
                                 <td>${formatTimestamp(tenant.createdAt)}</td>
                                 <td>
-                                    <button class="btn-primary btn-small" onclick="showEditModal('${tenant._id}')">✏️ Редактировать</button>
+                                    <button class="btn-success btn-small" onclick="showMetaModal('${tenant.tenantId || tenant._id}')">🏷️ Meta</button>
+                                    <button class="btn-primary btn-small" onclick="showInfoModal('${tenant._id}')">📋 Инфо</button>
                                     <button class="btn-danger btn-small" onclick="deleteTenant('${tenant._id}')">🗑️ Удалить</button>
                                 </td>
                             </tr>
@@ -654,16 +690,15 @@
         async function createTenant(event) {
             event.preventDefault();
 
-            const tenantData = {
-                name: document.getElementById('createName').value.trim(),
-                domain: document.getElementById('createDomain').value.trim() || undefined,
-                type: document.getElementById('createType').value || 'client',
-                isActive: document.getElementById('createIsActive').value === 'true'
-            };
+            const tenantData = {};
 
             const tenantIdValue = document.getElementById('createTenantId').value.trim();
             if (tenantIdValue) {
                 tenantData.tenantId = tenantIdValue;
+            } else {
+                // Если tenantId не указан, требуется хотя бы name для создания
+                tenantData.name = 'Default Tenant';
+                tenantData.domain = 'default.chat3.com';
             }
 
             try {
@@ -694,33 +729,8 @@
         }
 
         // Показать modal редактирования
-        async function showEditModal(tenantMongoId) {
-            try {
-                const apiKey = getApiKey();
-
-                const response = await fetch(`/api/tenants/${tenantMongoId}`, {
-                    headers: {
-                        'X-API-Key': apiKey,
-                        'X-Tenant-ID': tenantId
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to load tenant');
-                }
-
-                const { data: tenant } = await response.json();
-
-                document.getElementById('editTenantId').value = tenantMongoId;
-                document.getElementById('editName').value = tenant.name || '';
-                document.getElementById('editDomain').value = tenant.domain || '';
-                document.getElementById('editIsActive').value = tenant.isActive ? 'true' : 'false';
-
-                document.getElementById('editModal').style.display = 'block';
-            } catch (error) {
-                console.error('Error loading tenant:', error);
-                alert('Ошибка загрузки данных тенанта');
-            }
+        function showEditModal(tenantMongoId) {
+            document.getElementById('editModal').style.display = 'block';
         }
 
         // Закрыть modal редактирования
@@ -728,42 +738,194 @@
             document.getElementById('editModal').style.display = 'none';
         }
 
-        // Обновить тенант
-        async function updateTenant(event) {
-            event.preventDefault();
+        // Показать modal meta тегов
+        async function showMetaModal(tenantIdValue) {
+            document.getElementById('metaTenantId').value = tenantIdValue;
+            document.getElementById('metaModal').style.display = 'block';
+            await loadMetaTags(tenantIdValue);
+        }
 
-            const tenantMongoId = document.getElementById('editTenantId').value;
-            const tenantData = {
-                name: document.getElementById('editName').value.trim() || undefined,
-                domain: document.getElementById('editDomain').value.trim() || undefined,
-                isActive: document.getElementById('editIsActive').value === 'true'
-            };
+        // Закрыть modal meta тегов
+        function closeMetaModal() {
+            document.getElementById('metaModal').style.display = 'none';
+        }
+
+        // Загрузить meta теги
+        async function loadMetaTags(tenantIdValue) {
+            try {
+                const apiKey = getApiKey();
+
+                const response = await fetch(`/api/meta/tenant/${tenantIdValue}`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load tenant meta');
+                }
+
+                const { data: meta } = await response.json();
+
+                let html = '<h3 style="margin-bottom: 15px; font-size: 14px;">Текущие Meta теги:</h3>';
+                
+                const metaKeys = Object.keys(meta || {});
+                if (metaKeys.length === 0) {
+                    html += '<div class="no-data" style="padding: 20px;">Meta теги отсутствуют</div>';
+                } else {
+                    html += '<table><thead><tr><th>Key</th><th>Value</th><th>Действия</th></tr></thead><tbody>';
+                    for (const key of metaKeys) {
+                        html += `
+                            <tr>
+                                <td><strong>${key}</strong></td>
+                                <td>${JSON.stringify(meta[key])}</td>
+                                <td><button class="btn-danger btn-small" onclick="deleteMetaTag('${tenantIdValue}', '${key}')">🗑️ Удалить</button></td>
+                            </tr>
+                        `;
+                    }
+                    html += '</tbody></table>';
+                }
+
+                document.getElementById('metaList').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading meta tags:', error);
+                document.getElementById('metaList').innerHTML = `<div class="error">Ошибка загрузки meta тегов: ${error.message}</div>`;
+            }
+        }
+
+        // Добавить meta тег
+        async function addMetaTag() {
+            const tenantIdValue = document.getElementById('metaTenantId').value;
+            const key = document.getElementById('newMetaKey').value.trim();
+            const valueStr = document.getElementById('newMetaValue').value.trim();
+
+            if (!key || !valueStr) {
+                alert('Заполните ключ и значение');
+                return;
+            }
+
+            // Пытаемся распарсить значение как JSON, если не получается - оставляем строкой
+            let value;
+            try {
+                value = JSON.parse(valueStr);
+            } catch (e) {
+                value = valueStr;
+            }
 
             try {
                 const apiKey = getApiKey();
 
-                const response = await fetch(`/api/tenants/${tenantMongoId}`, {
+                const response = await fetch(`/api/meta/tenant/${tenantIdValue}/${key}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-API-Key': apiKey,
                         'X-Tenant-ID': tenantId
                     },
-                    body: JSON.stringify(tenantData)
+                    body: JSON.stringify({ value })
                 });
 
                 if (!response.ok) {
                     const error = await response.json();
-                    throw new Error(error.message || 'Failed to update tenant');
+                    throw new Error(error.message || 'Failed to set meta tag');
                 }
 
-                closeEditModal();
-                loadTenants(currentPage, currentLimit);
-                alert('Тенант успешно обновлен!');
+                document.getElementById('newMetaKey').value = '';
+                document.getElementById('newMetaValue').value = '';
+                await loadMetaTags(tenantIdValue);
+                alert('Meta тег успешно добавлен!');
             } catch (error) {
-                console.error('Error updating tenant:', error);
-                alert('Ошибка обновления тенанта: ' + error.message);
+                console.error('Error adding meta tag:', error);
+                alert('Ошибка добавления meta тега: ' + error.message);
             }
+        }
+
+        // Удалить meta тег
+        async function deleteMetaTag(tenantIdValue, key) {
+            if (!confirm(`Удалить meta тег "${key}"?`)) {
+                return;
+            }
+
+            try {
+                const apiKey = getApiKey();
+
+                const response = await fetch(`/api/meta/tenant/${tenantIdValue}/${key}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to delete meta tag');
+                }
+
+                await loadMetaTags(tenantIdValue);
+                alert('Meta тег успешно удален!');
+            } catch (error) {
+                console.error('Error deleting meta tag:', error);
+                alert('Ошибка удаления meta тега: ' + error.message);
+            }
+        }
+
+        // Показать modal информации
+        async function showInfoModal(tenantMongoId) {
+            try {
+                const apiKey = getApiKey();
+
+                // Получаем тенант
+                const tenantResponse = await fetch(`/api/tenants/${tenantMongoId}`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+
+                if (!tenantResponse.ok) {
+                    throw new Error('Failed to load tenant');
+                }
+
+                const { data: tenant } = await tenantResponse.json();
+
+                // Получаем мета-теги
+                let meta = {};
+                if (tenant.tenantId) {
+                    try {
+                        const metaResponse = await fetch(`/api/meta/tenant/${tenant.tenantId}`, {
+                            headers: {
+                                'X-API-Key': apiKey,
+                                'X-Tenant-ID': tenantId
+                            }
+                        });
+                        if (metaResponse.ok) {
+                            const metaData = await metaResponse.json();
+                            meta = metaData.data || {};
+                        }
+                    } catch (e) {
+                        console.warn('Failed to load meta:', e);
+                    }
+                }
+
+                // Объединяем данные тенанта с мета-тегами
+                const fullData = {
+                    ...tenant,
+                    meta: meta
+                };
+
+                document.getElementById('jsonViewer').textContent = JSON.stringify(fullData, null, 2);
+                document.getElementById('infoModal').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading tenant info:', error);
+                alert('Ошибка загрузки информации о тенанте: ' + error.message);
+            }
+        }
+
+        // Закрыть modal информации
+        function closeInfoModal() {
+            document.getElementById('infoModal').style.display = 'none';
         }
 
         // Удалить тенант
@@ -815,11 +977,19 @@
         window.onclick = function(event) {
             const createModal = document.getElementById('createModal');
             const editModal = document.getElementById('editModal');
+            const metaModal = document.getElementById('metaModal');
+            const infoModal = document.getElementById('infoModal');
             if (event.target === createModal) {
                 closeCreateModal();
             }
             if (event.target === editModal) {
                 closeEditModal();
+            }
+            if (event.target === metaModal) {
+                closeMetaModal();
+            }
+            if (event.target === infoModal) {
+                closeInfoModal();
             }
         };
     </script>
