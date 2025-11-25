@@ -872,6 +872,48 @@ const messageController = {
         message: error.message
       });
     }
+  },
+
+  // Get updates for a message
+  async getMessageUpdates(req, res) {
+    try {
+      const { messageId } = req.params;
+      const tenantId = req.tenantId;
+      const limit = parseInt(req.query.limit) || 100;
+
+      // Проверяем, существует ли сообщение
+      const message = await Message.findOne({
+        messageId,
+        tenantId
+      }).lean();
+
+      if (!message) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: `Message with ID ${messageId} not found`
+        });
+      }
+
+      // Получаем все обновления для этого сообщения
+      // Обновления имеют entityId = messageId
+      const updates = await Update.find({
+        tenantId,
+        entityId: messageId
+      })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .select('userId eventType createdAt')
+        .lean();
+
+      res.json({
+        data: updates
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
   }
 };
 

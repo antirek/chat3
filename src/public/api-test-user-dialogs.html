@@ -351,6 +351,17 @@
             border-color: #7b1fa2;
         }
 
+        .action-button.updates-button {
+            background: #ff9800;
+            color: white;
+            border-color: #ff9800;
+        }
+
+        .action-button.updates-button:hover {
+            background: #f57c00;
+            border-color: #f57c00;
+        }
+
         /* Форма фильтрации */
         .filter-form {
             padding: 15px;
@@ -1375,6 +1386,21 @@
         </div>
     </div>
 
+    <!-- Модальное окно для просмотра обновлений сообщения -->
+    <div id="updatesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Обновления сообщения</h2>
+                <span class="close" onclick="closeUpdatesModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="updatesList" style="max-height: 500px; overflow-y: auto;">
+                    <div class="loading">Загрузка обновлений...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         // Глобальные переменные
@@ -1872,6 +1898,7 @@
                                             <button class="info-button" onclick="showMessageInfo('${message.messageId}')">ℹ️ Инфо</button>
                                             <button class="action-button reactions-button" onclick="showReactionModal('${message.messageId}')">😊 Реакции</button>
                                             <button class="action-button events-button" onclick="showEventsModal('${message.messageId}')">📋 События</button>
+                                            <button class="action-button updates-button" onclick="showUpdatesModal('${message.messageId}')">🔄 Обновления</button>
                                         </td>
                                     </tr>
                                 `;
@@ -3492,7 +3519,7 @@
                             <tr style="border-bottom: 2px solid #dee2e6; background: #f8f9fa;">
                                 <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 15%;">Время</th>
                                 <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 35%;">Описание события</th>
-                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 25%;">Название события</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 25%;">Тип события</th>
                                 <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 25%;">Обновления</th>
                             </tr>
                         </thead>
@@ -3567,6 +3594,132 @@
         function closeEventsModal() {
             document.getElementById('eventsModal').style.display = 'none';
             currentMessageIdForEvents = null;
+        }
+
+        // ===== Управление обновлениями сообщения =====
+        let currentMessageIdForUpdates = null;
+
+        // Загрузка обновлений сообщения
+        async function loadMessageUpdates(messageId) {
+            const updatesList = document.getElementById('updatesList');
+            
+            try {
+                updatesList.innerHTML = '<div class="loading">Загрузка обновлений...</div>';
+
+                console.log('Загрузка обновлений для сообщения:', messageId);
+                console.log('API Key:', apiKey ? 'установлен' : 'не установлен');
+                console.log('Tenant ID:', tenantId);
+                
+                const url = `/api/messages/${messageId}/updates`;
+                console.log('Запрос к:', url);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+                
+                console.log('Ответ получен:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    let errorMessage = '';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorData.error || '';
+                        console.error('Ошибка API:', errorData);
+                    } catch (e) {
+                        const text = await response.text();
+                        console.error('Текст ошибки:', text);
+                        errorMessage = text || `HTTP ${response.status}`;
+                    }
+                    
+                    updatesList.innerHTML = `
+                        <div style="padding: 20px; text-align: center; color: #dc3545;">
+                            <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки обновлений</p>
+                            <p style="font-size: 12px; color: #999;">Статус: ${response.status} ${response.statusText}</p>
+                            <p style="font-size: 12px; color: #999;">${errorMessage}</p>
+                            <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                                Проверьте консоль браузера (F12) для подробностей.
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const data = await response.json();
+                const updates = Array.isArray(data.data) ? data.data : [];
+
+                if (updates.length === 0) {
+                    updatesList.innerHTML = '<div class="no-data" style="padding: 20px; text-align: center; color: #6c757d;">Обновления не найдены</div>';
+                    return;
+                }
+
+                // Форматируем обновления для отображения
+                updatesList.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #dee2e6; background: #f8f9fa;">
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 20%;">Время</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 40%;">Тип события</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 40%;">Пользователь</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${updates.map((update) => {
+                                const updateTime = update.createdAt 
+                                    ? (typeof update.createdAt === 'number' 
+                                        ? new Date(update.createdAt).toLocaleString('ru-RU')
+                                        : new Date(update.createdAt).toLocaleString('ru-RU'))
+                                    : '-';
+                                
+                                const eventType = update.eventType || '-';
+                                const userId = update.userId || '-';
+                                
+                                return `
+                                    <tr style="border-bottom: 1px solid #e9ecef;">
+                                        <td style="padding: 10px; color: #6c757d; font-size: 12px; vertical-align: top;">${updateTime}</td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: top;">
+                                            <span style="font-weight: 500; font-family: monospace; font-size: 12px;">${escapeHtml(eventType)}</span>
+                                        </td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: top;">
+                                            <span>${escapeHtml(userId)}</span>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading updates:', error);
+                updatesList.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #dc3545;">
+                        <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки обновлений: ${error.message}</p>
+                        <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                            Проверьте консоль браузера (F12) для подробностей.
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        // Открытие модального окна для просмотра обновлений
+        async function showUpdatesModal(messageId) {
+            currentMessageIdForUpdates = messageId;
+            
+            // Показываем модальное окно
+            document.getElementById('updatesModal').style.display = 'block';
+            
+            // Загружаем обновления
+            await loadMessageUpdates(messageId);
+        }
+
+        // Закрытие модального окна обновлений
+        function closeUpdatesModal() {
+            document.getElementById('updatesModal').style.display = 'none';
+            currentMessageIdForUpdates = null;
         }
 
         // ===== Управление участниками диалога =====
