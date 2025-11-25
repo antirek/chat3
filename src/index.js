@@ -62,11 +62,24 @@ const startServer = async () => {
     
     app.use(idempotencyGuard);
 
-    // Swagger UI
-    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-      customCss: '.swagger-ui .topbar { display: none }',
-      customSiteTitle: 'Chat3 API Documentation'
-    }));
+    // Swagger UI with dynamic host
+    app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
+      const protocol = req.protocol;
+      const host = req.get('host');
+      const swaggerSpecWithHost = {
+        ...swaggerSpec,
+        servers: [
+          {
+            url: `${protocol}://${host}`,
+            description: 'Current server'
+          }
+        ]
+      };
+      swaggerUi.setup(swaggerSpecWithHost, {
+        customCss: '.swagger-ui .topbar { display: none }',
+        customSiteTitle: 'Chat3 API Documentation'
+      })(req, res, next);
+    });
 
     // API Routes
     app.use('/api/tenants', tenantRoutes);
