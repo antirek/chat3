@@ -42,39 +42,23 @@ const options = {
       schemas: {
         Tenant: {
           type: 'object',
-          required: ['name', 'domain'],
           properties: {
             _id: {
               type: 'string',
-              description: 'Уникальный идентификатор'
+              description: 'Уникальный идентификатор MongoDB'
             },
-            name: {
+            tenantId: {
               type: 'string',
-              description: 'Название организации'
-            },
-            domain: {
-              type: 'string',
-              description: 'Доменное имя (уникальное)'
-            },
-            isActive: {
-              type: 'boolean',
-              description: 'Статус активности',
-              default: true
-            },
-            settings: {
-              type: 'object',
-              description: 'Настройки организации',
-              additionalProperties: true
+              description: 'Уникальный идентификатор тенанта (до 20 символов)',
+              maxLength: 20
             },
             createdAt: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Дата создания'
+              type: 'number',
+              description: 'Timestamp создания (микросекунды)'
             },
             updatedAt: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Дата обновления'
+              type: 'number',
+              description: 'Timestamp обновления (микросекунды)'
             }
           }
         },
