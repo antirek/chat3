@@ -156,7 +156,7 @@ export const setMetaSchema = Joi.object({
  * Схема валидации создания tenant
  */
 export const createTenantSchema = Joi.object({
-  tenantId: Joi.string().pattern(/^tnt_[a-z0-9]+$/).optional(),
+  tenantId: Joi.string().trim().max(20).optional(),
   name: Joi.string().trim().min(1).max(200).required(),
   domain: Joi.string().trim().min(1).max(200).optional(),
   isActive: Joi.boolean().default(true)
