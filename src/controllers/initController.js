@@ -23,26 +23,15 @@ export const initController = {
         
         if (!tenant) {
           tenant = await Tenant.create({
-            tenantId: 'tnt_default',
-            name: 'Default Tenant',
-            domain: 'default.chat3.com',
-            type: 'client',
-            isActive: true,
-            settings: {
-              isDefault: true,
-              maxUsers: 1000,
-              features: ['chat', 'video', 'files'],
-            },
+            tenantId: 'tnt_default'
           });
           results.tenant = {
             tenantId: tenant.tenantId,
-            name: tenant.name,
             created: true
           };
         } else {
           results.tenant = {
             tenantId: tenant.tenantId,
-            name: tenant.name,
             created: false,
             message: 'Tenant already exists'
           };

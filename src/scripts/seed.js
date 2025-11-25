@@ -26,19 +26,10 @@ async function seed() {
 
     // Create Default Tenant (используется когда X-TENANT-ID не указан)
     const defaultTenant = await Tenant.create({
-      tenantId: 'tnt_default',
-      name: 'Default Tenant',
-      domain: 'default.chat3.com',
-      type: 'client',
-      isActive: true,
-      settings: {
-        isDefault: true,
-        maxUsers: 1000,
-        features: ['chat', 'video', 'files'],
-      },
+      tenantId: 'tnt_default'
     });
 
-    console.log(`✅ Created default tenant: ${defaultTenant.name} (${defaultTenant.tenantId})`);
+    console.log(`✅ Created default tenant: ${defaultTenant.tenantId}`);
 
     // Используем только default tenant для всех тестовых данных
     const tenant = defaultTenant;
