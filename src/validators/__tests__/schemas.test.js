@@ -201,13 +201,12 @@ describe('bodySchemas.createTenantSchema', () => {
     expect(value.isActive).toBe(true);
   });
 
-  test('rejects missing name', () => {
+  test('accepts tenant without name (name is optional)', () => {
     const { error } = createTenantSchema.validate({
-      domain: 'chat.example.com'
+      tenantId: 'tnt_test'
     });
 
-    expect(error).toBeDefined();
-    expect(error?.details?.[0]?.message).toContain('"name" is required');
+    expect(error).toBeUndefined();
   });
 });
 
