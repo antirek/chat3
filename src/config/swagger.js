@@ -17,8 +17,17 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000',
-        description: 'Development server'
+        url: '{protocol}://{host}',
+        description: 'Current server',
+        variables: {
+          protocol: {
+            default: 'http',
+            enum: ['http', 'https']
+          },
+          host: {
+            default: 'localhost:3000'
+          }
+        }
       }
     ],
     components: {

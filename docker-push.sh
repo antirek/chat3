@@ -1,3 +1,3 @@
 #!/bin/sh
 
-docker push antirek/mms3:0.0.2
+docker push antirek/mms3:0.0.3
