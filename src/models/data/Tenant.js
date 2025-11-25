@@ -24,18 +24,6 @@ const tenantSchema = new mongoose.Schema({
     maxlength: 20,
     default: generateTenantId
   },
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  domain: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
-    lowercase: true
-  },
   type: {
     type: String,
     enum: ['system', 'client'],
@@ -75,7 +63,7 @@ tenantSchema.pre('save', function(next) {
 });
 
 // Indexes
-// tenantId, domain indexes are created automatically by unique: true
+// tenantId index is created automatically by unique: true
 tenantSchema.index({ isActive: 1 });
 tenantSchema.index({ type: 1 });
 
