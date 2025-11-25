@@ -24,21 +24,6 @@ const tenantSchema = new mongoose.Schema({
     maxlength: 20,
     default: generateTenantId
   },
-  type: {
-    type: String,
-    enum: ['system', 'client'],
-    default: 'client',
-    required: true
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  settings: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
-    default: {}
-  },
   createdAt: {
     type: Number,
     default: generateTimestamp,
@@ -64,8 +49,6 @@ tenantSchema.pre('save', function(next) {
 
 // Indexes
 // tenantId index is created automatically by unique: true
-tenantSchema.index({ isActive: 1 });
-tenantSchema.index({ type: 1 });
 
 const Tenant = mongoose.model('Tenant', tenantSchema);
 
