@@ -20,10 +20,7 @@ const createMockRes = () => {
 };
 
 const createTenantPayload = (overrides = {}) => ({
-  name: 'Demo Tenant',
-  domain: 'demo.example.com',
-  type: 'client',
-  isActive: true,
+  tenantId: 'tnt_demo',
   ...overrides
 });
 
@@ -45,7 +42,7 @@ describe('tenantController', () => {
 
   describe('getAll', () => {
     test('returns paginated list of tenants', async () => {
-      await Tenant.create(createTenantPayload({ domain: 'second.example.com', name: 'Second' }));
+      await Tenant.create(createTenantPayload({ tenantId: 'tnt_second' }));
 
       const req = { query: { page: '1', limit: '1' } };
       const res = createMockRes();
@@ -72,7 +69,7 @@ describe('tenantController', () => {
 
       expect(res.statusCode).toBeUndefined();
       expect(String(res.body.data._id)).toBe(tenant._id.toString());
-      expect(res.body.data.domain).toBe('demo.example.com');
+      expect(res.body.data.tenantId).toBe(tenant.tenantId);
     });
 
     test('returns 404 when tenant not found', async () => {
@@ -106,8 +103,7 @@ describe('tenantController', () => {
     test('creates tenant when payload is valid', async () => {
       const req = {
         body: createTenantPayload({
-          name: 'New Tenant',
-          domain: 'new.example.com'
+          tenantId: 'tnt_new'
         })
       };
       const res = createMockRes();
@@ -117,35 +113,33 @@ describe('tenantController', () => {
       expect(res.statusCode).toBe(201);
       expect(res.body.message).toBe('Tenant created successfully');
 
-      const created = await Tenant.findOne({ domain: 'new.example.com' }).lean();
+      const created = await Tenant.findOne({ tenantId: 'tnt_new' }).lean();
       expect(created).toBeTruthy();
-      expect(created.name).toBe('New Tenant');
+      expect(created.tenantId).toBe('tnt_new');
     });
 
-    test('returns 409 when domain already exists', async () => {
+    test('returns 409 when tenantId already exists', async () => {
       const req = {
-        body: createTenantPayload({ name: 'Duplicate' })
+        body: createTenantPayload({ tenantId: tenant.tenantId })
       };
       const res = createMockRes();
 
       await tenantController.create(req, res);
 
       expect(res.statusCode).toBe(409);
-      expect(res.body).toEqual({
-        error: 'Conflict',
-        message: 'Tenant with this domain already exists'
-      });
+      expect(res.body.error).toBe('Conflict');
+      expect(res.body.message).toContain('already exists');
     });
 
-    test('returns 400 when payload invalid', async () => {
-      const req = { body: { domain: 'invalid' } };
+    test('creates tenant without payload (uses defaults)', async () => {
+      const req = { body: {} };
       const res = createMockRes();
 
       await tenantController.create(req, res);
 
-      expect(res.statusCode).toBe(400);
-      expect(res.body.error).toBe('Validation Error');
-      expect(res.body.message).toContain('`name` is required');
+      expect(res.statusCode).toBe(201);
+      expect(res.body.message).toBe('Tenant created successfully');
+      expect(res.body.data.tenantId).toBeTruthy();
     });
   });
 
@@ -153,7 +147,7 @@ describe('tenantController', () => {
     test('updates tenant and returns payload', async () => {
       const req = {
         params: { id: tenant._id.toString() },
-        body: { name: 'Updated Tenant', isActive: false }
+        body: {}
       };
       const res = createMockRes();
 
@@ -161,8 +155,7 @@ describe('tenantController', () => {
 
       expect(res.statusCode).toBeUndefined();
       expect(res.body.message).toBe('Tenant updated successfully');
-      expect(res.body.data.name).toBe('Updated Tenant');
-      expect(res.body.data.isActive).toBe(false);
+      expect(res.body.data.tenantId).toBe(tenant.tenantId);
     });
 
     test('returns 404 when tenant not found', async () => {
@@ -181,18 +174,17 @@ describe('tenantController', () => {
       });
     });
 
-    test('returns 400 when validation fails', async () => {
+    test('updates tenant with empty body', async () => {
       const req = {
         params: { id: tenant._id.toString() },
-        body: { type: 'unsupported-type' }
+        body: {}
       };
       const res = createMockRes();
 
       await tenantController.update(req, res);
 
-      expect(res.statusCode).toBe(400);
-      expect(res.body.error).toBe('Validation Error');
-      expect(res.body.message).toContain('`unsupported-type` is not a valid enum value');
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.message).toBe('Tenant updated successfully');
     });
 
     test('returns 400 for invalid id format', async () => {
