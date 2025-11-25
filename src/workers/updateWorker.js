@@ -1,5 +1,5 @@
 import connectDB from '../config/database.js';
-import * as updateUtils from '../utils/updateUtils.js';
+import * as updateUtils from '../apps/tenant-api/utils/updateUtils.js';
 import * as rabbitmqUtils from '../utils/rabbitmqUtils.js';
 import amqp from 'amqplib';
 

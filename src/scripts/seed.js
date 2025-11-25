@@ -1,7 +1,7 @@
 import connectDB from '../config/database.js';
 import { Tenant, User, Dialog, Message, Meta, DialogMember, 
   MessageStatus, Event, MessageReaction, Update } from '../models/index.js';
-import * as reactionUtils from '../utils/reactionUtils.js';
+import * as reactionUtils from '../apps/tenant-api/utils/reactionUtils.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
 
 async function seed() {

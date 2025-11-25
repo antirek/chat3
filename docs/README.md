@@ -57,8 +57,13 @@
 2. **Запуск сервисов:**
    ```bash
    docker-compose up -d  # MongoDB и RabbitMQ
-   npm run start:server  # API Server
+   npm run start:tenant-api  # Tenant API (основной REST API)
+   npm run start:admin-web  # AdminJS интерфейс
+   npm run start:control-api  # Control API (служебный API)
+   npm run start:api-test  # API Test интерфейс
    npm run start:updateWorker  # Update Worker
+   # Или запустить все сразу:
+   npm run start:all
    ```
 
 3. **Генерация API ключа:**
@@ -66,10 +71,17 @@
    npm run generate-key
    ```
 
-4. **Доступ к документации:**
-   - Swagger UI: http://localhost:3000/api-docs
-   - AdminJS: http://localhost:3000/admin
-   - Health Check: http://localhost:3000/health
+4. **Доступ к сервисам:**
+   - **Tenant API** (порт 3000): 
+     - Swagger UI: http://localhost:3000/api-docs
+     - Health Check: http://localhost:3000/health
+   - **Admin Web** (порт 3001):
+     - AdminJS: http://localhost:3001/admin
+     - Quick Links: http://localhost:3001/admin-links
+   - **Control API** (порт 3002):
+     - Health Check: http://localhost:3002/health
+   - **API Test** (порт 3003):
+     - Главная страница: http://localhost:3003
 
 ## 🔑 Ключевые концепции
 
@@ -146,9 +158,10 @@ channel.consume(queueName, (msg) => {
 
 ## 🔗 Полезные ссылки
 
-- [Swagger UI](http://localhost:3000/api-docs) - Интерактивная API документация
-- [AdminJS](http://localhost:3000/admin) - Административная панель
-- [Health Check](http://localhost:3000/health) - Статус сервисов
+- [Swagger UI](http://localhost:3000/api-docs) - Интерактивная API документация (Tenant API)
+- [AdminJS](http://localhost:3001/admin) - Административная панель (Admin Web)
+- [API Test Suite](http://localhost:3003) - Интерфейс для тестирования API
+- [Health Check](http://localhost:3000/health) - Статус Tenant API
 
 ## 📝 Примечания
 

@@ -197,10 +197,10 @@ docker logs rabbitmq
 
 ### Hot Reload для разработки
 
-**Для HTML файлов (src/public):** Hot reload уже настроен! 
+**Для HTML файлов (src/apps/api-test/public):** Hot reload уже настроен! 
 
 Изменения в HTML файлах применяются автоматически без пересборки Docker образа:
-1. Отредактируйте файл в `src/public/` (например, `api-test.html`)
+1. Отредактируйте файл в `src/apps/api-test/public/` (например, `api-test.html`)
 2. Сохраните файл
 3. Обновите страницу в браузере (F5 или Ctrl+R)
 4. Изменения сразу видны!
@@ -300,10 +300,10 @@ docker-compose up -d
    
    Откройте следующие файлы в редакторе и замените значение `value="chat3_a5aab286afb089b16d185e425fc5bd9105b610b7e377b8e20f54d4e89bc99c76"` на ваш новый ключ:
    
-   - `src/public/api-test-users.html` (строка ~441)
-   - `src/public/api-test-user-dialogs.html` (строка ~811)
-   - `src/public/api-test-dialogs.html` (строка ~487)
-   - `src/public/api-test-messages.html` (строка ~546)
+   - `src/apps/api-test/public/api-test-users.html` (строка ~441)
+   - `src/apps/api-test/public/api-test-user-dialogs.html` (строка ~811)
+   - `src/apps/api-test/public/api-test-dialogs.html` (строка ~487)
+   - `src/apps/api-test/public/api-test-messages.html` (строка ~546)
 
    **Пример замены:**
    ```html
@@ -321,7 +321,7 @@ docker-compose up -d
 
 **Важно:** После первого раза вам больше **не нужно пересобирать Docker образ** для изменений в HTML файлах! 
 
-В `docker-compose.yml` настроен hot reload для папки `src/public` - изменения в HTML файлах применяются автоматически. Просто сохраните файл и обновите страницу в браузере (F5 или Ctrl+R).
+В `docker-compose.yml` настроен hot reload для папки `src/apps/api-test/public` - изменения в HTML файлах применяются автоматически. Просто сохраните файл и обновите страницу в браузере (F5 или Ctrl+R).
 
 После этого ваш API ключ будет автоматически подставляться в тестовые интерфейсы, и вам не нужно будет вводить его каждый раз.
 

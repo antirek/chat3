@@ -1,6 +1,6 @@
 import connectDB from '../config/database.js';
 import { DialogReadTask } from '../models/index.js';
-import { runDialogReadTask } from '../utils/dialogReadTaskUtils.js';
+import { runDialogReadTask } from '../apps/tenant-api/utils/dialogReadTaskUtils.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
 
 const POLL_INTERVAL_MS = parseInt(process.env.DIALOG_READ_TASK_POLL_MS || '2000', 10);
