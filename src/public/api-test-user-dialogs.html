@@ -1401,6 +1401,36 @@
         </div>
     </div>
 
+    <!-- Модальное окно для просмотра событий диалога -->
+    <div id="dialogEventsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">События диалога</h2>
+                <span class="close" onclick="closeDialogEventsModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="dialogEventsList" style="max-height: 500px; overflow-y: auto;">
+                    <div class="loading">Загрузка событий...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для просмотра обновлений диалога -->
+    <div id="dialogUpdatesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Обновления диалога</h2>
+                <span class="close" onclick="closeDialogUpdatesModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="dialogUpdatesList" style="max-height: 500px; overflow-y: auto;">
+                    <div class="loading">Загрузка обновлений...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         // Глобальные переменные
@@ -1672,6 +1702,8 @@
                                             <button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">ℹ️ Инфо</button>
                                             <button class="action-button members-button" onclick="event.stopPropagation(); selectDialogMembers('${dialog.dialogId}', '${dialog.name}')">👥 Участники</button>
                                             <button class="action-button messages-button" onclick="selectDialog('${dialog.dialogId}', '${dialog.name}')">📝 Сообщения</button>
+                                            <button class="action-button events-button" onclick="event.stopPropagation(); showDialogEventsModal('${dialog.dialogId}')">📋 События</button>
+                                            <button class="action-button updates-button" onclick="event.stopPropagation(); showDialogUpdatesModal('${dialog.dialogId}')">🔄 Обновления</button>
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -3720,6 +3752,321 @@
         function closeUpdatesModal() {
             document.getElementById('updatesModal').style.display = 'none';
             currentMessageIdForUpdates = null;
+        }
+
+        // ===== Управление событиями диалога =====
+        let currentDialogIdForEvents = null;
+
+        // Загрузка событий диалога
+        async function loadDialogEvents(dialogId) {
+            const eventsList = document.getElementById('dialogEventsList');
+            
+            try {
+                eventsList.innerHTML = '<div class="loading">Загрузка событий...</div>';
+
+                console.log('Загрузка событий для диалога:', dialogId);
+                console.log('API Key:', apiKey ? 'установлен' : 'не установлен');
+                console.log('Tenant ID:', tenantId);
+                
+                const url = `/api/dialogs/${dialogId}/events`;
+                console.log('Запрос к:', url);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+                
+                console.log('Ответ получен:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    let errorMessage = '';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorData.error || '';
+                        console.error('Ошибка API:', errorData);
+                    } catch (e) {
+                        const text = await response.text();
+                        console.error('Текст ошибки:', text);
+                        errorMessage = text || `HTTP ${response.status}`;
+                    }
+                    
+                    if (response.status === 404) {
+                        eventsList.innerHTML = `
+                            <div style="padding: 20px; text-align: center; color: #6c757d;">
+                                <p style="margin-bottom: 10px;">⚠️ События не найдены</p>
+                                <p style="font-size: 12px; color: #999;">${errorMessage || 'Диалог не найден или события отсутствуют'}</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    eventsList.innerHTML = `
+                        <div style="padding: 20px; text-align: center; color: #dc3545;">
+                            <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки событий</p>
+                            <p style="font-size: 12px; color: #999;">Статус: ${response.status} ${response.statusText}</p>
+                            <p style="font-size: 12px; color: #999;">${errorMessage}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const data = await response.json();
+                const events = Array.isArray(data.data) ? data.data : [];
+
+                if (events.length === 0) {
+                    eventsList.innerHTML = '<div class="no-data" style="padding: 20px; text-align: center; color: #6c757d;">События не найдены</div>';
+                    return;
+                }
+
+                // Функция для получения описания события
+                function getEventDescription(eventType, data) {
+                    const descriptions = {
+                        'dialog.create': 'Создан диалог',
+                        'dialog.update': 'Обновлен диалог',
+                        'dialog.delete': 'Удален диалог',
+                        'dialog.member.add': 'Добавлен участник диалога',
+                        'dialog.member.remove': 'Удален участник диалога',
+                        'dialog.member.update': 'Обновлен участник диалога',
+                        'message.create': 'Создано сообщение',
+                        'message.update': 'Обновлено сообщение',
+                        'message.delete': 'Удалено сообщение',
+                        'message.status.create': 'Создан статус сообщения',
+                        'message.status.update': 'Обновлен статус сообщения',
+                        'message.reaction.add': 'Добавлена реакция на сообщение',
+                        'message.reaction.update': 'Обновлена реакция на сообщение',
+                        'message.reaction.remove': 'Удалена реакция на сообщение',
+                        'dialog.typing': 'Пользователь печатает в диалоге',
+                        'tenant.create': 'Создан tenant',
+                        'tenant.update': 'Обновлен tenant',
+                        'tenant.delete': 'Удален tenant'
+                    };
+                    
+                    let description = descriptions[eventType] || eventType;
+                    
+                    // Дополняем описание информацией из data, если есть
+                    if (data) {
+                        if (data.message && data.message.content) {
+                            description += `: "${data.message.content.substring(0, 50)}${data.message.content.length > 50 ? '...' : ''}"`;
+                        } else if (data.member && data.member.userId) {
+                            description += `: пользователь ${data.member.userId}`;
+                        } else if (data.dialog && data.dialog.name) {
+                            description += `: "${data.dialog.name}"`;
+                        }
+                    }
+                    
+                    return description;
+                }
+
+                // Форматируем события для отображения
+                eventsList.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #dee2e6; background: #f8f9fa;">
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 15%;">Время</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 35%;">Описание события</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 25%;">Тип события</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 25%;">Обновления</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${events.map((event) => {
+                                const eventTime = event.createdAt 
+                                    ? (typeof event.createdAt === 'number' 
+                                        ? new Date(event.createdAt).toLocaleString('ru-RU')
+                                        : new Date(event.createdAt).toLocaleString('ru-RU'))
+                                    : '-';
+                                
+                                const eventDescription = getEventDescription(event.eventType, event.data);
+                                const eventName = event.eventType || '-';
+                                const updatesCount = event.updatesCount !== undefined ? event.updatesCount : null;
+                                
+                                let updatesInfo;
+                                if (updatesCount !== null && updatesCount !== undefined) {
+                                    if (updatesCount > 0) {
+                                        updatesInfo = `<span style="color: #28a745; font-weight: 500;">${updatesCount}</span> <span style="color: #6c757d; font-size: 11px;">обновлений</span>`;
+                                    } else {
+                                        updatesInfo = '<span style="color: #999; font-size: 12px;">Нет обновлений</span>';
+                                    }
+                                } else {
+                                    updatesInfo = '<span style="color: #999; font-size: 12px;">-</span>';
+                                }
+                                
+                                return `
+                                    <tr style="border-bottom: 1px solid #e9ecef;">
+                                        <td style="padding: 10px; color: #6c757d; font-size: 12px; vertical-align: top;">${eventTime}</td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: top;">
+                                            <span>${escapeHtml(eventDescription)}</span>
+                                            ${event.actorId ? `<br><span style="color: #6c757d; font-size: 11px;">Актор: ${escapeHtml(event.actorId)}${event.actorType ? ` (${escapeHtml(event.actorType)})` : ''}</span>` : ''}
+                                        </td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: top;">
+                                            <span style="font-weight: 500; font-family: monospace; font-size: 12px;">${escapeHtml(eventName)}</span>
+                                        </td>
+                                        <td style="padding: 10px; vertical-align: top;">
+                                            ${updatesInfo}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading dialog events:', error);
+                eventsList.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #dc3545;">
+                        <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки событий: ${error.message}</p>
+                        <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                            Проверьте консоль браузера (F12) для подробностей.
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        // Открытие модального окна для просмотра событий диалога
+        async function showDialogEventsModal(dialogId) {
+            currentDialogIdForEvents = dialogId;
+            
+            // Показываем модальное окно
+            document.getElementById('dialogEventsModal').style.display = 'block';
+            
+            // Загружаем события
+            await loadDialogEvents(dialogId);
+        }
+
+        // Закрытие модального окна событий диалога
+        function closeDialogEventsModal() {
+            document.getElementById('dialogEventsModal').style.display = 'none';
+            currentDialogIdForEvents = null;
+        }
+
+        // ===== Управление обновлениями диалога =====
+        let currentDialogIdForUpdates = null;
+
+        // Загрузка обновлений диалога
+        async function loadDialogUpdates(dialogId) {
+            const updatesList = document.getElementById('dialogUpdatesList');
+            
+            try {
+                updatesList.innerHTML = '<div class="loading">Загрузка обновлений...</div>';
+
+                console.log('Загрузка обновлений для диалога:', dialogId);
+                console.log('API Key:', apiKey ? 'установлен' : 'не установлен');
+                console.log('Tenant ID:', tenantId);
+                
+                const url = `/api/dialogs/${dialogId}/updates`;
+                console.log('Запрос к:', url);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+                
+                console.log('Ответ получен:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    let errorMessage = '';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorData.error || '';
+                        console.error('Ошибка API:', errorData);
+                    } catch (e) {
+                        const text = await response.text();
+                        console.error('Текст ошибки:', text);
+                        errorMessage = text || `HTTP ${response.status}`;
+                    }
+                    
+                    updatesList.innerHTML = `
+                        <div style="padding: 20px; text-align: center; color: #dc3545;">
+                            <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки обновлений</p>
+                            <p style="font-size: 12px; color: #999;">Статус: ${response.status} ${response.statusText}</p>
+                            <p style="font-size: 12px; color: #999;">${errorMessage}</p>
+                            <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                                Проверьте консоль браузера (F12) для подробностей.
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const data = await response.json();
+                const updates = Array.isArray(data.data) ? data.data : [];
+
+                if (updates.length === 0) {
+                    updatesList.innerHTML = '<div class="no-data" style="padding: 20px; text-align: center; color: #6c757d;">Обновления не найдены</div>';
+                    return;
+                }
+
+                // Форматируем обновления для отображения
+                updatesList.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #dee2e6; background: #f8f9fa;">
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 20%;">Время</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 40%;">Тип события</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 40%;">Пользователь</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${updates.map((update) => {
+                                const updateTime = update.createdAt 
+                                    ? (typeof update.createdAt === 'number' 
+                                        ? new Date(update.createdAt).toLocaleString('ru-RU')
+                                        : new Date(update.createdAt).toLocaleString('ru-RU'))
+                                    : '-';
+                                
+                                const eventType = update.eventType || '-';
+                                const userId = update.userId || '-';
+                                
+                                return `
+                                    <tr style="border-bottom: 1px solid #e9ecef;">
+                                        <td style="padding: 10px; color: #6c757d; font-size: 12px; vertical-align: top;">${updateTime}</td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: top;">
+                                            <span style="font-weight: 500; font-family: monospace; font-size: 12px;">${escapeHtml(eventType)}</span>
+                                        </td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: top;">
+                                            <span>${escapeHtml(userId)}</span>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading dialog updates:', error);
+                updatesList.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #dc3545;">
+                        <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки обновлений: ${error.message}</p>
+                        <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                            Проверьте консоль браузера (F12) для подробностей.
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        // Открытие модального окна для просмотра обновлений диалога
+        async function showDialogUpdatesModal(dialogId) {
+            currentDialogIdForUpdates = dialogId;
+            
+            // Показываем модальное окно
+            document.getElementById('dialogUpdatesModal').style.display = 'block';
+            
+            // Загружаем обновления
+            await loadDialogUpdates(dialogId);
+        }
+
+        // Закрытие модального окна обновлений диалога
+        function closeDialogUpdatesModal() {
+            document.getElementById('dialogUpdatesModal').style.display = 'none';
+            currentDialogIdForUpdates = null;
         }
 
         // ===== Управление участниками диалога =====
