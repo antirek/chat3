@@ -214,11 +214,17 @@ export const eventsController = {
       })
         .sort({ createdAt: -1 })
         .limit(limit)
-        .select('userId eventType createdAt')
+        .select('userId eventType createdAt eventId')
         .lean();
 
+      // Преобразуем eventId в строку для корректной сериализации JSON
+      const updatesWithStringEventId = updates.map(update => ({
+        ...update,
+        eventId: update.eventId ? String(update.eventId) : null
+      }));
+
       res.json({
-        data: updates
+        data: updatesWithStringEventId
       });
     } catch (error) {
       res.status(500).json({
