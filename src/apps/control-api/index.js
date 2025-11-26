@@ -7,16 +7,23 @@ import eventsRoutes from './routes/eventsRoutes.js';
 import swaggerSpec from './config/swagger.js';
 
 const app = express();
-const PORT = process.env.CONTROL_API_PORT || 3002;
+
+// Get URLs from environment variables or use defaults
+const CONTROL_API_URL = process.env.CONTROL_API_URL || 'http://localhost:3002';
+const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
+const ADMIN_WEB_URL = process.env.ADMIN_WEB_URL || 'http://localhost:3001';
+const API_TEST_URL = process.env.API_TEST_URL || 'http://localhost:3003';
+
+// Extract port from URL for server listening
+const PORT = new URL(CONTROL_API_URL).port || 3002;
 
 // CORS middleware - разрешаем запросы с api-test
 app.use(cors({
   origin: [
-    `http://localhost:${process.env.API_TEST_PORT || 3003}`,
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3002',
-    'http://localhost:3003'
+    API_TEST_URL,
+    TENANT_API_URL,
+    ADMIN_WEB_URL,
+    CONTROL_API_URL
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -59,12 +66,12 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     version: '1.0.0',
     endpoints: {
-      init: `http://localhost:${PORT}/api/init`,
-      seed: `http://localhost:${PORT}/api/init/seed`,
-      dialogEvents: `http://localhost:${PORT}/api/dialogs/{dialogId}/events`,
-      dialogUpdates: `http://localhost:${PORT}/api/dialogs/{dialogId}/updates`,
-      messageEvents: `http://localhost:${PORT}/api/messages/{messageId}/events`,
-      messageUpdates: `http://localhost:${PORT}/api/messages/{messageId}/updates`
+      init: `${CONTROL_API_URL}/api/init`,
+      seed: `${CONTROL_API_URL}/api/init/seed`,
+      dialogEvents: `${CONTROL_API_URL}/api/dialogs/{dialogId}/events`,
+      dialogUpdates: `${CONTROL_API_URL}/api/dialogs/{dialogId}/updates`,
+      messageEvents: `${CONTROL_API_URL}/api/messages/{messageId}/events`,
+      messageUpdates: `${CONTROL_API_URL}/api/messages/{messageId}/updates`
     }
   });
 });
@@ -77,9 +84,9 @@ const startServer = async () => {
 
     // Start server
     app.listen(PORT, () => {
-      console.log(`\n🔧 Control API is running on http://localhost:${PORT}`);
-      console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-      console.log(`💚 Health Check: http://localhost:${PORT}/health`);
+      console.log(`\n🔧 Control API is running on ${CONTROL_API_URL}`);
+      console.log(`📚 API Documentation: ${CONTROL_API_URL}/api-docs`);
+      console.log(`💚 Health Check: ${CONTROL_API_URL}/health`);
       console.log(`🔑 Endpoints:`);
       console.log(`   POST /api/init - Initialize system (create tenant and API key)`);
       console.log(`   POST /api/init/seed - Run database seed script`);

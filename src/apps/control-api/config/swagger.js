@@ -18,7 +18,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'http://localhost:3002',
+        url: process.env.CONTROL_API_URL || 'http://localhost:3002',
         description: 'Control API Server'
       }
     ],

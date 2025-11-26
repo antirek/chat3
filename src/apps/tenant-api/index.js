@@ -18,17 +18,23 @@ import idempotencyGuard from './middleware/idempotencyGuard.js';
 import { apiJournalMiddleware } from './middleware/apiJournal.js';
 
 const app = express();
-const PORT = process.env.TENANT_API_PORT || 3000;
+
+// Get URLs from environment variables or use defaults
+const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
+const ADMIN_WEB_URL = process.env.ADMIN_WEB_URL || 'http://localhost:3001';
+const CONTROL_API_URL = process.env.CONTROL_API_URL || 'http://localhost:3002';
+const API_TEST_URL = process.env.API_TEST_URL || 'http://localhost:3003';
+
+// Extract port from URL for server listening
+const PORT = new URL(TENANT_API_URL).port || 3000;
 
 // CORS middleware - разрешаем запросы с api-test и других источников
 app.use(cors({
   origin: [
-    `http://localhost:${process.env.API_TEST_PORT || 3003}`,
-    `http://localhost:${process.env.ADMIN_WEB_PORT || 3001}`,
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3002',
-    'http://localhost:3003'
+    API_TEST_URL,
+    ADMIN_WEB_URL,
+    CONTROL_API_URL,
+    TENANT_API_URL
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -92,10 +98,10 @@ app.get('/health', (req, res) => {
     },
     rabbitmq: rabbitmqInfo,
     endpoints: {
-      tenants: `http://localhost:${PORT}/api/tenants`,
-      users: `http://localhost:${PORT}/api/users`,
-      dialogs: `http://localhost:${PORT}/api/dialogs`,
-      meta: `http://localhost:${PORT}/api/meta`
+      tenants: `${TENANT_API_URL}/api/tenants`,
+      users: `${TENANT_API_URL}/api/users`,
+      dialogs: `${TENANT_API_URL}/api/dialogs`,
+      meta: `${TENANT_API_URL}/api/meta`
     }
   });
 });
@@ -129,9 +135,9 @@ const startServer = async () => {
     app.listen(PORT, () => {
       const rabbitmqInfo = rabbitmqUtils.getRabbitMQInfo();
       
-      console.log(`\n🚀 Tenant API is running on http://localhost:${PORT}`);
-      console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-      console.log(`💚 Health Check: http://localhost:${PORT}/health`);
+      console.log(`\n🚀 Tenant API is running on ${TENANT_API_URL}`);
+      console.log(`📚 API Documentation: ${TENANT_API_URL}/api-docs`);
+      console.log(`💚 Health Check: ${TENANT_API_URL}/health`);
       console.log(`\n📡 Services Status:`);
       console.log(`   MongoDB: ✅ Connected`);
       console.log(`   RabbitMQ: ${rabbitmqInfo.connected ? '✅ Connected' : '❌ Disconnected'} (${rabbitmqInfo.exchange})`);

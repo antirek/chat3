@@ -372,8 +372,9 @@
         </div>
         <div class="header-right">
             <div class="header-links">
-                <a href="#" id="swaggerLink" target="_blank" class="header-link">Swagger</a>
-                <a href="#" id="adminLink" target="_blank" class="header-link">Данные</a>
+                <a href="#" id="tenantApiLink" target="_blank" class="header-link">OpenAPI Tenant-api</a>
+                <a href="#" id="controlApiLink" target="_blank" class="header-link">OpenAPI Control-api</a>
+                <a href="#" id="adminLink" target="_blank" class="header-link">AdminJS</a>
             </div>
             <div class="header-inputs">
                 <div class="header-input-group">
@@ -392,10 +393,6 @@
     <div class="container">
         <!-- Sidebar с навигацией -->
         <div class="sidebar">
-            <!-- <div class="sidebar-header">
-                <h2>Тестовые интерфейсы</h2>
-                <p>Выберите интерфейс для тестирования</p>
-            </div> -->
             <div class="nav-links">
                 <a class="nav-link" onclick="loadPage('api-test-user-dialogs.html', this)" data-page="api-test-user-dialogs.html">
                     <span class="nav-link-icon" title="Пользователи + Диалоги + Сообщения">👥</span>
@@ -465,11 +462,15 @@
         function updateHeaderLinks() {
             // Ждем загрузки конфигурации
             if (window.CHAT3_CONFIG) {
-                const swaggerLink = document.getElementById('swaggerLink');
+                const tenantApiLink = document.getElementById('tenantApiLink');
+                const controlApiLink = document.getElementById('controlApiLink');
                 const adminLink = document.getElementById('adminLink');
                 
-                if (swaggerLink && CHAT3_CONFIG.TENANT_API_URL) {
-                    swaggerLink.href = `${CHAT3_CONFIG.TENANT_API_URL}/api-docs`;
+                if (tenantApiLink && CHAT3_CONFIG.TENANT_API_URL) {
+                    tenantApiLink.href = `${CHAT3_CONFIG.TENANT_API_URL}/api-docs`;
+                }
+                if (controlApiLink && CHAT3_CONFIG.CONTROL_API_URL) {
+                    controlApiLink.href = `${CHAT3_CONFIG.CONTROL_API_URL}/api-docs`;
                 }
                 if (adminLink && CHAT3_CONFIG.ADMIN_WEB_URL) {
                     adminLink.href = `${CHAT3_CONFIG.ADMIN_WEB_URL}/admin`;
