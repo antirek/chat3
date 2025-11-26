@@ -3,7 +3,7 @@ import {
   createDialogUpdate,
   createDialogMemberUpdate,
   createMessageUpdate
-} from '../updateUtils.js';
+} from '../../../../utils/updateUtils.js';
 import { Dialog, DialogMember, Meta, Message, User, Event, Update } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 
@@ -27,7 +27,7 @@ beforeAll(async () => {
   amqplib.default.connect = fakeAmqp.connect;
   
   // Импортируем updateUtils (который использует rabbitmqUtils)
-  updateUtils = await import('../updateUtils.js');
+  updateUtils = await import('../../../../utils/updateUtils.js');
   
   // Настраиваем MongoDB
   await setupMongoMemoryServer();
