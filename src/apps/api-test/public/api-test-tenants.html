@@ -663,9 +663,9 @@
                                 <td><strong>${tenant.tenantId || '-'}</strong></td>
                                 <td>${formatTimestamp(tenant.createdAt)}</td>
                                 <td>
-                                    <button class="btn-success btn-small" onclick="showMetaModal('${tenant.tenantId || tenant._id}')">🏷️ Meta</button>
-                                    <button class="btn-primary btn-small" onclick="showInfoModal('${tenant._id}')">📋 Инфо</button>
-                                    <button class="btn-danger btn-small" onclick="deleteTenant('${tenant._id}')">🗑️ Удалить</button>
+                                    <button class="btn-success btn-small" onclick="showMetaModal('${tenant.tenantId}')">🏷️ Meta</button>
+                                    <button class="btn-primary btn-small" onclick="showInfoModal('${tenant.tenantId}')">📋 Инфо</button>
+                                    <button class="btn-danger btn-small" onclick="deleteTenant('${tenant.tenantId}')">🗑️ Удалить</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -823,8 +823,8 @@
             }
         }
 
-        // Показать modal редактирования
-        function showEditModal(tenantMongoId) {
+        // Показать modal редактирования (не используется - редактирование отключено)
+        function showEditModal(tenantIdParam) {
             document.getElementById('editModal').style.display = 'block';
         }
 
@@ -967,54 +967,39 @@
         }
 
         // Показать modal информации
-        async function showInfoModal(tenantMongoId) {
+        async function showInfoModal(tenantIdParam) {
             try {
                 const apiKey = getApiKey();
 
-                // Получаем тенант
-                const tenantResponse = await fetch(`/api/tenants/${tenantMongoId}`, {
+                // Получаем тенант по tenantId - показываем сырой ответ от API
+                const tenantResponse = await fetch(`/api/tenants/${tenantIdParam}`, {
                     headers: {
                         'X-API-Key': apiKey,
                         'X-Tenant-ID': tenantId
                     }
                 });
 
+                const responseData = await tenantResponse.json();
+
                 if (!tenantResponse.ok) {
-                    throw new Error('Failed to load tenant');
+                    // Показываем ошибку в JSON формате
+                    document.getElementById('jsonViewer').textContent = JSON.stringify({
+                        status: tenantResponse.status,
+                        statusText: tenantResponse.statusText,
+                        error: responseData
+                    }, null, 2);
+                } else {
+                    // Показываем успешный ответ
+                    document.getElementById('jsonViewer').textContent = JSON.stringify(responseData, null, 2);
                 }
 
-                const { data: tenant } = await tenantResponse.json();
-
-                // Получаем мета-теги
-                let meta = {};
-                if (tenant.tenantId) {
-                    try {
-                        const metaResponse = await fetch(`/api/meta/tenant/${tenant.tenantId}`, {
-                            headers: {
-                                'X-API-Key': apiKey,
-                                'X-Tenant-ID': tenantId
-                            }
-                        });
-                        if (metaResponse.ok) {
-                            const metaData = await metaResponse.json();
-                            meta = metaData.data || {};
-                        }
-                    } catch (e) {
-                        console.warn('Failed to load meta:', e);
-                    }
-                }
-
-                // Объединяем данные тенанта с мета-тегами
-                const fullData = {
-                    ...tenant,
-                    meta: meta
-                };
-
-                document.getElementById('jsonViewer').textContent = JSON.stringify(fullData, null, 2);
                 document.getElementById('infoModal').style.display = 'block';
             } catch (error) {
                 console.error('Error loading tenant info:', error);
-                alert('Ошибка загрузки информации о тенанте: ' + error.message);
+                document.getElementById('jsonViewer').textContent = JSON.stringify({
+                    error: error.message
+                }, null, 2);
+                document.getElementById('infoModal').style.display = 'block';
             }
         }
 
@@ -1023,16 +1008,16 @@
             document.getElementById('infoModal').style.display = 'none';
         }
 
-        // Удалить тенант
-        async function deleteTenant(tenantMongoId) {
-            if (!confirm('Вы уверены, что хотите удалить этот тенант?')) {
+        // Удалить тенант по tenantId
+        async function deleteTenant(tenantIdParam) {
+            if (!confirm(`Вы уверены, что хотите удалить тенант "${tenantIdParam}"?`)) {
                 return;
             }
 
             try {
                 const apiKey = getApiKey();
 
-                const response = await fetch(`/api/tenants/${tenantMongoId}`, {
+                const response = await fetch(`/api/tenants/${tenantIdParam}`, {
                     method: 'DELETE',
                     headers: {
                         'X-API-Key': apiKey,

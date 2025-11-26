@@ -37,22 +37,39 @@ router.get('/', apiAuth, requirePermission('read'), validateQuery(paginationSche
 
 /**
  * @swagger
- * /api/tenants/{id}:
+ * /api/tenants/{tenantId}:
  *   get:
- *     summary: Get tenant by ID
+ *     summary: Get tenant by tenantId
  *     tags: [Tenants]
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: tenantId
  *         required: true
  *         schema:
  *           type: string
- *         description: Tenant ID
+ *         description: Tenant ID (e.g., tnt_default)
  *     responses:
  *       200:
- *         description: Tenant details
+ *         description: Tenant details with meta tags
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     tenantId:
+ *                       type: string
+ *                     createdAt:
+ *                       type: number
+ *                     updatedAt:
+ *                       type: number
+ *                     meta:
+ *                       type: object
+ *                       additionalProperties: true
  *       404:
  *         description: Tenant not found
  */
@@ -91,21 +108,31 @@ router.post('/', apiAuthForTenantCreation, validateBody(createTenantSchema), ten
 
 /**
  * @swagger
- * /api/tenants/{id}:
+ * /api/tenants/{tenantId}:
  *   delete:
- *     summary: Delete tenant
+ *     summary: Delete tenant by tenantId
  *     tags: [Tenants]
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: tenantId
  *         required: true
  *         schema:
  *           type: string
+ *         description: Tenant ID (e.g., tnt_default)
  *     responses:
  *       200:
  *         description: Tenant deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 tenantId:
+ *                   type: string
  *       404:
  *         description: Tenant not found
  */

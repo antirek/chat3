@@ -1,5 +1,5 @@
 import { tenantController } from '../tenantController.js';
-import { Tenant } from "../../../../models/index.js";
+import { Tenant, Meta } from "../../../../models/index.js";
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
@@ -58,22 +58,70 @@ describe('tenantController', () => {
         pages: 2
       });
     });
+
+    test('returns tenants without _id field', async () => {
+      const req = { query: {} };
+      const res = createMockRes();
+
+      await tenantController.getAll(req, res);
+
+      expect(res.body.data[0]).not.toHaveProperty('_id');
+      expect(res.body.data[0].tenantId).toBe(tenant.tenantId);
+    });
+
+    test('returns tenants with meta tags', async () => {
+      // Создаем мета-тег для тенанта
+      await Meta.create({
+        tenantId: tenant.tenantId,
+        entityType: 'tenant',
+        entityId: tenant.tenantId,
+        key: 'plan',
+        value: 'premium',
+        dataType: 'string'
+      });
+
+      const req = { query: {} };
+      const res = createMockRes();
+
+      await tenantController.getAll(req, res);
+
+      expect(res.body.data[0].meta).toEqual({ plan: 'premium' });
+    });
   });
 
   describe('getById', () => {
-    test('returns tenant by id', async () => {
-      const req = { params: { id: tenant._id.toString() } };
+    test('returns tenant by tenantId', async () => {
+      const req = { params: { id: tenant.tenantId } };
       const res = createMockRes();
 
       await tenantController.getById(req, res);
 
       expect(res.statusCode).toBeUndefined();
-      expect(String(res.body.data._id)).toBe(tenant._id.toString());
+      expect(res.body.data).not.toHaveProperty('_id');
       expect(res.body.data.tenantId).toBe(tenant.tenantId);
     });
 
+    test('returns tenant with meta tags', async () => {
+      // Создаем мета-тег для тенанта
+      await Meta.create({
+        tenantId: tenant.tenantId,
+        entityType: 'tenant',
+        entityId: tenant.tenantId,
+        key: 'plan',
+        value: 'enterprise',
+        dataType: 'string'
+      });
+
+      const req = { params: { id: tenant.tenantId } };
+      const res = createMockRes();
+
+      await tenantController.getById(req, res);
+
+      expect(res.body.data.meta).toEqual({ plan: 'enterprise' });
+    });
+
     test('returns 404 when tenant not found', async () => {
-      const req = { params: { id: '64fa1cca6f9b1a2b3c4d5e6f' } };
+      const req = { params: { id: 'tnt_nonexistent' } };
       const res = createMockRes();
 
       await tenantController.getById(req, res);
@@ -81,20 +129,7 @@ describe('tenantController', () => {
       expect(res.statusCode).toBe(404);
       expect(res.body).toEqual({
         error: 'Not Found',
-        message: 'Tenant not found'
-      });
-    });
-
-    test('returns 400 for invalid id format', async () => {
-      const req = { params: { id: 'invalid-id' } };
-      const res = createMockRes();
-
-      await tenantController.getById(req, res);
-
-      expect(res.statusCode).toBe(400);
-      expect(res.body).toEqual({
-        error: 'Bad Request',
-        message: 'Invalid tenant ID'
+        message: 'Tenant with tenantId "tnt_nonexistent" not found'
       });
     });
   });
@@ -112,10 +147,34 @@ describe('tenantController', () => {
 
       expect(res.statusCode).toBe(201);
       expect(res.body.message).toBe('Tenant created successfully');
+      expect(res.body.data).not.toHaveProperty('_id');
+      expect(res.body.data.tenantId).toBe('tnt_new');
 
       const created = await Tenant.findOne({ tenantId: 'tnt_new' }).lean();
       expect(created).toBeTruthy();
       expect(created.tenantId).toBe('tnt_new');
+    });
+
+    test('creates tenant with meta tags', async () => {
+      const req = {
+        body: {
+          tenantId: 'tnt_with_meta',
+          meta: { plan: 'premium', maxUsers: 100 }
+        }
+      };
+      const res = createMockRes();
+
+      await tenantController.create(req, res);
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body.data.meta).toEqual({ plan: 'premium', maxUsers: 100 });
+
+      // Проверяем, что мета-теги сохранены в базе
+      const savedMeta = await Meta.find({ 
+        tenantId: 'tnt_with_meta', 
+        entityType: 'tenant' 
+      }).lean();
+      expect(savedMeta).toHaveLength(2);
     });
 
     test('returns 409 when tenantId already exists', async () => {
@@ -140,25 +199,51 @@ describe('tenantController', () => {
       expect(res.statusCode).toBe(201);
       expect(res.body.message).toBe('Tenant created successfully');
       expect(res.body.data.tenantId).toBeTruthy();
+      expect(res.body.data).not.toHaveProperty('_id');
     });
   });
 
   describe('delete', () => {
-    test('deletes tenant by id', async () => {
-      const req = { params: { id: tenant._id.toString() } };
+    test('deletes tenant by tenantId', async () => {
+      const req = { params: { id: tenant.tenantId } };
       const res = createMockRes();
 
       await tenantController.delete(req, res);
 
       expect(res.statusCode).toBeUndefined();
-      expect(res.body).toEqual({ message: 'Tenant deleted successfully' });
+      expect(res.body.message).toBe('Tenant deleted successfully');
+      expect(res.body.tenantId).toBe(tenant.tenantId);
 
-      const deleted = await Tenant.findById(tenant._id);
+      const deleted = await Tenant.findOne({ tenantId: tenant.tenantId });
       expect(deleted).toBeNull();
     });
 
+    test('deletes tenant meta tags when deleting tenant', async () => {
+      // Создаем мета-теги для тенанта
+      await Meta.create({
+        tenantId: tenant.tenantId,
+        entityType: 'tenant',
+        entityId: tenant.tenantId,
+        key: 'plan',
+        value: 'premium',
+        dataType: 'string'
+      });
+
+      const req = { params: { id: tenant.tenantId } };
+      const res = createMockRes();
+
+      await tenantController.delete(req, res);
+
+      // Проверяем, что мета-теги удалены
+      const remainingMeta = await Meta.find({ 
+        tenantId: tenant.tenantId, 
+        entityType: 'tenant' 
+      });
+      expect(remainingMeta).toHaveLength(0);
+    });
+
     test('returns 404 when tenant missing', async () => {
-      const req = { params: { id: '64fa1cca6f9b1a2b3c4d5e6f' } };
+      const req = { params: { id: 'tnt_nonexistent' } };
       const res = createMockRes();
 
       await tenantController.delete(req, res);
@@ -166,23 +251,8 @@ describe('tenantController', () => {
       expect(res.statusCode).toBe(404);
       expect(res.body).toEqual({
         error: 'Not Found',
-        message: 'Tenant not found'
-      });
-    });
-
-    test('returns 400 for invalid id', async () => {
-      const req = { params: { id: 'invalid' } };
-      const res = createMockRes();
-
-      await tenantController.delete(req, res);
-
-      expect(res.statusCode).toBe(400);
-      expect(res.body).toEqual({
-        error: 'Bad Request',
-        message: 'Invalid tenant ID'
+        message: 'Tenant with tenantId "tnt_nonexistent" not found'
       });
     });
   });
 });
-
-

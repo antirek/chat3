@@ -1,6 +1,24 @@
-import { Tenant } from '../../../models/index.js';
-import { sanitizeResponse } from '../utils/responseUtils.js';
+import { Tenant, Meta } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
+
+// Хелпер для форматирования тенанта без _id и с мета-тегами
+const formatTenantResponse = (tenant, meta = null) => {
+  const tenantObj = tenant.toObject ? tenant.toObject() : tenant;
+  const { _id, __v, ...rest } = tenantObj;
+  
+  // Форматируем createdAt и updatedAt в строки с 6 знаками после точки
+  if (rest.createdAt !== undefined) {
+    rest.createdAt = rest.createdAt.toFixed(6);
+  }
+  if (rest.updatedAt !== undefined) {
+    rest.updatedAt = rest.updatedAt.toFixed(6);
+  }
+  
+  if (meta !== null) {
+    return { ...rest, meta };
+  }
+  return rest;
+};
 
 export const tenantController = {
   // Get all tenants (paginated)
@@ -13,12 +31,20 @@ export const tenantController = {
       const tenants = await Tenant.find()
         .skip(skip)
         .limit(limit)
-        .select('-__v');
+        .select('-__v -_id');
 
       const total = await Tenant.countDocuments();
 
+      // Получаем мета-теги для каждого тенанта
+      const tenantsWithMeta = await Promise.all(
+        tenants.map(async (tenant) => {
+          const meta = await metaUtils.getEntityMeta(tenant.tenantId, 'tenant', tenant.tenantId);
+          return formatTenantResponse(tenant, meta);
+        })
+      );
+
       res.json({
-        data: sanitizeResponse(tenants),
+        data: tenantsWithMeta,
         pagination: {
           page,
           limit,
@@ -34,26 +60,26 @@ export const tenantController = {
     }
   },
 
-  // Get tenant by ID
+  // Get tenant by tenantId
   async getById(req, res) {
     try {
-      const tenant = await Tenant.findById(req.params.id).select('-__v');
+      const { id } = req.params;
+      
+      // Ищем по tenantId, а не по MongoDB _id
+      const tenant = await Tenant.findOne({ tenantId: id }).select('-__v -_id');
 
       if (!tenant) {
         return res.status(404).json({
           error: 'Not Found',
-          message: 'Tenant not found'
+          message: `Tenant with tenantId "${id}" not found`
         });
       }
 
-      res.json({ data: sanitizeResponse(tenant) });
+      // Получаем мета-теги тенанта
+      const meta = await metaUtils.getEntityMeta(tenant.tenantId, 'tenant', tenant.tenantId);
+
+      res.json({ data: formatTenantResponse(tenant, meta) });
     } catch (error) {
-      if (error.name === 'CastError') {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: 'Invalid tenant ID'
-        });
-      }
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
@@ -135,8 +161,11 @@ export const tenantController = {
         }
       }
 
+      // Формируем ответ с мета-тегами (если они были переданы)
+      const responseMeta = meta && typeof meta === 'object' ? meta : {};
+      
       res.status(201).json({
-        data: sanitizeResponse(tenant),
+        data: formatTenantResponse(tenant, responseMeta),
         message: 'Tenant created successfully'
       });
     } catch (error) {
@@ -172,28 +201,33 @@ export const tenantController = {
     }
   },
 
-  // Delete tenant
+  // Delete tenant by tenantId
   async delete(req, res) {
     try {
-      const tenant = await Tenant.findByIdAndDelete(req.params.id);
+      const { id } = req.params;
+      
+      // Ищем и удаляем по tenantId, а не по MongoDB _id
+      const tenant = await Tenant.findOneAndDelete({ tenantId: id });
 
       if (!tenant) {
         return res.status(404).json({
           error: 'Not Found',
-          message: 'Tenant not found'
+          message: `Tenant with tenantId "${id}" not found`
         });
       }
 
+      // Удаляем все мета-теги тенанта
+      await Meta.deleteMany({ 
+        tenantId: tenant.tenantId, 
+        entityType: 'tenant', 
+        entityId: tenant.tenantId 
+      });
+
       res.json({
-        message: 'Tenant deleted successfully'
+        message: 'Tenant deleted successfully',
+        tenantId: tenant.tenantId
       });
     } catch (error) {
-      if (error.name === 'CastError') {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: 'Invalid tenant ID'
-        });
-      }
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
