@@ -30,11 +30,10 @@ COPY --chown=chat3user:nodejs . .
 # Переключаемся на непривилегированного пользователя
 USER chat3user
 
-# Открываем порт приложения
-EXPOSE 3000
+# Открываем порты для всех сервисов
+EXPOSE 3000 3001 3002 3003
 
-# Healthcheck для проверки состояния контейнера
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/admin', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+# CMD будет переопределен в docker-compose.yml для каждого сервиса
+CMD ["npm", "run", "start:tenant-api"]
 
 

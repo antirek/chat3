@@ -4,7 +4,7 @@ import * as rabbitmqUtils from '../../utils/rabbitmqUtils.js';
 import amqp from 'amqplib';
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://rmuser:rmpassword@localhost:5672/';
-const EXCHANGE_NAME = 'chat3_events';
+const EXCHANGE_NAME = process.env.RABBITMQ_EVENTS_EXCHANGE || 'chat3_events';
 const WORKER_QUEUE = 'update_worker_queue';
 
 let connection = null;

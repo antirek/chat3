@@ -1,0 +1,187 @@
+version: '3.8'
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:7
+    container_name: chat3-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: chat3
+    networks:
+      - chat3-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: chat3-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: rmuser
+      RABBITMQ_DEFAULT_PASS: rmpassword
+      RABBITMQ_DEFAULT_VHOST: /
+    networks:
+      - chat3-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Tenant API
+  tenant-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat3-tenant-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    command: npm run start:tenant-api
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - chat3-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Admin Web
+  admin-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat3-admin-web
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    command: npm run start:admin-web
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - chat3-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/admin', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Control API
+  control-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat3-control-api
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    env_file:
+      - .env
+    command: npm run start:control-api
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - chat3-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # API Test
+  api-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat3-api-test
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    env_file:
+      - .env
+    command: npm run start:api-test
+    depends_on:
+      - tenant-api
+      - admin-web
+      - control-api
+    networks:
+      - chat3-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3003', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Update Worker
+  update-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat3-update-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: npm run start:update-worker
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - chat3-network
+
+  # Dialog Read Worker
+  dialog-read-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat3-dialog-read-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: npm run start:dialog-read-worker
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - chat3-network
+
+volumes:
+  mongodb_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+
+networks:
+  chat3-network:
+    driver: bridge
+

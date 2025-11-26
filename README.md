@@ -62,12 +62,9 @@ npm start
 ### Переменные окружения
 
 Скрипт `start.sh` автоматически устанавливает переменные окружения:
-- `RABBITMQ_HOST` - хост RabbitMQ (по умолчанию: localhost)
-- `RABBITMQ_PORT` - порт RabbitMQ (по умолчанию: 5672)
-- `RABBITMQ_USER` - пользователь RabbitMQ (по умолчанию: rmuser)
-- `RABBITMQ_PASSWORD` - пароль RabbitMQ (по умолчанию: rmpassword)
-- `RABBITMQ_VHOST` - vhost RabbitMQ (по умолчанию: /)
-- `RABBITMQ_EXCHANGE` - exchange для событий (по умолчанию: chat3_events)
+- `RABBITMQ_URL` - полный URL подключения к RabbitMQ (по умолчанию: amqp://rmuser:rmpassword@localhost:5672/)
+- `RABBITMQ_EVENTS_EXCHANGE` - exchange для событий (по умолчанию: chat3_events)
+- `RABBITMQ_UPDATES_EXCHANGE` - exchange для обновлений (по умолчанию: chat3_updates)
 - `MONGODB_URI` - строка подключения к MongoDB
 - `PORT` - порт сервера (по умолчанию: 3000)
 

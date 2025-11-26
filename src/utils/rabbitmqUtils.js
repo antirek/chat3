@@ -6,21 +6,13 @@ let channel = null;
 let isConnected = false;
 
 // Переменные окружения для RabbitMQ
-const RABBITMQ_HOST = process.env.RABBITMQ_HOST || 'localhost';
-const RABBITMQ_PORT = process.env.RABBITMQ_PORT || '5672';
-const RABBITMQ_USER = process.env.RABBITMQ_USER || 'rmuser';
-const RABBITMQ_PASSWORD = process.env.RABBITMQ_PASSWORD || 'rmpassword';
-const RABBITMQ_VHOST = process.env.RABBITMQ_VHOST || '/';
+const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://rmuser:rmpassword@localhost:5672/';
 
-// Формируем URL с авторизацией
-const RABBITMQ_URL = process.env.RABBITMQ_URL || 
-  `amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@${RABBITMQ_HOST}:${RABBITMQ_PORT}${RABBITMQ_VHOST}`;
-
-const EXCHANGE_NAME = process.env.RABBITMQ_EXCHANGE || 'chat3_events';
+const EXCHANGE_NAME = process.env.RABBITMQ_EVENTS_EXCHANGE || 'chat3_events';
 const EXCHANGE_TYPE = 'topic'; // topic exchange для гибкой маршрутизации
 
 // Exchange для updates
-const UPDATES_EXCHANGE_NAME = 'chat3_updates';
+const UPDATES_EXCHANGE_NAME = process.env.RABBITMQ_UPDATES_EXCHANGE || 'chat3_updates';
 const UPDATES_EXCHANGE_TYPE = 'topic';
 const UPDATES_QUEUE_TTL = 3600000; // TTL 1 час в миллисекундах для user queues
 
@@ -238,13 +230,22 @@ export function isRabbitMQConnected() {
  * Получить информацию о RabbitMQ
  */
 export function getRabbitMQInfo() {
+  // Извлекаем пользователя из URL для отображения
+  let user = 'unknown';
+  try {
+    const url = new URL(RABBITMQ_URL);
+    user = url.username || 'unknown';
+  } catch (e) {
+    // Если не удалось распарсить URL, оставляем unknown
+  }
+  
   return {
     url: RABBITMQ_URL ? RABBITMQ_URL.replace(/\/\/.*@/, '//***:***@') : 'not configured', // Скрываем креды
     exchange: EXCHANGE_NAME,
     exchangeType: EXCHANGE_TYPE,
     updatesExchange: UPDATES_EXCHANGE_NAME,
     connected: isConnected,
-    user: RABBITMQ_USER
+    user: user
   };
 }
 
