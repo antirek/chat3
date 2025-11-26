@@ -15,40 +15,6 @@ AdminJS.registerAdapter({
 const adminOptions = {
   resources: [
     {
-      resource: Tenant,
-      options: {
-        navigation: {
-          name: 'Система',
-          icon: 'Building',
-        },
-        properties: {
-          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
-          tenantId: { 
-            isVisible: { list: true, show: true, edit: false, filter: true },
-            type: 'string'
-          },
-          name: { isTitle: true },
-          domain: { isRequired: true },
-          type: {
-            availableValues: [
-              { value: 'system', label: 'Системный' },
-              { value: 'client', label: 'Клиент' },
-            ],
-            isRequired: true,
-          },
-          settings: { 
-            type: 'mixed',
-            isVisible: { list: false, show: true, edit: true }
-          },
-          createdAt: { isVisible: { list: true, show: true, edit: false } },
-          updatedAt: { isVisible: { list: true, show: true, edit: false } },
-        },
-        listProperties: ['_id', 'tenantId', 'name', 'domain', 'type', 'isActive', 'createdAt'],
-        showProperties: ['_id', 'tenantId', 'name', 'domain', 'type', 'isActive', 'settings', 'createdAt', 'updatedAt'],
-        filterProperties: ['tenantId', 'name', 'domain', 'type', 'isActive'],
-      }
-    },
-    {
       resource: ApiKey,
       options: {
         navigation: {
@@ -100,10 +66,44 @@ const adminOptions = {
       }
     },
     {
+      resource: Tenant,
+      options: {
+        navigation: {
+          name: 'Система',
+          icon: 'Building',
+        },
+        properties: {
+          _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
+          tenantId: { 
+            isVisible: { list: true, show: true, edit: false, filter: true },
+            type: 'string'
+          },
+          name: { isTitle: true },
+          domain: { isRequired: true },
+          type: {
+            availableValues: [
+              { value: 'system', label: 'Системный' },
+              { value: 'client', label: 'Клиент' },
+            ],
+            isRequired: true,
+          },
+          settings: { 
+            type: 'mixed',
+            isVisible: { list: false, show: true, edit: true }
+          },
+          createdAt: { isVisible: { list: true, show: true, edit: false } },
+          updatedAt: { isVisible: { list: true, show: true, edit: false } },
+        },
+        listProperties: ['_id', 'tenantId', 'name', 'domain', 'type', 'isActive', 'createdAt'],
+        showProperties: ['_id', 'tenantId', 'name', 'domain', 'type', 'isActive', 'settings', 'createdAt', 'updatedAt'],
+        filterProperties: ['tenantId', 'name', 'domain', 'type', 'isActive'],
+      }
+    },
+    {
       resource: User,
       options: {
         navigation: {
-          name: 'Пользователи',
+          name: 'Система',
           icon: 'User',
         },
         properties: {
