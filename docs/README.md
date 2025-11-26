@@ -77,7 +77,6 @@
      - Health Check: http://localhost:3000/health
    - **Admin Web** (порт 3001):
      - AdminJS: http://localhost:3001/admin
-     - Quick Links: http://localhost:3001/admin-links
    - **Control API** (порт 3002):
      - Health Check: http://localhost:3002/health
    - **API Test** (порт 3003):

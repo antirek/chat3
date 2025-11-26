@@ -57,7 +57,6 @@ export function apiJournalMiddleware(req, res, next) {
       if (endpoint.startsWith('/admin') || 
           endpoint.startsWith('/api-docs') ||
           endpoint.startsWith('/api-test') ||
-          endpoint.startsWith('/admin-links') ||
           endpoint === '/favicon.ico') {
         return;
       }

@@ -372,9 +372,8 @@
         </div>
         <div class="header-right">
             <div class="header-links">
-                <a href="http://localhost:3000/api-docs" target="_blank" class="header-link">Swagger</a>
-                <a href="http://localhost:3001/admin" target="_blank" class="header-link">Данные</a>
-                <a href="http://localhost:3001/admin-links" target="_blank" class="header-link">Документация</a>
+                <a href="#" id="swaggerLink" target="_blank" class="header-link">Swagger</a>
+                <a href="#" id="adminLink" target="_blank" class="header-link">Данные</a>
             </div>
             <div class="header-inputs">
                 <div class="header-input-group">
@@ -457,9 +456,29 @@
         </div>
     </div>
 
+    <script src="config.js"></script>
     <script>
         // Глобальные переменные
         let currentPage = null;
+
+        // Обновление ссылок из конфигурации
+        function updateHeaderLinks() {
+            // Ждем загрузки конфигурации
+            if (window.CHAT3_CONFIG) {
+                const swaggerLink = document.getElementById('swaggerLink');
+                const adminLink = document.getElementById('adminLink');
+                
+                if (swaggerLink && CHAT3_CONFIG.TENANT_API_URL) {
+                    swaggerLink.href = `${CHAT3_CONFIG.TENANT_API_URL}/api-docs`;
+                }
+                if (adminLink && CHAT3_CONFIG.ADMIN_WEB_URL) {
+                    adminLink.href = `${CHAT3_CONFIG.ADMIN_WEB_URL}/admin`;
+                }
+            } else {
+                // Повторная попытка, если config.js еще не загрузился
+                setTimeout(updateHeaderLinks, 100);
+            }
+        }
 
         // Сохранение API Key и Tenant ID в localStorage
         function saveApiCredentials() {
@@ -593,6 +612,9 @@
 
         // Восстановление последней активной страницы при загрузке
         window.addEventListener('DOMContentLoaded', function() {
+            // Обновляем ссылки из конфигурации
+            updateHeaderLinks();
+            
             // Загружаем сохраненные credentials
             loadApiCredentials();
             
@@ -639,6 +661,11 @@
             if (event.data && event.data.type === 'pageLoaded') {
                 console.log('Page loaded in iframe:', event.data.url);
             }
+        });
+
+        // Также обновляем ссылки при полной загрузке страницы
+        window.addEventListener('load', function() {
+            updateHeaderLinks();
         });
     </script>
 </body>

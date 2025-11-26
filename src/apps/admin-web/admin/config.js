@@ -1273,7 +1273,6 @@ const adminOptions = {
                 <ul style="line-height: 2;">
                   <li><a href="/admin" style="color: #667eea; font-weight: bold;">AdminJS Panel</a> - управление данными</li>
                   <li><a href="/api-docs" target="_blank" style="color: #667eea; font-weight: bold;">Swagger UI</a> - API документация</li>
-                  <li><a href="/admin-links" target="_blank" style="color: #667eea; font-weight: bold;">Quick Links</a> - красивая страница со ссылками</li>
                   <li><a href="/" target="_blank" style="color: #667eea; font-weight: bold;">API Health Check</a> - проверка работы API</li>
                 </ul>
               </div>
