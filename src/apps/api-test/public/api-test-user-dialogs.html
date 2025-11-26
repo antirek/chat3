@@ -214,6 +214,9 @@
             cursor: pointer;
             border-bottom: 1px solid #f0f0f0;
             transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .user-item:hover {
@@ -492,6 +495,14 @@
         .btn-danger {
             background: #dc3545;
             color: white;
+        }
+
+        .btn-small {
+            padding: 4px 5px;
+            font-size: 11px;
+            border-radius: 3px;
+            cursor: pointer;
+            height: 25px;
         }
 
         .btn-add-tag {
@@ -969,7 +980,7 @@
             border-radius: 4px;
         }
 
-        .dialog-meta-modal-content {
+        .width-60 {
             width: 60%;
         }
 
@@ -1303,7 +1314,7 @@
 
     <!-- Модальное окно для информации -->
     <div id="infoModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content width-60">
             <div class="modal-header">
                 <h2 class="modal-title" id="modalTitle">Информация</h2>
                 <span class="close" onclick="closeModal()">&times;</span>
@@ -1516,7 +1527,7 @@
 
     <!-- Модальное окно для работы с мета-тегами диалога -->
     <div id="dialogMetaModal" class="modal">
-        <div class="modal-content dialog-meta-modal-content">
+        <div class="modal-content width-60">
             <div class="modal-header">
                 <h2>🏷️ Meta теги диалога</h2>
                 <span class="close" onclick="closeDialogMetaModal()">&times;</span>
@@ -1691,6 +1702,7 @@
                         <div class="user-name">${nameText}</div>
                         <div class="user-id">User ID: ${userIdText} • Диалогов: ${dialogCount}</div>
                     </div>
+                    <button class="info-button" onclick="event.stopPropagation(); showUserJsonModal('${safeUserIdAttr}')" style="margin-left: auto; flex-shrink: 0;">ℹ️ Инфо</button>
                 </div>
             `;
         }
@@ -2746,6 +2758,45 @@
         // Закрыть модальное окно
         function closeModal() {
             document.getElementById('infoModal').style.display = 'none';
+        }
+
+        // Показать JSON пользователя в модальном окне
+        async function showUserJsonModal(userId) {
+            console.log('Show user JSON for:', userId);
+            
+            // Показываем загрузку
+            showModal('JSON пользователя', '<div class="loading">Загрузка данных пользователя...</div>');
+            
+            try {
+                const response = await fetch(`/api/users/${userId}`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('User JSON response:', data);
+
+                if (data.data) {
+                    // Отображаем данные в формате JSON
+                    const jsonStr = JSON.stringify(data.data, null, 2);
+                    showModal(`JSON пользователя: ${escapeHtml(userId)}`, 
+                        `<div style="max-height: 500px; overflow: auto;">
+                            <pre class="json-content">${escapeHtml(jsonStr)}</pre>
+                        </div>`
+                    );
+                } else {
+                    showModal('Ошибка', 'Данные пользователя не найдены');
+                }
+            } catch (error) {
+                console.error('Error loading user JSON:', error);
+                showModal('Ошибка', `Ошибка загрузки: ${escapeHtml(error.message)}`);
+            }
         }
 
         // Функция показа текущего URL запроса
