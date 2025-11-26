@@ -12,6 +12,11 @@ const router = express.Router();
  *     description: |
  *       Создает tenant с ID 'tnt_default' и API ключ, если они не существуют.
  *       Этот endpoint не требует аутентификации и предназначен для первоначальной настройки системы.
+ *       
+ *       **Важно:** Этот endpoint предназначен только для внутреннего использования и не должен быть доступен извне в production.
+ *     requestBody:
+ *       required: false
+ *       description: Тело запроса не требуется
  *     responses:
  *       200:
  *         description: Initialization completed successfully
@@ -20,6 +25,9 @@ const router = express.Router();
  *             schema:
  *               type: object
  *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Initialization completed successfully
  *                 data:
  *                   type: object
  *                   properties:
@@ -28,21 +36,52 @@ const router = express.Router();
  *                       properties:
  *                         tenantId:
  *                           type: string
- *                         name:
- *                           type: string
+ *                           example: tnt_default
  *                         created:
  *                           type: boolean
+ *                           example: true
+ *                         message:
+ *                           type: string
+ *                           description: Сообщение (если tenant уже существует)
  *                     apiKey:
  *                       type: object
  *                       properties:
  *                         key:
  *                           type: string
+ *                           example: chat3_abc123...
  *                         name:
  *                           type: string
+ *                           example: Default API Key
  *                         created:
  *                           type: boolean
+ *                           example: true
+ *                         message:
+ *                           type: string
+ *                           description: Сообщение (если API ключ уже существует)
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: Массив ошибок (если есть)
  *       207:
  *         description: Initialization completed with some errors
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Initialization completed with some errors
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *       500:
+ *         description: Internal Server Error
  */
 router.post('/', initController.initialize);
 
@@ -56,6 +95,11 @@ router.post('/', initController.initialize);
  *       Запускает скрипт заполнения базы данных тестовыми данными.
  *       Операция выполняется асинхронно. Ответ возвращается сразу (202 Accepted),
  *       а скрипт продолжает работу в фоне.
+ *       
+ *       **Важно:** Этот endpoint предназначен только для внутреннего использования и не должен быть доступен извне в production.
+ *     requestBody:
+ *       required: false
+ *       description: Тело запроса не требуется
  *     responses:
  *       202:
  *         description: Seed script started
@@ -66,6 +110,7 @@ router.post('/', initController.initialize);
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: Seed script started
  *                 data:
  *                   type: object
  *                   properties:
@@ -74,6 +119,9 @@ router.post('/', initController.initialize);
  *                       example: processing
  *                     note:
  *                       type: string
+ *                       example: This operation may take some time. Check server logs for progress.
+ *       500:
+ *         description: Internal Server Error
  */
 router.post('/seed', initController.seed);
 

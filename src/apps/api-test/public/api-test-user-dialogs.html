@@ -3418,17 +3418,16 @@
                 console.log('API Key:', apiKey ? 'установлен' : 'не установлен');
                 console.log('Tenant ID:', tenantId);
                 
-                const url = `/api/messages/${messageId}/events`;
+                const url = `/api/messages/${messageId}/events?tenantId=${encodeURIComponent(tenantId)}`;
                 console.log('Запрос к:', url);
                 
                 let response;
                 try {
-                    // Пробуем endpoint для событий сообщения
+                    // Пробуем endpoint для событий сообщения (control-api)
                     response = await fetch(url, {
                         method: 'GET',
                         headers: {
-                            'X-API-Key': apiKey,
-                            'X-TENANT-ID': tenantId
+                            'X-Tenant-Id': tenantId
                         }
                     });
                     
@@ -3642,14 +3641,13 @@
                 console.log('API Key:', apiKey ? 'установлен' : 'не установлен');
                 console.log('Tenant ID:', tenantId);
                 
-                const url = `/api/messages/${messageId}/updates`;
+                const url = `/api/messages/${messageId}/updates?tenantId=${encodeURIComponent(tenantId)}`;
                 console.log('Запрос к:', url);
                 
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
-                        'X-API-Key': apiKey,
-                        'X-TENANT-ID': tenantId
+                        'X-Tenant-Id': tenantId
                     }
                 });
                 
@@ -3768,14 +3766,13 @@
                 console.log('API Key:', apiKey ? 'установлен' : 'не установлен');
                 console.log('Tenant ID:', tenantId);
                 
-                const url = `/api/dialogs/${dialogId}/events`;
+                const url = `/api/dialogs/${dialogId}/events?tenantId=${encodeURIComponent(tenantId)}`;
                 console.log('Запрос к:', url);
                 
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
-                        'X-API-Key': apiKey,
-                        'X-TENANT-ID': tenantId
+                        'X-Tenant-Id': tenantId
                     }
                 });
                 
@@ -3957,14 +3954,13 @@
                 console.log('API Key:', apiKey ? 'установлен' : 'не установлен');
                 console.log('Tenant ID:', tenantId);
                 
-                const url = `/api/dialogs/${dialogId}/updates`;
+                const url = `/api/dialogs/${dialogId}/updates?tenantId=${encodeURIComponent(tenantId)}`;
                 console.log('Запрос к:', url);
                 
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
-                        'X-API-Key': apiKey,
-                        'X-TENANT-ID': tenantId
+                        'X-Tenant-Id': tenantId
                     }
                 });
                 
@@ -4762,10 +4758,18 @@
         // Переопределяем fetch для автоматической подстановки правильного URL
         const originalFetch = window.fetch;
         window.fetch = function(url, options) {
-            if (typeof url === 'string' && url.startsWith('/api/') && !url.startsWith('/api/init')) {
-                url = CHAT3_CONFIG.getTenantApiUrl(url);
-            } else if (typeof url === 'string' && url.startsWith('/api/init')) {
-                url = CHAT3_CONFIG.getControlApiUrl(url);
+            if (typeof url === 'string') {
+                // Events и updates идут в control-api
+                if (url.includes('/events') || url.includes('/updates')) {
+                    // Если URL уже полный (с http://), не меняем его
+                    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                        url = CHAT3_CONFIG.getControlApiUrl(url);
+                    }
+                } else if (url.startsWith('/api/init')) {
+                    url = CHAT3_CONFIG.getControlApiUrl(url);
+                } else if (url.startsWith('/api/')) {
+                    url = CHAT3_CONFIG.getTenantApiUrl(url);
+                }
             }
             return originalFetch.call(this, url, options);
         };
