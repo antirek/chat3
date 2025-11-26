@@ -104,6 +104,11 @@ services:
     env_file:
       - .env
     command: npm run start:control-api
+    volumes:
+      # Монтируем исходный код для разработки (изменения применяются без пересборки)
+      - ./src:/app/src
+      # Используем named volume для node_modules, чтобы не перезаписывать зависимости из образа
+      - control_api_node_modules:/app/node_modules
     depends_on:
       mongodb:
         condition: service_healthy
@@ -186,6 +191,8 @@ volumes:
   rabbitmq_data:
     driver: local
   api_test_node_modules:
+    driver: local
+  control_api_node_modules:
     driver: local
 
 networks:
