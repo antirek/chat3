@@ -6,7 +6,7 @@ import {
   getEntityMetaValue,
   buildMetaQuery
 } from '../metaUtils.js';
-import from "../../../models/index.js';
+import { Meta } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 
 // Setup MongoDB перед всеми тестами в этом файле

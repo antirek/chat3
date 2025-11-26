@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import connectDB from '../../config/database.js';
 import swaggerSpec from './config/swagger.js';
@@ -18,6 +19,21 @@ import { apiJournalMiddleware } from './middleware/apiJournal.js';
 
 const app = express();
 const PORT = process.env.TENANT_API_PORT || 3000;
+
+// CORS middleware - разрешаем запросы с api-test и других источников
+app.use(cors({
+  origin: [
+    `http://localhost:${process.env.API_TEST_PORT || 3003}`,
+    `http://localhost:${process.env.ADMIN_WEB_PORT || 3001}`,
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Idempotency-Key']
+}));
 
 // Body parser middleware
 app.use(express.json());

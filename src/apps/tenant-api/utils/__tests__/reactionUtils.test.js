@@ -1,5 +1,5 @@
 import { updateReactionCounts, incrementReactionCount, decrementReactionCount } from '../reactionUtils.js';
-import from "../../../models/index.js';
+import { Message, MessageReaction } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 
 // Setup MongoDB перед всеми тестами в этом файле

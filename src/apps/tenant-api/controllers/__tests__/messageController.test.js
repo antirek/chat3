@@ -1,8 +1,8 @@
 import { jest } from '@jest/globals';
 import messageController from '../messageController.js';
-import from "../../../models/index.js';
-import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../utils/__tests__/setup.js';
-import { generateTimestamp } from '../../../utils/timestampUtils.js';
+import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember } from "../../../../models/index.js";
+import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
+import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
 const tenantId = 'tnt_test';
 

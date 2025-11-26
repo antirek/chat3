@@ -1,11 +1,11 @@
 import { jest } from '@jest/globals';
 import metaController from '../metaController.js';
-import from "../../../models/index.js';
+import { Dialog, Message, DialogMember, Meta } from "../../../../models/index.js";
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
   clearDatabase
-} from '../utils/__tests__/setup.js';
+} from '../../utils/__tests__/setup.js';
 
 const tenantId = 'tnt_test';
 

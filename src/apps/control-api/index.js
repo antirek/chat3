@@ -1,9 +1,24 @@
 import express from 'express';
+import cors from 'cors';
 import connectDB from '../../config/database.js';
 import initRoutes from './routes/initRoutes.js';
 
 const app = express();
 const PORT = process.env.CONTROL_API_PORT || 3002;
+
+// CORS middleware - разрешаем запросы с api-test
+app.use(cors({
+  origin: [
+    `http://localhost:${process.env.API_TEST_PORT || 3003}`,
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+}));
 
 // Body parser middleware
 app.use(express.json());

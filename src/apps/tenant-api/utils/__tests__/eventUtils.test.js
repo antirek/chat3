@@ -7,7 +7,7 @@ import {
   deleteOldEvents,
   getEventStats
 } from '../eventUtils.js';
-import from "../../../models/index.js';
+import { Event } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 
 // Setup MongoDB перед всеми тестами в этом файле

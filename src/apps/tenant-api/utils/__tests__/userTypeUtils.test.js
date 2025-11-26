@@ -1,7 +1,7 @@
 import { extractUserType, getUserType } from '../userTypeUtils.js';
-import from "../../../models/index.js';
-import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../utils/__tests__/setup.js';
-import { generateTimestamp } from '../../../utils/timestampUtils.js';
+import { Tenant, User } from "../../../../models/index.js";
+import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
+import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
 describe('userTypeUtils', () => {
   let mongoUri;

@@ -4,7 +4,7 @@ import {
   createDialogMemberUpdate,
   createMessageUpdate
 } from '../updateUtils.js';
-import from "../../../models/index.js';
+import { Dialog, DialogMember, Meta, Message, User } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 
 // Мокируем amqplib перед импортом updateUtils
@@ -183,7 +183,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       });
 
       // Добавляем мета-теги диалогу (через Meta модель)
-      const { Meta } = await import from "../../../models/index.js');
+      const { Meta } = await import("../../../../models/index.js");
       await Meta.create({
         tenantId,
         entityType: 'dialog',

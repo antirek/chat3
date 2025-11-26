@@ -1,8 +1,8 @@
 import { jest } from '@jest/globals';
 import dialogMemberController from '../dialogMemberController.js';
-import from "../../../models/index.js';
-import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../utils/__tests__/setup.js';
-import { generateTimestamp } from '../../../utils/timestampUtils.js';
+import { Tenant, Dialog, DialogMember, Meta, User, DialogReadTask, Event } from "../../../../models/index.js";
+import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
+import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
 const tenantId = 'tnt_test';
 
@@ -205,7 +205,7 @@ describe('dialogMemberController', () => {
       expect(res.statusCode).toBe(201);
       
       // Проверяем, что пользователь создан
-      const { User } = await import from "../../../models/index.js');
+      const { User } = await import("../../../../models/index.js");
       const user = await User.findOne({ tenantId, userId: 'newuser' }).lean();
       expect(user).toBeTruthy();
       expect(user.type).toBe('bot');

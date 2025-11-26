@@ -1,10 +1,10 @@
 import { tenantController } from '../tenantController.js';
-import from "../../../models/index.js';
+import { Tenant } from "../../../../models/index.js";
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
   clearDatabase
-} from '../utils/__tests__/setup.js';
+} from '../../utils/__tests__/setup.js';
 
 const createMockRes = () => {
   const res = {};

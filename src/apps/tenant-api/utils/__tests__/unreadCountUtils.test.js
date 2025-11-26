@@ -10,7 +10,7 @@ import {
   updateLastSeen,
   getDialogMembers
 } from '../unreadCountUtils.js';
-import from "../../../models/index.js';
+import { DialogMember, Dialog, Message, MessageStatus } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 
 // Setup MongoDB перед всеми тестами в этом файле

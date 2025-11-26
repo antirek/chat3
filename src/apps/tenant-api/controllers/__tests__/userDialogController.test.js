@@ -1,8 +1,8 @@
 import { jest } from '@jest/globals';
 import userDialogController from '../userDialogController.js';
-import from "../../../models/index.js';
-import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../utils/__tests__/setup.js';
-import { generateTimestamp } from '../../../utils/timestampUtils.js';
+import { Tenant, User, Dialog, DialogMember, Meta, Message } from "../../../../models/index.js";
+import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
+import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
 // Helper function to generate dialogId in correct format
 function generateDialogId() {

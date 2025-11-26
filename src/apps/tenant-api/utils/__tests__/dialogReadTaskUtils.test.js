@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import from "../../../models/index.js';
+import { Tenant, DialogReadTask, Dialog, DialogMember, Message, MessageStatus } from "../../../../models/index.js";
 import { scheduleDialogReadTask, runDialogReadTask } from '../dialogReadTaskUtils.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';

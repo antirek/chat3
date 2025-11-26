@@ -6,9 +6,9 @@ import {
   deleteUser,
   updateUserActivity
 } from '../userController.js';
-import from "../../../models/index.js';
-import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../utils/__tests__/setup.js';
-import { generateTimestamp } from '../../../utils/timestampUtils.js';
+import { Tenant, User, Meta, DialogMember } from "../../../../models/index.js";
+import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
+import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
 const tenantId = 'tnt_test';
 

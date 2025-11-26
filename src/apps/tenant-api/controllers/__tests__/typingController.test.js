@@ -5,13 +5,13 @@ import {
   Event,
   Tenant,
   User
-} from "../../../models/index.js';
+} from "../../../../models/index.js";
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
   clearDatabase
-} from '../utils/__tests__/setup.js';
-import { generateTimestamp } from '../../../utils/timestampUtils.js';
+} from '../../utils/__tests__/setup.js';
+import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
 const tenantId = 'tnt_test';
 

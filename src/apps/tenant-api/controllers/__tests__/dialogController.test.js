@@ -1,7 +1,7 @@
 import { dialogController } from '../dialogController.js';
-import from "../../../models/index.js';
-import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../utils/__tests__/setup.js';
-import { generateTimestamp } from '../../../utils/timestampUtils.js';
+import { Tenant, User, Dialog, DialogMember, Meta, Event } from "../../../../models/index.js";
+import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
+import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
 function generateDialogId() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
