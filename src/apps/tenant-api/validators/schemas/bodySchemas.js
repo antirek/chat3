@@ -156,19 +156,16 @@ export const setMetaSchema = Joi.object({
  * Схема валидации создания tenant
  */
 export const createTenantSchema = Joi.object({
-  tenantId: Joi.string().trim().max(20).optional(),
-  name: Joi.string().trim().min(1).max(200).optional(),
-  domain: Joi.string().trim().min(1).max(200).optional(),
-  isActive: Joi.boolean().default(true)
-});
-
-/**
- * Схема валидации обновления tenant
- */
-export const updateTenantSchema = Joi.object({
-  name: Joi.string().trim().min(1).max(200).optional(),
-  domain: Joi.string().trim().min(1).max(200).optional(),
-  isActive: Joi.boolean().optional()
+  // tenantId опционален, если не указан - будет автогенерирован
+  // Если указан как пустая строка - преобразуется в undefined для автогенерации
+  tenantId: Joi.string().trim().max(20).allow('').optional(),
+  meta: Joi.object().pattern(Joi.string(), Joi.any()).optional()
+}).custom((value, helpers) => {
+  // Преобразуем пустую строку tenantId в undefined для автогенерации
+  if (value.tenantId === '') {
+    value.tenantId = undefined;
+  }
+  return value;
 });
 
 /**

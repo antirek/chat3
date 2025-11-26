@@ -143,67 +143,6 @@ describe('tenantController', () => {
     });
   });
 
-  describe('update', () => {
-    test('updates tenant and returns payload', async () => {
-      const req = {
-        params: { id: tenant._id.toString() },
-        body: {}
-      };
-      const res = createMockRes();
-
-      await tenantController.update(req, res);
-
-      expect(res.statusCode).toBeUndefined();
-      expect(res.body.message).toBe('Tenant updated successfully');
-      expect(res.body.data.tenantId).toBe(tenant.tenantId);
-    });
-
-    test('returns 404 when tenant not found', async () => {
-      const req = {
-        params: { id: '64fa1cca6f9b1a2b3c4d5e6f' },
-        body: { name: 'Missing' }
-      };
-      const res = createMockRes();
-
-      await tenantController.update(req, res);
-
-      expect(res.statusCode).toBe(404);
-      expect(res.body).toEqual({
-        error: 'Not Found',
-        message: 'Tenant not found'
-      });
-    });
-
-    test('updates tenant with empty body', async () => {
-      const req = {
-        params: { id: tenant._id.toString() },
-        body: {}
-      };
-      const res = createMockRes();
-
-      await tenantController.update(req, res);
-
-      expect(res.statusCode).toBeUndefined();
-      expect(res.body.message).toBe('Tenant updated successfully');
-    });
-
-    test('returns 400 for invalid id format', async () => {
-      const req = {
-        params: { id: 'invalid' },
-        body: { name: 'Nope' }
-      };
-      const res = createMockRes();
-
-      await tenantController.update(req, res);
-
-      expect(res.statusCode).toBe(400);
-      expect(res.body).toEqual({
-        error: 'Bad Request',
-        message: 'Invalid tenant ID'
-      });
-    });
-  });
-
   describe('delete', () => {
     test('deletes tenant by id', async () => {
       const req = { params: { id: tenant._id.toString() } };

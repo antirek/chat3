@@ -1,5 +1,6 @@
 import { Tenant } from '../../../models/index.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
+import * as metaUtils from '../utils/metaUtils.js';
 
 export const tenantController = {
   // Get all tenants (paginated)
@@ -62,8 +63,77 @@ export const tenantController = {
 
   // Create new tenant
   async create(req, res) {
+    // Сохраняем исходный tenantId для обработки ошибок
+    let attemptedTenantId = null;
+    
     try {
-      const tenant = await Tenant.create(req.body);
+      // Извлекаем мета-теги из тела запроса
+      const { meta, ...tenantData } = req.body;
+
+      // Нормализуем tenantId если он указан (trim и lowercase, как в схеме)
+      // Важно: проверяем не только truthy, но и пустую строку, null, undefined
+      // КРИТИЧНО: если tenantId undefined/null/пустая строка, удаляем его полностью,
+      // чтобы Mongoose применил default из схемы
+      if (tenantData.tenantId !== undefined && tenantData.tenantId !== null) {
+        if (typeof tenantData.tenantId === 'string') {
+          const normalizedTenantId = tenantData.tenantId.trim().toLowerCase();
+          
+          // Если после trim tenantId стал пустым, удаляем его для автогенерации
+          if (normalizedTenantId) {
+            tenantData.tenantId = normalizedTenantId;
+            attemptedTenantId = normalizedTenantId;
+          } else {
+            // Пустая строка после trim - удаляем для автогенерации
+            delete tenantData.tenantId;
+          }
+        } else {
+          // Если tenantId не строка, удаляем его (будет использован default)
+          delete tenantData.tenantId;
+        }
+      } else {
+        // Если tenantId undefined или null, удаляем его явно
+        // чтобы Mongoose применил default из схемы
+        delete tenantData.tenantId;
+      }
+      
+      // Проверка уникальности будет выполнена MongoDB через unique index
+      // Если tenantId уже существует, MongoDB вернет ошибку 11000
+
+      // Создаем тенант
+      // MongoDB проверит уникальность через unique index на tenantId
+      const tenant = await Tenant.create(tenantData);
+
+      // Сохраняем мета-теги в коллекцию Meta, если они были переданы
+      if (meta && typeof meta === 'object') {
+        const newTenantId = tenant.tenantId;
+        // Для мета-тегов тенанта используем tenantId созданного тенанта
+        // как для контекста (первый параметр), так и для entityId (третий параметр)
+        const createdBy = req.apiKey?.name || 'api';
+
+        for (const [key, value] of Object.entries(meta)) {
+          // Определяем тип данных
+          let dataType = 'string';
+          if (typeof value === 'number') {
+            dataType = 'number';
+          } else if (typeof value === 'boolean') {
+            dataType = 'boolean';
+          } else if (Array.isArray(value)) {
+            dataType = 'array';
+          } else if (typeof value === 'object' && value !== null) {
+            dataType = 'object';
+          }
+
+          await metaUtils.setEntityMeta(
+            newTenantId,
+            'tenant',
+            newTenantId,
+            key,
+            value,
+            dataType,
+            { createdBy }
+          );
+        }
+      }
 
       res.status(201).json({
         data: sanitizeResponse(tenant),
@@ -78,51 +148,22 @@ export const tenantController = {
         });
       }
       if (error.code === 11000) {
-        return res.status(409).json({
-          error: 'Conflict',
-          message: 'Tenant with this domain already exists'
-        });
-      }
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: error.message
-      });
-    }
-  },
-
-  // Update tenant
-  async update(req, res) {
-    try {
-      const tenant = await Tenant.findByIdAndUpdate(
-        req.params.id,
-        { ...req.body, updatedAt: new Date() },
-        { new: true, runValidators: true }
-      ).select('-__v');
-
-      if (!tenant) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: 'Tenant not found'
-        });
-      }
-
-      res.json({
-        data: sanitizeResponse(tenant),
-        message: 'Tenant updated successfully'
-      });
-    } catch (error) {
-      if (error.name === 'ValidationError') {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: error.message,
-          details: error.errors
-        });
-      }
-      if (error.name === 'CastError') {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: 'Invalid tenant ID'
-        });
+        // Используем сохраненный attemptedTenantId или пытаемся извлечь из исходного запроса
+        const conflictTenantId = attemptedTenantId || (req.body.tenantId ? req.body.tenantId.trim().toLowerCase() : null);
+        
+        if (conflictTenantId) {
+          return res.status(409).json({
+            error: 'Conflict',
+            message: `Tenant with tenantId "${conflictTenantId}" already exists. Please choose a different tenantId or leave it empty for auto-generation.`
+          });
+        } else {
+          // Если tenantId не был указан, но все равно произошла ошибка уникальности,
+          // значит автогенерированный ID совпал с существующим (крайне маловероятно)
+          return res.status(409).json({
+            error: 'Conflict',
+            message: 'Failed to create tenant. The auto-generated tenantId already exists. Please try again or specify a custom tenantId.'
+          });
+        }
       }
       res.status(500).json({
         error: 'Internal Server Error',

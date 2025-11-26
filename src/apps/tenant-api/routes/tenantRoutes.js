@@ -1,8 +1,8 @@
 import express from 'express';
 import { tenantController } from '../controllers/tenantController.js';
-import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { apiAuth, requirePermission, apiAuthForTenantCreation } from '../middleware/apiAuth.js';
 import { validateBody, validateQuery } from '../validators/middleware.js';
-import { createTenantSchema, updateTenantSchema, paginationSchema } from '../validators/schemas/index.js';
+import { createTenantSchema, paginationSchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -67,67 +67,27 @@ router.get('/:id', apiAuth, requirePermission('read'), tenantController.getById)
  *     security:
  *       - ApiKeyAuth: []
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - name
- *               - domain
  *             properties:
- *               name:
+ *               tenantId:
  *                 type: string
- *               domain:
- *                 type: string
- *               isActive:
- *                 type: boolean
- *               settings:
+ *                 maxLength: 20
+ *                 description: Tenant ID (optional, auto-generated if not provided)
+ *               meta:
  *                 type: object
+ *                 additionalProperties: true
+ *                 description: Meta tags for the tenant (optional)
  *     responses:
  *       201:
  *         description: Tenant created
  *       400:
  *         description: Validation error
  */
-router.post('/', apiAuth, requirePermission('write'), validateBody(createTenantSchema), tenantController.create);
-
-/**
- * @swagger
- * /api/tenants/{id}:
- *   put:
- *     summary: Update tenant
- *     tags: [Tenants]
- *     security:
- *       - ApiKeyAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               domain:
- *                 type: string
- *               isActive:
- *                 type: boolean
- *               settings:
- *                 type: object
- *     responses:
- *       200:
- *         description: Tenant updated
- *       404:
- *         description: Tenant not found
- */
-router.put('/:id', apiAuth, requirePermission('write'), validateBody(updateTenantSchema), tenantController.update);
+router.post('/', apiAuthForTenantCreation, validateBody(createTenantSchema), tenantController.create);
 
 /**
  * @swagger

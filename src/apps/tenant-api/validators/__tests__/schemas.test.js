@@ -2,7 +2,6 @@ import {
   createMessageSchema,
   createUserSchema,
   createTenantSchema,
-  updateTenantSchema,
   setMetaSchema,
   updateMessageContentSchema
 } from '../schemas/bodySchemas.js';
@@ -207,17 +206,6 @@ describe('bodySchemas.createTenantSchema', () => {
     });
 
     expect(error).toBeUndefined();
-  });
-});
-
-describe('bodySchemas.updateTenantSchema', () => {
-  test('permits optional fields only', () => {
-    const { error, value } = updateTenantSchema.validate({
-      isActive: false
-    });
-
-    expect(error).toBeUndefined();
-    expect(value.isActive).toBe(false);
   });
 });
 
