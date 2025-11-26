@@ -158,16 +158,20 @@ describe('messageStatusController.updateMessageStatus', () => {
       updatedAt: generateTimestamp()
     });
 
-    await DialogMember.create({
-      tenantId,
-      dialogId: dialog.dialogId,
-      userId: 'bob',
-      unreadCount: 2,
-      lastSeenAt: generateTimestamp(),
-      lastMessageAt: generateTimestamp(),
-      createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
-    });
+    // Обновляем существующий DialogMember (созданный в beforeEach)
+    await DialogMember.findOneAndUpdate(
+      {
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'bob'
+      },
+      {
+        unreadCount: 2,
+        lastSeenAt: generateTimestamp(),
+        lastMessageAt: generateTimestamp()
+      },
+      { new: true }
+    );
 
     const req = createMockReq({
       params: {

@@ -62,7 +62,7 @@ messageStatusSchema.index({ tenantId: 1, status: 1 });
 messageStatusSchema.pre('save', async function(next) {
   if (this.isModified('status')) {
     try {
-      const { updateCountersOnStatusChange } = await import('../utils/unreadCountUtils.js');
+      const { updateCountersOnStatusChange } = await import('../../apps/tenant-api/utils/unreadCountUtils.js');
       
       // Получаем старый статус из базы данных
       const oldDoc = await this.constructor.findById(this._id);

@@ -175,7 +175,7 @@ const userDialogController = {
           if (Object.keys(memberFilters).length > 0) {
             // Для фильтрации по участникам используем специальную логику:
             // находим диалоги где есть текущий пользователь И указанные участники
-            const { DialogMember } = await import('../models/index.js');
+            // DialogMember уже импортирован в начале файла
             
             // Получаем список указанных участников из фильтра
             let targetUserIds = [];
@@ -189,7 +189,6 @@ const userDialogController = {
                 const userDialogs = await DialogMember.find({
                   userId: userId,
                   tenantId: req.tenantId,
-                  isActive: true
                 }).select('dialogId').lean();
                 
                 const userDialogIds = userDialogs.map(d => d.dialogId);
@@ -205,8 +204,7 @@ const userDialogController = {
                 const targetDialogs = await DialogMember.find({
                   userId: memberValue,
                   dialogId: { $in: userDialogIds },
-                  tenantId: req.tenantId,
-                  isActive: true
+                  tenantId: req.tenantId
                 }).select('dialogId').lean();
                 
                 const memberDialogIds = targetDialogs.map(d => d.dialogId);
@@ -234,7 +232,6 @@ const userDialogController = {
                 const userDialogs = await DialogMember.find({
                   userId: userId,
                   tenantId: req.tenantId,
-                  isActive: true
                 }).select('dialogId').lean();
                 
                 const userDialogIds = userDialogs.map(d => d.dialogId);
@@ -251,7 +248,6 @@ const userDialogController = {
                   userId: { $in: targetUserIds },
                   dialogId: { $in: userDialogIds },
                   tenantId: req.tenantId,
-                  isActive: true
                 }).select('dialogId').lean();
                 
                 // Получаем уникальные dialogId
@@ -285,7 +281,6 @@ const userDialogController = {
                 const userDialogs = await DialogMember.find({
                   userId: userId,
                   tenantId: req.tenantId,
-                  isActive: true
                 }).select('dialogId').lean();
                 
                 const userDialogIds = userDialogs.map(d => d.dialogId);
@@ -302,7 +297,6 @@ const userDialogController = {
                   userId: { $in: targetUserIds },
                   dialogId: { $in: userDialogIds },
                   tenantId: req.tenantId,
-                  isActive: true
                 }).select('dialogId userId').lean();
                 
                 // Группируем по dialogId
@@ -348,7 +342,6 @@ const userDialogController = {
                 const userDialogs = await DialogMember.find({
                   userId: userId,
                   tenantId: req.tenantId,
-                  isActive: true
                 }).select('dialogId').lean();
                 
                 const userDialogIds = userDialogs.map(d => d.dialogId);
@@ -365,7 +358,6 @@ const userDialogController = {
                   userId: excludedUserId,
                   dialogId: { $in: userDialogIds },
                   tenantId: req.tenantId,
-                  isActive: true
                 }).select('dialogId').lean();
                 
                 const excludedDialogIds = new Set(dialogsWithExcluded.map(d => d.dialogId));
@@ -396,7 +388,6 @@ const userDialogController = {
                 const userDialogs = await DialogMember.find({
                   userId: userId,
                   tenantId: req.tenantId,
-                  isActive: true
                 }).select('dialogId').lean();
                 
                 const userDialogIds = userDialogs.map(d => d.dialogId);
@@ -413,7 +404,6 @@ const userDialogController = {
                   userId: { $in: excludedUserIds },
                   dialogId: { $in: userDialogIds },
                   tenantId: req.tenantId,
-                  isActive: true
                 }).select('dialogId').lean();
                 
                 const excludedDialogIds = new Set(dialogsWithExcluded.map(d => d.dialogId));
@@ -451,8 +441,7 @@ const userDialogController = {
       // Get user's dialog memberships
       const dialogMembersQuery = {
         userId: userId,
-        tenantId: req.tenantId,
-        isActive: true
+        tenantId: req.tenantId
       };
       
       // Применяем обычные фильтры (например, dialogId) к dialogMembersQuery
@@ -463,7 +452,7 @@ const userDialogController = {
       // Эти поля есть в модели DialogMember
       if (Object.keys(otherRegularFilters).length > 0) {
         // Применяем фильтры для полей DialogMember
-        const allowedFields = ['unreadCount', 'lastSeenAt', 'lastMessageAt', 'isActive'];
+        const allowedFields = ['unreadCount', 'lastSeenAt', 'lastMessageAt'];
         for (const [field, condition] of Object.entries(otherRegularFilters)) {
           if (allowedFields.includes(field)) {
             dialogMembersQuery[field] = condition;
@@ -626,8 +615,7 @@ const userDialogController = {
               const verifiedMembers = await DialogMember.find({
                 dialogId: { $in: uniqueDialogIds },
                 userId: { $in: requiredUserIds },
-                tenantId: req.tenantId,
-                isActive: true
+                tenantId: req.tenantId
               }).select('dialogId userId').lean();
               
               const dialogsWithRequiredMembers = new Set(verifiedMembers.map(m => m.dialogId));
@@ -699,7 +687,6 @@ const userDialogController = {
               unreadCount: member.unreadCount,
               lastSeenAt: member.lastSeenAt,
               lastMessageAt: member.lastMessageAt,
-              isActive: member.isActive,
               joinedAt: member.createdAt
             },
             // Members count - количество участников диалога
@@ -927,8 +914,7 @@ const userDialogController = {
       const member = await DialogMember.findOne({
         tenantId: req.tenantId,
         dialogId: dialogId,
-        userId: userId,
-        isActive: true
+        userId: userId
       });
 
       if (!member) {
@@ -1158,8 +1144,7 @@ const userDialogController = {
       const member = await DialogMember.findOne({
         tenantId: req.tenantId,
         dialogId: dialogId,
-        userId: userId,
-        isActive: true
+        userId: userId
       });
 
       if (!member) {

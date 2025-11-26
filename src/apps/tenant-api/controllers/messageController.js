@@ -377,20 +377,19 @@ const messageController = {
       // Create MessageStatus records and update DialogMember counters for all dialog participants
       if (!isSystemMessage) {
         // Получаем реальных участников диалога из DialogMember
-        const { DialogMember } = await import('../models/index.js');
+        const { DialogMember } = await import('../../../models/index.js');
         const { incrementUnreadCount } = await import('../utils/unreadCountUtils.js');
         
         const dialogMembers = await DialogMember.find({
           tenantId: req.tenantId,
-          dialogId: dialog.dialogId, // Используем строковый dialogId
-          isActive: true
+          dialogId: dialog.dialogId // Используем строковый dialogId
         }).select('userId').lean();
         
         for (const member of dialogMembers) {
           const userId = member.userId;
           if (userId !== senderId) { // Don't create status for sender
             try {
-              const { MessageStatus } = await import('../models/index.js');
+              // MessageStatus уже импортирован в начале файла
               
               // Create MessageStatus record
               await MessageStatus.create({

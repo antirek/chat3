@@ -1,3 +1,4 @@
+import * as fakeAmqp from '@onify/fake-amqplib';
 import { jest } from '@jest/globals';
 import messageController from '../messageController.js';
 import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember } from "../../../../models/index.js";
@@ -44,21 +45,35 @@ function generateMessageId() {
 
 beforeAll(async () => {
   await setupMongoMemoryServer();
+  
+  // Инициализируем RabbitMQ для eventUtils
+  const rabbitmqUtils = await import('../../../../utils/rabbitmqUtils.js');
+  const amqplib = await import('amqplib');
+  amqplib.default.connect = fakeAmqp.connect;
+  await rabbitmqUtils.initRabbitMQ();
 });
 
 afterAll(async () => {
+  const rabbitmqUtils = await import('../../../../utils/rabbitmqUtils.js');
+  await rabbitmqUtils.closeRabbitMQ();
   await teardownMongoMemoryServer();
 });
 
 beforeEach(async () => {
   await clearDatabase();
+  fakeAmqp.resetMock();
+  
+  // Переинициализируем RabbitMQ перед каждым тестом (если канал закрыт)
+  const rabbitmqUtils = await import('../../../../utils/rabbitmqUtils.js');
+  const rabbitmqInfo = rabbitmqUtils.getRabbitMQInfo();
+  if (!rabbitmqInfo.connected) {
+    const amqplib = await import('amqplib');
+    amqplib.default.connect = fakeAmqp.connect;
+    await rabbitmqUtils.initRabbitMQ();
+  }
 
   await Tenant.create({
     tenantId,
-    name: 'Test Tenant',
-    domain: 'test.chat3.com',
-    type: 'client',
-    isActive: true,
     createdAt: generateTimestamp()
   });
 
