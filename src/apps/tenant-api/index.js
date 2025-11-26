@@ -1,7 +1,7 @@
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import connectDB from '../../config/database.js';
-import swaggerSpec from '../../config/swagger.js';
+import swaggerSpec from './config/swagger.js';
 import * as rabbitmqUtils from '../../utils/rabbitmqUtils.js';
 import tenantRoutes from './routes/tenantRoutes.js';
 import userRoutes from './routes/userRoutes.js';
