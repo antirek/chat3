@@ -190,22 +190,67 @@ describe('bodySchemas.createUserSchema', () => {
 });
 
 describe('bodySchemas.createTenantSchema', () => {
-  test('applies defaults and allows optional fields', () => {
-    const { error, value } = createTenantSchema.validate({
-      name: 'Tenant',
-      domain: 'chat.example.com'
-    });
+  test('accepts empty object (tenantId will be auto-generated)', () => {
+    const { error, value } = createTenantSchema.validate({});
 
     expect(error).toBeUndefined();
-    expect(value.isActive).toBe(true);
+    expect(value).toEqual({});
   });
 
-  test('accepts tenant without name (name is optional)', () => {
-    const { error } = createTenantSchema.validate({
+  test('accepts tenantId', () => {
+    const { error, value } = createTenantSchema.validate({
       tenantId: 'tnt_test'
     });
 
     expect(error).toBeUndefined();
+    expect(value.tenantId).toBe('tnt_test');
+  });
+
+  test('trims tenantId', () => {
+    const { error, value } = createTenantSchema.validate({
+      tenantId: '  tnt_test  '
+    });
+
+    expect(error).toBeUndefined();
+    expect(value.tenantId).toBe('tnt_test');
+  });
+
+  test('converts empty string tenantId to undefined', () => {
+    const { error, value } = createTenantSchema.validate({
+      tenantId: ''
+    });
+
+    expect(error).toBeUndefined();
+    expect(value.tenantId).toBeUndefined();
+  });
+
+  test('accepts meta object', () => {
+    const { error, value } = createTenantSchema.validate({
+      tenantId: 'tnt_test',
+      meta: { key1: 'value1', key2: 123 }
+    });
+
+    expect(error).toBeUndefined();
+    expect(value.meta).toEqual({ key1: 'value1', key2: 123 });
+  });
+
+  test('rejects unknown fields', () => {
+    const { error } = createTenantSchema.validate({
+      tenantId: 'tnt_test',
+      unknownField: 'value'
+    });
+
+    expect(error).toBeDefined();
+    expect(error.details[0].message).toContain('"unknownField" is not allowed');
+  });
+
+  test('rejects tenantId longer than 20 characters', () => {
+    const { error } = createTenantSchema.validate({
+      tenantId: 'a'.repeat(21)
+    });
+
+    expect(error).toBeDefined();
+    expect(error.details[0].message).toContain('must be less than or equal to 20 characters');
   });
 });
 
