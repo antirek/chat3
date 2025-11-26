@@ -107,11 +107,44 @@ export const eventsController = {
       })
         .sort({ createdAt: -1 })
         .limit(limit)
-        .select('userId eventType createdAt')
         .lean();
 
+      console.log(`[getDialogUpdates] Найдено обновлений: ${updates.length}`);
+      if (updates.length > 0) {
+        console.log(`[getDialogUpdates] Первое обновление (до преобразования):`, {
+          userId: updates[0].userId,
+          eventType: updates[0].eventType,
+          eventId: updates[0].eventId,
+          eventIdType: typeof updates[0].eventId,
+          hasEventId: !!updates[0].eventId
+        });
+      }
+
+      // Выбираем нужные поля и преобразуем eventId в строку для корректной сериализации JSON
+      const updatesWithStringEventId = updates.map(update => {
+        let eventIdStr = null;
+        if (update.eventId) {
+          // Если eventId есть, преобразуем в строку
+          if (typeof update.eventId === 'object' && update.eventId.toString) {
+            eventIdStr = update.eventId.toString();
+          } else {
+            eventIdStr = String(update.eventId);
+          }
+        }
+        return {
+          userId: update.userId,
+          eventType: update.eventType,
+          createdAt: update.createdAt,
+          eventId: eventIdStr
+        };
+      });
+
+      if (updatesWithStringEventId.length > 0) {
+        console.log(`[getDialogUpdates] Первое обновление (после преобразования):`, updatesWithStringEventId[0]);
+      }
+
       res.json({
-        data: updates
+        data: updatesWithStringEventId
       });
     } catch (error) {
       res.status(500).json({

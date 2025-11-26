@@ -1434,12 +1434,24 @@
     <div id="dialogEventsModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">События диалога</h2>
+                <h2 class="modal-title modal-title-left">События диалога</h2>
+                <h2 class="modal-title modal-title-right" id="dialogEventUpdatesTitle" style="display: none; margin: 0; color: #495057; font-size: 18px;">Обновления диалога</h2>
                 <span class="close" onclick="closeDialogEventsModal()">&times;</span>
             </div>
             <div class="modal-body">
-                <div id="dialogEventsList" style="max-height: 500px; overflow-y: auto;">
-                    <div class="loading">Загрузка событий...</div>
+                <div class="modal-form-container">
+                    <div class="modal-form-left">
+                        <div id="dialogEventsList" style="max-height: 500px; overflow-y: auto;">
+                            <div class="loading">Загрузка событий...</div>
+                        </div>
+                    </div>
+                    <div class="modal-form-right">
+                        <div id="dialogEventUpdatesList" style="max-height: 500px; overflow-y: auto;">
+                            <div style="padding: 20px; text-align: center; color: #6c757d;">
+                                <p>Нажмите "Обновления" для просмотра обновлений</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1732,7 +1744,6 @@
                                             <button class="action-button members-button" onclick="event.stopPropagation(); selectDialogMembers('${dialog.dialogId}', '${dialog.name}')">👥 Участники</button>
                                             <button class="action-button messages-button" onclick="selectDialog('${dialog.dialogId}', '${dialog.name}')">📝 Сообщения</button>
                                             <button class="action-button events-button" onclick="event.stopPropagation(); showDialogEventsModal('${dialog.dialogId}')">📋 События</button>
-                                            <button class="action-button updates-button" onclick="event.stopPropagation(); showDialogUpdatesModal('${dialog.dialogId}')">🔄 Обновления</button>
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -3996,6 +4007,8 @@
         // Загрузка событий диалога
         async function loadDialogEvents(dialogId) {
             const eventsList = document.getElementById('dialogEventsList');
+            // Сохраняем dialogId для использования в шаблонах
+            const currentDlgId = dialogId;
             
             try {
                 eventsList.innerHTML = '<div class="loading">Загрузка событий...</div>';
@@ -4117,20 +4130,37 @@
                                 const eventDescription = getEventDescription(event.eventType, event.data);
                                 const eventName = event.eventType || '-';
                                 const updatesCount = event.updatesCount !== undefined ? event.updatesCount : null;
+                                // Преобразуем _id в строку (может быть ObjectId объектом)
+                                let eventId = null;
+                                if (event._id) {
+                                    if (typeof event._id === 'object') {
+                                        // Если это объект ObjectId, используем toString() или $oid
+                                        if (event._id.toString && typeof event._id.toString === 'function') {
+                                            eventId = event._id.toString();
+                                        } else if (event._id.$oid) {
+                                            eventId = event._id.$oid;
+                                        } else {
+                                            eventId = String(event._id);
+                                        }
+                                    } else {
+                                        eventId = String(event._id);
+                                    }
+                                } else if (event.id) {
+                                    eventId = String(event.id);
+                                }
+                                eventId = eventId ? eventId.trim() : null;
                                 
                                 let updatesInfo;
-                                if (updatesCount !== null && updatesCount !== undefined) {
-                                    if (updatesCount > 0) {
-                                        updatesInfo = `<span style="color: #28a745; font-weight: 500;">${updatesCount}</span> <span style="color: #6c757d; font-size: 11px;">обновлений</span>`;
-                                    } else {
-                                        updatesInfo = '<span style="color: #999; font-size: 12px;">Нет обновлений</span>';
-                                    }
+                                if (updatesCount !== null && updatesCount !== undefined && updatesCount > 0 && eventId) {
+                                    updatesInfo = `<button class="action-button updates-button" onclick="loadAllDialogUpdatesInModal('${escapeHtml(currentDlgId)}', '${escapeHtml(eventId)}')" style="padding: 5px 10px; font-size: 12px;">🔄 Обновления</button>`;
+                                } else if (updatesCount === 0) {
+                                    updatesInfo = '<span style="color: #999; font-size: 12px;">Нет обновлений</span>';
                                 } else {
                                     updatesInfo = '<span style="color: #999; font-size: 12px;">-</span>';
                                 }
                                 
                                 return `
-                                    <tr style="border-bottom: 1px solid #e9ecef;">
+                                    <tr data-event-id="${eventId || ''}" class="event-row" style="border-bottom: 1px solid #e9ecef; cursor: ${updatesCount > 0 ? 'pointer' : 'default'};">
                                         <td style="padding: 10px; color: #6c757d; font-size: 12px; vertical-align: top;">${eventTime}</td>
                                         <td style="padding: 10px; color: #495057; vertical-align: top;">
                                             <span>${escapeHtml(eventDescription)}</span>
@@ -4165,6 +4195,18 @@
         async function showDialogEventsModal(dialogId) {
             currentDialogIdForEvents = dialogId;
             
+            // Скрываем заголовок "Обновления диалога" при открытии
+            const dialogEventUpdatesTitle = document.getElementById('dialogEventUpdatesTitle');
+            if (dialogEventUpdatesTitle) {
+                dialogEventUpdatesTitle.style.display = 'none';
+            }
+            
+            // Очищаем правую колонку
+            const dialogEventUpdatesList = document.getElementById('dialogEventUpdatesList');
+            if (dialogEventUpdatesList) {
+                dialogEventUpdatesList.innerHTML = '<div style="padding: 20px; text-align: center; color: #6c757d;"><p>Нажмите "Обновления" для просмотра обновлений</p></div>';
+            }
+            
             // Показываем модальное окно
             document.getElementById('dialogEventsModal').style.display = 'block';
             
@@ -4172,10 +4214,310 @@
             await loadDialogEvents(dialogId);
         }
 
+        // Загрузка всех обновлений диалога во вторую колонку модального окна событий
+        async function loadAllDialogUpdatesInModal(dialogId, eventId) {
+            const dialogEventUpdatesList = document.getElementById('dialogEventUpdatesList');
+            const dialogEventUpdatesTitle = document.getElementById('dialogEventUpdatesTitle');
+            
+            if (!dialogEventUpdatesList) {
+                console.error('dialogEventUpdatesList element not found');
+                return;
+            }
+            
+            // Убираем выделение с предыдущего выбранного события
+            const previouslySelected = document.querySelector('#dialogEventsList .event-row-selected');
+            if (previouslySelected) {
+                previouslySelected.classList.remove('event-row-selected');
+            }
+            
+            // Выделяем текущее выбранное событие
+            if (eventId) {
+                const eventRow = document.querySelector(`#dialogEventsList tr[data-event-id="${eventId}"]`);
+                if (eventRow) {
+                    eventRow.classList.add('event-row-selected');
+                }
+            }
+            
+            // Показываем заголовок "Обновления диалога"
+            if (dialogEventUpdatesTitle) {
+                dialogEventUpdatesTitle.style.display = 'block';
+            }
+            
+            try {
+                dialogEventUpdatesList.innerHTML = '<div class="loading">Загрузка обновлений...</div>';
+
+                console.log('Загрузка всех обновлений для диалога:', dialogId);
+                
+                const url = `/api/dialogs/${dialogId}/updates?tenantId=${encodeURIComponent(tenantId)}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-Tenant-Id': tenantId
+                    }
+                });
+                
+                if (!response.ok) {
+                    let errorMessage = '';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorData.error || '';
+                    } catch (e) {
+                        errorMessage = `HTTP ${response.status}`;
+                    }
+                    
+                    dialogEventUpdatesList.innerHTML = `
+                        <div style="padding: 20px; text-align: center; color: #dc3545;">
+                            <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки обновлений</p>
+                            <p style="font-size: 12px; color: #999;">${errorMessage}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const data = await response.json();
+                const updates = Array.isArray(data.data) ? data.data : [];
+
+                if (updates.length === 0) {
+                    dialogEventUpdatesList.innerHTML = '<div class="no-data" style="padding: 20px; text-align: center; color: #6c757d;">Обновления не найдены</div>';
+                    return;
+                }
+
+                // Форматируем обновления для отображения
+                dialogEventUpdatesList.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #dee2e6; background: #f8f9fa;">
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 20%;">Время</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 40%;">Тип события</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 40%;">Пользователь</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${updates.map((update) => {
+                                const updateTime = update.createdAt 
+                                    ? (typeof update.createdAt === 'number' 
+                                        ? new Date(update.createdAt).toLocaleString('ru-RU')
+                                        : new Date(update.createdAt).toLocaleString('ru-RU'))
+                                    : '-';
+                                
+                                const eventType = update.eventType || '-';
+                                const userId = update.userId || '-';
+                                
+                                return `
+                                    <tr style="border-bottom: 1px solid #e9ecef;">
+                                        <td style="padding: 10px; color: #6c757d; font-size: 12px; vertical-align: top;">${updateTime}</td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: top;">
+                                            <span style="font-weight: 500; font-family: monospace; font-size: 12px;">${escapeHtml(eventType)}</span>
+                                        </td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: top;">
+                                            <span>${escapeHtml(userId)}</span>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading all dialog updates:', error);
+                dialogEventUpdatesList.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #dc3545;">
+                        <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки обновлений: ${error.message}</p>
+                        <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                            Проверьте консоль браузера (F12) для подробностей.
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
         // Закрытие модального окна событий диалога
         function closeDialogEventsModal() {
             document.getElementById('dialogEventsModal').style.display = 'none';
             currentDialogIdForEvents = null;
+            // Убираем выделение с выбранного события
+            const previouslySelected = document.querySelector('#dialogEventsList .event-row-selected');
+            if (previouslySelected) {
+                previouslySelected.classList.remove('event-row-selected');
+            }
+            // Скрываем заголовок "Обновления диалога"
+            const dialogEventUpdatesTitle = document.getElementById('dialogEventUpdatesTitle');
+            if (dialogEventUpdatesTitle) {
+                dialogEventUpdatesTitle.style.display = 'none';
+            }
+            // Очищаем правую колонку при закрытии
+            const dialogEventUpdatesList = document.getElementById('dialogEventUpdatesList');
+            if (dialogEventUpdatesList) {
+                dialogEventUpdatesList.innerHTML = '<div style="padding: 20px; text-align: center; color: #6c757d;"><p>Нажмите "Обновления" для просмотра обновлений</p></div>';
+            }
+        }
+
+        // Загрузка обновлений конкретного события диалога
+        async function loadDialogEventUpdates(eventId, dialogId) {
+            const dialogEventUpdatesList = document.getElementById('dialogEventUpdatesList');
+            const dialogEventUpdatesTitle = document.getElementById('dialogEventUpdatesTitle');
+            
+            if (!dialogEventUpdatesList) {
+                console.error('dialogEventUpdatesList element not found');
+                return;
+            }
+            
+            // Убираем выделение с предыдущего выбранного события
+            const previouslySelected = document.querySelector('#dialogEventsList .event-row-selected');
+            if (previouslySelected) {
+                previouslySelected.classList.remove('event-row-selected');
+            }
+            
+            // Выделяем текущее выбранное событие
+            const eventRow = document.querySelector(`#dialogEventsList tr[data-event-id="${eventId}"]`);
+            if (eventRow) {
+                eventRow.classList.add('event-row-selected');
+            }
+            
+            // Показываем заголовок "Обновления события" в modal-header
+            if (dialogEventUpdatesTitle) {
+                dialogEventUpdatesTitle.style.display = 'block';
+            }
+            
+            try {
+                dialogEventUpdatesList.innerHTML = '<div class="loading">Загрузка обновлений...</div>';
+
+                console.log('Загрузка обновлений для события диалога:', eventId, 'диалога:', dialogId);
+                
+                // Загружаем все обновления для диалога
+                const url = `/api/dialogs/${dialogId}/updates?tenantId=${encodeURIComponent(tenantId)}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-Tenant-Id': tenantId
+                    }
+                });
+                
+                if (!response.ok) {
+                    let errorMessage = '';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorData.error || '';
+                    } catch (e) {
+                        errorMessage = `HTTP ${response.status}`;
+                    }
+                    
+                    dialogEventUpdatesList.innerHTML = `
+                        <div style="padding: 20px; text-align: center; color: #dc3545;">
+                            <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки обновлений</p>
+                            <p style="font-size: 12px; color: #999;">${errorMessage}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const data = await response.json();
+                const allUpdates = Array.isArray(data.data) ? data.data : [];
+                
+                console.log('Всего обновлений для диалога:', allUpdates.length);
+                console.log('Ищем eventId:', eventId);
+                console.log('Тип eventId:', typeof eventId);
+                
+                // Фильтруем обновления по eventId
+                const eventIdStr = String(eventId).trim();
+                
+                // Выводим первые несколько eventId из обновлений для отладки
+                if (allUpdates.length > 0) {
+                    console.log('Примеры eventId из обновлений диалога:');
+                    allUpdates.slice(0, 3).forEach((update, idx) => {
+                        console.log(`  Update ${idx}:`, update.eventId, 'тип:', typeof update.eventId);
+                    });
+                }
+                
+                const filteredUpdates = allUpdates.filter(update => {
+                    if (!update.eventId) {
+                        console.log('Update без eventId:', update);
+                        return false;
+                    }
+                    // Преобразуем eventId в строку (может быть ObjectId объектом)
+                    let updateEventId;
+                    if (typeof update.eventId === 'object') {
+                        if (update.eventId.toString) {
+                            updateEventId = update.eventId.toString().trim();
+                        } else if (update.eventId.$oid) {
+                            updateEventId = update.eventId.$oid.trim();
+                        } else {
+                            updateEventId = String(update.eventId).trim();
+                        }
+                    } else {
+                        updateEventId = String(update.eventId).trim();
+                    }
+                    
+                    const matches = updateEventId === eventIdStr;
+                    if (!matches && allUpdates.length <= 10) {
+                        console.log(`Не совпадает: ищем "${eventIdStr}", найдено "${updateEventId}"`);
+                    }
+                    return matches;
+                });
+
+                console.log('Найдено обновлений для события:', filteredUpdates.length);
+
+                if (filteredUpdates.length === 0) {
+                    dialogEventUpdatesList.innerHTML = `
+                        <div class="no-data" style="padding: 20px; text-align: center; color: #6c757d;">
+                            <p>Обновления для этого события не найдены</p>
+                            <p style="font-size: 11px; color: #999; margin-top: 10px;">
+                                Всего обновлений для диалога: ${allUpdates.length}<br>
+                                Искомый eventId: ${eventIdStr}<br>
+                                Проверьте консоль браузера (F12) для подробностей.
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Форматируем обновления для отображения
+                dialogEventUpdatesList.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #dee2e6; background: #f8f9fa;">
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 20%;">Время</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 40%;">Тип события</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057; width: 40%;">Пользователь</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filteredUpdates.map((update) => {
+                                const updateTime = update.createdAt 
+                                    ? (typeof update.createdAt === 'number' 
+                                        ? new Date(update.createdAt).toLocaleString('ru-RU')
+                                        : new Date(update.createdAt).toLocaleString('ru-RU'))
+                                    : '-';
+                                
+                                const eventType = update.eventType || '-';
+                                const userId = update.userId || '-';
+                                
+                                return `
+                                    <tr style="border-bottom: 1px solid #e9ecef;">
+                                        <td style="padding: 10px; color: #6c757d; font-size: 12px; vertical-align: top;">${updateTime}</td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: top;">
+                                            <span style="font-weight: 500; font-family: monospace; font-size: 12px;">${escapeHtml(eventType)}</span>
+                                        </td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: top;">
+                                            <span>${escapeHtml(userId)}</span>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading dialog event updates:', error);
+                dialogEventUpdatesList.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #dc3545;">
+                        <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки обновлений: ${error.message}</p>
+                        <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                            Проверьте консоль браузера (F12) для подробностей.
+                        </p>
+                    </div>
+                `;
+            }
         }
 
         // ===== Управление обновлениями диалога =====
