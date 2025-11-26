@@ -132,6 +132,11 @@ services:
       - tenant-api
       - admin-web
       - control-api
+    volumes:
+      # Монтируем исходный код для разработки (изменения применяются без пересборки)
+      - ./src:/app/src
+      # Используем named volume для node_modules, чтобы не перезаписывать зависимости из образа
+      - api_test_node_modules:/app/node_modules
     networks:
       - chat3-network
     healthcheck:
@@ -179,6 +184,8 @@ volumes:
   mongodb_data:
     driver: local
   rabbitmq_data:
+    driver: local
+  api_test_node_modules:
     driver: local
 
 networks:
