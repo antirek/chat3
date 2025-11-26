@@ -190,6 +190,14 @@
             background: #e3f2fd;
         }
 
+        .dialog-row-selected {
+            background-color: #e9ecef !important;
+        }
+
+        .dialog-row-selected:hover {
+            background-color: #dee2e6 !important;
+        }
+
         .unread-badge {
             background: #dc3545;
             color: white;
@@ -221,6 +229,14 @@
 
         .user-item:hover {
             background: #f8f9fa;
+        }
+
+        .user-item-selected {
+            background-color: #e9ecef !important;
+        }
+
+        .user-item-selected:hover {
+            background-color: #dee2e6 !important;
         }
 
         .user-info {
@@ -1695,9 +1711,10 @@
         const safeUserIdAttr = escapeJsString(user.userId);
         const nameText = escapeHtml(displayName);
         const userIdText = escapeHtml(user.userId);
+        const isSelected = currentUserId === user.userId ? 'user-item-selected' : '';
 
             return `
-                <div class="user-item" onclick="selectUser('${safeUserIdAttr}', '${safeNameAttr}')" title="Диалогов: ${dialogCount}">
+                <div class="user-item ${isSelected}" data-user-id="${safeUserIdAttr}" onclick="selectUser('${safeUserIdAttr}', '${safeNameAttr}')" title="Диалогов: ${dialogCount}">
                     <div class="user-info">
                         <div class="user-name">${nameText}</div>
                         <div class="user-id">User ID: ${userIdText} • Диалогов: ${dialogCount}</div>
@@ -1727,9 +1744,21 @@
         async function selectUser(userId, userName) {
             console.log('Selected user:', userId, userName);
             
+            // Убираем выделение с предыдущего выбранного пользователя
+            const previouslySelected = document.querySelector('.user-item-selected');
+            if (previouslySelected) {
+                previouslySelected.classList.remove('user-item-selected');
+            }
+            
             // Устанавливаем выбранного пользователя
             currentUserId = userId;
             currentDialogId = null;
+            
+            // Выделяем текущего выбранного пользователя
+            const currentUserItem = document.querySelector(`.user-item[data-user-id="${escapeJsString(userId)}"]`);
+            if (currentUserItem) {
+                currentUserItem.classList.add('user-item-selected');
+            }
             
             // Обновляем UI
             updateUserUI(userName);
@@ -1810,22 +1839,27 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${data.data.map(dialog => `
-                                    <tr onclick="selectDialog('${dialog.dialogId}', '${dialog.name}')" class="dialog-row">
-                                        <td title="${dialog.dialogId}">${shortenDialogId(dialog.dialogId)}</td>
-                                        <td>${dialog.name}</td>
+                                ${data.data.map(dialog => {
+                                    const isSelected = currentDialogId === dialog.dialogId ? 'dialog-row-selected' : '';
+                                    const safeDialogId = escapeJsString(dialog.dialogId);
+                                    const safeDialogName = escapeJsString(dialog.name);
+                                    return `
+                                    <tr onclick="selectDialog('${safeDialogId}', '${safeDialogName}')" class="dialog-row ${isSelected}" data-dialog-id="${safeDialogId}">
+                                        <td title="${escapeHtml(dialog.dialogId)}">${shortenDialogId(dialog.dialogId)}</td>
+                                        <td>${escapeHtml(dialog.name)}</td>
                                         <td>${dialog.context?.unreadCount || 0}</td>
                                         <td>${formatLastSeen(dialog.context?.lastSeenAt)}</td>
                                         <td class="actions-column">
-                                            <button class="action-button add-message-button" onclick="event.stopPropagation(); showAddMessageModal('${dialog.dialogId}', '${dialog.name}')">💬 Отправить сообщение</button>
-                                            <button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">ℹ️ Инфо</button>
-                                            <button class="action-button members-button" onclick="event.stopPropagation(); selectDialogMembers('${dialog.dialogId}', '${dialog.name}')">👥 Участники</button>
-                                            <button class="action-button messages-button" onclick="selectDialog('${dialog.dialogId}', '${dialog.name}')">📝 Сообщения</button>
-                                            <button class="action-button events-button" onclick="event.stopPropagation(); showDialogEventsModal('${dialog.dialogId}')">📋 События</button>
-                                            <button class="btn-success btn-small" onclick="event.stopPropagation(); showDialogMetaModal('${dialog.dialogId}')">🏷️ Meta</button>
+                                            <button class="action-button add-message-button" onclick="event.stopPropagation(); showAddMessageModal('${safeDialogId}', '${safeDialogName}')">💬 Отправить сообщение</button>
+                                            <button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${safeDialogId}')">ℹ️ Инфо</button>
+                                            <button class="action-button members-button" onclick="event.stopPropagation(); selectDialogMembers('${safeDialogId}', '${safeDialogName}')">👥 Участники</button>
+                                            <button class="action-button messages-button" onclick="selectDialog('${safeDialogId}', '${safeDialogName}')">📝 Сообщения</button>
+                                            <button class="action-button events-button" onclick="event.stopPropagation(); showDialogEventsModal('${safeDialogId}')">📋 События</button>
+                                            <button class="btn-success btn-small" onclick="event.stopPropagation(); showDialogMetaModal('${safeDialogId}')">🏷️ Meta</button>
                                         </td>
                                     </tr>
-                                `).join('')}
+                                `;
+                                }).join('')}
                             </tbody>
                         </table>
                     `;
@@ -1873,11 +1907,23 @@
         async function selectDialog(dialogId, dialogName) {
             console.log('Selected dialog:', dialogId, dialogName);
             
+            // Убираем выделение с предыдущего выбранного диалога
+            const previouslySelected = document.querySelector('.dialog-row-selected');
+            if (previouslySelected) {
+                previouslySelected.classList.remove('dialog-row-selected');
+            }
+            
             currentDialogId = dialogId;
             currentMessagePage = 1;
             currentMessageFilter = null;
             currentMessageSort = null;
             currentViewMode = 'messages';
+            
+            // Выделяем текущий выбранный диалог
+            const currentDialogRow = document.querySelector(`.dialog-row[data-dialog-id="${escapeJsString(dialogId)}"]`);
+            if (currentDialogRow) {
+                currentDialogRow.classList.add('dialog-row-selected');
+            }
             
             // Обновляем заголовок панели
             const messagesHeader = document.querySelector('.messages-panel .panel-header span');
@@ -1908,12 +1954,24 @@
         async function selectDialogMembers(dialogId, dialogName) {
             console.log('Selected dialog for members:', dialogId, dialogName);
             
+            // Убираем выделение с предыдущего выбранного диалога
+            const previouslySelected = document.querySelector('.dialog-row-selected');
+            if (previouslySelected) {
+                previouslySelected.classList.remove('dialog-row-selected');
+            }
+            
             currentDialogId = dialogId;
             currentDialogIdForMembers = dialogId;
             currentDialogNameForMembers = dialogName;
             currentMemberFilter = '';
             currentViewMode = 'members';
             currentMembersTab = 'list';
+            
+            // Выделяем текущий выбранный диалог
+            const currentDialogRow = document.querySelector(`.dialog-row[data-dialog-id="${escapeJsString(dialogId)}"]`);
+            if (currentDialogRow) {
+                currentDialogRow.classList.add('dialog-row-selected');
+            }
             
             // Обновляем заголовок панели
             const messagesHeader = document.querySelector('.messages-panel .panel-header span');

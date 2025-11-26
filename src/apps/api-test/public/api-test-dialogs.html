@@ -261,6 +261,14 @@
             background: #e3f2fd;
         }
 
+        .dialog-row-selected {
+            background-color: #e9ecef !important;
+        }
+
+        .dialog-row-selected:hover {
+            background-color: #dee2e6 !important;
+        }
+
         .unread-badge {
             background: #dc3545;
             color: white;
@@ -762,14 +770,19 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${data.data.map(dialog => `
-                                    <tr onclick="selectDialog('${dialog.dialogId}', '${dialog.name}')" class="dialog-row">
-                                        <td>${dialog.name}</td>
+                                ${data.data.map(dialog => {
+                                    const isSelected = currentDialogId === dialog.dialogId ? 'dialog-row-selected' : '';
+                                    const safeDialogId = dialog.dialogId.replace(/'/g, "\\'");
+                                    const safeDialogName = dialog.name.replace(/'/g, "\\'");
+                                    return `
+                                    <tr onclick="selectDialog('${safeDialogId}', '${safeDialogName}')" class="dialog-row ${isSelected}" data-dialog-id="${safeDialogId.replace(/"/g, '&quot;')}">
+                                        <td>${dialog.name.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
                                         <td>${formatUpdatedAt(dialog.updatedAt)}</td>
                                         <td>${formatMembers(dialog.members)}</td>
-                                        <td><button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${dialog.dialogId}')">ℹ️ Инфо</button></td>
+                                        <td><button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${safeDialogId}')">ℹ️ Инфо</button></td>
                                     </tr>
-                                `).join('')}
+                                `;
+                                }).join('')}
                             </tbody>
                         </table>
                     `;
@@ -832,8 +845,22 @@
         async function selectDialog(dialogId, dialogName) {
             console.log('Selected dialog:', dialogId, dialogName);
             
+            // Убираем выделение с предыдущего выбранного диалога
+            const previouslySelected = document.querySelector('.dialog-row-selected');
+            if (previouslySelected) {
+                previouslySelected.classList.remove('dialog-row-selected');
+            }
+            
             currentDialogId = dialogId;
             currentMessagePage = 1;
+            
+            // Выделяем текущий выбранный диалог
+            const safeDialogId = dialogId.replace(/"/g, '&quot;');
+            const currentDialogRow = document.querySelector(`.dialog-row[data-dialog-id="${safeDialogId}"]`);
+            if (currentDialogRow) {
+                currentDialogRow.classList.add('dialog-row-selected');
+            }
+            
             loadDialogMessages(currentDialogId, 1);
         }
 
