@@ -4,7 +4,7 @@ import {
   createDialogMemberUpdate,
   createMessageUpdate
 } from '../updateUtils.js';
-import { Dialog, DialogMember, Meta, Message, User } from "../../../../models/index.js";
+import { Dialog, DialogMember, Meta, Message, User, Event, Update } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 
 // Мокируем amqplib перед импортом updateUtils

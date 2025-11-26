@@ -1,4 +1,4 @@
-import { DialogMember, MessageStatus } from '../../../models/index.js';
+import { DialogMember, MessageStatus, Message } from '../../../models/index.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
@@ -154,7 +154,6 @@ export async function getUnreadCount(tenantId, userId, dialogId) {
 export async function syncUnreadCount(tenantId, userId, dialogId) {
   try {
     // Получаем сообщения из диалога
-    const { Message } = await import('../models/index.js');
     const messages = await Message.find({ dialogId, tenantId }).select('_id');
     const messageIds = messages.map(msg => msg._id);
     
@@ -201,7 +200,6 @@ export async function syncUnreadCount(tenantId, userId, dialogId) {
 export async function updateCountersOnStatusChange(tenantId, messageId, userId, oldStatus, newStatus) {
   try {
     // Получаем информацию о сообщении
-    const { Message } = await import('../models/index.js');
     const message = await Message.findOne({ messageId: messageId, tenantId: tenantId });
     
     if (!message) {

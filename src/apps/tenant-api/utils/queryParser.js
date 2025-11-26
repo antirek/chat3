@@ -18,6 +18,8 @@
  *   - (member[carl].lastMessageAt,desc)
  */
 
+import { DialogMember } from '../../../models/index.js';
+
 /**
  * Парсит строку фильтра в MongoDB query
  * @param {string} filterString - Строка фильтра вида "(field,operator,value)"
@@ -357,8 +359,6 @@ export async function processMemberFilters(memberFilters, tenantId) {
   if (!memberFilters || Object.keys(memberFilters).length === 0) {
     return null;
   }
-
-  const { DialogMember } = await import('../models/index.js');
   
   // Строим запрос к DialogMember
   const memberQuery = {
@@ -413,8 +413,6 @@ async function processAllMembersFilter(userIds, tenantId) {
   if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
     return [];
   }
-
-  const { DialogMember } = await import('../models/index.js');
   
   // Найдем всех участников для указанных пользователей
   const allMembers = await DialogMember.find({

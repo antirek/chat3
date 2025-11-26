@@ -1,3 +1,4 @@
+import * as fakeAmqp from '@onify/fake-amqplib';
 import messageStatusController from '../messageStatusController.js';
 import {
   Dialog,
@@ -54,9 +55,17 @@ const generateMessageId = () => {
 
 beforeAll(async () => {
   await setupMongoMemoryServer();
+  
+  // Инициализируем RabbitMQ для eventUtils
+  const rabbitmqUtils = await import('../../../../utils/rabbitmqUtils.js');
+  const amqplib = await import('amqplib');
+  amqplib.default.connect = fakeAmqp.connect;
+  await rabbitmqUtils.initRabbitMQ();
 });
 
 afterAll(async () => {
+  const rabbitmqUtils = await import('../../../../utils/rabbitmqUtils.js');
+  await rabbitmqUtils.closeRabbitMQ();
   await teardownMongoMemoryServer();
 });
 
@@ -66,13 +75,10 @@ describe('messageStatusController.updateMessageStatus', () => {
 
   beforeEach(async () => {
     await clearDatabase();
+    fakeAmqp.resetMock();
 
     await Tenant.create({
       tenantId,
-      name: 'Test Tenant',
-      domain: 'tenant.example.com',
-      type: 'client',
-      isActive: true,
       createdAt: generateTimestamp()
     });
 
@@ -94,6 +100,16 @@ describe('messageStatusController.updateMessageStatus', () => {
       type: 'internal.text',
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()
+    });
+
+    // Создаем DialogMember для пользователя bob (который будет обновлять статус)
+    await DialogMember.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      userId: 'bob',
+      unreadCount: 1,
+      lastSeenAt: generateTimestamp(),
+      lastMessageAt: generateTimestamp()
     });
   });
 
