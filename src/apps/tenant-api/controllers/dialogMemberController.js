@@ -125,7 +125,11 @@ const dialogMemberController = {
   async getDialogMembers(req, res) {
     try {
       const { dialogId } = req.params;
-      const { page = 1, limit = 10, filter, sort, sortDirection } = req.query;
+      const { page: pageParam, limit: limitParam, filter, sort: sortParam, sortDirection } = req.query;
+
+      // Преобразуем page и limit в числа
+      const page = parseInt(pageParam, 10) || 1;
+      const limit = parseInt(limitParam, 10) || 10;
 
       const dialog = await Dialog.findOne({ tenantId: req.tenantId, dialogId }).select('dialogId').lean();
       if (!dialog) {
@@ -135,7 +139,8 @@ const dialogMemberController = {
         });
       }
 
-      const skip = (page - 1) * limit;
+      // Убеждаемся, что page и limit - числа
+      const skip = Math.max(0, (page - 1) * limit);
       let parsedFilters = {};
 
       if (filter) {
@@ -204,17 +209,44 @@ const dialogMemberController = {
         memberQuery.$and.push(metaCondition);
       }
 
+      // Парсим параметр sort, который может быть в формате (field,asc) или (field,desc)
+      let sortField = 'joinedAt';
+      let sortDir = -1; // По умолчанию desc
+      
+      if (sortParam) {
+        // Проверяем формат (field,direction)
+        const sortMatch = sortParam.match(/^\(([^,]+),([^)]+)\)$/);
+        if (sortMatch) {
+          const [, field, direction] = sortMatch;
+          sortField = field.trim();
+          sortDir = direction.trim().toLowerCase() === 'asc' ? 1 : -1;
+        } else {
+          // Простой формат: просто имя поля
+          sortField = sortParam;
+          sortDir = sortDirection === 'asc' ? 1 : -1;
+        }
+      } else if (sortDirection) {
+        sortDir = sortDirection === 'asc' ? 1 : -1;
+      }
+      
       const allowedSortFields = new Set(['joinedAt', 'lastSeenAt', 'lastMessageAt', 'unreadCount', 'userId', 'isActive', 'role']);
-      const sortField = allowedSortFields.has(sort) ? sort : 'joinedAt';
-      const sortDir = sortDirection === 'asc' ? 1 : -1;
-      const sortOptions = { [sortField]: sortDir };
+      if (!allowedSortFields.has(sortField)) {
+        sortField = 'joinedAt';
+      }
+      
+      // Добавляем вторичную сортировку для стабильности (чтобы при одинаковых значениях порядок был предсказуемым)
+      // Всегда используем _id как вторичную сортировку для гарантии стабильности
+      const sortOptions = { 
+        [sortField]: sortDir,
+        _id: 1 // Вторичная сортировка по _id для стабильности (гарантирует предсказуемый порядок)
+      };
 
       const [total, members] = await Promise.all([
         DialogMember.countDocuments(memberQuery),
         DialogMember.find(memberQuery)
+          .sort(sortOptions)
           .skip(skip)
           .limit(limit)
-          .sort(sortOptions)
           .select('-__v')
           .lean()
       ]);

@@ -110,21 +110,39 @@
 
         .pagination {
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
-            padding: 15px;
-            gap: 5px;
+            padding: 8px 12px;
+            gap: 8px;
             background: #f8f9fa;
             border-bottom: 1px solid #e9ecef;
+            font-size: 11px;
+        }
+
+        .pagination-info {
+            color: #6c757d;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .pagination button {
-            padding: 5px 10px;
+            padding: 4px 8px;
             border: 1px solid #ced4da;
             background: white;
             cursor: pointer;
-            border-radius: 4px;
-            font-size: 12px;
+            border-radius: 3px;
+            font-size: 11px;
+            min-width: 28px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .pagination button:hover:not(:disabled) {
@@ -132,7 +150,7 @@
         }
 
         .pagination button:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
         }
 
@@ -143,9 +161,25 @@
         }
 
         .pagination span {
-            margin-left: 15px;
             color: #6c757d;
-            font-size: 12px;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .pagination input[type="number"] {
+            width: 50px;
+            padding: 3px 6px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .pagination select {
+            padding: 3px 6px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+            font-size: 11px;
         }
 
         table {
@@ -1121,7 +1155,24 @@
                 </div>
             </div>
             <div class="pagination" id="usersPagination" style="display: none;">
-                <!-- Пагинация будет добавлена динамически -->
+                <div class="pagination-info" id="usersPaginationInfo"></div>
+                <div class="pagination-controls">
+                    <button class="btn-secondary btn-small" onclick="goToUsersFirstPage()" title="Первая страница">⏮</button>
+                    <button class="btn-secondary btn-small" onclick="goToUsersPreviousPage()" title="Предыдущая страница">◀</button>
+                    <span>Стр.</span>
+                    <input type="number" id="currentUserPageInput" min="1" value="1" onchange="goToUsersPage(parseInt(this.value))">
+                    <span>из</span>
+                    <span id="totalUserPages">1</span>
+                    <button class="btn-secondary btn-small" onclick="goToUsersNextPage()" title="Следующая страница">▶</button>
+                    <button class="btn-secondary btn-small" onclick="goToUsersLastPage()" title="Последняя страница">⏭</button>
+                    <span style="margin-left: 8px;">Показ:</span>
+                    <select id="userPageLimit" onchange="changeUserLimit(parseInt(this.value))">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                    </select>
+                </div>
             </div>
             <div class="panel-content" id="usersList">
                 <div class="loading">Загрузка пользователей...</div>
@@ -1576,6 +1627,28 @@
                             <option value="">-- Выберите пользователя --</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="newMemberTypeModal">Тип участника (опционально):</label>
+                        <select id="newMemberTypeModal" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                            <option value="">-- Выберите тип --</option>
+                            <option value="user">user</option>
+                            <option value="bot">bot</option>
+                            <option value="contact">contact</option>
+                            <option value="admin">admin</option>
+                            <option value="moderator">moderator</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Мета-теги (опционально):</label>
+                        <div id="newMemberMetaContainerModal" style="margin-top: 10px;">
+                            <div class="meta-tag-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                                <input type="text" class="meta-key-input" placeholder="Ключ" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <input type="text" class="meta-value-input" placeholder="Значение" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <button type="button" class="remove-meta-btn" onclick="removeMemberMetaRow(this)" style="padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">✕</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-add-tag" onclick="addMemberMetaRowModal()" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">➕ Добавить мета-тег</button>
+                    </div>
                     <div class="form-actions">
                         <button type="submit" class="btn-success">Добавить</button>
                         <button type="button" class="btn-secondary" onclick="closeAddMemberModal()">Отмена</button>
@@ -1628,6 +1701,10 @@
         let currentDialogSort = null;
         let allUsers = [];
         let currentUserFilter = '';
+        let currentUserPage = 1;
+        let totalUserPages = 1;
+        let totalUsers = 0;
+        let currentUserLimit = 100;
         let currentDialogMembers = [];
         let currentMembersTab = 'list';
         let currentMemberMetaEditingUserId = null;
@@ -1666,7 +1743,7 @@
         }
 
         // Загрузка пользователей
-        async function loadUsers() {
+        async function loadUsers(page = null, limit = null) {
             const usersList = document.getElementById('usersList');
             document.getElementById('usersPagination').style.display = 'none';
             usersList.innerHTML = '<div class="loading">Загрузка пользователей...</div>';
@@ -1677,11 +1754,19 @@
                 return;
             }
 
+            // Используем переданные параметры или текущие значения
+            if (page !== null) {
+                currentUserPage = page;
+            }
+            if (limit !== null) {
+                currentUserLimit = limit;
+            }
+
             try {
                 const params = new URLSearchParams({
-                    limit: '100',
+                    limit: String(currentUserLimit),
                     includeDialogCount: 'true',
-                    page: '1'
+                    page: String(currentUserPage)
                 });
 
                 if (currentUserFilter) {
@@ -1706,6 +1791,19 @@
                 }
 
                 const data = await response.json();
+                
+                // Получаем данные пагинации из ответа
+                if (data.pagination) {
+                    totalUsers = data.pagination.total || 0;
+                    totalUserPages = data.pagination.pages || 1;
+                    currentUserPage = data.pagination.page || currentUserPage;
+                } else {
+                    // Fallback: если пагинации нет в ответе, вычисляем из данных
+                    const users = Array.isArray(data.data) ? data.data : [];
+                    totalUsers = users.length;
+                    totalUserPages = Math.ceil(totalUsers / currentUserLimit);
+                }
+
                 const users = (Array.isArray(data.data) ? data.data : []).map((user) => ({
                     ...user,
                     displayName: user.userId,
@@ -1732,6 +1830,7 @@
 
                 allUsers = users;
                 renderUsersList();
+                updateUsersPagination();
             } catch (error) {
                 console.error('Error loading users:', error);
                 const message = error?.message || 'Неизвестная ошибка';
@@ -1745,6 +1844,67 @@
                 'X-API-Key': apiKey,
                 'X-TENANT-ID': tenantId
             };
+        }
+
+        // Обновление пагинации пользователей
+        function updateUsersPagination() {
+            const pagination = document.getElementById('usersPagination');
+            const paginationInfo = document.getElementById('usersPaginationInfo');
+            const currentPageInput = document.getElementById('currentUserPageInput');
+            const totalPagesSpan = document.getElementById('totalUserPages');
+            const pageLimit = document.getElementById('userPageLimit');
+
+            if (totalUsers === 0) {
+                pagination.style.display = 'none';
+                return;
+            }
+
+            pagination.style.display = 'flex';
+            currentPageInput.value = currentUserPage;
+            currentPageInput.max = totalUserPages;
+            totalPagesSpan.textContent = totalUserPages;
+            pageLimit.value = currentUserLimit;
+
+            const start = (currentUserPage - 1) * currentUserLimit + 1;
+            const end = Math.min(currentUserPage * currentUserLimit, totalUsers);
+            paginationInfo.textContent = `${start}-${end} из ${totalUsers}`;
+        }
+
+        // Навигация по страницам пользователей
+        function goToUsersFirstPage() {
+            if (currentUserPage > 1) {
+                loadUsers(1, currentUserLimit);
+            }
+        }
+
+        function goToUsersPreviousPage() {
+            if (currentUserPage > 1) {
+                loadUsers(currentUserPage - 1, currentUserLimit);
+            }
+        }
+
+        function goToUsersNextPage() {
+            if (currentUserPage < totalUserPages) {
+                loadUsers(currentUserPage + 1, currentUserLimit);
+            }
+        }
+
+        function goToUsersLastPage() {
+            if (currentUserPage < totalUserPages) {
+                loadUsers(totalUserPages, currentUserLimit);
+            }
+        }
+
+        function goToUsersPage(page) {
+            if (page >= 1 && page <= totalUserPages) {
+                loadUsers(page, currentUserLimit);
+            } else {
+                document.getElementById('currentUserPageInput').value = currentUserPage;
+            }
+        }
+
+        function changeUserLimit(limit) {
+            loadUsers(1, limit);
         }
 
         function renderUsersList() {
@@ -2765,7 +2925,68 @@
             modal.style.display = 'none';
             if (form) {
                 form.reset();
+                // Очищаем контейнер мета-тегов, оставляя одну пустую строку
+                const metaContainer = document.getElementById('newMemberMetaContainerModal');
+                if (metaContainer) {
+                    metaContainer.innerHTML = `
+                        <div class="meta-tag-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                            <input type="text" class="meta-key-input" placeholder="Ключ" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="text" class="meta-value-input" placeholder="Значение" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <button type="button" class="remove-meta-btn" onclick="removeMemberMetaRow(this)" style="padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">✕</button>
+                        </div>
+                    `;
+                }
             }
+        }
+
+        function addMemberMetaRowModal() {
+            const container = document.getElementById('newMemberMetaContainerModal');
+            if (!container) return;
+            
+            const row = document.createElement('div');
+            row.className = 'meta-tag-row';
+            row.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
+            row.innerHTML = `
+                <input type="text" class="meta-key-input" placeholder="Ключ" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <input type="text" class="meta-value-input" placeholder="Значение" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <button type="button" class="remove-meta-btn" onclick="removeMemberMetaRow(this)" style="padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">✕</button>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeMemberMetaRow(button) {
+            const container = document.getElementById('newMemberMetaContainerModal');
+            if (!container) return;
+            
+            const row = button.closest('.meta-tag-row');
+            if (row && container.children.length > 1) {
+                row.remove();
+            } else if (row) {
+                // Если это последняя строка, просто очищаем поля
+                const keyInput = row.querySelector('.meta-key-input');
+                const valueInput = row.querySelector('.meta-value-input');
+                if (keyInput) keyInput.value = '';
+                if (valueInput) valueInput.value = '';
+            }
+        }
+
+        function collectMemberMetaTags() {
+            const container = document.getElementById('newMemberMetaContainerModal');
+            if (!container) return {};
+            
+            const meta = {};
+            const rows = container.querySelectorAll('.meta-tag-row');
+            
+            rows.forEach(row => {
+                const keyInput = row.querySelector('.meta-key-input');
+                const valueInput = row.querySelector('.meta-value-input');
+                
+                if (keyInput && valueInput && keyInput.value.trim() && valueInput.value.trim()) {
+                    meta[keyInput.value.trim()] = valueInput.value.trim();
+                }
+            });
+            
+            return meta;
         }
 
         // Обработчик формы добавления участника в модальном окне
@@ -2778,6 +2999,8 @@
             }
 
             const userId = document.getElementById('newMemberSelectModal').value;
+            const type = document.getElementById('newMemberTypeModal').value;
+            const meta = collectMemberMetaTags();
             
             if (!userId) {
                 alert('Пожалуйста, выберите пользователя');
@@ -2785,22 +3008,70 @@
             }
 
             try {
-                const response = await fetch(`/api/dialogs/${currentDialogId}/members/${userId}/add`, {
+                // Подготавливаем тело запроса
+                const requestBody = { userId };
+                if (type) {
+                    requestBody.type = type;
+                }
+
+                const response = await fetch(`/api/dialogs/${currentDialogId}/members/add`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-API-Key': apiKey,
                         'X-TENANT-ID': tenantId
-                    }
+                    },
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                    let errorMessage = `HTTP error! status: ${response.status}`;
+                    try {
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const errorData = await response.json();
+                            errorMessage = errorData.message || errorMessage;
+                        } else {
+                            const errorText = await response.text();
+                            if (errorText && !errorText.startsWith('<!DOCTYPE')) {
+                                errorMessage = errorText;
+                            }
+                        }
+                    } catch (parseError) {
+                        console.error('Error parsing error response:', parseError);
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 const result = await response.json();
                 console.log('Member added successfully:', result);
+                
+                // Если есть мета-теги, добавляем их отдельно
+                if (Object.keys(meta).length > 0) {
+                    try {
+                        // Используем API для установки мета-тегов участника
+                        // Формат: /api/meta/dialogMember/{dialogId}:{userId}/{key}
+                        const entityId = `${currentDialogId}:${userId}`;
+                        for (const [key, value] of Object.entries(meta)) {
+                            const metaResponse = await fetch(`/api/meta/dialogMember/${entityId}/${key}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-API-Key': apiKey,
+                                    'X-TENANT-ID': tenantId
+                                },
+                                body: JSON.stringify({ value, dataType: 'string' })
+                            });
+                            
+                            if (!metaResponse.ok) {
+                                console.warn(`Failed to set meta tag ${key}:`, await metaResponse.text());
+                            }
+                        }
+                    } catch (metaError) {
+                        console.error('Error setting meta tags:', metaError);
+                        // Не прерываем процесс, просто логируем ошибку
+                    }
+                }
                 
                 alert(`Пользователь ${userId} успешно добавлен в диалог!`);
                 
@@ -2963,8 +3234,8 @@
             const params = new URLSearchParams();
             
             // Добавляем параметры пагинации
-            params.append('page', '1');
-            params.append('limit', '100');
+            params.append('page', String(currentUserPage));
+            params.append('limit', String(currentUserLimit));
             params.append('includeDialogCount', 'true');
             
             // Добавляем фильтр
@@ -2983,8 +3254,8 @@
                     
                     <h4>Параметры:</h4>
                     <div class="params-list">
-                        <div><strong>page:</strong> 1</div>
-                        <div><strong>limit:</strong> 100</div>
+                        <div><strong>page:</strong> ${currentUserPage}</div>
+                        <div><strong>limit:</strong> ${currentUserLimit}</div>
                         <div><strong>includeDialogCount:</strong> true</div>
                         ${currentUserFilter ? `<div><strong>filter:</strong> ${currentUserFilter}</div>` : ''}
                     </div>
@@ -3178,6 +3449,7 @@
 
         async function applyUserFilter() {
             const rawValue = document.getElementById('userFilterInput').value.trim();
+            currentUserPage = 1; // Сбрасываем на первую страницу при применении фильтра
 
             currentUserFilter = rawValue;
             await loadUsers();
@@ -5559,53 +5831,8 @@
             await loadDialogMembers(currentDialogIdForMembers);
         }
 
-        // Добавление участника в диалог
-        document.getElementById('addMemberForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            if (!currentDialogIdForMembers) {
-                alert('Ошибка: не выбран диалог');
-                return;
-            }
-
-            const userId = document.getElementById('newMemberSelect').value;
-            
-            if (!userId) {
-                alert('Пожалуйста, выберите пользователя');
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/dialogs/${currentDialogIdForMembers}/members/${userId}/add`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': apiKey,
-                        'X-TENANT-ID': tenantId
-                    }
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                console.log('Member added successfully:', result);
-                
-                alert(`Пользователь ${userId} успешно добавлен в диалог!`);
-                
-                // Сбрасываем форму
-                document.getElementById('addMemberForm').reset();
-                
-                // Обновляем список участников
-                await loadDialogMembers(currentDialogIdForMembers);
-                
-            } catch (error) {
-                console.error('Error adding member:', error);
-                alert(`Ошибка при добавлении участника: ${error.message}`);
-            }
-        });
+        // Добавление участника в диалог (старая форма - удалена, используется модальное окно)
+        // Обработчик для addMemberFormModal уже добавлен выше в коде
 
         // Удаление участника из диалога
         async function removeMember(dialogId, userId) {
