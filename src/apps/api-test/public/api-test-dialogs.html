@@ -1242,6 +1242,15 @@
         async function showDialogInfo(dialogId) {
             console.log('Show dialog info for:', dialogId);
             
+            // Получаем базовый URL API
+            let baseUrl = '';
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                baseUrl = CHAT3_CONFIG.getTenantApiUrl('');
+            } else {
+                baseUrl = window.location.origin.replace(':3001', ':3000');
+            }
+            const url = `${baseUrl}/api/dialogs/${dialogId}`;
+            
             try {
                 const response = await fetch(`/api/dialogs/${dialogId}`, {
                     headers: {
@@ -1266,10 +1275,11 @@
                     }
                 }
 
-                showModal(`Информация о диалоге: ${dialogName}`, formatDialogInfo(dialog));
+                const dialogData = dialog.data || dialog;
+                showModal(`Информация о диалоге: ${dialogName}`, formatDialogInfo(dialog), url, dialogData);
             } catch (error) {
                 console.error('Error loading dialog info:', error);
-                showModal('Ошибка', `Не удалось загрузить информацию о диалоге: ${error.message}`);
+                showModal('Ошибка', `Не удалось загрузить информацию о диалоге: ${error.message}`, url);
             }
         }
 
@@ -1277,20 +1287,29 @@
         async function showMessageInfo(messageId) {
             console.log('Show message info for:', messageId);
             
+            // Получаем базовый URL API
+            let baseUrl = '';
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                baseUrl = CHAT3_CONFIG.getTenantApiUrl('');
+            } else {
+                baseUrl = window.location.origin.replace(':3001', ':3000');
+            }
+            const url = `${baseUrl}/api/messages/${messageId}`;
+            
             try {
                 // Найти кнопку "Инфо" которая была нажата
                 const clickedButton = event.target;
                 const messageRow = clickedButton.closest('tr');
                 
                 if (!messageRow) {
-                    showModal('Ошибка', 'Строка сообщения не найдена');
+                    showModal('Ошибка', 'Строка сообщения не найдена', url);
                     return;
                 }
 
                 // Извлечь данные из строки таблицы
                 const cells = messageRow.querySelectorAll('td');
                 if (cells.length < 5) {
-                    showModal('Ошибка', 'Недостаточно данных о сообщении');
+                    showModal('Ошибка', 'Недостаточно данных о сообщении', url);
                     return;
                 }
 
@@ -1307,18 +1326,80 @@
                     type: type
                 };
 
-                showModal(`Информация о сообщении`, formatMessageInfo(messageInfo));
+                showModal(`Информация о сообщении`, formatMessageInfo(messageInfo), url, messageInfo);
             } catch (error) {
                 console.error('Error loading message info:', error);
-                showModal('Ошибка', `Не удалось загрузить информацию о сообщении: ${error.message}`);
+                showModal('Ошибка', `Не удалось загрузить информацию о сообщении: ${error.message}`, url);
             }
         }
 
         // Показать модальное окно
-        function showModal(title, content) {
+        function showModal(title, content, url = null, jsonContent = null) {
             document.getElementById('modalTitle').textContent = title;
-            document.getElementById('modalBody').innerHTML = content;
+            
+            let modalContent = '';
+            
+            // Добавляем URL под заголовком, если он передан
+            if (url) {
+                modalContent += `<div class="info-url" style="margin-bottom: 15px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 12px; word-break: break-all; color: #495057;">${escapeHtml(url)}</div>`;
+            }
+            
+            // Добавляем основной контент
+            modalContent += content;
+            
+            // Добавляем кнопку копирования JSON, если передан jsonContent
+            if (jsonContent) {
+                const jsonStr = typeof jsonContent === 'string' ? jsonContent : JSON.stringify(jsonContent, null, 2);
+                currentModalJsonForCopy = jsonStr;
+                modalContent += `<div class="form-actions" style="margin-top: 15px;">
+                    <button type="button" class="btn-primary" onclick="copyJsonToClipboardFromModal()" style="margin-right: 10px;">📋 Копировать JSON</button>
+                </div>`;
+            }
+            
+            document.getElementById('modalBody').innerHTML = modalContent;
             document.getElementById('infoModal').style.display = 'block';
+        }
+        
+        // Глобальная переменная для хранения JSON для копирования
+        let currentModalJsonForCopy = null;
+        
+        // Копировать JSON из модального окна в буфер обмена
+        function copyJsonToClipboardFromModal() {
+            const jsonText = currentModalJsonForCopy;
+            
+            if (!jsonText) {
+                alert('Нет данных для копирования');
+                return;
+            }
+            
+            navigator.clipboard.writeText(jsonText).then(() => {
+                // Находим кнопку и обновляем её текст
+                const buttons = document.querySelectorAll('#modalBody .btn-primary');
+                if (buttons.length > 0) {
+                    const button = buttons[0];
+                    const originalText = button.textContent;
+                    button.textContent = '✅ Скопировано!';
+                    button.style.background = '#28a745';
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.style.background = '';
+                    }, 2000);
+                }
+            }).catch(err => {
+                console.error('Failed to copy JSON:', err);
+                alert('Не удалось скопировать JSON');
+            });
+        }
+        
+        // Вспомогательная функция для экранирования HTML
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (match) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[match]);
         }
 
         // Закрыть модальное окно

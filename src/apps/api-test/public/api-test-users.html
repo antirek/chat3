@@ -670,8 +670,10 @@
                 <button class="modal-close" onclick="closeUserInfoModal()" title="Закрыть">×</button>
             </div>
             <div class="modal-body">
+                <div class="info-url" id="userInfoUrl" style="margin-bottom: 15px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 12px; word-break: break-all; color: #495057;"></div>
                 <div class="json-viewer" id="userJsonViewer"></div>
                 <div class="form-actions" style="margin-top: 15px;">
+                    <button type="button" class="btn-primary" id="copyUserJsonButton" onclick="copyUserJsonToClipboard()" style="margin-right: 10px;">📋 Копировать JSON</button>
                     <button type="button" class="btn-secondary" onclick="closeUserInfoModal()">Закрыть</button>
                 </div>
             </div>
@@ -1101,6 +1103,17 @@
         async function showUserInfoModal(userId) {
             try {
                 const apiKey = getApiKey();
+                // Получаем базовый URL API
+                let baseUrl = '';
+                if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                    baseUrl = CHAT3_CONFIG.getTenantApiUrl('');
+                } else {
+                    baseUrl = window.location.origin.replace(':3001', ':3000');
+                }
+                const url = `${baseUrl}/api/users/${userId}`;
+
+                // Отображаем URL под заголовком
+                document.getElementById('userInfoUrl').textContent = url;
 
                 // Получаем пользователя по userId - показываем сырой ответ от API
                 const userResponse = await fetch(`/api/users/${userId}`, {
@@ -1114,24 +1127,58 @@
 
                 if (!userResponse.ok) {
                     // Показываем ошибку в JSON формате
-                    document.getElementById('userJsonViewer').textContent = JSON.stringify({
+                    const errorJson = JSON.stringify({
                         status: userResponse.status,
                         statusText: userResponse.statusText,
                         error: responseData
                     }, null, 2);
+                    document.getElementById('userJsonViewer').textContent = errorJson;
+                    currentUserJsonForCopy = errorJson;
                 } else {
                     // Показываем успешный ответ
-                    document.getElementById('userJsonViewer').textContent = JSON.stringify(responseData, null, 2);
+                    const jsonStr = JSON.stringify(responseData, null, 2);
+                    document.getElementById('userJsonViewer').textContent = jsonStr;
+                    currentUserJsonForCopy = jsonStr;
                 }
 
                 document.getElementById('userInfoModal').style.display = 'block';
             } catch (error) {
                 console.error('Error loading user info:', error);
-                document.getElementById('userJsonViewer').textContent = JSON.stringify({
+                const errorJson = JSON.stringify({
                     error: error.message
                 }, null, 2);
+                document.getElementById('userJsonViewer').textContent = errorJson;
+                currentUserJsonForCopy = errorJson;
                 document.getElementById('userInfoModal').style.display = 'block';
             }
+        }
+
+        // Глобальная переменная для хранения JSON для копирования
+        let currentUserJsonForCopy = null;
+        
+        // Копировать JSON в буфер обмена
+        function copyUserJsonToClipboard() {
+            const jsonViewer = document.getElementById('userJsonViewer');
+            const jsonText = jsonViewer.textContent || jsonViewer.innerText || currentUserJsonForCopy;
+            
+            if (!jsonText) {
+                alert('Нет данных для копирования');
+                return;
+            }
+            
+            navigator.clipboard.writeText(jsonText).then(() => {
+                const button = document.getElementById('copyUserJsonButton');
+                const originalText = button.textContent;
+                button.textContent = '✅ Скопировано!';
+                button.style.background = '#28a745';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy JSON:', err);
+                alert('Не удалось скопировать JSON');
+            });
         }
 
         // Закрыть modal информации о пользователе

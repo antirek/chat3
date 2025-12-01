@@ -625,8 +625,10 @@
                 <button class="modal-close" onclick="closeInfoModal()" title="Закрыть">×</button>
             </div>
             <div class="modal-body">
+                <div class="info-url" id="infoUrl" style="margin-bottom: 15px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 12px; word-break: break-all; color: #495057;"></div>
                 <div class="json-viewer" id="jsonViewer"></div>
                 <div class="form-actions" style="margin-top: 15px;">
+                    <button type="button" class="btn-primary" id="copyJsonButton" onclick="copyJsonToClipboard()" style="margin-right: 10px;">📋 Копировать JSON</button>
                     <button type="button" class="btn-secondary" onclick="closeInfoModal()">Закрыть</button>
                 </div>
             </div>
@@ -1156,6 +1158,17 @@
         async function showInfoModal(tenantIdParam) {
             try {
                 const apiKey = getApiKey();
+                // Получаем базовый URL API
+                let baseUrl = '';
+                if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                    baseUrl = CHAT3_CONFIG.getTenantApiUrl('');
+                } else {
+                    baseUrl = window.location.origin.replace(':3001', ':3000');
+                }
+                const url = `${baseUrl}/api/tenants/${tenantIdParam}`;
+
+                // Отображаем URL под заголовком
+                document.getElementById('infoUrl').textContent = url;
 
                 // Получаем тенант по tenantId - показываем сырой ответ от API
                 const tenantResponse = await fetch(`/api/tenants/${tenantIdParam}`, {
@@ -1169,24 +1182,58 @@
 
                 if (!tenantResponse.ok) {
                     // Показываем ошибку в JSON формате
-                    document.getElementById('jsonViewer').textContent = JSON.stringify({
+                    const errorJson = JSON.stringify({
                         status: tenantResponse.status,
                         statusText: tenantResponse.statusText,
                         error: responseData
                     }, null, 2);
+                    document.getElementById('jsonViewer').textContent = errorJson;
+                    currentJsonForCopy = errorJson;
                 } else {
                     // Показываем успешный ответ
-                    document.getElementById('jsonViewer').textContent = JSON.stringify(responseData, null, 2);
+                    const jsonStr = JSON.stringify(responseData, null, 2);
+                    document.getElementById('jsonViewer').textContent = jsonStr;
+                    currentJsonForCopy = jsonStr;
                 }
 
                 document.getElementById('infoModal').style.display = 'block';
             } catch (error) {
                 console.error('Error loading tenant info:', error);
-                document.getElementById('jsonViewer').textContent = JSON.stringify({
+                const errorJson = JSON.stringify({
                     error: error.message
                 }, null, 2);
+                document.getElementById('jsonViewer').textContent = errorJson;
+                currentJsonForCopy = errorJson;
                 document.getElementById('infoModal').style.display = 'block';
             }
+        }
+
+        // Глобальная переменная для хранения JSON для копирования
+        let currentJsonForCopy = null;
+        
+        // Копировать JSON в буфер обмена
+        function copyJsonToClipboard() {
+            const jsonViewer = document.getElementById('jsonViewer');
+            const jsonText = jsonViewer.textContent || jsonViewer.innerText || currentJsonForCopy;
+            
+            if (!jsonText) {
+                alert('Нет данных для копирования');
+                return;
+            }
+            
+            navigator.clipboard.writeText(jsonText).then(() => {
+                const button = document.getElementById('copyJsonButton');
+                const originalText = button.textContent;
+                button.textContent = '✅ Скопировано!';
+                button.style.background = '#28a745';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy JSON:', err);
+                alert('Не удалось скопировать JSON');
+            });
         }
 
         // Закрыть modal информации
