@@ -48,6 +48,18 @@
             font-weight: 600;
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .url-button {
             background: #48bb78;
             color: white;
@@ -542,8 +554,12 @@
     <div class="container">
         <div class="messages-panel">
             <div class="panel-header">
-                <h2>📝 Сообщения</h2>
-                <button onclick="showCurrentMessageUrl()" class="url-button url" title="Показать URL запроса">🔗 URL</button>
+                <div class="header-left">
+                    <h2>📝 Сообщения</h2>
+                </div>
+                <div class="header-right">
+                    <button onclick="showCurrentMessageUrl()" class="url-button url" title="Показать URL запроса">🔗 URL</button>
+                </div>
             </div>
 
             <div class="filter-form" id="messagesFilterForm">
@@ -1202,7 +1218,7 @@
             }
         });
 
-        // Добавляем кнопку "Добавить сообщение" в заголовок
+        // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
             // Проверяем URL параметры (от родительского окна)
             const urlParams = getUrlParams();
@@ -1222,14 +1238,6 @@
                     }
                 }
             });
-
-            const panelHeader = document.querySelector('.panel-header');
-            const addButton = document.createElement('button');
-            addButton.textContent = '➕ Добавить';
-            addButton.className = 'url-button';
-            addButton.style.marginRight = '10px';
-            addButton.onclick = showAddMessageModal;
-            panelHeader.insertBefore(addButton, panelHeader.querySelector('.url-button'));
             
             // Загружаем сообщения при загрузке страницы (если apiKey уже установлен)
             if (apiKey) {

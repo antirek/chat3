@@ -57,6 +57,18 @@
             min-height: 59px;
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .url-button {
             background: #667eea;
             color: white;
@@ -79,7 +91,8 @@
             padding: 0;
         }
 
-        .combined-form {
+        .combined-form,
+        .filter-panel {
             padding: 15px;
             border-bottom: 1px solid #e9ecef;
             background: #f8f9fa;
@@ -458,6 +471,43 @@
             white-space: pre-wrap;
             overflow-x: auto;
         }
+
+        .url-info h4 {
+            margin: 15px 0 8px 0;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .url-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin-bottom: 10px;
+        }
+
+        .params-list {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 12px;
+        }
+
+        .params-list div {
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .url-copy input {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -467,11 +517,16 @@
         <!-- Диалоги -->
         <div class="panel dialogs-panel">
             <div class="panel-header">
-                <span>💬 Диалоги</span>
-                <button onclick="showCurrentUrl()" class="url-button" title="Показать URL запроса">🔗 URL</button>
+                <div class="header-left">
+                    <span>💬 Диалоги</span>
+                    <button onclick="showAddDialogModal()" class="url-button" title="Создать диалог">➕ Добавить</button>
+                </div>
+                <div class="header-right">
+                    <button onclick="showCurrentUrl()" class="url-button" title="Показать URL запроса">🔗 URL</button>
+                </div>
             </div>
             
-            <div class="combined-form" id="combinedForm">
+            <div class="filter-panel" id="combinedForm">
                 <div class="form-section">
                     <label>🔍 Фильтр:</label>
                     <select id="filterExample" onchange="updateFilterInput()">
@@ -545,6 +600,10 @@
                 </div>
             </div>
             
+            <div class="pagination" id="dialogsPagination" style="display: none;">
+                <!-- Пагинация будет добавлена динамически -->
+            </div>
+            
             <div class="panel-content" id="dialogsList">
                 <div class="loading">Загрузка диалогов...</div>
             </div>
@@ -552,7 +611,44 @@
 
         <!-- Сообщения -->
         <div class="panel messages-panel">
-            <div class="panel-header">📝 Сообщения</div>
+            <div class="panel-header">
+                <div class="header-left">
+                    <span>📝 Сообщения</span>
+                    <button onclick="showAddMessageModal()" class="url-button" title="Добавить сообщение" id="addMessageBtn" style="display: none;">➕ Добавить</button>
+                </div>
+                <div class="header-right">
+                    <button onclick="showCurrentMessageUrl()" class="url-button" title="Показать URL запроса" id="messageUrlBtn" style="display: none;">🔗 URL</button>
+                </div>
+            </div>
+            
+            <div class="filter-panel" id="messageFilterForm" style="display: none;">
+                <div class="form-section">
+                    <label>🔍 Фильтр:</label>
+                    <select id="messageFilterExample" onchange="updateMessageFilterInput()">
+                        <option value="">Выберите пример фильтра</option>
+                        <option value="(content,regex,встретимся)">📝 Содержит "встретимся"</option>
+                        <option value="(content,regex,спасибо)">📝 Содержит "спасибо"</option>
+                        <option value="(content,regex,привет)">📝 Содержит "привет"</option>
+                        <option value="(type,eq,internal.text)">📝 Тип = internal.text</option>
+                        <option value="(type,eq,system)">📝 Тип = system</option>
+                        <option value="(senderId,eq,carl)">👤 Отправитель = carl</option>
+                        <option value="(senderId,eq,sara)">👤 Отправитель = sara</option>
+                        <option value="custom">✏️ Пользовательский фильтр</option>
+                    </select>
+                    <div class="input-with-clear">
+                        <input type="text" id="messageFilterValue" placeholder="Введите или выберите фильтр" />
+                        <button class="clear-field" onclick="clearMessageFilter()" title="Очистить фильтр">✕</button>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-primary" onclick="applyMessageFilter()">Применить</button>
+                </div>
+            </div>
+            
+            <div class="pagination" id="messagesPagination" style="display: none;">
+                <!-- Пагинация будет добавлена динамически -->
+            </div>
+            
             <div class="panel-content" id="messagesList">
                 <div class="placeholder">Выберите диалог</div>
             </div>
@@ -750,16 +846,20 @@
                     totalPages = data.pagination.pages;
                     totalDialogs = data.pagination.total;
                     
+                    // Обновляем пагинацию
+                    const paginationDiv = document.getElementById('dialogsPagination');
+                    paginationDiv.style.display = 'flex';
+                    paginationDiv.innerHTML = `
+                        <button onclick="changePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
+                        ${Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            const pageNum = i + 1;
+                            return `<button onclick="changePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
+                        }).join('')}
+                        <button onclick="changePage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>Следующая →</button>
+                        <span>Страница ${page} из ${totalPages} (всего ${totalDialogs} диалогов)</span>
+                    `;
+                    
                     dialogsList.innerHTML = `
-                        <div class="pagination">
-                            <button onclick="changePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
-                            ${Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                const pageNum = i + 1;
-                                return `<button onclick="changePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
-                            }).join('')}
-                            <button onclick="changePage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>Следующая →</button>
-                            <span>Страница ${page} из ${totalPages} (всего ${totalDialogs} диалогов)</span>
-                        </div>
                         <table>
                             <thead>
                                 <tr>
@@ -786,6 +886,7 @@
                         </table>
                     `;
                 } else {
+                    document.getElementById('dialogsPagination').style.display = 'none';
                     dialogsList.innerHTML = '<div class="no-data">Диалоги не найдены</div>';
                 }
             } catch (error) {
@@ -867,10 +968,18 @@
         async function loadDialogMessages(dialogId, page = 1) {
             const messagesList = document.getElementById('messagesList');
             const messageFilterForm = document.getElementById('messageFilterForm');
+            const addMessageBtn = document.getElementById('addMessageBtn');
+            const messageUrlBtn = document.getElementById('messageUrlBtn');
             
-            // Показываем форму фильтра
+            // Показываем форму фильтра и кнопки
             if (messageFilterForm) {
-                messageFilterForm.style.display = 'flex';
+                messageFilterForm.style.display = 'block';
+            }
+            if (addMessageBtn) {
+                addMessageBtn.style.display = 'inline-block';
+            }
+            if (messageUrlBtn) {
+                messageUrlBtn.style.display = 'inline-block';
             }
             
             messagesList.innerHTML = '<div class="loading">Загрузка сообщений...</div>';
@@ -904,21 +1013,25 @@
                     totalMessagePages = data.pagination.pages;
                     totalMessages = data.pagination.total;
                     
+                    // Обновляем пагинацию
+                    const paginationDiv = document.getElementById('messagesPagination');
+                    paginationDiv.style.display = 'flex';
+                    paginationDiv.innerHTML = `
+                        <button onclick="changeMessagePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
+                        ${Array.from({ length: Math.min(5, totalMessagePages) }, (_, i) => {
+                            const pageNum = i + 1;
+                            return `<button onclick="changeMessagePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
+                        }).join('')}
+                        <button onclick="changeMessagePage(${page + 1})" ${page >= totalMessagePages ? 'disabled' : ''}>Следующая →</button>
+                        <span>Страница ${page} из ${totalMessagePages} (всего ${totalMessages} сообщений)</span>
+                    `;
+                    
                     messagesList.innerHTML = `
-                        <div class="pagination">
-                            <button onclick="changeMessagePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
-                            ${Array.from({ length: Math.min(5, totalMessagePages) }, (_, i) => {
-                                const pageNum = i + 1;
-                                return `<button onclick="changeMessagePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
-                            }).join('')}
-                            <button onclick="changeMessagePage(${page + 1})" ${page >= totalMessagePages ? 'disabled' : ''}>Следующая →</button>
-                            <span>Страница ${page} из ${totalMessagePages} (всего ${totalMessages} сообщений)</span>
-                        </div>
                         <table>
                             <thead>
                                 <tr>
                                     <th>Отправитель</th>
-                                    <th onclick="toggleMessageSort('createdAt')">Время <span class="sort-indicator">◄</span></th>
+                                    <th onclick="toggleMessageSort('createdAt')" style="cursor: pointer;">Время <span class="sort-indicator" id="sort-message-createdAt">${getMessageSortIndicator('createdAt')}</span></th>
                                     <th>Содержимое</th>
                                     <th>Тип</th>
                                     <th>Инфо</th>
@@ -938,6 +1051,7 @@
                         </table>
                     `;
                 } else {
+                    document.getElementById('messagesPagination').style.display = 'none';
                     messagesList.innerHTML = '<div class="no-data">Сообщения не найдены</div>';
                 }
             } catch (error) {
@@ -972,8 +1086,156 @@
 
         // Переключение сортировки сообщений
         function toggleMessageSort(field) {
-            // Простая реализация - можно расширить
-            console.log('Toggle message sort for field:', field);
+            let newSort = null;
+            const indicator = document.getElementById(`sort-message-${field}`);
+            
+            if (!currentMessageSort || !currentMessageSort.includes(field)) {
+                newSort = `(${field},asc)`;
+                if (indicator) {
+                    indicator.textContent = '▲';
+                    indicator.classList.add('active');
+                }
+            } else if (currentMessageSort.includes('asc')) {
+                newSort = `(${field},desc)`;
+                if (indicator) {
+                    indicator.textContent = '▼';
+                    indicator.classList.add('active');
+                }
+            } else {
+                newSort = null;
+                if (indicator) {
+                    indicator.textContent = '◄';
+                    indicator.classList.remove('active');
+                }
+            }
+            
+            // Сбрасываем другие индикаторы
+            document.querySelectorAll('.sort-indicator').forEach(ind => {
+                if (ind.id && ind.id.startsWith('sort-message-') && ind.id !== `sort-message-${field}`) {
+                    ind.textContent = '◄';
+                    ind.classList.remove('active');
+                }
+            });
+            
+            currentMessageSort = newSort;
+            currentMessagePage = 1;
+            if (currentDialogId) {
+                loadDialogMessages(currentDialogId, 1);
+            }
+        }
+
+        // Обновление поля фильтра сообщений
+        function updateMessageFilterInput() {
+            const select = document.getElementById('messageFilterExample');
+            const input = document.getElementById('messageFilterValue');
+            
+            if (select.value === 'custom') {
+                input.value = '';
+                input.focus();
+            } else if (select.value) {
+                input.value = select.value;
+            }
+        }
+
+        // Применение фильтра сообщений
+        function applyMessageFilter() {
+            const filterValue = document.getElementById('messageFilterValue').value.trim();
+            currentMessageFilter = filterValue || null;
+            currentMessagePage = 1;
+            if (currentDialogId) {
+                loadDialogMessages(currentDialogId, 1);
+            }
+        }
+
+        // Очистка фильтра сообщений
+        function clearMessageFilter() {
+            document.getElementById('messageFilterValue').value = '';
+            document.getElementById('messageFilterExample').selectedIndex = 0;
+            currentMessageFilter = null;
+            currentMessageSort = null;
+            currentMessagePage = 1;
+            
+            // Сбрасываем индикаторы сортировки
+            document.querySelectorAll('.sort-indicator').forEach(ind => {
+                if (ind.id && ind.id.startsWith('sort-message-')) {
+                    ind.textContent = '◄';
+                    ind.classList.remove('active');
+                }
+            });
+            
+            if (currentDialogId) {
+                loadDialogMessages(currentDialogId, 1);
+            }
+        }
+
+        // Показать URL запроса сообщений
+        function showCurrentMessageUrl() {
+            if (!currentDialogId) {
+                alert('Выберите диалог');
+                return;
+            }
+            
+            let url = `/api/dialogs/${currentDialogId}/messages`;
+            const params = new URLSearchParams();
+            
+            params.append('page', currentMessagePage || 1);
+            params.append('limit', 10);
+            
+            if (currentMessageFilter) {
+                params.append('filter', currentMessageFilter);
+            }
+            
+            if (currentMessageSort) {
+                params.append('sort', currentMessageSort);
+            }
+            
+            const fullUrl = url + (params.toString() ? '?' + params.toString() : '');
+            
+            showModal('Текущий URL запроса сообщений', `
+                <div class="url-info">
+                    <h4>API Endpoint:</h4>
+                    <div class="url-display">${fullUrl}</div>
+                    
+                    <h4>Параметры:</h4>
+                    <div class="params-list">
+                        <div><strong>page:</strong> ${currentMessagePage || 1}</div>
+                        <div><strong>limit:</strong> 10</div>
+                        ${currentMessageFilter ? `<div><strong>filter:</strong> ${currentMessageFilter}</div>` : ''}
+                        ${currentMessageSort ? `<div><strong>sort:</strong> ${currentMessageSort}</div>` : ''}
+                    </div>
+                    
+                    <h4>Полный URL для копирования:</h4>
+                    <div class="url-copy">
+                        <input type="text" value="${window.location.origin}${fullUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
+                        <button onclick="copyToClipboard('${window.location.origin}${fullUrl}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
+                    </div>
+                </div>
+            `);
+        }
+
+        // Показать модальное окно добавления сообщения
+        function showAddMessageModal() {
+            if (!currentDialogId) {
+                alert('Выберите диалог');
+                return;
+            }
+            alert('Функция добавления сообщения будет реализована');
+        }
+
+        // Показать модальное окно создания диалога
+        function showAddDialogModal() {
+            alert('Функция создания диалога будет реализована');
+        }
+
+        // Получить индикатор сортировки сообщений
+        function getMessageSortIndicator(field) {
+            if (!currentMessageSort || !currentMessageSort.includes(field)) {
+                return '◄';
+            } else if (currentMessageSort.includes('asc')) {
+                return '▲';
+            } else {
+                return '▼';
+            }
         }
 
         // Показать информацию о диалоге

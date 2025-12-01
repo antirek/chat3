@@ -83,7 +83,22 @@
             font-weight: 600;
             color: #495057;
             font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             min-height: 59px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .panel-content {
@@ -217,25 +232,20 @@
             color: #dc3545;
         }
 
-        .user-item {
-            padding: 12px 20px;
+        .user-row {
             cursor: pointer;
-            border-bottom: 1px solid #f0f0f0;
             transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
 
-        .user-item:hover {
+        .user-row:hover {
             background: #f8f9fa;
         }
 
-        .user-item-selected {
+        .user-row-selected {
             background-color: #e9ecef !important;
         }
 
-        .user-item-selected:hover {
+        .user-row-selected:hover {
             background-color: #dee2e6 !important;
         }
 
@@ -1072,7 +1082,14 @@
     <div class="container">
         <!-- Пользователи -->
         <div class="panel users-panel">
-            <div class="panel-header">👥 Пользователи</div>
+            <div class="panel-header">
+                <div class="header-left">
+                    <span>👥 Пользователи</span>
+                </div>
+                <div class="header-right">
+                    <button onclick="showUsersUrl()" class="url-button" title="Показать URL запроса">🔗 URL</button>
+                </div>
+            </div>
             <div class="filter-form" style="border-bottom: 1px solid #e9ecef;">
                 <div class="form-section">
                     <label for="userFilterInput">🔍 Фильтр пользователей (формат: <code>(поле,оператор,значение)</code>)</label>
@@ -1103,6 +1120,9 @@
                     <button class="btn-primary" type="button" onclick="applyUserFilter()">Применить</button>
                 </div>
             </div>
+            <div class="pagination" id="usersPagination" style="display: none;">
+                <!-- Пагинация будет добавлена динамически -->
+            </div>
             <div class="panel-content" id="usersList">
                 <div class="loading">Загрузка пользователей...</div>
             </div>
@@ -1111,8 +1131,12 @@
         <!-- Диалоги -->
         <div class="panel dialogs-panel">
             <div class="panel-header">
-                <span>💬 Диалоги</span>
-                <button id="viewUrlBtn" class="view-url-btn" onclick="showCurrentUrl()" title="Просмотреть текущий URL запроса">🔗 URL</button>
+                <div class="header-left">
+                    <span>💬 Диалоги</span>
+                </div>
+                <div class="header-right">
+                    <button id="viewUrlBtn" class="view-url-btn" onclick="showCurrentUrl()" title="Просмотреть текущий URL запроса">🔗 URL</button>
+                </div>
             </div>
             <div class="filter-form" id="dialogsFilterForm" style="display: none;">
                 <div class="form-section">
@@ -1181,6 +1205,9 @@
                     <button onclick="applyFilter()" class="btn-primary">Применить</button>
                 </div>
             </div>
+            <div class="pagination" id="dialogsPagination" style="display: none;">
+                <!-- Пагинация будет добавлена динамически -->
+            </div>
             <div class="panel-content" id="dialogsList">
                 <div class="placeholder">Выберите пользователя</div>
             </div>
@@ -1189,8 +1216,13 @@
         <!-- Сообщения -->
         <div class="panel messages-panel">
             <div class="panel-header">
-                <span>📝 Сообщения</span>
-                <button onclick="showCurrentMessageUrl()" class="url-button" title="Показать URL запроса">🔗 URL</button>
+                <div class="header-left">
+                    <span>📝 Сообщения</span>
+                    <button onclick="showAddMessageModal()" class="url-button" title="Добавить сообщение" id="addMessageBtn" style="display: none;">➕ Добавить</button>
+                </div>
+                <div class="header-right">
+                    <button onclick="showCurrentMessageUrl()" class="url-button" title="Показать URL запроса" id="messageUrlBtn" style="display: none;">🔗 URL</button>
+                </div>
             </div>
             <div class="filter-form" id="messagesFilterForm" style="display: none;">
                 <div class="form-section">
@@ -1226,6 +1258,9 @@
                 <div class="form-actions">
                     <button onclick="applyMessageFilter()" class="btn-primary">Применить</button>
                 </div>
+            </div>
+            <div class="pagination" id="messagesPagination" style="display: none;">
+                <!-- Пагинация будет добавлена динамически -->
             </div>
             <div class="panel-content" id="messagesList">
                 <div class="placeholder">Выберите диалог</div>
@@ -1619,9 +1654,11 @@
         // Загрузка пользователей
         async function loadUsers() {
             const usersList = document.getElementById('usersList');
+            document.getElementById('usersPagination').style.display = 'none';
             usersList.innerHTML = '<div class="loading">Загрузка пользователей...</div>';
 
             if (!apiKey) {
+                document.getElementById('usersPagination').style.display = 'none';
                 usersList.innerHTML = '<div class="error">API ключ не задан</div>';
                 return;
             }
@@ -1662,6 +1699,7 @@
                 }));
 
                 if (users.length === 0) {
+                    document.getElementById('usersPagination').style.display = 'none';
                     usersList.innerHTML = '<div class="no-data">Пользователи не найдены</div>';
                     return;
                 }
@@ -1683,6 +1721,7 @@
             } catch (error) {
                 console.error('Error loading users:', error);
                 const message = error?.message || 'Неизвестная ошибка';
+                document.getElementById('usersPagination').style.display = 'none';
                 usersList.innerHTML = `<div class="error">Ошибка загрузки: ${escapeHtml(message)}</div>`;
             }
         }
@@ -1701,26 +1740,37 @@
                 return;
             }
 
-            usersList.innerHTML = allUsers.map(renderUserListItem).join('');
+            usersList.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${allUsers.map(renderUserListItem).join('')}
+                    </tbody>
+                </table>
+            `;
         }
 
         function renderUserListItem(user) {
-        const displayName = user.displayName || user.userId;
-        const dialogCount = Number.isFinite(user.dialogCount) ? user.dialogCount : 0;
-        const safeNameAttr = escapeJsString(displayName);
-        const safeUserIdAttr = escapeJsString(user.userId);
-        const nameText = escapeHtml(displayName);
-        const userIdText = escapeHtml(user.userId);
-        const isSelected = currentUserId === user.userId ? 'user-item-selected' : '';
+            const displayName = user.displayName || user.userId;
+            const dialogCount = Number.isFinite(user.dialogCount) ? user.dialogCount : 0;
+            const safeNameAttr = escapeJsString(displayName);
+            const safeUserIdAttr = escapeJsString(user.userId);
+            const nameText = escapeHtml(displayName);
+            const userIdText = escapeHtml(user.userId);
+            const isSelected = currentUserId === user.userId ? 'user-row-selected' : '';
 
             return `
-                <div class="user-item ${isSelected}" data-user-id="${safeUserIdAttr}" onclick="selectUser('${safeUserIdAttr}', '${safeNameAttr}')" title="Диалогов: ${dialogCount}">
-                    <div class="user-info">
-                        <div class="user-name">${nameText}</div>
-                        <div class="user-id">User ID: ${userIdText} • Диалогов: ${dialogCount}</div>
-                    </div>
-                    <button class="info-button" onclick="event.stopPropagation(); showUserJsonModal('${safeUserIdAttr}')" style="margin-left: auto; flex-shrink: 0;">ℹ️ Инфо</button>
-                </div>
+                <tr class="user-row ${isSelected}" data-user-id="${safeUserIdAttr}" onclick="selectUser('${safeUserIdAttr}', '${safeNameAttr}')" title="Диалогов: ${dialogCount}" style="cursor: pointer;">
+                    <td>${userIdText}</td>
+                    <td class="actions-column" onclick="event.stopPropagation();">
+                        <button class="info-button" onclick="showUserJsonModal('${safeUserIdAttr}')">ℹ️ Инфо</button>
+                    </td>
+                </tr>
             `;
         }
 
@@ -1745,9 +1795,9 @@
             console.log('Selected user:', userId, userName);
             
             // Убираем выделение с предыдущего выбранного пользователя
-            const previouslySelected = document.querySelector('.user-item-selected');
+            const previouslySelected = document.querySelector('.user-row-selected');
             if (previouslySelected) {
-                previouslySelected.classList.remove('user-item-selected');
+                previouslySelected.classList.remove('user-row-selected');
             }
             
             // Устанавливаем выбранного пользователя
@@ -1755,9 +1805,9 @@
             currentDialogId = null;
             
             // Выделяем текущего выбранного пользователя
-            const currentUserItem = document.querySelector(`.user-item[data-user-id="${escapeJsString(userId)}"]`);
-            if (currentUserItem) {
-                currentUserItem.classList.add('user-item-selected');
+            const currentUserRow = document.querySelector(`.user-row[data-user-id="${escapeJsString(userId)}"]`);
+            if (currentUserRow) {
+                currentUserRow.classList.add('user-row-selected');
             }
             
             // Обновляем UI
@@ -1778,8 +1828,12 @@
             const dialogsHeader = document.querySelector('.dialogs-panel .panel-header');
             if (dialogsHeader) {
                 dialogsHeader.innerHTML = `
-                    <span>💬 Диалоги пользователя ${userName}</span>
-                    <button id="viewUrlBtn" class="view-url-btn" onclick="showCurrentUrl()" title="Просмотреть текущий URL запроса">🔗 URL</button>
+                    <div class="header-left">
+                        <span>💬 Диалоги пользователя ${userName}</span>
+                    </div>
+                    <div class="header-right">
+                        <button id="viewUrlBtn" class="view-url-btn" onclick="showCurrentUrl()" title="Просмотреть текущий URL запроса">🔗 URL</button>
+                    </div>
                 `;
             }
         }
@@ -1787,6 +1841,7 @@
         // Загрузка диалогов пользователя
         async function loadUserDialogs(userId, page = 1) {
             const dialogsList = document.getElementById('dialogsList');
+            document.getElementById('dialogsPagination').style.display = 'none';
             dialogsList.innerHTML = '<div class="loading">Загрузка диалогов...</div>';
 
             try {
@@ -1818,16 +1873,20 @@
                     totalPages = data.pagination.pages;
                     totalDialogs = data.pagination.total;
                     
+                    // Обновляем пагинацию
+                    const paginationDiv = document.getElementById('dialogsPagination');
+                    paginationDiv.style.display = 'flex';
+                    paginationDiv.innerHTML = `
+                        <button onclick="changePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
+                        ${Array.from({ length: Math.min(5, data.pagination.pages) }, (_, i) => {
+                            const pageNum = i + 1;
+                            return `<button onclick="changePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
+                        }).join('')}
+                        <button onclick="changePage(${page + 1})" ${page >= data.pagination.pages ? 'disabled' : ''}>Следующая →</button>
+                        <span>Страница ${page} из ${data.pagination.pages} (всего ${data.pagination.total} диалогов)</span>
+                    `;
+                    
                     dialogsList.innerHTML = `
-                        <div class="pagination">
-                            <button onclick="changePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
-                            ${Array.from({ length: Math.min(5, data.pagination.pages) }, (_, i) => {
-                                const pageNum = i + 1;
-                                return `<button onclick="changePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
-                            }).join('')}
-                            <button onclick="changePage(${page + 1})" ${page >= data.pagination.pages ? 'disabled' : ''}>Следующая →</button>
-                            <span>Страница ${page} из ${data.pagination.pages} (всего ${data.pagination.total} диалогов)</span>
-                        </div>
                         <table>
                             <thead>
                                 <tr>
@@ -1835,6 +1894,7 @@
                                     <th onclick="toggleSort('unreadCount')" style="cursor: pointer;">Непрочитанные<span class="sort-indicator" id="sort-unreadCount">${getSortIndicator('unreadCount')}</span></th>
                                     <th onclick="toggleSort('lastSeenAt')" style="cursor: pointer;">Последний просмотр<span class="sort-indicator" id="sort-lastSeenAt">${getSortIndicator('lastSeenAt')}</span></th>
                                     <th>Действия</th>
+                                    <th>Просмотр</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1847,12 +1907,13 @@
                                         <td>${dialog.context?.unreadCount || 0}</td>
                                         <td>${formatLastSeen(dialog.context?.lastSeenAt)}</td>
                                         <td class="actions-column">
-                                            <button class="action-button add-message-button" onclick="event.stopPropagation(); showAddMessageModal('${safeDialogId}', '${safeDialogId}')">💬 Отправить сообщение</button>
                                             <button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${safeDialogId}')">ℹ️ Инфо</button>
+                                            <button class="action-button events-button" onclick="event.stopPropagation(); showDialogEventsModal('${safeDialogId}')">📋 События</button>
+                                            <button class="btn-success btn-small" onclick="event.stopPropagation(); showDialogMetaModal('${safeDialogId}')">🏷️ Мета</button>
+                                        </td>
+                                        <td class="view-column">
                                             <button class="action-button members-button" onclick="event.stopPropagation(); selectDialogMembers('${safeDialogId}', '${safeDialogId}')">👥 Участники</button>
                                             <button class="action-button messages-button" onclick="selectDialog('${safeDialogId}', '${safeDialogId}')">📝 Сообщения</button>
-                                            <button class="action-button events-button" onclick="event.stopPropagation(); showDialogEventsModal('${safeDialogId}')">📋 События</button>
-                                            <button class="btn-success btn-small" onclick="event.stopPropagation(); showDialogMetaModal('${safeDialogId}')">🏷️ Meta</button>
                                         </td>
                                     </tr>
                                 `;
@@ -1861,10 +1922,12 @@
                         </table>
                     `;
                 } else {
+                    document.getElementById('dialogsPagination').style.display = 'none';
                     dialogsList.innerHTML = '<div class="no-data">Диалоги не найдены</div>';
                 }
             } catch (error) {
                 console.error('Error loading user dialogs:', error);
+                document.getElementById('dialogsPagination').style.display = 'none';
                 dialogsList.innerHTML = `<div class="error">Ошибка загрузки: ${error.message}</div>`;
             }
         }
@@ -1937,11 +2000,20 @@
             // Показываем фильтр сообщений и список сообщений
             const messagesFilterForm = document.getElementById('messagesFilterForm');
             const messagesList = document.getElementById('messagesList');
+            const addMessageBtn = document.getElementById('addMessageBtn');
+            const messageUrlBtn = document.getElementById('messageUrlBtn');
+            
             if (messagesFilterForm) {
                 messagesFilterForm.style.display = 'block';
             }
             if (messagesList) {
                 messagesList.style.display = 'block';
+            }
+            if (addMessageBtn) {
+                addMessageBtn.style.display = 'inline-block';
+            }
+            if (messageUrlBtn) {
+                messageUrlBtn.style.display = 'inline-block';
             }
             
             loadDialogMessages(currentDialogId, 1);
@@ -1979,11 +2051,20 @@
             // Скрываем фильтр сообщений и список сообщений
             const messagesFilterForm = document.getElementById('messagesFilterForm');
             const messagesList = document.getElementById('messagesList');
+            const addMessageBtn = document.getElementById('addMessageBtn');
+            const messageUrlBtn = document.getElementById('messageUrlBtn');
+            
             if (messagesFilterForm) {
                 messagesFilterForm.style.display = 'none';
             }
             if (messagesList) {
                 messagesList.style.display = 'none';
+            }
+            if (addMessageBtn) {
+                addMessageBtn.style.display = 'none';
+            }
+            if (messageUrlBtn) {
+                messageUrlBtn.style.display = 'none';
             }
             
             // Показываем панель участников
@@ -2009,10 +2090,12 @@
             const messagesList = document.getElementById('messagesList');
             
             if (!currentUserId) {
+                document.getElementById('messagesPagination').style.display = 'none';
                 messagesList.innerHTML = '<div class="error">Сначала выберите пользователя</div>';
                 return;
             }
             
+            document.getElementById('messagesPagination').style.display = 'none';
             messagesList.innerHTML = '<div class="loading">Загрузка сообщений...</div>';
 
             try {
@@ -2041,17 +2124,23 @@
 
                 if (data.data && data.data.length > 0) {
                     currentMessagePage = page;
+                    totalMessagePages = data.pagination.pages;
+                    totalMessages = data.pagination.total;
+                    
+                    // Обновляем пагинацию
+                    const paginationDiv = document.getElementById('messagesPagination');
+                    paginationDiv.style.display = 'flex';
+                    paginationDiv.innerHTML = `
+                        <button onclick="changeMessagePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
+                        ${Array.from({ length: Math.min(5, data.pagination.pages) }, (_, i) => {
+                            const pageNum = i + 1;
+                            return `<button onclick="changeMessagePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
+                        }).join('')}
+                        <button onclick="changeMessagePage(${page + 1})" ${page >= data.pagination.pages ? 'disabled' : ''}>Следующая →</button>
+                        <span>Страница ${page} из ${data.pagination.pages} (всего ${data.pagination.total} сообщений)</span>
+                    `;
                     
                     messagesList.innerHTML = `
-                        <div class="pagination">
-                            <button onclick="changeMessagePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Предыдущая</button>
-                            ${Array.from({ length: Math.min(5, data.pagination.pages) }, (_, i) => {
-                                const pageNum = i + 1;
-                                return `<button onclick="changeMessagePage(${pageNum})" ${pageNum === page ? 'class="active"' : ''}>${pageNum}</button>`;
-                            }).join('')}
-                            <button onclick="changeMessagePage(${page + 1})" ${page >= data.pagination.pages ? 'disabled' : ''}>Следующая →</button>
-                            <span>Страница ${page} из ${data.pagination.pages} (всего ${data.pagination.total} сообщений)</span>
-                        </div>
                         <table>
                             <thead>
                                 <tr>
@@ -2112,10 +2201,12 @@
                         </table>
                     `;
                 } else {
+                    document.getElementById('messagesPagination').style.display = 'none';
                     messagesList.innerHTML = '<div class="no-data">Сообщения не найдены</div>';
                 }
             } catch (error) {
                 console.error('Error loading messages:', error);
+                document.getElementById('messagesPagination').style.display = 'none';
                 messagesList.innerHTML = `<div class="error">Ошибка загрузки сообщений: ${error.message}</div>`;
             }
         }
@@ -2855,6 +2946,47 @@
         }
 
         // Функция показа текущего URL запроса
+        function showUsersUrl() {
+            // Строим URL запроса
+            let url = `/api/users`;
+            const params = new URLSearchParams();
+            
+            // Добавляем параметры пагинации
+            params.append('page', '1');
+            params.append('limit', '100');
+            params.append('includeDialogCount', 'true');
+            
+            // Добавляем фильтр
+            if (currentUserFilter) {
+                params.append('filter', currentUserFilter);
+            }
+            
+            // Формируем полный URL
+            const fullUrl = url + (params.toString() ? '?' + params.toString() : '');
+            
+            // Показываем в модальном окне
+            showModal('Текущий URL запроса пользователей', `
+                <div class="url-info">
+                    <h4>API Endpoint:</h4>
+                    <div class="url-display">${fullUrl}</div>
+                    
+                    <h4>Параметры:</h4>
+                    <div class="params-list">
+                        <div><strong>page:</strong> 1</div>
+                        <div><strong>limit:</strong> 100</div>
+                        <div><strong>includeDialogCount:</strong> true</div>
+                        ${currentUserFilter ? `<div><strong>filter:</strong> ${currentUserFilter}</div>` : ''}
+                    </div>
+                    
+                    <h4>Полный URL для копирования:</h4>
+                    <div class="url-copy">
+                        <input type="text" value="${window.location.origin}${fullUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
+                        <button onclick="copyToClipboard('${window.location.origin}${fullUrl}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
+                    </div>
+                </div>
+            `);
+        }
+
         function showCurrentUrl() {
             if (!currentUserId) {
                 alert('Сначала выберите пользователя');
@@ -3280,15 +3412,20 @@
         }
 
         // Функции для модального окна добавления сообщения
-        let currentDialogIdForMessage = null;
-        let currentDialogNameForMessage = null;
 
-        function showAddMessageModal(dialogId, dialogName) {
-            currentDialogIdForMessage = dialogId;
-            currentDialogNameForMessage = dialogName;
+        function showAddMessageModal() {
+            if (!currentDialogId) {
+                alert('Сначала выберите диалог');
+                return;
+            }
+            
+            if (!currentUserId) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
             
             // Обновляем заголовок модального окна
-            document.querySelector('#addMessageModal .modal-title').textContent = `Добавить сообщение в "${dialogName}"`;
+            document.querySelector('#addMessageModal .modal-title').textContent = `Добавить сообщение в "${currentDialogId}"`;
             
             // Сбрасываем форму
             document.getElementById('addMessageForm').reset();
@@ -3317,8 +3454,6 @@
 
         function closeAddMessageModal() {
             document.getElementById('addMessageModal').style.display = 'none';
-            currentDialogIdForMessage = null;
-            currentDialogNameForMessage = null;
         }
 
         // Функции для работы с мета-тегами
@@ -3424,8 +3559,13 @@
         document.getElementById('addMessageForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            if (!currentDialogIdForMessage) {
+            if (!currentDialogId) {
                 alert('Ошибка: не выбран диалог');
+                return;
+            }
+            
+            if (!currentUserId) {
+                alert('Ошибка: не выбран пользователь');
                 return;
             }
 
@@ -3450,7 +3590,7 @@
                     payload.meta = meta;
                 }
                 
-                const response = await fetch(`/api/dialogs/${currentDialogIdForMessage}/messages`, {
+                const response = await fetch(`/api/users/${currentUserId}/dialogs/${currentDialogId}/messages`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -3470,12 +3610,10 @@
                 
                 alert('Сообщение успешно добавлено!');
                 
-                // Сохраняем dialogId перед закрытием модального окна
-                const dialogIdToRefresh = currentDialogIdForMessage;
                 closeAddMessageModal();
                 
                 // Обновляем список сообщений, если диалог открыт
-                if (currentDialogId === dialogIdToRefresh) {
+                if (currentDialogId) {
                     loadDialogMessages(currentDialogId, currentMessagePage);
                 }
                 
