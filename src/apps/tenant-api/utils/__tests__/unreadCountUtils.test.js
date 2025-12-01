@@ -260,7 +260,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: userId
       });
 
@@ -331,7 +331,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: userId
       });
 
@@ -512,7 +512,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: 'user1'
       });
 
@@ -534,7 +534,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: 'user1'
       });
 

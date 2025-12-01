@@ -514,7 +514,6 @@ const messageController = {
       const dialogSection = eventUtils.buildDialogSection({
         dialogId: dialog.dialogId,
         tenantId: dialog.tenantId,
-        name: dialog.name,
         createdBy: dialog.createdBy,
         createdAt: dialog.createdAt,
         updatedAt: dialog.updatedAt,

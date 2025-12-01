@@ -411,7 +411,7 @@ describe('dialogMemberController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -444,7 +444,7 @@ describe('dialogMemberController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -475,7 +475,7 @@ describe('dialogMemberController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -507,7 +507,7 @@ describe('dialogMemberController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -556,7 +556,7 @@ describe('dialogMemberController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -615,7 +615,7 @@ describe('dialogMemberController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -656,7 +656,7 @@ describe('dialogMemberController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -703,7 +703,7 @@ describe('dialogMemberController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -726,7 +726,7 @@ describe('dialogMemberController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()

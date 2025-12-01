@@ -36,7 +36,7 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
         entityId: 'dlg_test1234567890123456',
         actorId: 'user1',
         actorType: 'user',
-        data: { name: 'Test Dialog' }
+        data: { dialogId: 'dlg_test1234567890123456' }
       });
 
       expect(event).toBeDefined();
@@ -46,7 +46,7 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
       expect(event.entityId).toBe('dlg_test1234567890123456');
       expect(event.actorId).toBe('user1');
       expect(event.actorType).toBe('user');
-      expect(event.data).toEqual({ name: 'Test Dialog' });
+      expect(event.data).toEqual({ dialogId: 'dlg_test1234567890123456' });
 
       // Note: publishEvent вызывается асинхронно в createEvent,
       // поэтому мы не проверяем его вызов здесь (это тестируется в интеграционных тестах)

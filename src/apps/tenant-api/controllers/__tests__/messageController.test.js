@@ -109,7 +109,7 @@ describe('messageController.getAll - filter combinations', () => {
     dialog = await Dialog.create({
       tenantId,
       dialogId: generateDialogId(),
-      name: 'Test Dialog',
+      
       createdBy: 'alice',
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()
@@ -256,7 +256,7 @@ describe('messageController.createMessage - unread handling', () => {
     dialog = await Dialog.create({
       tenantId,
       dialogId: generateDialogId(),
-      name: 'Another Dialog',
+      
       createdBy: 'alice',
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()
@@ -345,7 +345,7 @@ describe('messageController.updateMessageContent', () => {
     dialog = await Dialog.create({
       tenantId,
       dialogId: generateDialogId(),
-      name: 'Dialog for update',
+      
       createdBy: 'alice',
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()
@@ -456,7 +456,7 @@ describe('messageController.getDialogMessages', () => {
     dialog = await Dialog.create({
       tenantId,
       dialogId: generateDialogId(),
-      name: 'Test Dialog',
+      
       createdBy: 'alice',
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()
@@ -670,7 +670,7 @@ describe('messageController.createMessage - validation', () => {
     dialog = await Dialog.create({
       tenantId,
       dialogId: generateDialogId(),
-      name: 'Test Dialog',
+      
       createdBy: 'alice',
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()
@@ -814,7 +814,7 @@ describe('messageController.getMessageById - error handling', () => {
     const dialog = await Dialog.create({
       tenantId,
       dialogId: generateDialogId(),
-      name: 'Test Dialog',
+      
       createdBy: 'alice',
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()

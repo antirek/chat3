@@ -83,7 +83,7 @@ describe('rabbitmqUtils - Integration Tests with Fake RabbitMQ', () => {
         entityId: 'dlg_test1234567890123456',
         actorId: 'user1',
         actorType: 'user',
-        data: { name: 'Test Dialog' }
+        data: { dialogId: 'dlg_test1234567890123456' }
       };
 
       const result = await rabbitmqUtils.publishEvent(event);
@@ -118,7 +118,7 @@ describe('rabbitmqUtils - Integration Tests with Fake RabbitMQ', () => {
         entityId: 'dlg_test1234567890123456',
         eventId: 'evt_test12345678901234567890123456',
         eventType: 'dialog.create',
-        data: { name: 'Test Dialog' }
+        data: { dialogId: 'dlg_test1234567890123456' }
       };
 
       // Новый формат: user.{type}.{userId}.{updateType}
@@ -286,7 +286,7 @@ describe('rabbitmqUtils - Integration Tests with Fake RabbitMQ', () => {
         entityType: 'dialog',
         entityId: 'dlg_test1234567890123456',
         actorId: 'user1',
-        data: { name: 'Test Dialog' }
+        data: { dialogId: 'dlg_test1234567890123456' }
       };
 
       const published = await rabbitmqUtils.publishEvent(event);

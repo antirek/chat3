@@ -382,7 +382,7 @@ describe('responseUtils', () => {
       const input = {
         _id: 'dialog1',
         dialogId: 'dlg_123',
-        name: 'Test Dialog',
+        
         createdAt: baseTimestamp + 0.123456,
         updatedAt: baseTimestamp + 0.654321,
         members: [
@@ -430,7 +430,6 @@ describe('responseUtils', () => {
       
       // Проверяем сохранение остальных полей
       expect(result.dialogId).toBe('dlg_123');
-      expect(result.name).toBe('Test Dialog');
       expect(result.members[0].userId).toBe('user1');
       expect(result.members[0].unreadCount).toBe(5);
       expect(result.lastMessage.messageId).toBe('msg_123');

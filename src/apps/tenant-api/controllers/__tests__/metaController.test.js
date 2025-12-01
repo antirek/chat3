@@ -432,7 +432,7 @@ describe('metaController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateId('dlg_'),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: Date.now(),
         updatedAt: Date.now()
@@ -464,7 +464,7 @@ describe('metaController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateId('dlg_'),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: Date.now(),
         updatedAt: Date.now()
@@ -521,7 +521,7 @@ describe('metaController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateId('dlg_'),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: Date.now(),
         updatedAt: Date.now()
@@ -552,7 +552,7 @@ describe('metaController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateId('dlg_'),
-        name: 'Test Dialog',
+        
         createdBy: 'alice',
         createdAt: Date.now(),
         updatedAt: Date.now()

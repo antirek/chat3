@@ -60,19 +60,6 @@ async function seed() {
     console.log(`✅ Created ${users.length} users: ${userIds.join(', ')}`);
 
     // Create 100 Dialogs with different meta types and channelTypes
-    const dialogNames = {
-      internal: [
-        'Общий чат', 'Проектные обсуждения', 'Техподдержка', 'HR вопросы', 'Разработка',
-        'Маркетинг', 'Внутренние новости', 'Финансы', 'Продажи', 'Аналитика',
-        'Дизайн', 'DevOps', 'QA', 'Стратегия', 'Планирование', 'Отчеты',
-        'Инфраструктура', 'Безопасность', 'Обучение', 'Инновации'
-      ],
-      external: [
-        'Клиенты', 'Партнеры', 'Внешние консультанты', 'Поставщики', 'Инвесторы',
-        'Медиа', 'Подрядчики', 'Агентства', 'Аудиторы', 'Юристы'
-      ]
-    };
-
     const channelTypes = ['whatsapp', 'telegram'];
     const dialogs = [];
     
@@ -82,15 +69,8 @@ async function seed() {
       const metaType = isInternal ? 'internal' : 'external';
       const channelType = channelTypes[i % 2]; // Чередуем whatsapp и telegram
       
-      // Генерируем имя
-      const nameBase = isInternal 
-        ? dialogNames.internal[i % dialogNames.internal.length]
-        : dialogNames.external[(i - 70) % dialogNames.external.length];
-      const name = i < 20 ? nameBase : `${nameBase} #${Math.floor(i / 20) + 1}`;
-      
       const dialog = await Dialog.create({
         tenantId: tenant.tenantId,
-        name,
         createdBy: 'system_bot' // String identifier instead of ObjectId
       });
       
@@ -295,7 +275,7 @@ async function seed() {
         
         // Добавляем номер сообщения для разнообразия
         const messageContent = i === 0 
-          ? `Привет! Это первое сообщение в диалоге "${dialog.name}"`
+          ? `Привет! Это первое сообщение в диалоге ${dialog.dialogId}`
           : `${randomTemplate} (сообщение ${i + 1})`;
         
         allMessages.push({
@@ -568,7 +548,7 @@ async function seed() {
         entityType: 'dialog',
         entityId: dialog.dialogId,
         key: 'welcomeMessage',
-        value: `Добро пожаловать в "${dialog.name}"!`,
+        value: `Добро пожаловать в диалог ${dialog.dialogId}!`,
         dataType: 'string',
       });
 

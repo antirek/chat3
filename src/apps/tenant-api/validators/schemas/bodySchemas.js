@@ -53,15 +53,13 @@ const MEDIA_META_SCHEMA = BASE_META_SCHEMA.keys({
  */
 const memberSchema = Joi.object({
   userId: Joi.string().trim().min(1).max(100).required(),
-  type: Joi.string().trim().min(1).max(50).optional(),
-  name: Joi.string().trim().min(1).max(200).optional()
+  type: Joi.string().trim().min(1).max(50).optional()
 });
 
 /**
  * Схема валидации создания диалога
  */
 export const createDialogSchema = Joi.object({
-  name: Joi.string().trim().min(1).max(500).required(),
   createdBy: Joi.string().trim().min(1).max(100).required(),
   members: Joi.array().items(memberSchema).optional(),
   meta: OPTIONAL_META_SCHEMA
@@ -72,8 +70,7 @@ export const createDialogSchema = Joi.object({
  */
 export const addDialogMemberSchema = Joi.object({
   userId: Joi.string().trim().min(1).max(100).required(),
-  type: Joi.string().trim().min(1).max(50).optional(),
-  name: Joi.string().trim().min(1).max(200).optional()
+  type: Joi.string().trim().min(1).max(50).optional()
 });
 
 /**

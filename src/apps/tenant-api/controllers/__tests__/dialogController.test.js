@@ -60,7 +60,6 @@ beforeEach(async () => {
     users.map((userId) => ({
       tenantId,
       userId,
-      name: userId.toUpperCase(),
       lastActiveAt: generateTimestamp(),
       createdAt: generateTimestamp()
     }))
@@ -356,7 +355,6 @@ describe('dialogController.getById', () => {
       users.map((userId) => ({
         tenantId,
         userId,
-        name: userId.toUpperCase(),
         lastActiveAt: generateTimestamp(),
         createdAt: generateTimestamp()
       }))
@@ -433,7 +431,6 @@ describe('dialogController.create', () => {
       {},
       {},
       {
-        name: 'New Dialog',
         createdBy: 'carl'
       }
     );
@@ -443,17 +440,16 @@ describe('dialogController.create', () => {
 
     expect(res.statusCode).toBe(201);
     expect(res.body.message).toBe('Dialog created successfully');
-    expect(res.body.data.name).toBe('New Dialog');
+    expect(res.body.data.dialogId).toMatch(/^dlg_[a-z0-9]{20}$/);
 
-    const storedDialog = await Dialog.findOne({ tenantId, name: 'New Dialog' }).lean();
+    const storedDialog = await Dialog.findOne({ tenantId, dialogId: res.body.data.dialogId }).lean();
     expect(storedDialog).toBeTruthy();
 
     const event = await Event.findOne({ tenantId, eventType: 'dialog.create' }).lean();
     expect(event).toBeTruthy();
     expect(event.entityId).toBe(storedDialog.dialogId);
     expect(event.data.dialog).toMatchObject({
-      dialogId: storedDialog.dialogId,
-      name: 'New Dialog'
+      dialogId: storedDialog.dialogId
     });
   });
 
@@ -463,7 +459,6 @@ describe('dialogController.create', () => {
       {},
       {},
       {
-        name: 'Dialog with Meta',
         createdBy: 'carl',
         meta: {
           department: 'sales',
@@ -478,14 +473,14 @@ describe('dialogController.create', () => {
 
     expect(res.statusCode).toBe(201);
     expect(res.body.message).toBe('Dialog created successfully');
-    expect(res.body.data.name).toBe('Dialog with Meta');
+    expect(res.body.data.dialogId).toMatch(/^dlg_[a-z0-9]{20}$/);
     expect(res.body.data.meta).toBeDefined();
     expect(res.body.data.meta.department).toBe('sales');
     expect(res.body.data.meta.priority).toBe(5);
     expect(res.body.data.meta.channel).toBe('telegram');
 
     // Проверяем, что мета-теги сохранены в базе
-    const storedDialog = await Dialog.findOne({ tenantId, name: 'Dialog with Meta' }).lean();
+    const storedDialog = await Dialog.findOne({ tenantId, dialogId: res.body.data.dialogId }).lean();
     expect(storedDialog).toBeTruthy();
 
     const metaRecords = await Meta.find({
@@ -510,7 +505,6 @@ describe('dialogController.create', () => {
       {},
       {},
       {
-        name: 'Dialog with Members',
         createdBy: 'carl',
         members: [
           { userId: 'alice', type: 'user' },
@@ -525,7 +519,7 @@ describe('dialogController.create', () => {
     expect(res.statusCode).toBe(201);
     expect(res.body.message).toBe('Dialog created successfully');
 
-    const storedDialog = await Dialog.findOne({ tenantId, name: 'Dialog with Members' }).lean();
+    const storedDialog = await Dialog.findOne({ tenantId, dialogId: res.body.data.dialogId }).lean();
     expect(storedDialog).toBeTruthy();
 
     // Проверяем, что пользователи созданы
@@ -550,7 +544,6 @@ describe('dialogController.create', () => {
       tenantId,
       userId: 'existing',
       type: 'user',
-      name: 'Old Name',
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()
     });
@@ -560,7 +553,6 @@ describe('dialogController.create', () => {
       {},
       {},
       {
-        name: 'Dialog with Existing User',
         createdBy: 'carl',
         members: [
           { userId: 'existing', type: 'bot' }
@@ -584,11 +576,10 @@ describe('dialogController.create', () => {
       {},
       {},
       {
-        name: 'New Dialog',
         createdBy: 'carl',
         members: [
-          { userId: 'alice', type: 'user', name: 'Alice' },
-          { userId: 'bob', type: 'bot', name: 'Bob Bot' }
+          { userId: 'alice', type: 'user' },
+          { userId: 'bob', type: 'bot' }
         ]
       }
     );
@@ -598,7 +589,7 @@ describe('dialogController.create', () => {
 
     expect(res.statusCode).toBe(201);
 
-    const storedDialog = await Dialog.findOne({ tenantId, name: 'New Dialog' }).lean();
+    const storedDialog = await Dialog.findOne({ tenantId, dialogId: res.body.data.dialogId }).lean();
     expect(storedDialog).toBeTruthy();
 
     // Проверяем, что оба участника добавлены
@@ -613,19 +604,18 @@ describe('dialogController.create', () => {
       {},
       {},
       {
-        name: 'Another Dialog',
         createdBy: 'carl',
         members: [
-          { userId: 'alice', type: 'user', name: 'Alice' }
+          { userId: 'alice', type: 'user' }
         ]
       }
     );
     const res2 = createMockRes();
 
-    await dialogController.create(req, res2);
+    await dialogController.create(req2, res2);
 
     // Проверяем, что в новом диалоге alice добавлен (это другой диалог)
-    const storedDialog2 = await Dialog.findOne({ tenantId, name: 'Another Dialog' }).lean();
+    const storedDialog2 = await Dialog.findOne({ tenantId, dialogId: res2.body.data.dialogId }).lean();
     if (storedDialog2) {
       const members2 = await DialogMember.find({ tenantId, dialogId: storedDialog2.dialogId }).lean();
       expect(members2).toHaveLength(1);
@@ -639,12 +629,11 @@ describe('dialogController.create', () => {
       {},
       {},
       {
-        name: 'Dialog with Duplicates',
         createdBy: 'carl',
         members: [
-          { userId: 'alice', type: 'user', name: 'Alice' },
-          { userId: 'alice', type: 'user', name: 'Alice' }, // Дубликат
-          { userId: 'bob', type: 'bot', name: 'Bob Bot' }
+          { userId: 'alice', type: 'user' },
+          { userId: 'alice', type: 'user' }, // Дубликат
+          { userId: 'bob', type: 'bot' }
         ]
       }
     );
@@ -654,7 +643,7 @@ describe('dialogController.create', () => {
 
     expect(res.statusCode).toBe(201);
 
-    const storedDialog = await Dialog.findOne({ tenantId, name: 'Dialog with Duplicates' }).lean();
+    const storedDialog = await Dialog.findOne({ tenantId, dialogId: res.body.data.dialogId }).lean();
     expect(storedDialog).toBeTruthy();
 
     // Проверяем, что участники добавлены без дубликатов
@@ -671,7 +660,7 @@ describe('dialogController.create', () => {
     await dialogController.create(req, res);
 
     expect(res.statusCode).toBe(400);
-    expect(res.body.message).toContain('Missing required fields');
+    expect(res.body.message).toContain('Missing required field');
   });
 });
 

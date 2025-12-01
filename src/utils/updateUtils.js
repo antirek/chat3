@@ -43,7 +43,6 @@ function buildDialogSection(dialog, dialogMeta = {}) {
   return {
     dialogId: dialog.dialogId,
     tenantId: dialog.tenantId,
-    name: dialog.name,
     createdBy: dialog.createdBy,
     createdAt: dialog.createdAt,
     updatedAt: dialog.updatedAt,

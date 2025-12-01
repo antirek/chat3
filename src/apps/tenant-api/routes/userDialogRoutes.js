@@ -55,8 +55,6 @@ const router = express.Router();
  *                     properties:
  *                       dialogId:
  *                         type: string
- *                       dialogName:
- *                         type: string
  *                       unreadCount:
  *                         type: integer
  *                       lastSeenAt:

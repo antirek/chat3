@@ -105,7 +105,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 1',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -114,7 +114,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 2',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -123,7 +123,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 3',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -132,7 +132,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 4',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -312,7 +312,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 1',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -321,7 +321,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 2',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -330,7 +330,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 3',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -425,7 +425,7 @@ describe('userDialogController', () => {
         dialogId: 'dlg_vxlpjst3qr1we1jogf9p',
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 1',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -434,7 +434,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 2',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -443,7 +443,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 3',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -564,7 +564,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 1',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -573,7 +573,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 2',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -582,7 +582,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: userId1,
-        name: 'Dialog 3',
+        
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       });
@@ -684,7 +684,6 @@ describe('userDialogController', () => {
           dialogId: generateDialogId(),
           tenantId,
           createdBy: userId1,
-          name: `Dialog ${i}`,
           createdAt: generateTimestamp() + i * 1000, // Different timestamps
           updatedAt: generateTimestamp() + i * 1000
         });
@@ -826,7 +825,7 @@ describe('userDialogController', () => {
         dialogId: generateDialogId(),
         tenantId,
         createdBy: viewerId,
-        name: 'Support Dialog',
+        
         createdAt: timestamp,
         updatedAt: timestamp
       });
@@ -936,7 +935,7 @@ describe('userDialogController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Test Dialog',
+        
         createdBy: userId,
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -970,7 +969,7 @@ describe('userDialogController', () => {
       const dialog1 = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Dialog 1',
+        
         createdBy: userId,
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -979,7 +978,7 @@ describe('userDialogController', () => {
       const dialog2 = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Dialog 2',
+        
         createdBy: userId,
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -1043,7 +1042,7 @@ describe('userDialogController', () => {
       const dialog1 = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Dialog 1',
+        
         createdBy: userId,
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -1052,7 +1051,7 @@ describe('userDialogController', () => {
       const dialog2 = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Dialog 2',
+        
         createdBy: userId,
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -1099,7 +1098,7 @@ describe('userDialogController', () => {
       const dialog = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Test Dialog',
+        
         createdBy: userId,
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -1158,7 +1157,7 @@ describe('userDialogController', () => {
       const dialog1 = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Dialog 1',
+        
         createdBy: userId,
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -1167,7 +1166,7 @@ describe('userDialogController', () => {
       const dialog2 = await Dialog.create({
         tenantId,
         dialogId: generateDialogId(),
-        name: 'Dialog 2',
+        
         createdBy: userId,
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()

@@ -105,7 +105,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: 'user1'
       });
 
@@ -153,7 +153,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: 'user1'
       });
 
@@ -170,7 +170,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: 'user1'
       });
 
@@ -210,7 +210,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: 'user1'
       });
 
@@ -276,7 +276,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: userId
       });
 
@@ -317,7 +317,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: userId
       });
 
@@ -343,7 +343,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: 'user1'
       });
 
@@ -394,7 +394,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: 'user1'
       });
 
@@ -460,7 +460,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: 'user1'
       });
 
@@ -528,7 +528,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Test Dialog',
+        
         createdBy: 'user1'
       });
 
@@ -592,7 +592,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Typing Dialog',
+        
         createdBy: 'user1'
       });
 
@@ -651,7 +651,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Solo Dialog',
+        
         createdBy: 'user1'
       });
 

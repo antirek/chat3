@@ -189,10 +189,10 @@ const adminOptions = {
           _id: { isVisible: { list: true, show: true, edit: false, filter: true } },
           dialogId: {
             type: 'string',
+            isTitle: true,
             isVisible: { list: true, show: true, edit: false, filter: true },
             description: 'ID диалога в формате dlg_XXXXXXXXXXXXXXXXXXXX'
           },
-          name: { isTitle: true },
           tenantId: {
             type: 'string',
             isVisible: { list: true, show: true, edit: false, filter: true },
@@ -217,10 +217,10 @@ const adminOptions = {
           createdAt: { isVisible: { list: true, show: true, edit: false } },
           updatedAt: { isVisible: { list: true, show: true, edit: false } },
         },
-        listProperties: ['_id', 'dialogId', 'name', 'createdAt'],
-        showProperties: ['_id', 'dialogId', 'name', 'tenantId', 'createdAt', 'updatedAt', 'meta', 'dialogMembers'],
-        editProperties: ['name'],
-        filterProperties: ['name', 'tenantId'],
+        listProperties: ['_id', 'dialogId', 'createdAt'],
+        showProperties: ['_id', 'dialogId', 'tenantId', 'createdAt', 'updatedAt', 'meta', 'dialogMembers'],
+        editProperties: [],
+        filterProperties: ['dialogId', 'tenantId'],
         actions: {
           show: {
             after: async (response, request, context) => {

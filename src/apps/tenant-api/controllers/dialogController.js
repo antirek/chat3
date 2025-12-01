@@ -492,19 +492,18 @@ export const dialogController = {
   // Create new dialog
   async create(req, res) {
     try {
-      const { name, createdBy, members, meta: metaPayload } = req.body;
+      const { createdBy, members, meta: metaPayload } = req.body;
 
       // Basic validation
-      if (!name || !createdBy) {
+      if (!createdBy) {
         return res.status(400).json({
           error: 'Bad Request',
-          message: 'Missing required fields: name, createdBy'
+          message: 'Missing required field: createdBy'
         });
       }
 
       const dialog = await Dialog.create({
         tenantId: req.tenantId,
-        name,
         createdBy
       });
 
@@ -525,8 +524,7 @@ export const dialogController = {
 
           // Проверяем и создаем пользователя, если его нет
           await userUtils.ensureUserExists(req.tenantId, memberData.userId, {
-            type: memberData.type,
-            name: memberData.name
+            type: memberData.type
           });
 
           // Добавляем участника в диалог
@@ -577,7 +575,6 @@ export const dialogController = {
       const dialogSection = eventUtils.buildDialogSection({
         dialogId: dialog.dialogId,
         tenantId: dialog.tenantId,
-        name,
         createdBy,
         createdAt: dialog.createdAt,
         updatedAt: dialog.updatedAt
@@ -659,7 +656,6 @@ export const dialogController = {
       const dialogSection = eventUtils.buildDialogSection({
         dialogId: dialog.dialogId,
         tenantId: dialog.tenantId,
-        name: dialog.name,
         createdBy: dialog.createdBy,
         createdAt: dialog.createdAt,
         updatedAt: dialog.updatedAt

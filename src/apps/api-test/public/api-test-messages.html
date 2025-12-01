@@ -748,7 +748,7 @@
                 dialogs.forEach(dialog => {
                     const option = document.createElement('option');
                     option.value = dialog.dialogId;
-                    option.textContent = dialog.name;
+                    option.textContent = dialog.dialogId;
                     dialogSelect.appendChild(option);
                 });
 
@@ -868,7 +868,7 @@
 
         function getDialogName(dialogId) {
             const dialog = dialogs.find(d => d.dialogId === dialogId);
-            return dialog ? dialog.name : dialogId;
+            return dialog ? dialog.dialogId : dialogId;
         }
 
         function formatMessageTime(timestamp) {

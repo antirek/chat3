@@ -763,7 +763,7 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Название</th>
+                                    <th>Dialog ID</th>
                                     <th onclick="toggleSort('updatedAt')">Обновлен <span class="sort-indicator">◄</span></th>
                                     <th>Пользователи</th>
                                     <th>Инфо</th>
@@ -773,10 +773,9 @@
                                 ${data.data.map(dialog => {
                                     const isSelected = currentDialogId === dialog.dialogId ? 'dialog-row-selected' : '';
                                     const safeDialogId = dialog.dialogId.replace(/'/g, "\\'");
-                                    const safeDialogName = dialog.name.replace(/'/g, "\\'");
                                     return `
-                                    <tr onclick="selectDialog('${safeDialogId}', '${safeDialogName}')" class="dialog-row ${isSelected}" data-dialog-id="${safeDialogId.replace(/"/g, '&quot;')}">
-                                        <td>${dialog.name.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
+                                    <tr onclick="selectDialog('${safeDialogId}', '${safeDialogId}')" class="dialog-row ${isSelected}" data-dialog-id="${safeDialogId.replace(/"/g, '&quot;')}">
+                                        <td>${dialog.dialogId.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
                                         <td>${formatUpdatedAt(dialog.updatedAt)}</td>
                                         <td>${formatMembers(dialog.members)}</td>
                                         <td><button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${safeDialogId}')">ℹ️ Инфо</button></td>

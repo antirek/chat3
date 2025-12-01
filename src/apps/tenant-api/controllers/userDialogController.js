@@ -678,7 +678,6 @@ const userDialogController = {
           
           return {
             dialogId: dialog.dialogId,
-            name: dialog.name,
             dialogObjectId: dialog._id, // Сохраняем ObjectId для поиска сообщений
             // Context - данные текущего пользователя в этом диалоге
             context: {

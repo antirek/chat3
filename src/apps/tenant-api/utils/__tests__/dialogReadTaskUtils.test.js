@@ -93,7 +93,7 @@ describe('dialogReadTaskUtils', () => {
       await Dialog.create({
         tenantId,
         dialogId,
-        name: 'Bulk dialog',
+        
         createdBy: 'system',
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
