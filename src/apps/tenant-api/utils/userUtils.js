@@ -7,7 +7,6 @@ import { generateTimestamp } from '../../../utils/timestampUtils.js';
  * @param {String} userId - ID пользователя
  * @param {Object} options - Опциональные поля пользователя
  * @param {String} options.type - Тип пользователя (user, bot, contact и т.д.)
- * @param {String} options.name - Имя пользователя
  * @returns {Promise<Object>} - Объект пользователя
  */
 export async function ensureUserExists(tenantId, userId, options = {}) {
@@ -22,7 +21,6 @@ export async function ensureUserExists(tenantId, userId, options = {}) {
         tenantId,
         userId,
         type: options.type || 'user',
-        name: options.name || null,
         createdAt: timestamp,
         updatedAt: timestamp
       });
@@ -33,9 +31,6 @@ export async function ensureUserExists(tenantId, userId, options = {}) {
       const updateFields = {};
       if (options.type !== undefined && user.type !== options.type) {
         updateFields.type = options.type;
-      }
-      if (options.name !== undefined && user.name !== options.name) {
-        updateFields.name = options.name;
       }
 
       if (Object.keys(updateFields).length > 0) {

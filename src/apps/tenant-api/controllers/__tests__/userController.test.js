@@ -59,7 +59,6 @@ describe('userController.getUsers', () => {
       {
         tenantId,
         userId: 'agent_carl',
-        name: 'Carl Johnson',
         lastActiveAt: generateTimestamp(),
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -67,7 +66,6 @@ describe('userController.getUsers', () => {
       {
         tenantId,
         userId: 'manager_alice',
-        name: 'Alice Manager',
         lastActiveAt: generateTimestamp(),
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -75,7 +73,6 @@ describe('userController.getUsers', () => {
       {
         tenantId,
         userId: 'guest_zoe',
-        name: 'Zoe Guest',
         lastActiveAt: generateTimestamp(),
         createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
@@ -200,9 +197,9 @@ describe('userController.getUsers', () => {
       
       // Создаем пользователей с разными типами
       await User.create([
-        { tenantId, userId: 'user1', name: 'User 1', type: 'user', createdAt: generateTimestamp() },
-        { tenantId, userId: 'bot1', name: 'Bot 1', type: 'bot', createdAt: generateTimestamp() },
-        { tenantId, userId: 'contact1', name: 'Contact 1', type: 'contact', createdAt: generateTimestamp() }
+        { tenantId, userId: 'user1', type: 'user', createdAt: generateTimestamp() },
+        { tenantId, userId: 'bot1', type: 'bot', createdAt: generateTimestamp() },
+        { tenantId, userId: 'contact1', type: 'contact', createdAt: generateTimestamp() }
       ]);
 
       const req = createMockReq({ filter: '(type,eq,user)', page: 1, limit: 10 });
@@ -222,10 +219,10 @@ describe('userController.getUsers', () => {
       
       // Создаем пользователей с разными типами
       await User.create([
-        { tenantId, userId: 'user1', name: 'User 1', type: 'user', createdAt: generateTimestamp() },
-        { tenantId, userId: 'bot1', name: 'Bot 1', type: 'bot', createdAt: generateTimestamp() },
-        { tenantId, userId: 'contact1', name: 'Contact 1', type: 'contact', createdAt: generateTimestamp() },
-        { tenantId, userId: 'agent1', name: 'Agent 1', type: 'agent', createdAt: generateTimestamp() }
+        { tenantId, userId: 'user1', type: 'user', createdAt: generateTimestamp() },
+        { tenantId, userId: 'bot1', type: 'bot', createdAt: generateTimestamp() },
+        { tenantId, userId: 'contact1', type: 'contact', createdAt: generateTimestamp() },
+        { tenantId, userId: 'agent1', type: 'agent', createdAt: generateTimestamp() }
       ]);
 
       const req = createMockReq({ filter: '(type,in,[user,bot])', page: 1, limit: 10 });
@@ -385,7 +382,7 @@ describe('userController.createUser', () => {
   test('creates user successfully', async () => {
     const req = {
       tenantId,
-      body: { userId: 'new_user', name: 'Newbie' }
+      body: { userId: 'new_user' }
     };
     const res = createMockRes();
 
@@ -396,7 +393,6 @@ describe('userController.createUser', () => {
 
     const stored = await User.findOne({ tenantId, userId: 'new_user' }).lean();
     expect(stored).toBeTruthy();
-    expect(stored.name).toBe('Newbie');
     expect(stored.type).toBe('user'); // default type
   });
 
@@ -405,7 +401,6 @@ describe('userController.createUser', () => {
       tenantId,
       body: {
         userId: 'bot_123',
-        name: 'Bot User',
         type: 'bot'
       }
     };
@@ -434,7 +429,7 @@ describe('userController.createUser', () => {
 
     const req = {
       tenantId,
-      body: { userId: 'existing', name: 'Duplicate' }
+      body: { userId: 'existing' }
     };
     const res = createMockRes();
 
@@ -461,31 +456,30 @@ describe('userController.updateUser', () => {
     await User.create({
       tenantId,
       userId: 'agent_carl',
-      name: 'Carl',
       lastActiveAt: generateTimestamp(),
       createdAt: generateTimestamp(),
       updatedAt: generateTimestamp()
     });
   });
 
-  test('updates user name', async () => {
+  test('updates user type', async () => {
     const req = {
       tenantId,
       params: { userId: 'agent_carl' },
-      body: { name: 'Carl Updated' }
+      body: { type: 'bot' }
     };
     const res = createMockRes();
 
     await updateUser(req, res);
 
     expect(res.statusCode).toBeUndefined();
-    expect(res.body.data.name).toBe('Carl Updated');
+    expect(res.body.data.type).toBe('bot');
 
     const stored = await User.findOne({ tenantId, userId: 'agent_carl' }).lean();
-    expect(stored.name).toBe('Carl Updated');
+    expect(stored.type).toBe('bot');
   });
 
-  test('updates user type', async () => {
+  test('updates user type (second test)', async () => {
     await User.create({
       tenantId,
       userId: 'user_to_update',
@@ -510,11 +504,10 @@ describe('userController.updateUser', () => {
     expect(stored.type).toBe('bot');
   });
 
-  test('updates user name and type together', async () => {
+  test('updates user type (third test)', async () => {
     await User.create({
       tenantId,
       userId: 'user_to_update2',
-      name: 'Original User',
       type: 'user',
       createdAt: generateTimestamp()
     });
@@ -522,18 +515,16 @@ describe('userController.updateUser', () => {
     const req = {
       tenantId,
       params: { userId: 'user_to_update2' },
-      body: { name: 'Updated Name', type: 'contact' }
+      body: { type: 'contact' }
     };
     const res = createMockRes();
 
     await updateUser(req, res);
 
     expect(res.statusCode).toBeUndefined();
-    expect(res.body.data.name).toBe('Updated Name');
     expect(res.body.data.type).toBe('contact');
 
     const stored = await User.findOne({ tenantId, userId: 'user_to_update2' }).lean();
-    expect(stored.name).toBe('Updated Name');
     expect(stored.type).toBe('contact');
   });
 
@@ -541,7 +532,7 @@ describe('userController.updateUser', () => {
     const req = {
       tenantId,
       params: { userId: 'missing' },
-      body: { name: 'Nope' }
+      body: { type: 'bot' }
     };
     const res = createMockRes();
 

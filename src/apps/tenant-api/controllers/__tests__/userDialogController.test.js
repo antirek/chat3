@@ -417,7 +417,6 @@ describe('userDialogController', () => {
       await User.create({
         userId: userId1,
         tenantId,
-        name: 'Test User',
         lastActiveAt: generateTimestamp(),
         createdAt: generateTimestamp()
       });
@@ -815,8 +814,8 @@ describe('userDialogController', () => {
       const timestamp = generateTimestamp();
 
       await User.create([
-        { tenantId, userId: viewerId, name: 'Viewer', lastActiveAt: timestamp, createdAt: timestamp },
-        { tenantId, userId: senderId, name: 'Support Agent', lastActiveAt: timestamp, createdAt: timestamp }
+        { tenantId, userId: viewerId, lastActiveAt: timestamp, createdAt: timestamp },
+        { tenantId, userId: senderId, lastActiveAt: timestamp, createdAt: timestamp }
       ]);
 
       await Meta.create([
@@ -865,7 +864,6 @@ describe('userDialogController', () => {
       expect(message.senderInfo).toEqual(
         expect.objectContaining({
           userId: senderId,
-          name: 'Support Agent',
           meta: expect.objectContaining({ role: 'agent' })
         })
       );

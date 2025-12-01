@@ -180,7 +180,6 @@ export const createUserSchema = Joi.object({
     .pattern(/^[^.]*$/, { name: 'no dots' })
     .message('userId не может содержать точку')
     .required(),
-  name: Joi.string().trim().min(1).max(200).optional(),
   type: Joi.string().trim().min(1).max(50).default('user').optional()
 });
 
@@ -188,7 +187,6 @@ export const createUserSchema = Joi.object({
  * Схема валидации обновления пользователя
  */
 export const updateUserSchema = Joi.object({
-  name: Joi.string().trim().min(1).max(200).optional(),
   type: Joi.string().trim().min(1).max(50).optional()
 });
 

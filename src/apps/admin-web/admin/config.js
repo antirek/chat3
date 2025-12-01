@@ -117,10 +117,6 @@ const adminOptions = {
             type: 'string',
             isVisible: { list: true, show: true, edit: false, filter: true }
           },
-          name: {
-            isVisible: { list: true, show: true, edit: true },
-            isRequired: false
-          },
           meta: {
             type: 'textarea',
             isVisible: { list: false, show: true, edit: false },
@@ -141,10 +137,10 @@ const adminOptions = {
             isVisible: { list: false, show: true, edit: false }
           }
         },
-        listProperties: ['_id', 'userId', 'name', 'lastActiveAt', 'createdAt'],
-        showProperties: ['_id', 'userId', 'tenantId', 'name', 'lastActiveAt', 'createdAt', 'updatedAt', 'meta'],
-        editProperties: ['name'],
-        filterProperties: ['userId', 'tenantId', 'name'],
+        listProperties: ['_id', 'userId', 'lastActiveAt', 'createdAt'],
+        showProperties: ['_id', 'userId', 'tenantId', 'lastActiveAt', 'createdAt', 'updatedAt', 'meta'],
+        editProperties: [],
+        filterProperties: ['userId', 'tenantId'],
         actions: {
           show: {
             after: async (response, request, context) => {

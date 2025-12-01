@@ -32,7 +32,6 @@ async function getSenderInfo(tenantId, senderId, cache = new Map(), metaOptions)
 
   const senderInfo = {
     userId: senderId,
-    name: user?.name || null,
     lastActiveAt: user?.lastActiveAt ?? null,
     createdAt: user?.createdAt ?? null,
     updatedAt: user?.updatedAt ?? null,
@@ -818,7 +817,6 @@ const userDialogController = {
       sendersData.forEach(user => {
         sendersMap.set(user.userId, {
           userId: user.userId,
-          name: user.name,
           meta: metaBySender[user.userId] || {}
         });
       });
@@ -1036,7 +1034,6 @@ const userDialogController = {
         const contextUserMeta = await fetchMeta('user', userId);
         contextUserInfo = {
           userId: contextUser.userId,
-          name: contextUser.name || null,
           lastActiveAt: contextUser.lastActiveAt ?? null,
           createdAt: contextUser.createdAt ?? null,
           updatedAt: contextUser.updatedAt ?? null,
@@ -1205,7 +1202,6 @@ const userDialogController = {
         const contextUserMeta = await fetchMeta('user', userId);
         contextUserInfo = {
           userId: contextUser.userId,
-          name: contextUser.name || null,
           lastActiveAt: contextUser.lastActiveAt ?? null,
           createdAt: contextUser.createdAt ?? null,
           updatedAt: contextUser.updatedAt ?? null,

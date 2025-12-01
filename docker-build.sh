@@ -18,7 +18,7 @@ fi
 VERSION=${1:-latest}
 
 echo "📦 Building chat3:${VERSION}..."
-docker build -t antirek/mms3:0.0.4 .
+docker build -t antirek/mms3:0.0.5 .
 
 # Тегируем образ
 # docker tag mms3:${VERSION} chat3:latest

@@ -303,7 +303,7 @@ export async function createUser(req, res) {
 export async function updateUser(req, res) {
   try {
     const { userId } = req.params;
-    const { name, type } = req.body;
+    const { type } = req.body;
 
     const user = await User.findOne({
       userId: userId,
@@ -319,7 +319,6 @@ export async function updateUser(req, res) {
 
     // Формируем объект обновления
     const updateData = {};
-    if (name !== undefined) updateData.name = name;
     if (type !== undefined) {
       updateData.type = type;
     }

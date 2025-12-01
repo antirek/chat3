@@ -196,7 +196,7 @@ describe('dialogMemberController', () => {
     test('adds member with type and name, creates user if not exists', async () => {
       const req = createMockReq(
         { dialogId: dialog.dialogId },
-        { userId: 'newuser', type: 'bot', name: 'New Bot' }
+        { userId: 'newuser', type: 'bot' }
       );
       const res = createMockRes();
 
@@ -209,7 +209,6 @@ describe('dialogMemberController', () => {
       const user = await User.findOne({ tenantId, userId: 'newuser' }).lean();
       expect(user).toBeTruthy();
       expect(user.type).toBe('bot');
-      expect(user.name).toBe('New Bot');
 
       const member = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'newuser' }).lean();
       expect(member).toBeTruthy();

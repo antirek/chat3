@@ -1657,7 +1657,7 @@
                 const data = await response.json();
                 const users = (Array.isArray(data.data) ? data.data : []).map((user) => ({
                     ...user,
-                    displayName: user.name || user.userId,
+                    displayName: user.userId,
                     dialogCount: Number.isFinite(user.dialogCount) ? user.dialogCount : 0
                 }));
 

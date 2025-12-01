@@ -409,8 +409,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
 
       await User.create({
         tenantId,
-        userId: 'user1',
-        name: 'User One'
+        userId: 'user1'
       });
 
       await Meta.create({
@@ -448,7 +447,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(update.data.message.senderInfo).toEqual(
         expect.objectContaining({
           userId: 'user1',
-          name: 'User One',
           meta: expect.objectContaining({ role: 'support' })
         })
       );

@@ -471,10 +471,6 @@
                         <option value="(userId,regex,bot)">userId содержит "bot"</option>
                         <option value="(userId,eq,system_bot)">userId = system_bot</option>
                     </optgroup>
-                    <optgroup label="name">
-                        <option value="(name,regex,Alice)">Имя содержит "Alice"</option>
-                        <option value="(name,regex,Support)">Имя содержит "Support"</option>
-                    </optgroup>
                     <optgroup label="type">
                         <option value="(type,in,[user,bot])">type в списке [user, bot]</option>
                         <option value="(type,eq,user)">type = user</option>
@@ -491,7 +487,7 @@
                     <input type="text" id="userFilterInput" placeholder="Например: (userId,regex,carl)&(meta.role,eq,manager)">
                     <button class="clear-field" type="button" onclick="clearUserFilter()" title="Очистить поле">✕</button>
                 </div>
-                <small style="display: block; color: #6c757d;">Поддерживаются поля `userId`, `name`, `meta.*`. Операторы: eq, ne, in, nin, regex, gt, lt, gte, lte.</small>
+                <small style="display: block; color: #6c757d;">Поддерживаются поля `userId`, `type`, `meta.*`. Операторы: eq, ne, in, nin, regex, gt, lt, gte, lte.</small>
             </div>
             <div class="form-actions">
                 <button class="btn-primary" type="button" onclick="applyUserFilter()">Применить</button>
@@ -566,10 +562,6 @@
             <div class="modal-body">
                 <form id="editForm" onsubmit="updateUser(event)">
                     <input type="hidden" id="editUserId">
-                    <div class="form-group">
-                        <label for="editName">Имя</label>
-                        <input type="text" id="editName" placeholder="John Doe">
-                    </div>
                     <div class="form-group">
                         <label for="editType">Тип</label>
                         <select id="editType">
@@ -772,7 +764,6 @@
                     <thead>
                         <tr>
                             <th>User ID</th>
-                            <th>Имя</th>
                             <th>Тип</th>
                             <th>Последняя активность</th>
                             <th>Создан</th>
@@ -783,7 +774,6 @@
                         ${users.map(user => `
                             <tr>
                                 <td><strong>${user.userId}</strong></td>
-                                <td>${user.name || '-'}</td>
                                 <td><span style="background: #e3f2fd; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">${user.type || 'user'}</span></td>
                                 <td>${formatTimestamp(user.lastActiveAt)}</td>
                                 <td>${formatTimestamp(user.createdAt)}</td>
@@ -876,7 +866,6 @@
                 const { data: user } = await response.json();
 
                 document.getElementById('editUserId').value = user.userId;
-                document.getElementById('editName').value = user.name || '';
                 
                 // Устанавливаем тип пользователя
                 const editTypeElement = document.getElementById('editType');
@@ -916,7 +905,6 @@
             }
             
             const userData = {
-                name: document.getElementById('editName').value.trim() || undefined,
                 type: editTypeValue
             };
             

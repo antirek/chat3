@@ -135,7 +135,6 @@ async function getSenderInfo(tenantId, senderId, cache = new Map()) {
 
   const senderInfo = {
     userId: senderId,
-    name: user?.name || null,
     lastActiveAt: user?.lastActiveAt ?? null,
     createdAt: user?.createdAt ?? null,
     updatedAt: user?.updatedAt ?? null,

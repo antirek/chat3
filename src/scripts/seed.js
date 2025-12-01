@@ -36,14 +36,14 @@ async function seed() {
 
     // Create Users
     const usersData = [
-      { userId: 'carl', name: 'Carl Johnson' },
-      { userId: 'marta', name: 'Marta Rodriguez' },
-      { userId: 'sara', name: 'Sara Connor' },
-      { userId: 'kirk', name: 'Kirk Hammett' },
-      { userId: 'john', name: 'John Doe' },
-      { userId: 'alice', name: 'Alice Wonder' },
-      { userId: 'bob', name: 'Bob Builder' },
-      { userId: 'eve', name: 'Eve Anderson' }
+      { userId: 'carl' },
+      { userId: 'marta' },
+      { userId: 'sara' },
+      { userId: 'kirk' },
+      { userId: 'john' },
+      { userId: 'alice' },
+      { userId: 'bob' },
+      { userId: 'eve' }
     ];
 
     const users = [];
@@ -51,7 +51,6 @@ async function seed() {
       const user = await User.create({
         userId: userData.userId,
         tenantId: tenant.tenantId,
-        name: userData.name,
         lastActiveAt: generateTimestamp()
       });
       users.push(user);

@@ -15,11 +15,6 @@ const userSchema = new mongoose.Schema({
     match: /^tnt_[a-z0-9]+$/,
     description: 'ID тенанта'
   },
-  name: {
-    type: String,
-    trim: true,
-    description: 'Имя пользователя'
-  },
   type: {
     type: String,
     trim: true,

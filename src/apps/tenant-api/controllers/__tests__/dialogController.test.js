@@ -513,8 +513,8 @@ describe('dialogController.create', () => {
         name: 'Dialog with Members',
         createdBy: 'carl',
         members: [
-          { userId: 'alice', type: 'user', name: 'Alice Smith' },
-          { userId: 'bob', type: 'bot', name: 'Bob Bot' }
+          { userId: 'alice', type: 'user' },
+          { userId: 'bob', type: 'bot' }
         ]
       }
     );
@@ -532,12 +532,10 @@ describe('dialogController.create', () => {
     const alice = await User.findOne({ tenantId, userId: 'alice' }).lean();
     expect(alice).toBeTruthy();
     expect(alice.type).toBe('user');
-    expect(alice.name).toBe('Alice Smith');
 
     const bob = await User.findOne({ tenantId, userId: 'bob' }).lean();
     expect(bob).toBeTruthy();
     expect(bob.type).toBe('bot');
-    expect(bob.name).toBe('Bob Bot');
 
     // Проверяем, что участники добавлены в диалог
     const members = await DialogMember.find({ tenantId, dialogId: storedDialog.dialogId }).lean();
@@ -565,7 +563,7 @@ describe('dialogController.create', () => {
         name: 'Dialog with Existing User',
         createdBy: 'carl',
         members: [
-          { userId: 'existing', type: 'bot', name: 'New Name' }
+          { userId: 'existing', type: 'bot' }
         ]
       }
     );
@@ -578,7 +576,6 @@ describe('dialogController.create', () => {
     // Проверяем, что пользователь обновлен
     const user = await User.findOne({ tenantId, userId: 'existing' }).lean();
     expect(user.type).toBe('bot');
-    expect(user.name).toBe('New Name');
   });
 
   test('creates dialog with members, ignores already existing members in same dialog', async () => {

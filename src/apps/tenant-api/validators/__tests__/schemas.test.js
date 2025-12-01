@@ -156,8 +156,7 @@ describe('bodySchemas.createMessageSchema', () => {
 describe('bodySchemas.createUserSchema', () => {
   test('normalizes userId to lowercase', () => {
     const { error, value } = createUserSchema.validate({
-      userId: 'Agent_ABC',
-      name: 'Agent'
+      userId: 'Agent_ABC'
     });
 
     expect(error).toBeUndefined();
