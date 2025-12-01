@@ -212,7 +212,6 @@ export async function getUserById(req, res) {
           data: sanitizeResponse({
             userId: userId,
             tenantId: req.tenantId,
-            name: null, // Имя отсутствует, так как пользователя нет в User
             lastActiveAt: null,
             createdAt: null,
             updatedAt: null,
@@ -252,7 +251,7 @@ export async function getUserById(req, res) {
  */
 export async function createUser(req, res) {
   try {
-    const { userId, name, type } = req.body;
+    const { userId, type } = req.body;
 
     // Проверяем, что пользователь не существует
     const existingUser = await User.findOne({
@@ -271,7 +270,6 @@ export async function createUser(req, res) {
     const user = await User.create({
       userId: userId,
       tenantId: req.tenantId,
-      name: name,
       type: type || 'user',
       lastActiveAt: generateTimestamp()
     });

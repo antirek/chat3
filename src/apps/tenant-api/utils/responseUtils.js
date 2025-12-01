@@ -50,12 +50,20 @@ export function removeIdFields(obj) {
     return obj;
   }
 
-  // Создаем новый объект без _id, id и __v
+  // Создаем новый объект без _id, id, __v и name (для объектов User)
   const result = {};
   
+  // Определяем, является ли это объектом User (проверяем наличие userId и tenantId)
+  const isUserObject = obj.userId !== undefined && obj.tenantId !== undefined;
+  
   for (const [key, value] of Object.entries(obj)) {
-    // Пропускаем поля _id, id и __v
+    // Пропускаем поля _id, id, __v
     if (key === '_id' || key === 'id' || key === '__v') {
+      continue;
+    }
+    
+    // Удаляем name только для объектов User
+    if (key === 'name' && isUserObject) {
       continue;
     }
     

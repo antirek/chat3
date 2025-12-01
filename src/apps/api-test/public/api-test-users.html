@@ -260,6 +260,19 @@
             to { opacity: 1; }
         }
 
+        .json-viewer {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
         .modal-content {
             background: white;
             margin: 50px auto;
@@ -604,6 +617,21 @@
         </div>
     </div>
 
+    <!-- Modal для просмотра JSON информации о пользователе -->
+    <div id="userInfoModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>📋 Информация о пользователе</h2>
+            </div>
+            <div class="modal-body">
+                <div class="json-viewer" id="userJsonViewer"></div>
+                <div class="form-actions" style="margin-top: 15px;">
+                    <button type="button" class="btn-secondary" onclick="closeUserInfoModal()">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let apiKey = '';
         let tenantId = 'tnt_default';
@@ -778,6 +806,7 @@
                                 <td>${formatTimestamp(user.lastActiveAt)}</td>
                                 <td>${formatTimestamp(user.createdAt)}</td>
                                 <td>
+                                    <button class="btn-primary btn-small" onclick="showUserInfoModal('${user.userId}')">ℹ️ Инфо</button>
                                     <button class="btn-primary btn-small" onclick="showEditModal('${user.userId}')">✏️ Редактировать</button>
                                     <button class="btn-success btn-small" onclick="showMetaModal('${user.userId}')">🏷️ Meta</button>
                                     <button class="btn-danger btn-small" onclick="deleteUser('${user.userId}')">🗑️ Удалить</button>
@@ -979,6 +1008,48 @@
             document.getElementById('metaModal').style.display = 'none';
         }
 
+        // Показать modal информации о пользователе
+        async function showUserInfoModal(userId) {
+            try {
+                const apiKey = getApiKey();
+
+                // Получаем пользователя по userId - показываем сырой ответ от API
+                const userResponse = await fetch(`/api/users/${userId}`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-Tenant-ID': tenantId
+                    }
+                });
+
+                const responseData = await userResponse.json();
+
+                if (!userResponse.ok) {
+                    // Показываем ошибку в JSON формате
+                    document.getElementById('userJsonViewer').textContent = JSON.stringify({
+                        status: userResponse.status,
+                        statusText: userResponse.statusText,
+                        error: responseData
+                    }, null, 2);
+                } else {
+                    // Показываем успешный ответ
+                    document.getElementById('userJsonViewer').textContent = JSON.stringify(responseData, null, 2);
+                }
+
+                document.getElementById('userInfoModal').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading user info:', error);
+                document.getElementById('userJsonViewer').textContent = JSON.stringify({
+                    error: error.message
+                }, null, 2);
+                document.getElementById('userInfoModal').style.display = 'block';
+            }
+        }
+
+        // Закрыть modal информации о пользователе
+        function closeUserInfoModal() {
+            document.getElementById('userInfoModal').style.display = 'none';
+        }
+
         function selectUserFilterExample() {
             const select = document.getElementById('userFilterExample');
             const input = document.getElementById('userFilterInput');
@@ -1146,6 +1217,7 @@
             const createModal = document.getElementById('createModal');
             const editModal = document.getElementById('editModal');
             const metaModal = document.getElementById('metaModal');
+            const userInfoModal = document.getElementById('userInfoModal');
             
             if (event.target === createModal) {
                 closeCreateModal();
@@ -1155,6 +1227,9 @@
             }
             if (event.target === metaModal) {
                 closeMetaModal();
+            }
+            if (event.target === userInfoModal) {
+                closeUserInfoModal();
             }
         }
 
