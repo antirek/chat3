@@ -302,11 +302,35 @@
             background: #f8f9fa;
             border-bottom: 1px solid #e9ecef;
             border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .modal-header h2 {
             font-size: 16px;
             margin: 0;
+            color: #333;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #e9ecef;
             color: #333;
         }
 
@@ -537,16 +561,13 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Создать пользователя</h2>
+                <button class="modal-close" onclick="closeCreateModal()" title="Закрыть">×</button>
             </div>
             <div class="modal-body">
                 <form id="createForm" onsubmit="createUser(event)">
                     <div class="form-group">
                         <label for="createUserId">User ID *</label>
                         <input type="text" id="createUserId" required placeholder="john">
-                    </div>
-                    <div class="form-group">
-                        <label for="createName">Имя</label>
-                        <input type="text" id="createName" placeholder="John Doe">
                     </div>
                     <div class="form-group">
                         <label for="createType">Тип</label>
@@ -571,6 +592,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Редактировать пользователя</h2>
+                <button class="modal-close" onclick="closeEditModal()" title="Закрыть">×</button>
             </div>
             <div class="modal-body">
                 <form id="editForm" onsubmit="updateUser(event)">
@@ -598,6 +620,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>🏷️ Meta теги пользователя</h2>
+                <button class="modal-close" onclick="closeMetaModal()" title="Закрыть">×</button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="metaUserId">
@@ -622,6 +645,7 @@
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
                 <h2>📋 Информация о пользователе</h2>
+                <button class="modal-close" onclick="closeUserInfoModal()" title="Закрыть">×</button>
             </div>
             <div class="modal-body">
                 <div class="json-viewer" id="userJsonViewer"></div>
@@ -845,7 +869,6 @@
 
             const userData = {
                 userId: document.getElementById('createUserId').value.trim().toLowerCase(),
-                name: document.getElementById('createName').value.trim() || undefined,
                 type: document.getElementById('createType').value || 'user'
             };
 
@@ -1232,6 +1255,26 @@
                 closeUserInfoModal();
             }
         }
+
+        // Закрытие модальных окон при нажатии Esc
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' || event.key === 'Esc') {
+                const createModal = document.getElementById('createModal');
+                const editModal = document.getElementById('editModal');
+                const metaModal = document.getElementById('metaModal');
+                const userInfoModal = document.getElementById('userInfoModal');
+                
+                if (createModal && createModal.style.display === 'block') {
+                    closeCreateModal();
+                } else if (editModal && editModal.style.display === 'block') {
+                    closeEditModal();
+                } else if (metaModal && metaModal.style.display === 'block') {
+                    closeMetaModal();
+                } else if (userInfoModal && userInfoModal.style.display === 'block') {
+                    closeUserInfoModal();
+                }
+            }
+        });
 
         // Загрузить пользователей при загрузке страницы
         window.addEventListener('DOMContentLoaded', () => {
