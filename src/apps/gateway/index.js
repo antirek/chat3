@@ -1,0 +1,178 @@
+import express from 'express';
+import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import connectDB from '../../config/database.js';
+import { admin, buildAdminRouter } from '../admin-web/admin/config.js';
+import initRoutes from '../control-api/routes/initRoutes.js';
+import eventsRoutes from '../control-api/routes/eventsRoutes.js';
+import swaggerSpec from '../control-api/config/swagger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const app = express();
+
+// Get URLs from environment variables or use defaults
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3001';
+const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
+
+// Extract port from URL for server listening
+const PORT = new URL(GATEWAY_URL).port || 3001;
+
+// CORS middleware - разрешаем запросы с разных источников
+app.use(cors({
+  origin: '*', // В production можно ограничить
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Tenant-Id', 'x-tenant-id']
+}));
+
+// Body parser middleware (должен быть до AdminJS)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ============================================
+// 1. AdminJS Panel - /admin
+// ============================================
+const adminRouter = buildAdminRouter(app);
+app.use(admin.options.rootPath, adminRouter);
+
+// ============================================
+// 2. Control API Routes - /api/init, /api/dialogs, /api/messages
+// ============================================
+app.use('/api/init', initRoutes);
+app.use('/api', eventsRoutes);
+
+// ============================================
+// 3. Swagger UI - /api-docs
+// ============================================
+app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
+  const protocol = req.protocol;
+  const host = req.get('host');
+  const swaggerSpecWithHost = {
+    ...swaggerSpec,
+    servers: [
+      {
+        url: `${protocol}://${host}`,
+        description: 'Current server'
+      }
+    ]
+  };
+  swaggerUi.setup(swaggerSpecWithHost, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Chat3 Gateway API Documentation'
+  })(req, res, next);
+});
+
+// ============================================
+// 4. API Test Suite - / (главная) и статические файлы
+// ============================================
+// Dynamic config.js endpoint - must be before static files
+app.get('/config.js', (req, res) => {
+  res.type('application/javascript');
+  
+  // Определяем URL gateway динамически на основе запроса
+  // Это позволяет gateway работать на любом хосте/IP/домене
+  const protocol = req.protocol;
+  const host = req.get('host');
+  const gatewayUrl = `${protocol}://${host}`;
+  
+  // TENANT_API_URL используем из переменной окружения или дефолт
+  // Если tenant-api на том же хосте, можно было бы определить динамически,
+  // но оставляем возможность настройки через переменную окружения
+  const tenantApiUrl = TENANT_API_URL;
+  
+  // Safely escape URLs for JavaScript
+  const config = {
+    TENANT_API_URL: tenantApiUrl,
+    ADMIN_WEB_URL: gatewayUrl,
+    CONTROL_API_URL: gatewayUrl,
+    API_TEST_URL: gatewayUrl
+  };
+  
+  res.send(`// Конфигурация URL для разных сервисов (генерируется динамически на основе запроса)
+window.CHAT3_CONFIG = {
+    TENANT_API_URL: ${JSON.stringify(config.TENANT_API_URL)},
+    ADMIN_WEB_URL: ${JSON.stringify(config.ADMIN_WEB_URL)},
+    CONTROL_API_URL: ${JSON.stringify(config.CONTROL_API_URL)},
+    API_TEST_URL: ${JSON.stringify(config.API_TEST_URL)},
+    
+    getTenantApiUrl: function(path = '') {
+        return this.TENANT_API_URL + path;
+    },
+    
+    getControlApiUrl: function(path = '') {
+        return this.CONTROL_API_URL + path;
+    },
+    
+    getAdminWebUrl: function(path = '') {
+        return this.ADMIN_WEB_URL + path;
+    }
+};`);
+});
+
+// Serve static files from api-test/public directory
+app.use(express.static(join(__dirname, '../api-test/public')));
+
+// Main page - API Test Suite
+app.get('/', (req, res) => {
+  res.sendFile('api-test.html', { root: join(__dirname, '../api-test/public') });
+});
+
+// ============================================
+// Health check endpoint
+// ============================================
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Chat3 Gateway is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    version: '1.0.0',
+    endpoints: {
+      admin: `${GATEWAY_URL}${admin.options.rootPath}`,
+      apiDocs: `${GATEWAY_URL}/api-docs`,
+      init: `${GATEWAY_URL}/api/init`,
+      seed: `${GATEWAY_URL}/api/init/seed`,
+      dialogEvents: `${GATEWAY_URL}/api/dialogs/{dialogId}/events`,
+      dialogUpdates: `${GATEWAY_URL}/api/dialogs/{dialogId}/updates`,
+      messageEvents: `${GATEWAY_URL}/api/messages/{messageId}/events`,
+      messageUpdates: `${GATEWAY_URL}/api/messages/{messageId}/updates`,
+      apiTest: `${GATEWAY_URL}`
+    }
+  });
+});
+
+// ============================================
+// Initialize database connection and start server
+// ============================================
+const startServer = async () => {
+  try {
+    // Connect to MongoDB
+    await connectDB();
+
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`\n🚀 Chat3 Gateway is running on ${GATEWAY_URL}`);
+      console.log(`\n📊 AdminJS Panel: ${GATEWAY_URL}${admin.options.rootPath} (без авторизации)`);
+      console.log(`📚 API Documentation: ${GATEWAY_URL}/api-docs`);
+      console.log(`🧪 API Test Suite: ${GATEWAY_URL}`);
+      console.log(`💚 Health Check: ${GATEWAY_URL}/health`);
+      console.log(`\n🔑 Endpoints:`);
+      console.log(`   POST ${GATEWAY_URL}/api/init - Initialize system (create tenant and API key)`);
+      console.log(`   POST ${GATEWAY_URL}/api/init/seed - Run database seed script`);
+      console.log(`   GET  ${GATEWAY_URL}/api/dialogs/{dialogId}/events - Get events for a dialog`);
+      console.log(`   GET  ${GATEWAY_URL}/api/dialogs/{dialogId}/updates - Get updates for a dialog`);
+      console.log(`   GET  ${GATEWAY_URL}/api/messages/{messageId}/events - Get events for a message`);
+      console.log(`   GET  ${GATEWAY_URL}/api/messages/{messageId}/updates - Get updates for a message\n`);
+    });
+  } catch (error) {
+    console.error('Failed to start Gateway server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
+

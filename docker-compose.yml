@@ -68,84 +68,32 @@ services:
       retries: 3
       start_period: 40s
 
-  # Admin Web
-  admin-web:
+  # Gateway (объединяет admin-web, control-api и api-test)
+  gateway:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: chat3-admin-web
+    container_name: chat3-gateway
     restart: unless-stopped
     ports:
       - "3001:3001"
     env_file:
       - .env
-    command: npm run start:admin-web
+    command: npm run start:gateway
     depends_on:
+      tenant-api:
+        condition: service_started
       mongodb:
         condition: service_healthy
-    networks:
-      - chat3-network
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/admin', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # Control API
-  control-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: chat3-control-api
-    restart: unless-stopped
-    ports:
-      - "3002:3002"
-    env_file:
-      - .env
-    command: npm run start:control-api
     volumes:
       # Монтируем исходный код для разработки (изменения применяются без пересборки)
       - ./src:/app/src
       # Используем named volume для node_modules, чтобы не перезаписывать зависимости из образа
-      - control_api_node_modules:/app/node_modules
-    depends_on:
-      mongodb:
-        condition: service_healthy
+      - gateway_node_modules:/app/node_modules
     networks:
       - chat3-network
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # API Test
-  api-test:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: chat3-api-test
-    restart: unless-stopped
-    ports:
-      - "3003:3003"
-    env_file:
-      - .env
-    command: npm run start:api-test
-    depends_on:
-      - tenant-api
-      - admin-web
-      - control-api
-    volumes:
-      # Монтируем исходный код для разработки (изменения применяются без пересборки)
-      - ./src:/app/src
-      # Используем named volume для node_modules, чтобы не перезаписывать зависимости из образа
-      - api_test_node_modules:/app/node_modules
-    networks:
-      - chat3-network
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3003', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -190,9 +138,7 @@ volumes:
     driver: local
   rabbitmq_data:
     driver: local
-  api_test_node_modules:
-    driver: local
-  control_api_node_modules:
+  gateway_node_modules:
     driver: local
 
 networks:

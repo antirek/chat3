@@ -18,8 +18,8 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: process.env.CONTROL_API_URL || 'http://localhost:3002',
-        description: 'Control API Server'
+        url: process.env.GATEWAY_URL || process.env.CONTROL_API_URL || 'http://localhost:3001',
+        description: 'Gateway Server'
       }
     ],
     tags: [
