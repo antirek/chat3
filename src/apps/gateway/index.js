@@ -8,6 +8,7 @@ import connectDB from '../../config/database.js';
 import { admin, buildAdminRouter } from '../admin-web/admin/config.js';
 import initRoutes from '../control-api/routes/initRoutes.js';
 import eventsRoutes from '../control-api/routes/eventsRoutes.js';
+import dbExplorerRoutes from '../control-api/routes/dbExplorerRoutes.js';
 import swaggerSpec from '../control-api/config/swagger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -41,10 +42,11 @@ const adminRouter = buildAdminRouter(app);
 app.use(admin.options.rootPath, adminRouter);
 
 // ============================================
-// 2. Control API Routes - /api/init, /api/dialogs, /api/messages
+// 2. Control API Routes - /api/init, /api/dialogs, /api/messages, /api/db-explorer
 // ============================================
 app.use('/api/init', initRoutes);
 app.use('/api', eventsRoutes);
+app.use('/api/db-explorer', dbExplorerRoutes);
 
 // ============================================
 // 3. Swagger UI - /api-docs

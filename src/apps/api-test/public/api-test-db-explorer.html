@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB Explorer - Chat3</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            gap: 1px;
+            background: #ddd;
+            overflow: hidden;
+        }
+
+        .models-panel {
+            width: 250px;
+            background: white;
+            border-right: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .models-panel-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+            color: #495057;
+            font-size: 16px;
+        }
+
+        .models-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        .model-category {
+            margin-bottom: 10px;
+        }
+
+        .model-category-header {
+            padding: 10px 20px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .model-item {
+            padding: 10px 20px 10px 30px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+            font-size: 14px;
+        }
+
+        .model-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .model-item.active {
+            background-color: #e7f3ff;
+            border-left-color: #667eea;
+            font-weight: 600;
+        }
+
+        .data-panel {
+            flex: 1;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .data-panel-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .data-panel-title {
+            font-weight: 600;
+            color: #495057;
+            font-size: 16px;
+        }
+
+        .data-panel-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .data-panel-content {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 12px;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-size: 11px;
+        }
+
+        td {
+            font-size: 12px;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-top: 1px solid #e9ecef;
+            background: #f8f9fa;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            font-family: monospace;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .json-viewer {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .filter-input {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗄️ DB Explorer</h1>
+    </div>
+
+    <div class="container">
+        <!-- Левая панель: список моделей -->
+        <div class="models-panel">
+            <div class="models-panel-header">Модели</div>
+            <div class="models-list" id="modelsList">
+                <div class="loading">Загрузка моделей...</div>
+            </div>
+        </div>
+
+        <!-- Правая панель: данные модели -->
+        <div class="data-panel">
+            <div class="data-panel-header">
+                <div class="data-panel-title" id="dataPanelTitle">Выберите модель</div>
+                <div class="data-panel-actions" id="dataPanelActions" style="display: none;">
+                    <button class="btn btn-primary btn-small" onclick="loadModelData()">🔄 Обновить</button>
+                    <button class="btn btn-primary btn-small" onclick="showCreateModal()">➕ Создать</button>
+                </div>
+            </div>
+            <div class="data-panel-content" id="dataPanelContent">
+                <div class="empty">Выберите модель из списка слева</div>
+            </div>
+            <div class="pagination" id="pagination" style="display: none;">
+                <div class="pagination-info" id="paginationInfo"></div>
+                <div class="pagination-controls">
+                    <button class="btn btn-secondary btn-small" onclick="goToFirstPage()">⏮</button>
+                    <button class="btn btn-secondary btn-small" onclick="goToPreviousPage()">◀</button>
+                    <span style="font-size: 11px; margin: 0 5px;">Стр.</span>
+                    <input type="number" id="currentPageInput" min="1" value="1" onchange="goToPage(parseInt(this.value))" style="width: 50px; padding: 4px; border: 1px solid #ced4da; border-radius: 4px; font-size: 11px; text-align: center;">
+                    <span style="font-size: 11px; margin: 0 5px;">из</span>
+                    <span id="totalPages" style="font-size: 11px;">1</span>
+                    <button class="btn btn-secondary btn-small" onclick="goToNextPage()">▶</button>
+                    <button class="btn btn-secondary btn-small" onclick="goToLastPage()">⏭</button>
+                    <span style="font-size: 11px; margin-left: 10px;">Показ:</span>
+                    <select id="pageLimit" onchange="changeLimit(parseInt(this.value))" style="padding: 4px 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 11px;">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для просмотра/редактирования -->
+    <div id="itemModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="itemModalTitle">Просмотр записи</h2>
+                <button class="modal-close" onclick="closeItemModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="itemModalContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для просмотра поля data -->
+    <div id="dataModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Просмотр поля data</h2>
+                <button class="modal-close" onclick="closeDataModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="json-viewer" id="dataModalContent"></div>
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeDataModal()">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для создания -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Создать запись</h2>
+                <button class="modal-close" onclick="closeCreateModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="createForm">
+                    <div class="form-group">
+                        <label>JSON данные:</label>
+                        <textarea id="createJsonData" placeholder='{"field": "value"}'></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Создать</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        let currentModel = null;
+        let currentPage = 1;
+        let currentLimit = 50;
+        let totalPages = 1;
+        let modelsByCategory = {};
+
+        // Получить URL для control-api
+        function getControlApiUrl(path = '') {
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getControlApiUrl) {
+                return CHAT3_CONFIG.getControlApiUrl(path);
+            }
+            // Fallback: используем абсолютный URL
+            const controlApiUrl = 'http://localhost:3002';
+            return `${controlApiUrl}${path}`;
+        }
+
+        // Загрузить список моделей
+        async function loadModels() {
+            try {
+                const response = await fetch(getControlApiUrl('/api/db-explorer/models'));
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to load models: ${response.status} ${errorText}`);
+                }
+                const result = await response.json();
+                
+                // Проверяем структуру данных
+                if (!result.data || typeof result.data !== 'object') {
+                    throw new Error('Invalid data format received from server');
+                }
+                
+                modelsByCategory = result.data;
+                renderModels();
+            } catch (error) {
+                console.error('Error loading models:', error);
+                document.getElementById('modelsList').innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
+            }
+        }
+
+        // Отобразить список моделей
+        function renderModels() {
+            const list = document.getElementById('modelsList');
+            if (!modelsByCategory || Object.keys(modelsByCategory).length === 0) {
+                list.innerHTML = '<div class="empty">Модели не найдены</div>';
+                return;
+            }
+
+            let html = '';
+            for (const [categoryName, categoryModels] of Object.entries(modelsByCategory)) {
+                // Проверяем, что categoryModels это массив
+                if (!Array.isArray(categoryModels)) {
+                    console.error(`Category ${categoryName} does not contain an array:`, categoryModels);
+                    continue;
+                }
+                
+                html += `
+                    <div class="model-category">
+                        <div class="model-category-header">${escapeHtml(categoryName)}</div>
+                        ${categoryModels.map(model => `
+                            <div class="model-item" onclick="selectModel('${model.name}')" data-model="${model.name}">
+                                ${escapeHtml(model.name)}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            list.innerHTML = html;
+        }
+
+        // Выбрать модель
+        function selectModel(modelName) {
+            currentModel = modelName;
+            currentPage = 1;
+
+            // Обновить активный элемент
+            document.querySelectorAll('.model-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.model === modelName) {
+                    item.classList.add('active');
+                }
+            });
+
+            // Обновить заголовок
+            document.getElementById('dataPanelTitle').textContent = modelName;
+            document.getElementById('dataPanelActions').style.display = 'flex';
+
+            // Загрузить данные
+            loadModelData();
+        }
+
+        // Загрузить данные модели
+        async function loadModelData() {
+            if (!currentModel) return;
+
+            const url = new URL(getControlApiUrl(`/api/db-explorer/models/${currentModel}`));
+            url.searchParams.set('page', currentPage);
+            url.searchParams.set('limit', currentLimit);
+
+            const content = document.getElementById('dataPanelContent');
+            content.innerHTML = '<div class="loading">Загрузка данных...</div>';
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to load data');
+                }
+                const result = await response.json();
+
+                if (result.data.length === 0) {
+                    content.innerHTML = '<div class="empty">Нет данных</div>';
+                    document.getElementById('pagination').style.display = 'none';
+                    return;
+                }
+
+                renderTable(result.data);
+                updatePagination(result.pagination);
+            } catch (error) {
+                content.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
+                document.getElementById('pagination').style.display = 'none';
+            }
+        }
+
+        // Отобразить таблицу
+        function renderTable(data) {
+            if (data.length === 0) {
+                document.getElementById('dataPanelContent').innerHTML = '<div class="empty">Нет данных</div>';
+                return;
+            }
+
+            // Получаем все уникальные ключи из данных
+            const allKeys = new Set();
+            data.forEach(item => {
+                Object.keys(item).forEach(key => {
+                    if (key !== '_id' && key !== '__v') {
+                        // Скрываем entityId для модели Update
+                        if (currentModel === 'Update' && key === 'entityId') {
+                            return;
+                        }
+                        allKeys.add(key);
+                    }
+                });
+            });
+
+            const keys = Array.from(allKeys).slice(0, 20); // Ограничиваем количество колонок
+
+            let html = '<div class="table-container"><table><thead><tr>';
+            keys.forEach(key => {
+                html += `<th>${escapeHtml(key)}</th>`;
+            });
+            html += '<th>Действия</th></tr></thead><tbody>';
+
+            data.forEach((item, index) => {
+                html += '<tr>';
+                keys.forEach(key => {
+                    const value = item[key];
+                    let displayValue = '';
+                    if (value === null || value === undefined) {
+                        displayValue = '<span style="color: #999;">null</span>';
+                    } else if (key === 'data' && typeof value === 'object') {
+                        // Для поля data показываем кнопку вместо [Object]
+                        const dataJsonStr = JSON.stringify(value);
+                        const dataId = `data_${index}_${key}`;
+                        // Сохраняем данные в глобальный объект для доступа из обработчика
+                        if (!window.dataModalCache) {
+                            window.dataModalCache = {};
+                        }
+                        window.dataModalCache[dataId] = dataJsonStr;
+                        displayValue = `<button class="btn btn-secondary btn-small data-view-btn" data-data-id="${dataId}" title="Просмотр data">📄 data</button>`;
+                    } else if (typeof value === 'object') {
+                        displayValue = `<span style="color: #6c757d;">[Object]</span>`;
+                    } else if (typeof value === 'string' && value.length > 50) {
+                        displayValue = escapeHtml(value.substring(0, 50)) + '...';
+                    } else {
+                        displayValue = escapeHtml(String(value));
+                    }
+                    html += `<td>${displayValue}</td>`;
+                });
+                // Получаем ID для действий (приоритет: _id, затем первый найденный ID-поле)
+                const itemId = item._id || item.userId || item.dialogId || item.messageId || item.tenantId || item.key || index;
+                html += `<td class="action-buttons">
+                    <button class="btn btn-secondary btn-small" onclick="viewItem('${itemId}')" title="Просмотр">👁️</button>
+                    <button class="btn btn-secondary btn-small" onclick="editItem('${itemId}')" title="Редактировать">✏️</button>
+                    <button class="btn btn-danger btn-small" onclick="deleteItem('${itemId}')" title="Удалить">🗑️</button>
+                </td>`;
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            document.getElementById('dataPanelContent').innerHTML = html;
+            
+            // Добавляем обработчики для кнопок просмотра data
+            document.querySelectorAll('.data-view-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const dataId = this.getAttribute('data-data-id');
+                    if (window.dataModalCache && window.dataModalCache[dataId]) {
+                        showDataModal(window.dataModalCache[dataId]);
+                    }
+                });
+            });
+        }
+
+        // Обновить пагинацию
+        function updatePagination(pagination) {
+            currentPage = pagination.page;
+            totalPages = pagination.pages;
+            document.getElementById('currentPageInput').value = currentPage;
+            document.getElementById('totalPages').textContent = totalPages;
+            document.getElementById('paginationInfo').textContent = 
+                `Показано ${(currentPage - 1) * currentLimit + 1}-${Math.min(currentPage * currentLimit, pagination.total)} из ${pagination.total}`;
+            document.getElementById('pagination').style.display = 'flex';
+        }
+
+        // Навигация по страницам
+        function goToFirstPage() {
+            if (currentPage > 1) {
+                currentPage = 1;
+                loadModelData();
+            }
+        }
+
+        function goToPreviousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                loadModelData();
+            }
+        }
+
+        function goToNextPage() {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadModelData();
+            }
+        }
+
+        function goToLastPage() {
+            if (currentPage < totalPages) {
+                currentPage = totalPages;
+                loadModelData();
+            }
+        }
+
+        function goToPage(page) {
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                loadModelData();
+            }
+        }
+
+        function changeLimit(limit) {
+            currentLimit = limit;
+            currentPage = 1;
+            loadModelData();
+        }
+
+        // Просмотр записи
+        async function viewItem(id) {
+            try {
+                const response = await fetch(getControlApiUrl(`/api/db-explorer/models/${currentModel}/${id}`));
+                if (!response.ok) throw new Error('Failed to load item');
+                const result = await response.json();
+                
+                document.getElementById('itemModalTitle').textContent = `Просмотр: ${currentModel}`;
+                document.getElementById('itemModalContent').innerHTML = `
+                    <div class="json-viewer">${JSON.stringify(result.data, null, 2)}</div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeItemModal()">Закрыть</button>
+                    </div>
+                `;
+                document.getElementById('itemModal').style.display = 'block';
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        // Редактирование записи
+        async function editItem(id) {
+            try {
+                const response = await fetch(getControlApiUrl(`/api/db-explorer/models/${currentModel}/${id}`));
+                if (!response.ok) throw new Error('Failed to load item');
+                const result = await response.json();
+                
+                document.getElementById('itemModalTitle').textContent = `Редактирование: ${currentModel}`;
+                document.getElementById('itemModalContent').innerHTML = `
+                    <form id="editForm">
+                        <div class="form-group">
+                            <label>JSON данные:</label>
+                            <textarea id="editJsonData">${JSON.stringify(result.data, null, 2)}</textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeItemModal()">Отмена</button>
+                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                        </div>
+                    </form>
+                `;
+                document.getElementById('itemModal').style.display = 'block';
+
+                document.getElementById('editForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    try {
+                        const jsonData = JSON.parse(document.getElementById('editJsonData').value);
+                        const updateResponse = await fetch(getControlApiUrl(`/api/db-explorer/models/${currentModel}/${id}`), {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(jsonData)
+                        });
+                        if (!updateResponse.ok) throw new Error('Failed to update');
+                        closeItemModal();
+                        loadModelData();
+                        alert('Запись обновлена');
+                    } catch (error) {
+                        alert('Ошибка: ' + error.message);
+                    }
+                });
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        // Удаление записи
+        async function deleteItem(id) {
+            if (!confirm('Вы уверены, что хотите удалить эту запись?')) return;
+
+            try {
+                const response = await fetch(getControlApiUrl(`/api/db-explorer/models/${currentModel}/${id}`), {
+                    method: 'DELETE'
+                });
+                if (!response.ok) throw new Error('Failed to delete');
+                loadModelData();
+                alert('Запись удалена');
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        // Создание записи
+        function showCreateModal() {
+            document.getElementById('createJsonData').value = '{}';
+            document.getElementById('createModal').style.display = 'block';
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').style.display = 'none';
+        }
+
+        // Показать модальное окно с полем data
+        function showDataModal(dataJsonStr) {
+            try {
+                // Парсим JSON строку
+                const data = JSON.parse(dataJsonStr);
+                const formattedJson = JSON.stringify(data, null, 2);
+                document.getElementById('dataModalContent').textContent = formattedJson;
+                document.getElementById('dataModal').style.display = 'block';
+            } catch (error) {
+                console.error('Error parsing data:', error);
+                document.getElementById('dataModalContent').textContent = 'Ошибка при отображении данных: ' + error.message + '\n\nИсходные данные:\n' + dataJsonStr;
+                document.getElementById('dataModal').style.display = 'block';
+            }
+        }
+
+        function closeDataModal() {
+            document.getElementById('dataModal').style.display = 'none';
+        }
+
+        function closeItemModal() {
+            document.getElementById('itemModal').style.display = 'none';
+        }
+
+        // Обработчик формы создания
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const jsonData = JSON.parse(document.getElementById('createJsonData').value);
+                const response = await fetch(getControlApiUrl(`/api/db-explorer/models/${currentModel}`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(jsonData)
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to create');
+                }
+                closeCreateModal();
+                loadModelData();
+                alert('Запись создана');
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        });
+
+        // Закрытие модальных окон по клику вне их
+        window.onclick = function(event) {
+            const itemModal = document.getElementById('itemModal');
+            const createModal = document.getElementById('createModal');
+            const dataModal = document.getElementById('dataModal');
+            if (event.target === itemModal) {
+                closeItemModal();
+            }
+            if (event.target === createModal) {
+                closeCreateModal();
+            }
+            if (event.target === dataModal) {
+                closeDataModal();
+            }
+        }
+
+        // Экранирование HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Инициализация - ждем загрузки config.js
+        function init() {
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG) {
+                loadModels();
+            } else {
+                // Повторная попытка, если config.js еще не загрузился
+                setTimeout(init, 100);
+            }
+        }
+        init();
+    </script>
+</body>
+</html>
+

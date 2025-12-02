@@ -4,6 +4,7 @@ import swaggerUi from 'swagger-ui-express';
 import connectDB from '../../config/database.js';
 import initRoutes from './routes/initRoutes.js';
 import eventsRoutes from './routes/eventsRoutes.js';
+import dbExplorerRoutes from './routes/dbExplorerRoutes.js';
 import swaggerSpec from './config/swagger.js';
 
 const app = express();
@@ -56,6 +57,7 @@ app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
 // Control API Routes (no authentication required for now)
 app.use('/api/init', initRoutes);
 app.use('/api', eventsRoutes);
+app.use('/api/db-explorer', dbExplorerRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
