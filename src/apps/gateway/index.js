@@ -71,7 +71,8 @@ app.get('/config.js', (req, res) => {
   
   // Определяем URL gateway динамически на основе запроса
   // Это позволяет gateway работать на любом хосте/IP/домене
-  const protocol = req.protocol;
+  // Учитываем X-Forwarded-Proto для случаев, когда перед gateway стоит reverse proxy
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
   const host = req.get('host');
   const gatewayUrl = `${protocol}://${host}`;
   

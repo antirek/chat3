@@ -467,11 +467,22 @@
 
         // Получить URL для control-api
         function getControlApiUrl(path = '') {
+            const currentProtocol = window.location.protocol;
+            const currentHost = window.location.host;
+            
             if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getControlApiUrl) {
-                return CHAT3_CONFIG.getControlApiUrl(path);
+                let url = CHAT3_CONFIG.getControlApiUrl(path);
+                // Если URL использует HTTP, а страница загружена по HTTPS, заменяем протокол
+                if (currentProtocol === 'https:' && url.startsWith('http://')) {
+                    url = url.replace('http://', 'https://');
+                }
+                return url;
             }
-            // Fallback: используем абсолютный URL
-            const controlApiUrl = 'http://localhost:3002';
+            // Fallback: используем текущий протокол и хост
+            // Если это gateway (порт 3001), используем его, иначе localhost:3002
+            const controlApiUrl = currentHost.includes(':3001') || !currentHost.includes(':') 
+                ? `${currentProtocol}//${currentHost}` 
+                : `${currentProtocol}//${currentHost.split(':')[0]}:3002`;
             return `${controlApiUrl}${path}`;
         }
 
