@@ -14,28 +14,12 @@ if [ ! -f "Dockerfile" ]; then
     exit 1
 fi
 
-# Версия образа (можно передать как аргумент)
-VERSION=${1:-latest}
+IMAGE=antirek/mms3:0.0.8
 
-echo "📦 Building chat3:${VERSION}..."
-docker build -t antirek/mms3:0.0.5 .
 
-# Тегируем образ
-# docker tag mms3:${VERSION} chat3:latest
+echo "📦 Building..."
+sudo docker build -t ${IMAGE} .
 
-echo ""
-echo "✅ Docker images built successfully!"
-echo ""
-echo "📋 Available images:"
-docker images | grep chat3 | head -5
 
-echo ""
-echo "🚀 To run the containers:"
-echo "   docker-compose up -d"
-echo ""
-echo "📊 To view logs:"
-echo "   docker-compose logs -f"
-echo ""
-echo "🛑 To stop:"
-echo "   docker-compose down"
-
+echo "pushing..."
+sudo docker push ${IMAGE}

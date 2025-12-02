@@ -11,24 +11,9 @@ export RABBITMQ_UPDATES_EXCHANGE="${RABBITMQ_UPDATES_EXCHANGE:-chat3_updates}"
 # MongoDB переменные окружения
 export MONGODB_URI="${MONGODB_URI:-mongodb://localhost:27017/chat3}"
 
-# Порт сервера
-export PORT="${PORT:-3000}"
-
 # Окружение
 export NODE_ENV="${NODE_ENV:-development}"
 
-# Вывод конфигурации
-echo "🚀 Starting Chat3 Server..."
-echo ""
-echo "📋 Configuration:"
-echo "   MongoDB URI: ${MONGODB_URI}"
-echo "   RabbitMQ URL: ${RABBITMQ_URL}"
-echo "   RabbitMQ Events Exchange: ${RABBITMQ_EVENTS_EXCHANGE}"
-echo "   RabbitMQ Updates Exchange: ${RABBITMQ_UPDATES_EXCHANGE}"
-echo "   Port: ${PORT}"
-echo "   Environment: ${NODE_ENV}"
-echo ""
-
 # Запуск сервера
-npm start
+npm run start:all
 
