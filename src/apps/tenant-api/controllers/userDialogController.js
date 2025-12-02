@@ -1008,7 +1008,7 @@ const userDialogController = {
       const allStatuses = await MessageStatus.find({
         tenantId: req.tenantId,
         messageId: { $in: messageIds }
-      }).lean();
+      }).select('messageId userId userType tenantId status createdAt updatedAt').lean();
 
       // Группируем статусы по messageId для быстрого доступа
       const statusesByMessage = {};
@@ -1168,7 +1168,7 @@ const userDialogController = {
       const allStatuses = await MessageStatus.find({
         tenantId: req.tenantId,
         messageId: messageId
-      }).lean();
+      }).select('messageId userId userType tenantId status createdAt updatedAt').lean();
 
       // 4. Фильтруем статусы для текущего пользователя
       const myStatuses = allStatuses.filter(s => s.userId === userId);
@@ -1254,6 +1254,74 @@ const userDialogController = {
       });
     } catch (error) {
       console.error('Error in getUserDialogMessage:', error);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  async getMessageStatusMatrix(req, res) {
+    try {
+      const { userId, messageId } = req.params;
+
+      // Проверяем, что сообщение существует и принадлежит тенанту
+      const message = await Message.findOne({
+        messageId: messageId,
+        tenantId: req.tenantId
+      }).select('messageId dialogId').lean();
+
+      if (!message) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Message not found'
+        });
+      }
+
+      // Агрегируем статусы по userType и status
+      const statusMatrix = await MessageStatus.aggregate([
+        {
+          $match: {
+            messageId: messageId,
+            tenantId: req.tenantId
+          }
+        },
+        {
+          $group: {
+            _id: {
+              userType: { $ifNull: ['$userType', null] },
+              status: '$status'
+            },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            userType: '$_id.userType',
+            status: '$_id.status',
+            count: 1
+          }
+        },
+        {
+          $sort: {
+            userType: 1,
+            status: 1
+          }
+        }
+      ]);
+
+      return res.json({
+        data: statusMatrix
+      });
+    } catch (error) {
+      console.error('Error in getMessageStatusMatrix:', error);
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Invalid message ID'
+        });
+      }
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message

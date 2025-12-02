@@ -1,4 +1,4 @@
-import { MessageStatus, Message } from '../../../models/index.js';
+import { MessageStatus, Message, User } from '../../../models/index.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
@@ -31,11 +31,37 @@ const messageStatusController = {
         });
       }
 
+      // Получаем тип пользователя
+      const user = await User.findOne({
+        tenantId: req.tenantId,
+        userId: userId
+      }).select('type').lean();
+      
+      const userType = user?.type || null;
+
+      // Проверяем существующий статус
+      const oldStatus = await MessageStatus.findOne({
+        messageId: messageId,
+        userId: userId,
+        tenantId: req.tenantId
+      });
+
       // Update or create message status
       const updateData = {
         status,
         updatedAt: generateTimestamp()
       };
+      
+      // Добавляем userType при создании нового статуса или обновляем, если он еще не установлен
+      if (!oldStatus) {
+        // Создаем новый статус - добавляем userType
+        if (userType) {
+          updateData.userType = userType;
+        }
+      } else if (!oldStatus.userType && userType) {
+        // Обновляем существующий статус, если userType еще не был установлен
+        updateData.userType = userType;
+      }
 
       // Set timestamps based on status
       if (status === 'read') {
@@ -43,12 +69,6 @@ const messageStatusController = {
       } else if (status === 'delivered') {
         updateData.deliveredAt = generateTimestamp();
       }
-
-      const oldStatus = await MessageStatus.findOne({
-        messageId: messageId,
-        userId: userId,
-        tenantId: req.tenantId
-      });
 
       const messageStatus = await MessageStatus.findOneAndUpdate(
         {

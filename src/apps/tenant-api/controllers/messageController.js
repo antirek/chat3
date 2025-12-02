@@ -388,12 +388,19 @@ const messageController = {
           const userId = member.userId;
           if (userId !== senderId) { // Don't create status for sender
             try {
-              // MessageStatus уже импортирован в начале файла
+              // Получаем тип пользователя
+              const user = await User.findOne({
+                tenantId: req.tenantId,
+                userId: userId
+              }).select('type').lean();
+              
+              const userType = user?.type || null;
               
               // Create MessageStatus record
               await MessageStatus.create({
                 messageId: message.messageId,
                 userId: userId,
+                userType: userType,
                 tenantId: req.tenantId,
                 status: 'unread'
               });

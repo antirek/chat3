@@ -16,6 +16,12 @@ const messageStatusSchema = new mongoose.Schema({
     required: true,
     description: 'ID пользователя (строка, не ObjectId)'
   },
+  userType: {
+    type: String,
+    required: false,
+    trim: true,
+    description: 'Тип пользователя (user, bot, contact и т.д.)'
+  },
   tenantId: {
     type: String,
     required: true,

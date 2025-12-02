@@ -1545,6 +1545,22 @@
         </div>
     </div>
 
+    <!-- Модальное окно для просмотра матрицы статусов сообщения -->
+    <div id="statusMatrixModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 class="modal-title">📊 Матрица статусов сообщения</h2>
+                <span class="close" onclick="closeStatusMatrixModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="info-url" id="statusMatrixUrl" style="margin-bottom: 15px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 12px; word-break: break-all; color: #495057;"></div>
+                <div id="statusMatrixContent">
+                    <div class="loading">Загрузка матрицы статусов...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Модальное окно для просмотра событий диалога -->
     <div id="dialogEventsModal" class="modal">
         <div class="modal-content">
@@ -2358,6 +2374,7 @@
                                             <button class="info-button" onclick="showMessageInfo('${message.messageId}')">ℹ️ Инфо</button>
                                             <button class="action-button reactions-button" onclick="showReactionModal('${message.messageId}')">😊 Реакции</button>
                                             <button class="action-button events-button" onclick="showEventsModal('${message.messageId}')">📋 События</button>
+                                            <button class="action-button status-matrix-button" onclick="showStatusMatrixModal('${message.messageId}')">📊 Матрица статусов</button>
                                         </td>
                                     </tr>
                                 `;
@@ -4417,6 +4434,113 @@
             }
         }
 
+        // Показать модальное окно матрицы статусов сообщения
+        async function showStatusMatrixModal(messageId) {
+            if (!currentUserId) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
+
+            const modal = document.getElementById('statusMatrixModal');
+            const content = document.getElementById('statusMatrixContent');
+            const urlElement = document.getElementById('statusMatrixUrl');
+
+            // Получаем базовый URL API
+            let baseUrl = '';
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                baseUrl = CHAT3_CONFIG.getTenantApiUrl('');
+            } else {
+                baseUrl = window.location.origin.replace(':3001', ':3000');
+            }
+            const url = `${baseUrl}/api/users/${currentUserId}/messages/${messageId}/statusMatrix`;
+
+            // Отображаем URL
+            urlElement.textContent = url;
+
+            // Показываем модальное окно
+            modal.style.display = 'block';
+            content.innerHTML = '<div class="loading">Загрузка матрицы статусов...</div>';
+
+            try {
+                const response = await fetch(`/api/users/${currentUserId}/messages/${messageId}/statusMatrix`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        content.innerHTML = `
+                            <div class="no-data" style="padding: 20px; text-align: center; color: #6c757d;">
+                                <p>Сообщение не найдено</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const matrix = data.data || [];
+
+                if (matrix.length === 0) {
+                    content.innerHTML = `
+                        <div class="no-data" style="padding: 20px; text-align: center; color: #6c757d;">
+                            <p>Нет данных о статусах для этого сообщения</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Форматируем таблицу
+                content.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #dee2e6; background: #f8f9fa;">
+                                <th style="text-align: left; padding: 12px; font-weight: 600; color: #495057;">Тип пользователя</th>
+                                <th style="text-align: left; padding: 12px; font-weight: 600; color: #495057;">Статус</th>
+                                <th style="text-align: right; padding: 12px; font-weight: 600; color: #495057;">Количество</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${matrix.map((item) => {
+                                const userType = item.userType || 'не указан';
+                                const status = item.status || '-';
+                                const count = item.count || 0;
+                                
+                                return `
+                                    <tr style="border-bottom: 1px solid #e9ecef;">
+                                        <td style="padding: 12px; color: #495057; vertical-align: middle;">
+                                            <span style="font-weight: 500;">${escapeHtml(userType)}</span>
+                                        </td>
+                                        <td style="padding: 12px; color: #495057; vertical-align: middle;">
+                                            <span style="font-family: monospace; font-size: 13px;">${escapeHtml(status)}</span>
+                                        </td>
+                                        <td style="padding: 12px; text-align: right; color: #495057; vertical-align: middle; font-weight: 600;">
+                                            ${count}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading status matrix:', error);
+                content.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #dc3545;">
+                        <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки матрицы статусов: ${escapeHtml(error.message)}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Закрыть модальное окно матрицы статусов
+        function closeStatusMatrixModal() {
+            document.getElementById('statusMatrixModal').style.display = 'none';
+        }
+
         // Загрузка обновлений конкретного события
         async function loadEventUpdates(eventId, messageId) {
             const eventUpdatesList = document.getElementById('eventUpdatesList');
@@ -6103,6 +6227,7 @@
             const addMessageModal = document.getElementById('addMessageModal');
             const reactionModal = document.getElementById('reactionModal');
             const dialogMetaModal = document.getElementById('dialogMetaModal');
+            const statusMatrixModal = document.getElementById('statusMatrixModal');
             if (event.target === addMessageModal) {
                 closeAddMessageModal();
             }
@@ -6112,6 +6237,9 @@
             if (event.target === dialogMetaModal) {
                 closeDialogMetaModal();
             }
+            if (event.target === statusMatrixModal) {
+                closeStatusMatrixModal();
+            }
         }
 
         // Закрытие модального окна по клавише Escape
@@ -6120,6 +6248,7 @@
                 closeAddMessageModal();
                 closeReactionModal();
                 closeDialogMetaModal();
+                closeStatusMatrixModal();
             }
         });
 

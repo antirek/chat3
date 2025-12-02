@@ -322,4 +322,54 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  */
 router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePermission('read'), validateUserId, validateDialogId, validateMessageId, userDialogController.getUserDialogMessage);
 
+/**
+ * @swagger
+ * /api/users/{userId}/messages/{messageId}/statusMatrix:
+ *   get:
+ *     summary: Get message status matrix grouped by userType and status
+ *     description: Returns aggregated count of message statuses grouped by userType and status
+ *     tags: [UserDialogs]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Message ID
+ *     responses:
+ *       200:
+ *         description: Status matrix retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       userType:
+ *                         type: string
+ *                         nullable: true
+ *                         description: User type (user, bot, contact) or null
+ *                       status:
+ *                         type: string
+ *                         enum: [sent, unread, delivered, read]
+ *                       count:
+ *                         type: integer
+ *                         description: Number of statuses with this combination
+ *       404:
+ *         description: Message not found
+ */
+router.get('/:userId/messages/:messageId/statusMatrix', apiAuth, requirePermission('read'), validateUserId, validateMessageId, userDialogController.getMessageStatusMatrix);
+
 export default router;
