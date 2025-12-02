@@ -3,4 +3,5 @@
  */
 export * from './querySchemas.js';
 export * from './bodySchemas.js';
+export * from './responseSchemas.js';
 

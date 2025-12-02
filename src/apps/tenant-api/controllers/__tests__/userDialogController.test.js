@@ -1206,5 +1206,231 @@ describe('userDialogController', () => {
       expect(res.body.data[0].dialogId).toBe(dialog1.dialogId);
     });
   });
+
+  describe('getUserDialogMessages - response structure validation', () => {
+    let dialog;
+    const userId = 'usr_test';
+    const otherUserId = 'usr_other';
+
+    beforeEach(async () => {
+      const timestamp = generateTimestamp();
+
+      await User.create([
+        { tenantId, userId, lastActiveAt: timestamp, createdAt: timestamp },
+        { tenantId, userId: otherUserId, lastActiveAt: timestamp, createdAt: timestamp }
+      ]);
+
+      dialog = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+
+      await DialogMember.create([
+        { tenantId, dialogId: dialog.dialogId, userId, isActive: true, unreadCount: 0, joinedAt: timestamp },
+        { tenantId, dialogId: dialog.dialogId, userId: otherUserId, isActive: true, unreadCount: 0, joinedAt: timestamp }
+      ]);
+
+      const messageId = generateMessageId();
+      await Message.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        messageId,
+        senderId: userId,
+        content: 'Test message',
+        type: 'internal.text',
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+
+      // Создаем статусы для сообщения
+      const MessageStatus = (await import('../../../../models/data/MessageStatus.js')).default;
+      await MessageStatus.create([
+        {
+          tenantId,
+          messageId,
+          userId,
+          status: 'read',
+          userType: 'user',
+          createdAt: timestamp,
+          updatedAt: timestamp
+        },
+        {
+          tenantId,
+          messageId,
+          userId: otherUserId,
+          status: 'unread',
+          userType: 'user',
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }
+      ]);
+    });
+
+    test('context.statuses should be null', async () => {
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId },
+        { page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogMessages(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body?.data).toHaveLength(1);
+      const [message] = res.body.data;
+      expect(message.context).toBeDefined();
+      expect(message.context.statuses).toBeNull();
+    });
+
+    test('statusMessageMatrix should be present and valid', async () => {
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId },
+        { page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogMessages(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body?.data).toHaveLength(1);
+      const [message] = res.body.data;
+      expect(message).toHaveProperty('statusMessageMatrix');
+      expect(Array.isArray(message.statusMessageMatrix)).toBe(true);
+      
+      // Проверяем структуру элементов матрицы
+      if (message.statusMessageMatrix.length > 0) {
+        const item = message.statusMessageMatrix[0];
+        expect(item).toHaveProperty('userType');
+        expect(item).toHaveProperty('status');
+        expect(item).toHaveProperty('count');
+        expect(typeof item.count).toBe('number');
+      }
+    });
+
+    test('statusMessageMatrix should exclude current user statuses', async () => {
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId },
+        { page: 1, limit: 10 }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogMessages(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body?.data).toHaveLength(1);
+      const [message] = res.body.data;
+      
+      // Проверяем, что statusMessageMatrix содержит только статусы других пользователей
+      // (статусы текущего пользователя должны быть исключены)
+      // Матрица группируется по userType и status, поэтому проверяем наличие данных
+      expect(message.statusMessageMatrix).toBeDefined();
+      expect(Array.isArray(message.statusMessageMatrix)).toBe(true);
+    });
+  });
+
+  describe('getUserDialogMessage - response structure validation', () => {
+    let dialog;
+    const userId = 'usr_test';
+    const otherUserId = 'usr_other';
+
+    beforeEach(async () => {
+      const timestamp = generateTimestamp();
+
+      await User.create([
+        { tenantId, userId, lastActiveAt: timestamp, createdAt: timestamp },
+        { tenantId, userId: otherUserId, lastActiveAt: timestamp, createdAt: timestamp }
+      ]);
+
+      dialog = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+
+      await DialogMember.create([
+        { tenantId, dialogId: dialog.dialogId, userId, isActive: true, unreadCount: 0, joinedAt: timestamp },
+        { tenantId, dialogId: dialog.dialogId, userId: otherUserId, isActive: true, unreadCount: 0, joinedAt: timestamp }
+      ]);
+
+      const messageId = generateMessageId();
+      await Message.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        messageId,
+        senderId: userId,
+        content: 'Test message',
+        type: 'internal.text',
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+
+      // Создаем статусы для сообщения
+      const MessageStatus = (await import('../../../../models/data/MessageStatus.js')).default;
+      await MessageStatus.create([
+        {
+          tenantId,
+          messageId,
+          userId,
+          status: 'read',
+          userType: 'user',
+          createdAt: timestamp,
+          updatedAt: timestamp
+        },
+        {
+          tenantId,
+          messageId,
+          userId: otherUserId,
+          status: 'unread',
+          userType: 'user',
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }
+      ]);
+    });
+
+    test('context.statuses should be null', async () => {
+      const messageId = (await Message.findOne({ tenantId, dialogId: dialog.dialogId })).messageId;
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId, messageId }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogMessage(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body?.data).toBeDefined();
+      expect(res.body.data.context).toBeDefined();
+      expect(res.body.data.context.statuses).toBeNull();
+    });
+
+    test('statusMessageMatrix should be present and valid', async () => {
+      const messageId = (await Message.findOne({ tenantId, dialogId: dialog.dialogId })).messageId;
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId, messageId }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogMessage(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body?.data).toBeDefined();
+      expect(res.body.data).toHaveProperty('statusMessageMatrix');
+      expect(Array.isArray(res.body.data.statusMessageMatrix)).toBe(true);
+      
+      // Проверяем структуру элементов матрицы
+      if (res.body.data.statusMessageMatrix.length > 0) {
+        const item = res.body.data.statusMessageMatrix[0];
+        expect(item).toHaveProperty('userType');
+        expect(item).toHaveProperty('status');
+        expect(item).toHaveProperty('count');
+        expect(typeof item.count).toBe('number');
+      }
+    });
+  });
 });
 

@@ -4,6 +4,7 @@ import * as metaUtils from '../utils/metaUtils.js';
 import { getMetaScopeOptions } from '../utils/metaScopeUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
+import { validateGetUserDialogMessagesResponse, validateGetUserDialogMessageResponse } from '../validators/schemas/responseSchemas.js';
 
 async function getSenderInfo(tenantId, senderId, cache = new Map(), metaOptions) {
   if (!senderId) {
@@ -1064,7 +1065,41 @@ const userDialogController = {
           const messageStatuses = statusesByMessage[message.messageId] || [];
           
           // Находим статусы для текущего пользователя (может быть несколько записей)
-          const myStatuses = messageStatuses.filter(s => s.userId === userId);
+          // const myStatuses = messageStatuses.filter(s => s.userId === userId);
+
+          // Формируем матрицу статусов по userType и status (исключая статусы текущего пользователя)
+          const statusMessageMatrix = await MessageStatus.aggregate([
+            {
+              $match: {
+                tenantId: req.tenantId,
+                messageId: message.messageId,
+                userId: { $ne: userId } // Исключаем статусы текущего пользователя
+              }
+            },
+            {
+              $group: {
+                _id: {
+                  userType: { $ifNull: ['$userType', null] },
+                  status: '$status'
+                },
+                count: { $sum: 1 }
+              }
+            },
+            {
+              $project: {
+                _id: 0,
+                userType: '$_id.userType',
+                status: '$_id.status',
+                count: 1
+              }
+            },
+            {
+              $sort: {
+                userType: 1,
+                status: 1
+              }
+            }
+          ]);
 
           // Получаем реакцию пользователя на сообщение
           const reaction = await MessageReaction.findOne({
@@ -1080,7 +1115,8 @@ const userDialogController = {
           const contextData = {
             userId: userId,
             isMine: message.senderId === userId,
-            statuses: myStatuses, // Статусы только для данного пользователя
+            statuses: null, // Статусы только для данного пользователя
+            // statuses: myStatuses, // Закомментировано: всегда возвращаем null
             myReaction: reaction ? reaction.reaction : null
           };
 
@@ -1096,8 +1132,9 @@ const userDialogController = {
             meta: messageMeta,
             // Контекстные данные для конкретного пользователя
             context: contextData,
-            // Все статусы от всех пользователей
-            statuses: messageStatuses,
+            // Матрица статусов (количество пар userType-status, исключая свои статусы)
+            statusMessageMatrix: statusMessageMatrix,
+            // statuses: messageStatuses, // Закомментировано: заменено на statusMessageMatrix
             senderInfo: senderInfo || null
           };
         })
@@ -1106,7 +1143,7 @@ const userDialogController = {
       // Удаляем служебные поля
       const sanitizedMessages = enrichedMessages.map(msg => sanitizeResponse(msg));
 
-      res.json({
+      const response = {
         data: sanitizedMessages,
         pagination: {
           page,
@@ -1114,7 +1151,17 @@ const userDialogController = {
           total,
           pages: Math.ceil(total / limit)
         }
-      });
+      };
+
+      // Валидация структуры ответа (только в development)
+      if (process.env.NODE_ENV !== 'production') {
+        const validation = validateGetUserDialogMessagesResponse(response);
+        if (!validation.valid) {
+          console.warn('Response validation warning:', validation.error);
+        }
+      }
+
+      res.json(response);
     } catch (error) {
       console.error('Error in getUserDialogMessages:', error);
       res.status(500).json({
@@ -1171,7 +1218,7 @@ const userDialogController = {
       }).select('messageId userId userType tenantId status createdAt updatedAt').lean();
 
       // 4. Фильтруем статусы для текущего пользователя
-      const myStatuses = allStatuses.filter(s => s.userId === userId);
+      // const myStatuses = allStatuses.filter(s => s.userId === userId);
 
       // 4.5. Формируем матрицу статусов по userType и status (исключая статусы текущего пользователя)
       const statusMessageMatrix = await MessageStatus.aggregate([
@@ -1261,7 +1308,8 @@ const userDialogController = {
       const contextData = {
         userId: userId,
         isMine: message.senderId === userId,
-        statuses: myStatuses, // Статусы только для данного пользователя
+        statuses: null, // Статусы только для данного пользователя
+        // statuses: myStatuses, // Закомментировано: всегда возвращаем null
         myReaction: reaction ? reaction.reaction : null
       };
 
@@ -1283,9 +1331,19 @@ const userDialogController = {
         senderInfo: senderInfo || null
       };
 
-      res.json({
+      const response = {
         data: sanitizeResponse(enrichedMessage)
-      });
+      };
+
+      // Валидация структуры ответа (только в development)
+      if (process.env.NODE_ENV !== 'production') {
+        const validation = validateGetUserDialogMessageResponse(response);
+        if (!validation.valid) {
+          console.warn('Response validation warning:', validation.error);
+        }
+      }
+
+      res.json(response);
     } catch (error) {
       console.error('Error in getUserDialogMessage:', error);
       res.status(500).json({

@@ -2365,10 +2365,31 @@
                                         'read': '#4fc3f7',
                                         'unread': '#ccc'
                                     };
-                                    // Получаем статус из массива statuses
-                                    const myStatus = (ctx.statuses && ctx.statuses.length > 0) 
-                                        ? ctx.statuses[0].status 
-                                        : (ctx.isMine ? 'sent' : 'unread');
+                                    
+                                    // Определяем статус для отображения
+                                    let myStatus = null;
+                                    let statusDisplay = '-';
+                                    
+                                    if (ctx.isMine) {
+                                        // Для сообщений отправителя проверяем statusMessageMatrix
+                                        const statusMatrix = message.statusMessageMatrix || [];
+                                        // Ищем запись с userType='user' и status='read' с count >= 1
+                                        const readStatus = statusMatrix.find(
+                                            item => item.userType === 'user' && item.status === 'read' && item.count >= 1
+                                        );
+                                        
+                                        if (readStatus) {
+                                            myStatus = 'read';
+                                            statusDisplay = 'read';
+                                        } else {
+                                            // Если нет read статуса, используем sent по умолчанию
+                                            myStatus = 'sent';
+                                            statusDisplay = 'sent';
+                                        }
+                                    } else {
+                                        // Для сообщений, где пользователь не отправитель, всегда показываем "-"
+                                        statusDisplay = '-';
+                                    }
                                     
                                     return `
                                     <tr data-message-id="${message.messageId}" style="${ctx.isMine ? 'background-color: #f0f8ff;' : ''}">
@@ -2379,10 +2400,14 @@
                                         <td>${formatMessageTime(message.createdAt)}</td>
                                         <td class="message-content">${message.content}</td>
                                         <td>
-                                            <span style="color: ${statusColors[myStatus]}; font-weight: bold;" title="${myStatus}">
-                                                ${statusIcons[myStatus] || '?'}
-                                            </span>
-                                            <span style="color: #666; font-size: 11px; margin-left: 3px;">${myStatus}</span>
+                                            ${myStatus !== null ? `
+                                                <span style="color: ${statusColors[myStatus]}; font-weight: bold;" title="${myStatus}">
+                                                    ${statusIcons[myStatus] || '?'}
+                                                </span>
+                                                <span style="color: #666; font-size: 11px; margin-left: 3px;">${statusDisplay}</span>
+                                            ` : `
+                                                <span style="color: #999;">${statusDisplay}</span>
+                                            `}
                                         </td>
                                         <td style="font-size: 20px;">
                                             ${ctx.myReaction || '-'}
