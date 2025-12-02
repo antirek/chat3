@@ -309,9 +309,40 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *                         myReaction:
  *                           type: string
  *                           nullable: true
- *                     statuses:
+ *                     statusMessageMatrix:
  *                       type: array
- *                       description: All message statuses from all users
+ *                       description: |
+ *                         Матрица статусов сообщения, сгруппированная по userType и status.
+ *                         Исключает статусы текущего пользователя (userId из пути запроса).
+ *                         
+ *                         Каждый элемент матрицы содержит:
+ *                         - userType: тип пользователя (user, bot, contact) или null
+ *                         - status: статус сообщения (sent, unread, delivered, read)
+ *                         - count: количество пользователей данного типа с данным статусом
+ *                         
+ *                         Пример:
+ *                         [
+ *                           {count: 2, userType: "bot", status: "unread"},
+ *                           {count: 1, userType: "user", status: "read"},
+ *                           {count: 3, userType: "user", status: "unread"}
+ *                         ]
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           userType:
+ *                             type: string
+ *                             nullable: true
+ *                             description: Тип пользователя (user, bot, contact) или null, если тип не определен
+ *                             example: "user"
+ *                           status:
+ *                             type: string
+ *                             enum: [sent, unread, delivered, read]
+ *                             description: Статус сообщения
+ *                             example: "read"
+ *                           count:
+ *                             type: integer
+ *                             description: Количество пользователей данного типа с данным статусом
+ *                             example: 5
  *                     reactions:
  *                       type: array
  *                       description: All reactions from all users
@@ -327,7 +358,91 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePer
  * /api/users/{userId}/messages/{messageId}/statusMatrix:
  *   get:
  *     summary: Get message status matrix grouped by userType and status
- *     description: Returns aggregated count of message statuses grouped by userType and status
+ *     description: |
+ *       Возвращает матрицу статусов сообщения, сгруппированную по userType и status.
+ *       Исключает статусы текущего пользователя (userId из пути запроса).
+ *       
+ *       Матрица показывает, сколько пользователей каждого типа имеют каждый статус для данного сообщения.
+ *       Это полезно для анализа доставки и прочтения сообщений в групповых чатах.
+ *       
+ *       ⚠️ **DEPRECATED**: Этот метод устарел. Используйте `/api/users/{userId}/dialogs/{dialogId}/messages/{messageId}` 
+ *       который возвращает `statusMessageMatrix` в ответе.
+ *     deprecated: true
+ *     tags: [UserDialogs]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID пользователя, статусы которого будут исключены из матрицы
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID сообщения
+ *     responses:
+ *       200:
+ *         description: Матрица статусов успешно получена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   description: |
+ *                     Массив объектов, каждый из которых представляет комбинацию userType и status.
+ *                     
+ *                     Формат каждого элемента:
+ *                     - userType: тип пользователя (user, bot, contact) или null, если тип не определен
+ *                     - status: статус сообщения (sent, unread, delivered, read)
+ *                     - count: количество пользователей данного типа с данным статусом
+ *                     
+ *                     Пример ответа:
+ *                     [
+ *                       {count: 2, userType: "bot", status: "unread"},
+ *                       {count: 1, userType: "user", status: "read"},
+ *                       {count: 3, userType: "user", status: "unread"},
+ *                       {count: 1, userType: null, status: "delivered"}
+ *                     ]
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       userType:
+ *                         type: string
+ *                         nullable: true
+ *                         description: Тип пользователя (user, bot, contact) или null, если тип не определен
+ *                         example: "user"
+ *                       status:
+ *                         type: string
+ *                         enum: [sent, unread, delivered, read]
+ *                         description: Статус сообщения
+ *                         example: "read"
+ *                       count:
+ *                         type: integer
+ *                         description: Количество пользователей данного типа с данным статусом
+ *                         example: 5
+ *                 message:
+ *                   type: string
+ *                   description: Сообщение об успешном выполнении
+ *                   example: "Message status matrix retrieved successfully"
+ *       404:
+ *         description: Message not found
+ */
+router.get('/:userId/messages/:messageId/statusMatrix', apiAuth, requirePermission('read'), validateUserId, validateMessageId, userDialogController.getMessageStatusMatrix);
+
+/**
+ * @swagger
+ * /api/users/{userId}/dialogs/{dialogId}/messages/{messageId}/statuses:
+ *   get:
+ *     summary: Get paginated list of all message statuses
+ *     description: |
+ *       Возвращает постраничный список всех статусов сообщения.
+ *       Доступен только для участников диалога.
  *     tags: [UserDialogs]
  *     security:
  *       - ApiKeyAuth: []
@@ -339,14 +454,32 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePer
  *           type: string
  *         description: User ID
  *       - in: path
+ *         name: dialogId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Dialog ID
+ *       - in: path
  *         name: messageId
  *         required: true
  *         schema:
  *           type: string
  *         description: Message ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Number of items per page
  *     responses:
  *       200:
- *         description: Status matrix retrieved successfully
+ *         description: Statuses retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -354,22 +487,42 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePer
  *               properties:
  *                 data:
  *                   type: array
+ *                   description: Array of message statuses
  *                   items:
  *                     type: object
  *                     properties:
+ *                       messageId:
+ *                         type: string
+ *                       userId:
+ *                         type: string
  *                       userType:
  *                         type: string
  *                         nullable: true
- *                         description: User type (user, bot, contact) or null
+ *                       tenantId:
+ *                         type: string
  *                       status:
  *                         type: string
  *                         enum: [sent, unread, delivered, read]
- *                       count:
- *                         type: integer
- *                         description: Number of statuses with this combination
+ *                       createdAt:
+ *                         type: number
+ *                       updatedAt:
+ *                         type: number
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     pages:
+ *                       type: integer
+ *       403:
+ *         description: Forbidden - User is not a member of this dialog
  *       404:
  *         description: Message not found
  */
-router.get('/:userId/messages/:messageId/statusMatrix', apiAuth, requirePermission('read'), validateUserId, validateMessageId, userDialogController.getMessageStatusMatrix);
+router.get('/:userId/dialogs/:dialogId/messages/:messageId/statuses', apiAuth, requirePermission('read'), validateUserId, validateDialogId, validateMessageId, userDialogController.getMessageStatuses);
 
 export default router;

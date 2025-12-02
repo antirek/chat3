@@ -1561,6 +1561,23 @@
         </div>
     </div>
 
+    <!-- Модальное окно для просмотра статусов сообщения -->
+    <div id="statusesModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 class="modal-title">📋 Статусы сообщения</h2>
+                <span class="close" onclick="closeStatusesModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="info-url" id="statusesUrl" style="margin-bottom: 15px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 12px; word-break: break-all; color: #495057;"></div>
+                <div id="statusesContent">
+                    <div class="loading">Загрузка статусов...</div>
+                </div>
+                <div id="statusesPagination" style="margin-top: 15px; display: none;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Модальное окно для просмотра событий диалога -->
     <div id="dialogEventsModal" class="modal">
         <div class="modal-content">
@@ -2375,6 +2392,7 @@
                                             <button class="action-button reactions-button" onclick="showReactionModal('${message.messageId}')">😊 Реакции</button>
                                             <button class="action-button events-button" onclick="showEventsModal('${message.messageId}')">📋 События</button>
                                             <button class="action-button status-matrix-button" onclick="showStatusMatrixModal('${message.messageId}')">📊 Матрица статусов</button>
+                                            <button class="action-button statuses-button" onclick="showStatusesModal('${message.messageId}')">📋 Статусы</button>
                                         </td>
                                     </tr>
                                 `;
@@ -4541,6 +4559,253 @@
             document.getElementById('statusMatrixModal').style.display = 'none';
         }
 
+        // Показать модальное окно статусов сообщения
+        let currentStatusesPage = 1;
+        let currentStatusesLimit = 50;
+        let currentStatusesMessageId = null;
+
+        async function showStatusesModal(messageId) {
+            if (!currentUserId) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
+
+            if (!currentDialogId) {
+                alert('Сначала выберите диалог');
+                return;
+            }
+
+            currentStatusesMessageId = messageId;
+            currentStatusesPage = 1;
+            currentStatusesLimit = 50;
+
+            const modal = document.getElementById('statusesModal');
+            const content = document.getElementById('statusesContent');
+            const urlElement = document.getElementById('statusesUrl');
+            const paginationElement = document.getElementById('statusesPagination');
+
+            // Получаем базовый URL API
+            let baseUrl = '';
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                baseUrl = CHAT3_CONFIG.getTenantApiUrl('');
+            } else {
+                baseUrl = window.location.origin.replace(':3001', ':3000');
+            }
+            const url = `${baseUrl}/api/users/${currentUserId}/dialogs/${currentDialogId}/messages/${messageId}/statuses?page=${currentStatusesPage}&limit=${currentStatusesLimit}`;
+
+            // Отображаем URL
+            urlElement.textContent = url;
+
+            // Показываем модальное окно
+            modal.style.display = 'block';
+            content.innerHTML = '<div class="loading">Загрузка статусов...</div>';
+            paginationElement.style.display = 'none';
+
+            await loadStatuses(messageId, currentStatusesPage, currentStatusesLimit);
+        }
+
+        // Загрузить статусы сообщения
+        async function loadStatuses(messageId, page = 1, limit = 50) {
+            if (!currentUserId || !currentDialogId) {
+                return;
+            }
+
+            const content = document.getElementById('statusesContent');
+            const paginationElement = document.getElementById('statusesPagination');
+            const urlElement = document.getElementById('statusesUrl');
+
+            // Получаем базовый URL API
+            let baseUrl = '';
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                baseUrl = CHAT3_CONFIG.getTenantApiUrl('');
+            } else {
+                baseUrl = window.location.origin.replace(':3001', ':3000');
+            }
+            const url = `${baseUrl}/api/users/${currentUserId}/dialogs/${currentDialogId}/messages/${messageId}/statuses?page=${page}&limit=${limit}`;
+            urlElement.textContent = url;
+
+            content.innerHTML = '<div class="loading">Загрузка статусов...</div>';
+
+            try {
+                const response = await fetch(`/api/users/${currentUserId}/dialogs/${currentDialogId}/messages/${messageId}/statuses?page=${page}&limit=${limit}`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        content.innerHTML = `
+                            <div class="no-data" style="padding: 20px; text-align: center; color: #6c757d;">
+                                <p>Сообщение не найдено</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const statuses = data.data || [];
+                const pagination = data.pagination || {};
+
+                if (statuses.length === 0) {
+                    content.innerHTML = `
+                        <div class="no-data" style="padding: 20px; text-align: center; color: #6c757d;">
+                            <p>Нет статусов для этого сообщения</p>
+                        </div>
+                    `;
+                    paginationElement.style.display = 'none';
+                    return;
+                }
+
+                // Форматируем таблицу
+                content.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #dee2e6; background: #f8f9fa;">
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057;">userId</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057;">userType</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057;">status</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057;">createdAt</th>
+                                <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057;">updatedAt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${statuses.map((status) => {
+                                const userId = status.userId || '-';
+                                const userType = status.userType || '-';
+                                const statusValue = status.status || '-';
+                                const createdAt = status.createdAt ? new Date(parseFloat(status.createdAt)).toLocaleString('ru-RU') : '-';
+                                const updatedAt = status.updatedAt ? new Date(parseFloat(status.updatedAt)).toLocaleString('ru-RU') : '-';
+                                
+                                return `
+                                    <tr style="border-bottom: 1px solid #e9ecef;">
+                                        <td style="padding: 10px; color: #495057; vertical-align: middle;">
+                                            <span style="font-family: monospace; font-size: 12px;">${escapeHtml(userId)}</span>
+                                        </td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: middle;">
+                                            <span>${escapeHtml(userType)}</span>
+                                        </td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: middle;">
+                                            <span style="font-family: monospace; font-size: 12px;">${escapeHtml(statusValue)}</span>
+                                        </td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: middle; font-size: 12px;">
+                                            ${escapeHtml(createdAt)}
+                                        </td>
+                                        <td style="padding: 10px; color: #495057; vertical-align: middle; font-size: 12px;">
+                                            ${escapeHtml(updatedAt)}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+                // Обновляем пагинацию
+                if (pagination.pages > 1) {
+                    updateStatusesPagination(pagination);
+                    paginationElement.style.display = 'block';
+                } else {
+                    paginationElement.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading statuses:', error);
+                content.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #dc3545;">
+                        <p style="margin-bottom: 10px;">⚠️ Ошибка загрузки статусов: ${escapeHtml(error.message)}</p>
+                    </div>
+                `;
+                paginationElement.style.display = 'none';
+            }
+        }
+
+        // Обновить пагинацию статусов
+        function updateStatusesPagination(pagination) {
+            const paginationElement = document.getElementById('statusesPagination');
+            const { page, pages, total, limit } = pagination;
+
+            let paginationHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <div style="font-size: 12px; color: #6c757d;">
+                        Всего: ${total} | Страница ${page} из ${pages}
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+            `;
+
+            // Кнопка "Предыдущая"
+            if (page > 1) {
+                paginationHTML += `
+                    <button onclick="goToStatusesPage(${page - 1})" style="padding: 5px 10px; font-size: 12px; border: 1px solid #dee2e6; background: white; border-radius: 4px; cursor: pointer;">◀</button>
+                `;
+            } else {
+                paginationHTML += `
+                    <button disabled style="padding: 5px 10px; font-size: 12px; border: 1px solid #dee2e6; background: #f8f9fa; border-radius: 4px; cursor: not-allowed; color: #6c757d;">◀</button>
+                `;
+            }
+
+            // Номера страниц
+            const startPage = Math.max(1, page - 2);
+            const endPage = Math.min(pages, page + 2);
+
+            if (startPage > 1) {
+                paginationHTML += `<button onclick="goToStatusesPage(1)" style="padding: 5px 10px; font-size: 12px; border: 1px solid #dee2e6; background: white; border-radius: 4px; cursor: pointer;">1</button>`;
+                if (startPage > 2) {
+                    paginationHTML += `<span style="padding: 5px; color: #6c757d;">...</span>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === page) {
+                    paginationHTML += `<button disabled style="padding: 5px 10px; font-size: 12px; border: 1px solid #007bff; background: #007bff; color: white; border-radius: 4px; font-weight: 600;">${i}</button>`;
+                } else {
+                    paginationHTML += `<button onclick="goToStatusesPage(${i})" style="padding: 5px 10px; font-size: 12px; border: 1px solid #dee2e6; background: white; border-radius: 4px; cursor: pointer;">${i}</button>`;
+                }
+            }
+
+            if (endPage < pages) {
+                if (endPage < pages - 1) {
+                    paginationHTML += `<span style="padding: 5px; color: #6c757d;">...</span>`;
+                }
+                paginationHTML += `<button onclick="goToStatusesPage(${pages})" style="padding: 5px 10px; font-size: 12px; border: 1px solid #dee2e6; background: white; border-radius: 4px; cursor: pointer;">${pages}</button>`;
+            }
+
+            // Кнопка "Следующая"
+            if (page < pages) {
+                paginationHTML += `
+                    <button onclick="goToStatusesPage(${page + 1})" style="padding: 5px 10px; font-size: 12px; border: 1px solid #dee2e6; background: white; border-radius: 4px; cursor: pointer;">▶</button>
+                `;
+            } else {
+                paginationHTML += `
+                    <button disabled style="padding: 5px 10px; font-size: 12px; border: 1px solid #dee2e6; background: #f8f9fa; border-radius: 4px; cursor: not-allowed; color: #6c757d;">▶</button>
+                `;
+            }
+
+            paginationHTML += `
+                    </div>
+                </div>
+            `;
+
+            paginationElement.innerHTML = paginationHTML;
+        }
+
+        // Перейти на страницу статусов
+        async function goToStatusesPage(page) {
+            if (currentStatusesMessageId) {
+                currentStatusesPage = page;
+                await loadStatuses(currentStatusesMessageId, page, currentStatusesLimit);
+            }
+        }
+
+        // Закрыть модальное окно статусов
+        function closeStatusesModal() {
+            document.getElementById('statusesModal').style.display = 'none';
+            currentStatusesMessageId = null;
+            currentStatusesPage = 1;
+        }
+
         // Загрузка обновлений конкретного события
         async function loadEventUpdates(eventId, messageId) {
             const eventUpdatesList = document.getElementById('eventUpdatesList');
@@ -6228,6 +6493,7 @@
             const reactionModal = document.getElementById('reactionModal');
             const dialogMetaModal = document.getElementById('dialogMetaModal');
             const statusMatrixModal = document.getElementById('statusMatrixModal');
+            const statusesModal = document.getElementById('statusesModal');
             if (event.target === addMessageModal) {
                 closeAddMessageModal();
             }
@@ -6240,6 +6506,9 @@
             if (event.target === statusMatrixModal) {
                 closeStatusMatrixModal();
             }
+            if (event.target === statusesModal) {
+                closeStatusesModal();
+            }
         }
 
         // Закрытие модального окна по клавише Escape
@@ -6249,6 +6518,7 @@
                 closeReactionModal();
                 closeDialogMetaModal();
                 closeStatusMatrixModal();
+                closeStatusesModal();
             }
         });
 

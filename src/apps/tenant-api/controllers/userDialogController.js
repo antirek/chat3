@@ -1173,6 +1173,40 @@ const userDialogController = {
       // 4. Фильтруем статусы для текущего пользователя
       const myStatuses = allStatuses.filter(s => s.userId === userId);
 
+      // 4.5. Формируем матрицу статусов по userType и status (исключая статусы текущего пользователя)
+      const statusMessageMatrix = await MessageStatus.aggregate([
+        {
+          $match: {
+            tenantId: req.tenantId,
+            messageId: messageId,
+            userId: { $ne: userId } // Исключаем статусы текущего пользователя
+          }
+        },
+        {
+          $group: {
+            _id: {
+              userType: { $ifNull: ['$userType', null] },
+              status: '$status'
+            },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            userType: '$_id.userType',
+            status: '$_id.status',
+            count: 1
+          }
+        },
+        {
+          $sort: {
+            userType: 1,
+            status: 1
+          }
+        }
+      ]);
+
       // 5. Получаем реакцию пользователя на сообщение
       const reaction = await MessageReaction.findOne({
         tenantId: req.tenantId,
@@ -1243,8 +1277,8 @@ const userDialogController = {
         meta: messageMeta,
         // Контекстные данные для конкретного пользователя
         context: contextData,
-        // Полная информация
-        statuses: allStatuses,
+        // Матрица статусов (количество пар userId-status, исключая свои статусы)
+        statusMessageMatrix: statusMessageMatrix,
         reactions: allReactions,
         senderInfo: senderInfo || null
       };
@@ -1278,12 +1312,13 @@ const userDialogController = {
         });
       }
 
-      // Агрегируем статусы по userType и status
+      // Агрегируем статусы по userType и status (исключая статусы текущего пользователя)
       const statusMatrix = await MessageStatus.aggregate([
         {
           $match: {
             messageId: messageId,
-            tenantId: req.tenantId
+            tenantId: req.tenantId,
+            userId: { $ne: userId } // Исключаем статусы текущего пользователя
           }
         },
         {
@@ -1322,6 +1357,78 @@ const userDialogController = {
           message: 'Invalid message ID'
         });
       }
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  async getMessageStatuses(req, res) {
+    try {
+      const { userId, dialogId, messageId } = req.params;
+      const page = parseInt(req.query.page, 10) || 1;
+      const limit = parseInt(req.query.limit, 10) || 50;
+      const skip = (page - 1) * limit;
+
+      // 1. Проверяем, что пользователь является участником диалога
+      const member = await DialogMember.findOne({
+        tenantId: req.tenantId,
+        dialogId: dialogId,
+        userId: userId
+      });
+
+      if (!member) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'User is not a member of this dialog'
+        });
+      }
+
+      // 2. Проверяем, что сообщение существует
+      const message = await Message.findOne({
+        tenantId: req.tenantId,
+        dialogId: dialogId,
+        messageId: messageId
+      }).lean();
+
+      if (!message) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Message not found'
+        });
+      }
+
+      // 3. Получаем общее количество статусов
+      const total = await MessageStatus.countDocuments({
+        tenantId: req.tenantId,
+        messageId: messageId
+      });
+
+      // 4. Получаем статусы с пагинацией
+      const statuses = await MessageStatus.find({
+        tenantId: req.tenantId,
+        messageId: messageId
+      })
+        .select('messageId userId userType tenantId status createdAt updatedAt')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      const pages = Math.ceil(total / limit);
+
+      res.json({
+        data: statuses,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages
+        }
+      });
+    } catch (error) {
+      console.error('Error in getMessageStatuses:', error);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
