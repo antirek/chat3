@@ -107,7 +107,14 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  * /api/users/{userId}/dialogs/{dialogId}/messages:
  *   get:
  *     summary: Get messages from a dialog in context of specific user
- *     description: Returns messages with user-specific data (statuses, isMine, myReaction). Only accessible if user is a dialog member.
+ *     description: |
+ *       Возвращает сообщения с контекстными данными пользователя (isMine, myReaction, statusMessageMatrix).
+ *       Доступно только для участников диалога.
+ *       
+ *       **Важно**: 
+ *       - `context.statuses` всегда возвращает `null` (устарело)
+ *       - Для получения информации о статусах используйте `statusMessageMatrix` в корне каждого объекта сообщения
+ *       - `statusMessageMatrix` содержит агрегированные данные о статусах других пользователей, исключая текущего
  *     tags: [UserDialogs]
  *     security:
  *       - ApiKeyAuth: []
@@ -190,23 +197,49 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *                             description: True if current user is the sender
  *                           statuses:
  *                             type: array
- *                             description: Message statuses for current user (array of status objects)
- *                             items:
- *                               type: object
- *                               properties:
- *                                 status:
- *                                   type: string
- *                                   enum: [sent, unread, delivered, read]
- *                                 userId:
- *                                   type: string
- *                                 messageId:
- *                                   type: string
- *                                 createdAt:
- *                                   type: number
+ *                             nullable: true
+ *                             description: |
+ *                               Статусы сообщения для текущего пользователя.
+ *                               ⚠️ **DEPRECATED**: Всегда возвращает `null`.
+ *                               Для получения информации о статусах используйте `statusMessageMatrix` в корне объекта сообщения.
  *                           myReaction:
  *                             type: string
  *                             nullable: true
  *                             description: Current user's reaction (emoji) or null
+ *                       statusMessageMatrix:
+ *                         type: array
+ *                         description: |
+ *                           Матрица статусов сообщения, сгруппированная по userType и status.
+ *                           Исключает статусы текущего пользователя (userId из пути запроса).
+ *                           
+ *                           Каждый элемент матрицы содержит:
+ *                           - userType: тип пользователя (user, bot, contact) или null
+ *                           - status: статус сообщения (sent, unread, delivered, read)
+ *                           - count: количество пользователей данного типа с данным статусом
+ *                           
+ *                           Пример:
+ *                           [
+ *                             {count: 2, userType: "bot", status: "unread"},
+ *                             {count: 1, userType: "user", status: "read"},
+ *                             {count: 3, userType: "user", status: "unread"}
+ *                           ]
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             userType:
+ *                               type: string
+ *                               nullable: true
+ *                               description: Тип пользователя (user, bot, contact) или null, если тип не определен
+ *                               example: "user"
+ *                             status:
+ *                               type: string
+ *                               enum: [sent, unread, delivered, read]
+ *                               description: Статус сообщения
+ *                               example: "read"
+ *                             count:
+ *                               type: integer
+ *                               description: Количество пользователей данного типа с данным статусом
+ *                               example: 5
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -232,7 +265,13 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  * /api/users/{userId}/dialogs/{dialogId}/messages/{messageId}:
  *   get:
  *     summary: Get single message in context of specific user
- *     description: Returns detailed message information with user-specific context, all statuses and reactions
+ *     description: |
+ *       Возвращает детальную информацию о сообщении с контекстными данными пользователя, матрицей статусов и реакциями.
+ *       
+ *       **Важно**: 
+ *       - `context.statuses` всегда возвращает `null` (устарело)
+ *       - Для получения информации о статусах используйте `statusMessageMatrix` в корне объекта сообщения
+ *       - `statusMessageMatrix` содержит агрегированные данные о статусах других пользователей, исключая текущего
  *     tags: [UserDialogs]
  *     security:
  *       - ApiKeyAuth: []
@@ -293,19 +332,11 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *                           type: boolean
  *                         statuses:
  *                           type: array
- *                           description: Message statuses for current user (array of status objects)
- *                           items:
- *                             type: object
- *                             properties:
- *                               status:
- *                                 type: string
- *                                 enum: [sent, unread, delivered, read]
- *                               userId:
- *                                 type: string
- *                               messageId:
- *                                 type: string
- *                               createdAt:
- *                                 type: number
+ *                           nullable: true
+ *                           description: |
+ *                             Статусы сообщения для текущего пользователя.
+ *                             ⚠️ **DEPRECATED**: Всегда возвращает `null`.
+ *                             Для получения информации о статусах используйте `statusMessageMatrix` в корне объекта сообщения.
  *                         myReaction:
  *                           type: string
  *                           nullable: true
