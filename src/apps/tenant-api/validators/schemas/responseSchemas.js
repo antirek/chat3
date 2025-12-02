@@ -5,7 +5,7 @@
 /**
  * Валидация ответа getUserDialogMessages
  * Проверяет, что:
- * - context.statuses всегда null
+ * - context.statuses отсутствует (поле удалено)
  * - statusMessageMatrix присутствует и является массивом
  * - statuses отсутствует в корне объекта сообщения
  */
@@ -19,11 +19,11 @@ export function validateGetUserDialogMessagesResponse(response) {
   }
 
   for (const message of response.data) {
-    // Проверяем, что context.statuses = null
-    if (message.context && message.context.statuses !== null) {
+    // Проверяем, что context.statuses отсутствует
+    if (message.context && message.context.hasOwnProperty('statuses')) {
       return {
         valid: false,
-        error: `Message ${message.messageId}: context.statuses must be null, got ${typeof message.context.statuses}`
+        error: `Message ${message.messageId}: context.statuses field should not be present`
       };
     }
 
@@ -69,7 +69,7 @@ export function validateGetUserDialogMessagesResponse(response) {
 /**
  * Валидация ответа getUserDialogMessage
  * Проверяет, что:
- * - context.statuses всегда null
+ * - context.statuses отсутствует (поле удалено)
  * - statusMessageMatrix присутствует и является массивом
  * - statuses отсутствует в корне объекта сообщения
  */
@@ -80,11 +80,11 @@ export function validateGetUserDialogMessageResponse(response) {
 
   const message = response.data;
 
-  // Проверяем, что context.statuses = null
-  if (message.context && message.context.statuses !== null) {
+  // Проверяем, что context.statuses отсутствует
+  if (message.context && message.context.hasOwnProperty('statuses')) {
     return {
       valid: false,
-      error: `context.statuses must be null, got ${typeof message.context.statuses}`
+      error: 'context.statuses field should not be present'
     };
   }
 

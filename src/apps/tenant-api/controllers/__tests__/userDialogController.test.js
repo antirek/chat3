@@ -1269,7 +1269,7 @@ describe('userDialogController', () => {
       ]);
     });
 
-    test('context.statuses should be null', async () => {
+    test('context should not have statuses field', async () => {
       const req = createMockReq(
         { userId, dialogId: dialog.dialogId },
         { page: 1, limit: 10 }
@@ -1282,7 +1282,7 @@ describe('userDialogController', () => {
       expect(res.body?.data).toHaveLength(1);
       const [message] = res.body.data;
       expect(message.context).toBeDefined();
-      expect(message.context.statuses).toBeNull();
+      expect(message.context).not.toHaveProperty('statuses');
     });
 
     test('statusMessageMatrix should be present and valid', async () => {
@@ -1393,7 +1393,7 @@ describe('userDialogController', () => {
       ]);
     });
 
-    test('context.statuses should be null', async () => {
+    test('context should not have statuses field', async () => {
       const messageId = (await Message.findOne({ tenantId, dialogId: dialog.dialogId })).messageId;
       const req = createMockReq(
         { userId, dialogId: dialog.dialogId, messageId }
@@ -1405,7 +1405,7 @@ describe('userDialogController', () => {
       expect(res.statusCode).toBeUndefined();
       expect(res.body?.data).toBeDefined();
       expect(res.body.data.context).toBeDefined();
-      expect(res.body.data.context.statuses).toBeNull();
+      expect(res.body.data.context).not.toHaveProperty('statuses');
     });
 
     test('statusMessageMatrix should be present and valid', async () => {

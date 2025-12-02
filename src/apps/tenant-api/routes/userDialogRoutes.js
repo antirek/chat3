@@ -112,7 +112,7 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *       Доступно только для участников диалога.
  *       
  *       **Важно**: 
- *       - `context.statuses` всегда возвращает `null` (устарело)
+ *       - `context.statuses` удалено из ответа
  *       - Для получения информации о статусах используйте `statusMessageMatrix` в корне каждого объекта сообщения
  *       - `statusMessageMatrix` содержит агрегированные данные о статусах других пользователей, исключая текущего
  *     tags: [UserDialogs]
@@ -200,7 +200,7 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *                             nullable: true
  *                             description: |
  *                               Статусы сообщения для текущего пользователя.
- *                               ⚠️ **DEPRECATED**: Всегда возвращает `null`.
+ *                               ⚠️ **REMOVED**: Поле удалено из ответа.
  *                               Для получения информации о статусах используйте `statusMessageMatrix` в корне объекта сообщения.
  *                           myReaction:
  *                             type: string
@@ -269,7 +269,7 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *       Возвращает детальную информацию о сообщении с контекстными данными пользователя, матрицей статусов и реакциями.
  *       
  *       **Важно**: 
- *       - `context.statuses` всегда возвращает `null` (устарело)
+ *       - `context.statuses` удалено из ответа
  *       - Для получения информации о статусах используйте `statusMessageMatrix` в корне объекта сообщения
  *       - `statusMessageMatrix` содержит агрегированные данные о статусах других пользователей, исключая текущего
  *     tags: [UserDialogs]
@@ -335,7 +335,7 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *                           nullable: true
  *                           description: |
  *                             Статусы сообщения для текущего пользователя.
- *                             ⚠️ **DEPRECATED**: Всегда возвращает `null`.
+ *                             ⚠️ **REMOVED**: Поле удалено из ответа.
  *                             Для получения информации о статусах используйте `statusMessageMatrix` в корне объекта сообщения.
  *                         myReaction:
  *                           type: string

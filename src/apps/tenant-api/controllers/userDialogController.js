@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+// import mongoose from 'mongoose';
 import { DialogMember, Dialog, Message, Meta, MessageStatus, MessageReaction, User } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { getMetaScopeOptions } from '../utils/metaScopeUtils.js';
@@ -1115,7 +1115,7 @@ const userDialogController = {
           const contextData = {
             userId: userId,
             isMine: message.senderId === userId,
-            statuses: null, // Статусы только для данного пользователя
+            // statuses: null, // Статусы только для данного пользователя
             // statuses: myStatuses, // Закомментировано: всегда возвращаем null
             myReaction: reaction ? reaction.reaction : null
           };
@@ -1308,7 +1308,7 @@ const userDialogController = {
       const contextData = {
         userId: userId,
         isMine: message.senderId === userId,
-        statuses: null, // Статусы только для данного пользователя
+        // statuses: null, // Статусы только для данного пользователя
         // statuses: myStatuses, // Закомментировано: всегда возвращаем null
         myReaction: reaction ? reaction.reaction : null
       };
