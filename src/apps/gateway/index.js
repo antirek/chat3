@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 import connectDB from '../../config/database.js';
-import { admin, buildAdminRouter } from '../admin-web/admin/config.js';
 import initRoutes from '../control-api/routes/initRoutes.js';
 import eventsRoutes from '../control-api/routes/eventsRoutes.js';
 import dbExplorerRoutes from '../control-api/routes/dbExplorerRoutes.js';
@@ -31,25 +30,19 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Tenant-Id', 'x-tenant-id']
 }));
 
-// Body parser middleware (должен быть до AdminJS)
+// Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ============================================
-// 1. AdminJS Panel - /admin
-// ============================================
-const adminRouter = buildAdminRouter(app);
-app.use(admin.options.rootPath, adminRouter);
-
-// ============================================
-// 2. Control API Routes - /api/init, /api/dialogs, /api/messages, /api/db-explorer
+// 1. Control API Routes - /api/init, /api/dialogs, /api/messages, /api/db-explorer
 // ============================================
 app.use('/api/init', initRoutes);
 app.use('/api', eventsRoutes);
 app.use('/api/db-explorer', dbExplorerRoutes);
 
 // ============================================
-// 3. Swagger UI - /api-docs
+// 2. Swagger UI - /api-docs
 // ============================================
 app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
   const protocol = req.protocol;
@@ -70,7 +63,7 @@ app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
 });
 
 // ============================================
-// 4. API Test Suite - / (главная) и статические файлы
+// 3. API Test Suite - / (главная) и статические файлы
 // ============================================
 // Dynamic config.js endpoint - must be before static files
 app.get('/config.js', (req, res) => {
@@ -90,7 +83,6 @@ app.get('/config.js', (req, res) => {
   // Safely escape URLs for JavaScript
   const config = {
     TENANT_API_URL: tenantApiUrl,
-    ADMIN_WEB_URL: gatewayUrl,
     CONTROL_API_URL: gatewayUrl,
     API_TEST_URL: gatewayUrl
   };
@@ -98,7 +90,6 @@ app.get('/config.js', (req, res) => {
   res.send(`// Конфигурация URL для разных сервисов (генерируется динамически на основе запроса)
 window.CHAT3_CONFIG = {
     TENANT_API_URL: ${JSON.stringify(config.TENANT_API_URL)},
-    ADMIN_WEB_URL: ${JSON.stringify(config.ADMIN_WEB_URL)},
     CONTROL_API_URL: ${JSON.stringify(config.CONTROL_API_URL)},
     API_TEST_URL: ${JSON.stringify(config.API_TEST_URL)},
     
@@ -108,10 +99,6 @@ window.CHAT3_CONFIG = {
     
     getControlApiUrl: function(path = '') {
         return this.CONTROL_API_URL + path;
-    },
-    
-    getAdminWebUrl: function(path = '') {
-        return this.ADMIN_WEB_URL + path;
     }
 };`);
 });
@@ -135,7 +122,6 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     version: '1.0.0',
     endpoints: {
-      admin: `${GATEWAY_URL}${admin.options.rootPath}`,
       apiDocs: `${GATEWAY_URL}/api-docs`,
       init: `${GATEWAY_URL}/api/init`,
       seed: `${GATEWAY_URL}/api/init/seed`,
@@ -159,7 +145,6 @@ const startServer = async () => {
     // Start server
     app.listen(PORT, () => {
       console.log(`\n🚀 Chat3 Gateway is running on ${GATEWAY_URL}`);
-      console.log(`\n📊 AdminJS Panel: ${GATEWAY_URL}${admin.options.rootPath} (без авторизации)`);
       console.log(`📚 API Documentation: ${GATEWAY_URL}/api-docs`);
       console.log(`🧪 API Test Suite: ${GATEWAY_URL}`);
       console.log(`💚 Health Check: ${GATEWAY_URL}/health`);
