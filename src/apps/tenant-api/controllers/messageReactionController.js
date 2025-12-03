@@ -72,9 +72,9 @@ const messageReactionController = {
   async setOrUnsetReaction(req, res) {
     try {
       const { messageId, action, userId: pathUserId } = req.params;
-      const { reaction, userId: bodyUserId } = req.body;
-      // Приоритет: userId из пути > userId из тела запроса > userId из middleware
-      const userId = pathUserId || bodyUserId || req.userId;
+      const { reaction } = req.body;
+      // userId берется из пути запроса или из middleware
+      const userId = pathUserId || req.userId;
 
       if (!userId) {
         return res.status(400).json({

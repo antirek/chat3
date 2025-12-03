@@ -631,9 +631,6 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId/reactions',
  *                 type: string
  *                 description: Reaction type (emoji or text)
  *                 example: "👍"
- *               userId:
- *                 type: string
- *                 description: User ID (if not provided in path, uses userId from path)
  *     responses:
  *       201:
  *         description: Reaction set successfully

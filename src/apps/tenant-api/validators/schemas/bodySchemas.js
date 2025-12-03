@@ -128,10 +128,10 @@ export const updateMessageContentSchema = Joi.object({
 
 /**
  * Схема валидации добавления/удаления реакции
+ * userId берется из пути запроса, не из body
  */
 export const addReactionSchema = Joi.object({
   reaction: Joi.string().trim().min(1).max(50).required(),
-  userId: Joi.string().trim().min(1).max(100).optional(),
   action: Joi.string().valid('set', 'unset').optional().default('set')
 });
 

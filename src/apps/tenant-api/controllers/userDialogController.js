@@ -1,79 +1,20 @@
-// import mongoose from 'mongoose';
-import { DialogMember, Dialog, Message, Meta, MessageStatus, MessageReaction, User } from '../../../models/index.js';
+import { 
+  DialogMember, Dialog, Message, 
+  Meta, MessageStatus, 
+  // MessageReaction, 
+  User } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { getMetaScopeOptions } from '../utils/metaScopeUtils.js';
-import { parseFilters, extractMetaFilters, processMemberFilters } from '../utils/queryParser.js';
+import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { validateGetUserDialogMessagesResponse, validateGetUserDialogMessageResponse } from '../validators/schemas/responseSchemas.js';
-
-async function getSenderInfo(tenantId, senderId, cache = new Map(), metaOptions) {
-  if (!senderId) {
-    return null;
-  }
-
-  const cacheKey = metaOptions?.scope ? `${senderId}:${metaOptions.scope}` : senderId;
-
-  if (cache.has(cacheKey)) {
-    return cache.get(cacheKey);
-  }
-
-  const user = await User.findOne({
-    userId: senderId,
-    tenantId
-  })
-    .select('userId name lastActiveAt createdAt updatedAt')
-    .lean();
-
-  const meta = await metaUtils.getEntityMeta(tenantId, 'user', senderId, metaOptions);
-
-  if (!user && (!meta || Object.keys(meta).length === 0)) {
-    cache.set(cacheKey, null);
-    return null;
-  }
-
-  const senderInfo = {
-    userId: senderId,
-    lastActiveAt: user?.lastActiveAt ?? null,
-    createdAt: user?.createdAt ?? null,
-    updatedAt: user?.updatedAt ?? null,
-    meta
-  };
-
-  cache.set(cacheKey, senderInfo);
-  return senderInfo;
-}
-
-function mergeMetaRecordsForScope(records = [], scope) {
-  if (!records.length) {
-    return {};
-  }
-
-  const result = {};
-
-  if (scope) {
-    records
-      .filter(record => record.scope === scope)
-      .forEach((record) => {
-        result[record.key] = record.value;
-      });
-
-    records
-      .filter(record => record.scope === null || typeof record.scope === 'undefined')
-      .forEach((record) => {
-        if (!Object.prototype.hasOwnProperty.call(result, record.key)) {
-          result[record.key] = record.value;
-        }
-      });
-  } else {
-    records
-      .filter(record => record.scope === null || typeof record.scope === 'undefined')
-      .forEach((record) => {
-        result[record.key] = record.value;
-      });
-  }
-
-  return result;
-}
+import {
+  getSenderInfo,
+  mergeMetaRecordsForScope,
+  buildStatusMessageMatrix,
+  buildReactionSet,
+  getContextUserInfo
+} from '../utils/userDialogUtils.js';
 
 const userDialogController = {
   // Get user's dialogs with optional last message
@@ -1023,110 +964,25 @@ const userDialogController = {
       const senderInfoCache = new Map();
 
       // 4.5. Загружаем информацию о пользователе из контекста
-      const contextUser = await User.findOne({
-        userId: userId,
-        tenantId: req.tenantId
-      }).select('userId name lastActiveAt createdAt updatedAt').lean();
-
-      let contextUserInfo = null;
-      if (contextUser) {
-        // Пользователь существует в User модели
-        const contextUserMeta = await fetchMeta('user', userId);
-        contextUserInfo = {
-          userId: contextUser.userId,
-          lastActiveAt: contextUser.lastActiveAt ?? null,
-          createdAt: contextUser.createdAt ?? null,
-          updatedAt: contextUser.updatedAt ?? null,
-          meta: contextUserMeta
-        };
-        senderInfoCache.set(contextUser.userId, contextUserInfo);
-      } else {
-        // Fallback: пользователь не существует в Chat3 API, но может быть meta теги
-        // Используем getMeta для получения данных пользователя (например, avatar)
-        const contextUserMeta = await fetchMeta('user', userId);
-        if (contextUserMeta && Object.keys(contextUserMeta).length > 0) {
-          // Есть meta теги, создаем userInfo только на основе meta
-          contextUserInfo = {
-            userId: userId,
-            name: null, // Имя отсутствует, так как пользователя нет в User
-            lastActiveAt: null,
-            createdAt: null,
-            updatedAt: null,
-            meta: contextUserMeta
-          };
-          senderInfoCache.set(userId, contextUserInfo);
-        }
+      const contextUserInfo = await getContextUserInfo(req.tenantId, userId, fetchMeta);
+      if (contextUserInfo) {
+        senderInfoCache.set(contextUserInfo.userId, contextUserInfo);
       }
 
       // 5. Обогащаем сообщения контекстными данными для пользователя
       const enrichedMessages = await Promise.all(
         messages.map(async (message) => {
           // Получаем статусы для этого сообщения
-          const messageStatuses = statusesByMessage[message.messageId] || [];
+          // const messageStatuses = statusesByMessage[message.messageId] || [];
           
           // Находим статусы для текущего пользователя (может быть несколько записей)
           // const myStatuses = messageStatuses.filter(s => s.userId === userId);
 
           // Формируем матрицу статусов по userType и status (исключая статусы текущего пользователя)
-          const statusMessageMatrix = await MessageStatus.aggregate([
-            {
-              $match: {
-                tenantId: req.tenantId,
-                messageId: message.messageId,
-                userId: { $ne: userId } // Исключаем статусы текущего пользователя
-              }
-            },
-            {
-              $group: {
-                _id: {
-                  userType: { $ifNull: ['$userType', null] },
-                  status: '$status'
-                },
-                count: { $sum: 1 }
-              }
-            },
-            {
-              $project: {
-                _id: 0,
-                userType: '$_id.userType',
-                status: '$_id.status',
-                count: 1
-              }
-            },
-            {
-              $sort: {
-                userType: 1,
-                status: 1
-              }
-            }
-          ]);
+          const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, message.messageId, userId);
 
-          // Получаем все реакции на сообщение
-          const allReactions = await MessageReaction.find({
-            tenantId: req.tenantId,
-            messageId: message.messageId
-          }).lean();
-
-          // Формируем reactionSet: группируем реакции по типу и проверяем, есть ли у текущего пользователя
-          const reactionMap = new Map();
-          
-          allReactions.forEach(r => {
-            const reactionType = r.reaction;
-            if (!reactionMap.has(reactionType)) {
-              reactionMap.set(reactionType, {
-                reaction: reactionType,
-                count: 0,
-                me: false
-              });
-            }
-            const item = reactionMap.get(reactionType);
-            item.count++;
-            if (r.userId === userId) {
-              item.me = true;
-            }
-          });
-          
-          const reactionSet = Array.from(reactionMap.values());
+          // Формируем reactionSet
+          const reactionSet = await buildReactionSet(req.tenantId, message.messageId, userId);
 
           // Получаем метаданные сообщения
           const messageMeta = await fetchMeta('message', message.messageId);
@@ -1245,102 +1101,16 @@ const userDialogController = {
       // const myStatuses = allStatuses.filter(s => s.userId === userId);
 
       // 4.5. Формируем матрицу статусов по userType и status (исключая статусы текущего пользователя)
-      const statusMessageMatrix = await MessageStatus.aggregate([
-        {
-          $match: {
-            tenantId: req.tenantId,
-            messageId: messageId,
-            userId: { $ne: userId } // Исключаем статусы текущего пользователя
-          }
-        },
-        {
-          $group: {
-            _id: {
-              userType: { $ifNull: ['$userType', null] },
-              status: '$status'
-            },
-            count: { $sum: 1 }
-          }
-        },
-        {
-          $project: {
-            _id: 0,
-            userType: '$_id.userType',
-            status: '$_id.status',
-            count: 1
-          }
-        },
-        {
-          $sort: {
-            userType: 1,
-            status: 1
-          }
-        }
-      ]);
+      const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, messageId, userId);
 
-      // 5. Получаем все реакции на сообщение
-      const allReactions = await MessageReaction.find({
-        tenantId: req.tenantId,
-        messageId: messageId
-      }).lean();
-
-      // 5.5. Формируем reactionSet: группируем реакции по типу и проверяем, есть ли у текущего пользователя
-      const reactionMap = new Map();
-      
-      allReactions.forEach(r => {
-        const reactionType = r.reaction;
-        if (!reactionMap.has(reactionType)) {
-          reactionMap.set(reactionType, {
-            reaction: reactionType,
-            count: 0,
-            me: false
-          });
-        }
-        const item = reactionMap.get(reactionType);
-        item.count++;
-        if (r.userId === userId) {
-          item.me = true;
-        }
-      });
-      
-      const reactionSet = Array.from(reactionMap.values());
+      // 5. Формируем reactionSet
+      const reactionSet = await buildReactionSet(req.tenantId, messageId, userId);
 
       // 7. Получаем метаданные сообщения
       const messageMeta = await fetchMeta('message', message.messageId);
 
       // 7.5. Загружаем информацию о пользователе из контекста
-      const contextUser = await User.findOne({
-        userId: userId,
-        tenantId: req.tenantId
-      }).select('userId name lastActiveAt createdAt updatedAt').lean();
-
-      let contextUserInfo = null;
-      if (contextUser) {
-        // Пользователь существует в User модели
-        const contextUserMeta = await fetchMeta('user', userId);
-        contextUserInfo = {
-          userId: contextUser.userId,
-          lastActiveAt: contextUser.lastActiveAt ?? null,
-          createdAt: contextUser.createdAt ?? null,
-          updatedAt: contextUser.updatedAt ?? null,
-          meta: contextUserMeta
-        };
-      } else {
-        // Fallback: пользователь не существует в Chat3 API, но может быть meta теги
-        // Используем getMeta для получения данных пользователя (например, avatar)
-        const contextUserMeta = await fetchMeta('user', userId);
-        if (contextUserMeta && Object.keys(contextUserMeta).length > 0) {
-          // Есть meta теги, создаем userInfo только на основе meta
-          contextUserInfo = {
-            userId: userId,
-            name: null, // Имя отсутствует, так как пользователя нет в User
-            lastActiveAt: null,
-            createdAt: null,
-            updatedAt: null,
-            meta: contextUserMeta
-          };
-        }
-      }
+      const contextUserInfo = await getContextUserInfo(req.tenantId, userId, fetchMeta);
 
       // 8. Формируем ответ с контекстом пользователя
       const contextData = {

@@ -302,6 +302,17 @@ async function seed() {
     const statusTypes = ['sent', 'delivered', 'read'];
     const statusUserIds = ['carl', 'marta', 'sara', 'kirk', 'john'];
 
+    // Получаем типы пользователей для заполнения userType в статусах
+    const usersWithTypes = await User.find({
+      tenantId: tenant.tenantId,
+      userId: { $in: statusUserIds }
+    }).select('userId type').lean();
+    
+    const userTypeMap = new Map();
+    usersWithTypes.forEach(user => {
+      userTypeMap.set(user.userId, user.type || null);
+    });
+
     // Создаем статусы для 60% сообщений (случайно выбранных)
     const messagesWithStatuses = messages.filter(() => Math.random() < 0.6);
     
@@ -329,9 +340,13 @@ async function seed() {
           status = Math.random() < 0.8 ? 'read' : 'delivered'; // 80% read, 20% delivered
         }
 
+        // Получаем тип пользователя из карты
+        const userType = userTypeMap.get(userId) || null;
+
         messageStatuses.push({
           messageId: message.messageId,
           userId,
+          userType: userType, // Заполняем userType
           tenantId: tenant.tenantId,
           status,
           createdAt: statusTime, // С микросекундами
