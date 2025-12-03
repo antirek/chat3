@@ -18,8 +18,8 @@ IMAGE=antirek/mms3:0.0.12
 
 
 echo "📦 Building..."
-sudo docker build -t ${IMAGE} .
+docker build -t ${IMAGE} .
 
 
 echo "pushing..."
-sudo docker push ${IMAGE}
+docker push ${IMAGE}
