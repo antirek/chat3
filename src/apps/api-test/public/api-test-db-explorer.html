@@ -593,6 +593,99 @@
             }
         }
 
+        // Поля с датами, которые нужно форматировать
+        const dateFields = ['createdAt', 'updatedAt', 'lastUsedAt', 'lastActiveAt', 'lastSeenAt', 'lastMessageAt', 'publishedAt'];
+
+        // Форматировать дату в читаемый формат
+        function formatDate(value, originalValue) {
+            let timestamp;
+            
+            // Пробуем разные форматы
+            if (typeof value === 'number') {
+                // Unix timestamp (может быть в секундах или миллисекундах)
+                timestamp = value;
+            } else if (typeof value === 'string') {
+                // Пробуем распарсить строку как число
+                const parsed = parseFloat(value);
+                if (!isNaN(parsed)) {
+                    timestamp = parsed;
+                } else {
+                    // Если не число, пробуем как ISO строку
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime())) {
+                        // Успешно распарсили как дату
+                        const formatted = date.toLocaleString('ru-RU', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false
+                        });
+                        return {
+                            formatted: formatted,
+                            original: String(originalValue)
+                        };
+                    } else {
+                        return null;
+                    }
+                }
+            } else if (value instanceof Date) {
+                // Уже объект Date
+                if (isNaN(value.getTime())) {
+                    return null;
+                }
+                const formatted = value.toLocaleString('ru-RU', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                });
+                return {
+                    formatted: formatted,
+                    original: String(originalValue)
+                };
+            } else {
+                return null;
+            }
+            
+            // Если у нас есть timestamp (число), создаем дату
+            if (timestamp === undefined || isNaN(timestamp)) {
+                return null;
+            }
+            
+            // Округляем до целого числа (убираем дробную часть)
+            const roundedTimestamp = Math.floor(timestamp);
+            // Определяем, это секунды или миллисекунды
+            // Если число больше 1000000000000, это миллисекунды, иначе секунды
+            const date = new Date(roundedTimestamp > 1000000000000 ? roundedTimestamp : roundedTimestamp * 1000);
+            
+            // Проверяем, что дата валидна
+            if (isNaN(date.getTime())) {
+                return null;
+            }
+            
+            // Форматируем дату
+            const formatted = date.toLocaleString('ru-RU', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            
+            return {
+                formatted: formatted,
+                original: String(originalValue)
+            };
+        }
+
         // Отобразить таблицу
         function renderTable(data) {
             if (data.length === 0) {
@@ -629,6 +722,23 @@
                     let displayValue = '';
                     if (value === null || value === undefined) {
                         displayValue = '<span style="color: #999;">null</span>';
+                    } else if (dateFields.includes(key)) {
+                        // Специальная обработка для полей с датами
+                        // Преобразуем значение в число, если это возможно
+                        let numValue = value;
+                        if (typeof value === 'string') {
+                            const parsed = parseFloat(value);
+                            if (!isNaN(parsed)) {
+                                numValue = parsed;
+                            }
+                        }
+                        const dateInfo = formatDate(numValue, value);
+                        if (dateInfo) {
+                            displayValue = `<span title="${escapeHtml(dateInfo.original)}" style="cursor: help;">${escapeHtml(dateInfo.formatted)}</span>`;
+                        } else {
+                            // Если не удалось отформатировать, все равно показываем как есть
+                            displayValue = `<span title="Исходное значение: ${escapeHtml(String(value))}" style="cursor: help;">${escapeHtml(String(value))}</span>`;
+                        }
                     } else if (key === 'data' && typeof value === 'object') {
                         // Для поля data показываем кнопку вместо [Object]
                         const dataJsonStr = JSON.stringify(value);
