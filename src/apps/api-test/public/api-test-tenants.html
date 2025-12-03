@@ -1431,10 +1431,16 @@
         // Переопределяем fetch для автоматической подстановки правильного URL
         const originalFetch = window.fetch;
         window.fetch = function(url, options) {
-            if (typeof url === 'string' && url.startsWith('/api/') && !url.startsWith('/api/init')) {
-                url = CHAT3_CONFIG.getTenantApiUrl(url);
-            } else if (typeof url === 'string' && url.startsWith('/api/init')) {
-                url = CHAT3_CONFIG.getControlApiUrl(url);
+            if (typeof url === 'string' && typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG) {
+                if (url.startsWith('/api/') && !url.startsWith('/api/init')) {
+                    if (CHAT3_CONFIG.getTenantApiUrl) {
+                        url = CHAT3_CONFIG.getTenantApiUrl(url);
+                    }
+                } else if (url.startsWith('/api/init')) {
+                    if (CHAT3_CONFIG.getControlApiUrl) {
+                        url = CHAT3_CONFIG.getControlApiUrl(url);
+                    }
+                }
             }
             return originalFetch.call(this, url, options);
         };
