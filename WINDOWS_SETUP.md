@@ -222,17 +222,80 @@ docker exec -it chat3-tenant-api npm test
 docker-compose restart tenant-api
 ```
 
-### Пересборка после изменений в коде
+### Обновление проекта
 
-Если вы изменили зависимости (`package.json`) или Dockerfile:
+#### Быстрое обновление (только изменения в коде)
+
+Если вы обновили только код в `src/` и не меняли `package.json` или `Dockerfile`:
 
 ```powershell
-# Пересобрать образы
+# Просто перезапустите контейнеры
+docker-compose restart
+```
+
+**Примечание:** Только для `gateway` изменения в `src/` применяются автоматически через volume mount. Для других сервисов (`tenant-api`, `update-worker`, `dialog-read-worker`) нужна пересборка.
+
+#### Полное обновление (крупные изменения)
+
+При крупных обновлениях (изменения в `package.json`, `Dockerfile`, или любые изменения зависимостей):
+
+**Вариант 1: Пересборка с перезапуском (рекомендуется)**
+
+```powershell
+# Пересобрать образы и перезапустить контейнеры одной командой
+docker-compose up -d --build
+```
+
+**Вариант 2: Пошагово**
+
+```powershell
+# 1. Пересобрать образы
 docker-compose build
 
-# Перезапустить с новыми образами
+# 2. Перезапустить контейнеры с новыми образами
 docker-compose up -d
 ```
+
+**Вариант 3: Полная пересборка без кэша (если есть проблемы)**
+
+```powershell
+# 1. Остановить все контейнеры
+docker-compose down
+
+# 2. Пересобрать образы без кэша
+docker-compose build --no-cache
+
+# 3. Запустить контейнеры
+docker-compose up -d
+```
+
+#### Обновление после git pull
+
+После получения обновлений из репозитория:
+
+```powershell
+# 1. Получить обновления
+git pull
+
+# 2. Пересобрать и перезапустить (если были изменения в зависимостях или Dockerfile)
+docker-compose up -d --build
+
+# ИЛИ просто перезапустить (если только изменения в коде)
+docker-compose restart
+```
+
+#### Когда нужна пересборка?
+
+**Пересборка НЕ нужна** если изменились только:
+- Файлы в `src/` (для gateway применяется автоматически)
+- HTML файлы в `src/apps/api-test/public/`
+- Конфигурационные файлы (кроме Dockerfile)
+
+**Пересборка НУЖНА** если изменились:
+- `package.json` (добавлены/изменены зависимости)
+- `Dockerfile`
+- `package-lock.json`
+- Любые файлы, которые копируются в образ при сборке
 
 ## Важные замечания
 
@@ -348,6 +411,7 @@ docker-compose up -d
 Проверьте логи для выявления ошибки:
 
 ```powershell
+docker-compose logs gateway
 docker-compose logs tenant-api
 docker-compose logs update-worker
 ```
@@ -356,6 +420,26 @@ docker-compose logs update-worker
 - Неправильные переменные окружения в `.env`
 - Проблемы с подключением к MongoDB или RabbitMQ
 - Ошибки в коде приложения
+- Проблемы с сетью Docker
+
+**Решение:**
+
+```powershell
+# Пересоздать контейнеры с нуля
+docker-compose down --remove-orphans
+docker-compose up -d --build
+```
+
+### Проблемы с сетью Docker
+
+Если контейнеры не могут подключиться друг к другу (например, gateway не может подключиться к MongoDB):
+
+```powershell
+# Полная очистка и пересоздание
+docker-compose down --remove-orphans
+docker network prune -f
+docker-compose up -d --build
+```
 
 ## Остановка всех сервисов
 
@@ -379,5 +463,22 @@ docker-compose down -v
 
 ```powershell
 docker-compose up -d
+```
+
+## Проверка статуса после обновления
+
+После обновления проекта рекомендуется проверить статус всех сервисов:
+
+```powershell
+# Проверить статус всех контейнеров
+docker-compose ps
+
+# Проверить логи конкретного сервиса
+docker-compose logs gateway --tail 50
+docker-compose logs tenant-api --tail 50
+
+# Проверить health check
+Invoke-WebRequest -Uri http://localhost:3001/health
+Invoke-WebRequest -Uri http://localhost:3000/health
 ```
 
