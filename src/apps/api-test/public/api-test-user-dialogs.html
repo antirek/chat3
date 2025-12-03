@@ -404,6 +404,26 @@
             border-color: #e0448f;
         }
 
+        .action-button.set-status-button {
+            background: #6c757d;
+            color: white;
+            border-color: #6c757d;
+        }
+
+        .action-button.set-status-button:hover {
+            background: #5a6268;
+            border-color: #5a6268;
+        }
+
+        .status-action-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .status-action-btn:active {
+            transform: scale(0.98);
+        }
+
         .reaction-item-btn {
             display: inline-flex;
             align-items: center;
@@ -1597,6 +1617,34 @@
         </div>
     </div>
 
+    <!-- Модальное окно для установки статуса сообщения -->
+    <div id="setStatusModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 class="modal-title">✏️ Установить статус сообщения</h2>
+                <span class="close" onclick="closeSetStatusModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="info-url" id="setStatusUrl" style="margin-bottom: 15px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 12px; word-break: break-all; color: #495057;"></div>
+                <div style="margin-bottom: 20px;">
+                    <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Выберите статус для текущего пользователя:</p>
+                    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                        <button type="button" class="status-action-btn" onclick="setMessageStatus('unread')" style="background: #6c757d; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.2s;">
+                            📤 Sent (unread)
+                        </button>
+                        <button type="button" class="status-action-btn" onclick="setMessageStatus('delivered')" style="background: #17a2b8; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.2s;">
+                            📥 Received (delivered)
+                        </button>
+                        <button type="button" class="status-action-btn" onclick="setMessageStatus('read')" style="background: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.2s;">
+                            ✓ Read
+                        </button>
+                    </div>
+                </div>
+                <div id="setStatusResult" style="margin-top: 20px; padding: 10px; border-radius: 4px; display: none;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Модальное окно для просмотра событий диалога -->
     <div id="dialogEventsModal" class="modal">
         <div class="modal-content">
@@ -2433,6 +2481,7 @@
                                             <button class="action-button events-button" onclick="showEventsModal('${message.messageId}')">📋 События</button>
                                             <button class="action-button status-matrix-button" onclick="showStatusMatrixModal('${message.messageId}')">📊 Матрица статусов</button>
                                             <button class="action-button statuses-button" onclick="showStatusesModal('${message.messageId}')">📋 Статусы</button>
+                                            <button class="action-button set-status-button" onclick="showSetStatusModal('${message.messageId}')">✏️ Установить статус</button>
                                         </td>
                                     </tr>
                                 `;
@@ -4885,6 +4934,115 @@
             currentStatusesPage = 1;
         }
 
+        // Переменная для хранения текущего messageId для установки статуса
+        let currentMessageIdForSetStatus = null;
+
+        // Открыть модальное окно для установки статуса
+        function showSetStatusModal(messageId) {
+            if (!currentUserId) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
+
+            if (!currentDialogId) {
+                alert('Сначала выберите диалог');
+                return;
+            }
+
+            currentMessageIdForSetStatus = messageId;
+
+            // Показываем URL запроса
+            let url = `/api/users/${currentUserId}/dialogs/${currentDialogId}/messages/${messageId}/status/`;
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                url = CHAT3_CONFIG.getTenantApiUrl(url) + '{status}';
+            }
+            document.getElementById('setStatusUrl').textContent = url;
+
+            // Очищаем результат
+            const resultDiv = document.getElementById('setStatusResult');
+            resultDiv.style.display = 'none';
+            resultDiv.innerHTML = '';
+
+            // Показываем модальное окно
+            document.getElementById('setStatusModal').style.display = 'block';
+        }
+
+        // Закрыть модальное окно установки статуса
+        function closeSetStatusModal() {
+            document.getElementById('setStatusModal').style.display = 'none';
+            currentMessageIdForSetStatus = null;
+        }
+
+        // Установить статус сообщения
+        async function setMessageStatus(status) {
+            if (!currentMessageIdForSetStatus) {
+                alert('Ошибка: не выбран сообщение');
+                return;
+            }
+
+            if (!currentUserId) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
+
+            const resultDiv = document.getElementById('setStatusResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="loading">Установка статуса...</div>';
+
+            try {
+                // Используем эндпоинт /api/users/{userId}/dialogs/{dialogId}/messages/{messageId}/status/{status}
+                let url = `/api/users/${currentUserId}/dialogs/${currentDialogId}/messages/${currentMessageIdForSetStatus}/status/${status}`;
+                if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                    url = CHAT3_CONFIG.getTenantApiUrl(url);
+                }
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Status set successfully:', data);
+
+                resultDiv.innerHTML = `
+                    <div style="padding: 15px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724;">
+                        <strong>✓ Статус успешно установлен!</strong><br>
+                        Статус: <strong>${status}</strong><br>
+                        <small style="color: #666;">Сообщение обновлено</small>
+                    </div>
+                `;
+
+                // Обновляем список сообщений, если диалог открыт
+                if (currentDialogId) {
+                    setTimeout(() => {
+                        loadDialogMessages(currentDialogId, currentMessagePage);
+                    }, 500);
+                }
+
+                // Закрываем модальное окно через 2 секунды
+                setTimeout(() => {
+                    closeSetStatusModal();
+                }, 2000);
+
+            } catch (error) {
+                console.error('Error setting status:', error);
+                resultDiv.innerHTML = `
+                    <div style="padding: 15px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;">
+                        <strong>✗ Ошибка при установке статуса</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+
         // Загрузка обновлений конкретного события
         async function loadEventUpdates(eventId, messageId) {
             const eventUpdatesList = document.getElementById('eventUpdatesList');
@@ -6592,6 +6750,10 @@
             if (event.target === statusesModal) {
                 closeStatusesModal();
             }
+            const setStatusModal = document.getElementById('setStatusModal');
+            if (setStatusModal && event.target === setStatusModal) {
+                closeSetStatusModal();
+            }
         }
 
         // Закрытие модального окна по клавише Escape
@@ -6602,6 +6764,7 @@
                 closeDialogMetaModal();
                 closeStatusMatrixModal();
                 closeStatusesModal();
+                closeSetStatusModal();
             }
         });
 

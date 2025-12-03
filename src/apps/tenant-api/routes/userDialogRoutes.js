@@ -2,7 +2,7 @@ import express from 'express';
 import userDialogController from '../controllers/userDialogController.js';
 import messageReactionController from '../controllers/messageReactionController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
-import { validateUserId, validateDialogId, validateMessageId, validateAction } from '../validators/urlValidators/index.js';
+import { validateUserId, validateDialogId, validateMessageId, validateAction, validateStatus } from '../validators/urlValidators/index.js';
 import { validateQuery, validateBody } from '../validators/middleware.js';
 import { userDialogsQuerySchema, addReactionSchema, reactionsQuerySchema } from '../validators/schemas/index.js';
 
@@ -438,7 +438,7 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePer
  *     description: |
  *       Возвращает постраничный список всех статусов сообщения.
  *       Доступен только для участников диалога.
- *     tags: [UserDialogs]
+ *     tags: [MessageStatus]
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -651,6 +651,96 @@ router.post('/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action',
   validateBody(addReactionSchema),
   userDialogController.checkDialogMembership,
   messageReactionController.setOrUnsetReaction
+);
+
+/**
+ * @swagger
+ * /api/users/{userId}/dialogs/{dialogId}/messages/{messageId}/status/{status}:
+ *   post:
+ *     summary: Update message status (mark as unread/delivered/read)
+ *     description: |
+ *       Обновляет статус сообщения для указанного пользователя.
+ *       Доступен только для участников диалога.
+ *       Статусы: unread (отправлено), delivered (доставлено), read (прочитано)
+ *     tags: [MessageStatus]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *       - in: path
+ *         name: dialogId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Dialog ID
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Message ID
+ *       - in: path
+ *         name: status
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [unread, delivered, read]
+ *         description: New status
+ *         example: "read"
+ *     responses:
+ *       200:
+ *         description: Message status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     messageId:
+ *                       type: string
+ *                     userId:
+ *                       type: string
+ *                     userType:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                     readAt:
+ *                       type: number
+ *                     deliveredAt:
+ *                       type: number
+ *                     createdAt:
+ *                       type: number
+ *                     updatedAt:
+ *                       type: number
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Bad Request - Invalid status
+ *       403:
+ *         description: Forbidden - User is not a member of this dialog
+ *       404:
+ *         description: Message not found
+ *       401:
+ *         description: Unauthorized - Invalid API key
+ */
+router.post('/:userId/dialogs/:dialogId/messages/:messageId/status/:status',
+  apiAuth,
+  requirePermission('write'),
+  validateUserId,
+  validateDialogId,
+  validateMessageId,
+  validateStatus,
+  userDialogController.checkDialogMembership,
+  userDialogController.updateMessageStatus
 );
 
 export default router;

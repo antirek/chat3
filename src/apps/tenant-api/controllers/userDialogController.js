@@ -8,6 +8,9 @@ import { getMetaScopeOptions } from '../utils/metaScopeUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { validateGetUserDialogMessagesResponse, validateGetUserDialogMessageResponse } from '../validators/schemas/responseSchemas.js';
+import * as eventUtils from '../utils/eventUtils.js';
+import { generateTimestamp } from '../../../utils/timestampUtils.js';
+import * as unreadCountUtils from '../utils/unreadCountUtils.js';
 import {
   getSenderInfo,
   mergeMetaRecordsForScope,
@@ -1257,6 +1260,216 @@ const userDialogController = {
 
       next();
     } catch (error) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  // Update message status (mark as unread/delivered/read)
+  async updateMessageStatus(req, res) {
+    try {
+      const { userId, dialogId, messageId, status } = req.params;
+
+      // Basic validation
+      if (!['unread', 'delivered', 'read'].includes(status)) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Invalid status. Must be one of: unread, delivered, read'
+        });
+      }
+
+      // Check if message exists and belongs to dialog and tenant
+      const message = await Message.findOne({
+        messageId: messageId,
+        dialogId: dialogId,
+        tenantId: req.tenantId
+      });
+
+      if (!message) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Message not found'
+        });
+      }
+
+      // Получаем тип пользователя
+      const user = await User.findOne({
+        tenantId: req.tenantId,
+        userId: userId
+      }).select('type').lean();
+      
+      const userType = user?.type || null;
+
+      // Проверяем существующий статус
+      const oldStatus = await MessageStatus.findOne({
+        messageId: messageId,
+        userId: userId,
+        tenantId: req.tenantId
+      });
+
+      // Update or create message status
+      const updateData = {
+        status,
+        updatedAt: generateTimestamp()
+      };
+      
+      // Добавляем userType при создании нового статуса или обновляем, если он еще не установлен
+      if (!oldStatus) {
+        // Создаем новый статус - добавляем userType
+        if (userType) {
+          updateData.userType = userType;
+        }
+      } else if (!oldStatus.userType && userType) {
+        // Обновляем существующий статус, если userType еще не был установлен
+        updateData.userType = userType;
+      }
+
+      // Set timestamps based on status
+      if (status === 'read') {
+        updateData.readAt = generateTimestamp();
+      } else if (status === 'delivered') {
+        updateData.deliveredAt = generateTimestamp();
+      }
+
+      const messageStatus = await MessageStatus.findOneAndUpdate(
+        {
+          messageId: messageId,
+          userId: userId,
+          tenantId: req.tenantId
+        },
+        updateData,
+        { 
+          new: true, 
+          upsert: true, 
+          runValidators: true 
+        }
+      ).select('-__v');
+
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialogId
+      });
+
+      const messageSection = eventUtils.buildMessageSection({
+        messageId,
+        dialogId: dialogId,
+        senderId: message.senderId,
+        type: message.type,
+        content: message.content,
+        statusUpdate: {
+          userId,
+          status,
+          oldStatus: oldStatus?.status || null
+        }
+      });
+
+      const memberSection = eventUtils.buildMemberSection({
+        userId
+      });
+
+      const actorSection = eventUtils.buildActorSection({
+        actorId: userId,
+        actorType: 'user'
+      });
+
+      const statusEventType = oldStatus ? 'message.status.update' : 'message.status.create';
+      const statusContext = eventUtils.buildEventContext({
+        eventType: statusEventType,
+        dialogId: dialogId,
+        entityId: messageId,
+        messageId,
+        includedSections: ['dialog', 'message.status', 'member', 'actor'],
+        updatedFields: ['message.status']
+      });
+
+      await eventUtils.createEvent({
+        tenantId: req.tenantId,
+        eventType: statusEventType,
+        entityType: 'messageStatus',
+        entityId: messageId,
+        actorId: userId,
+        actorType: 'user',
+        data: eventUtils.composeEventData({
+          context: statusContext,
+          dialog: dialogSection,
+          message: messageSection,
+          member: memberSection,
+          actor: actorSection
+        })
+      });
+
+      // Обновляем счетчик непрочитанных сообщений при чтении
+      const updatedMember = await unreadCountUtils.updateCountersOnStatusChange(
+        req.tenantId,
+        messageId,
+        userId,
+        oldStatus?.status || null,
+        status
+      );
+
+      // Если счетчик был обновлен, создаем событие dialog.member.update
+      if (updatedMember) {
+        const dialogSection = eventUtils.buildDialogSection({
+          dialogId: dialogId
+        });
+
+        const memberSection = eventUtils.buildMemberSection({
+          userId,
+          state: {
+            unreadCount: updatedMember.unreadCount,
+            lastSeenAt: updatedMember.lastSeenAt,
+            lastMessageAt: updatedMember.lastMessageAt,
+            isActive: updatedMember.isActive
+          }
+        });
+
+        const actorSection = eventUtils.buildActorSection({
+          actorId: userId,
+          actorType: 'user'
+        });
+
+        const memberContext = eventUtils.buildEventContext({
+          eventType: 'dialog.member.update',
+          dialogId: dialogId,
+          entityId: dialogId,
+          includedSections: ['dialog', 'member', 'actor'],
+          updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
+        });
+
+        await eventUtils.createEvent({
+          tenantId: req.tenantId,
+          eventType: 'dialog.member.update',
+          entityType: 'dialogMember',
+          entityId: dialogId,
+          actorId: userId,
+          actorType: 'user',
+          data: eventUtils.composeEventData({
+            context: memberContext,
+            dialog: dialogSection,
+            member: memberSection,
+            actor: actorSection
+          })
+        });
+      }
+
+      res.json({
+        data: sanitizeResponse(messageStatus),
+        message: 'Message status updated successfully'
+      });
+    } catch (error) {
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Invalid message ID'
+        });
+      }
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: error.message
+        });
+      }
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
