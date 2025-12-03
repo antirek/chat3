@@ -95,7 +95,8 @@
             opacity: 0.95;
         }
 
-        .header-input-group input {
+        .header-input-group input,
+        .header-input-group select {
             padding: 6px 10px;
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 4px;
@@ -110,10 +111,16 @@
             color: rgba(255, 255, 255, 0.6);
         }
 
-        .header-input-group input:focus {
+        .header-input-group input:focus,
+        .header-input-group select:focus {
             outline: none;
             background: rgba(255, 255, 255, 0.25);
             border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .header-input-group select option {
+            background: #2c3e50;
+            color: white;
         }
 
         .header-apply-btn {
@@ -383,7 +390,9 @@
                 </div>
                 <div class="header-input-group">
                     <label for="headerTenantId">Tenant ID:</label>
-                    <input type="text" id="headerTenantId" placeholder="Tenant ID" value="tnt_default">
+                    <select id="headerTenantId" style="padding: 6px 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; background: rgba(255, 255, 255, 0.15); color: white; font-size: 13px; min-width: 200px;">
+                        <option value="tnt_default">Загрузка...</option>
+                    </select>
                     <button id="headerApplyButton" class="header-apply-btn" title="Применить API Key и Tenant ID">✓</button>
                 </div>
             </div>
@@ -457,6 +466,74 @@
     <script>
         // Глобальные переменные
         let currentPage = null;
+        let tenantsList = [];
+
+        // Загрузка списка тенантов
+        async function loadTenants() {
+            const tenantSelect = document.getElementById('headerTenantId');
+            const apiKey = document.getElementById('headerApiKey').value.trim();
+            
+            if (!apiKey) {
+                tenantSelect.innerHTML = '<option value="tnt_default">Введите API Key</option>';
+                return;
+            }
+
+            try {
+                const tenantApiUrl = CHAT3_CONFIG?.TENANT_API_URL || 'http://localhost:3000';
+                
+                // Загружаем все тенанты с пагинацией (максимум limit=100)
+                let allTenants = [];
+                let page = 1;
+                let hasMore = true;
+                
+                while (hasMore) {
+                    const response = await fetch(`${tenantApiUrl}/api/tenants?page=${page}&limit=100`, {
+                        headers: {
+                            'X-API-Key': apiKey
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const pageTenants = result.data || [];
+                    allTenants = allTenants.concat(pageTenants);
+                    
+                    // Проверяем, есть ли еще страницы
+                    const totalPages = result.pagination?.pages || 1;
+                    hasMore = page < totalPages && pageTenants.length > 0;
+                    page++;
+                }
+                
+                tenantsList = allTenants;
+                
+                // Сохраняем текущее значение
+                const currentTenantId = tenantSelect.value || 'tnt_default';
+                
+                // Очищаем select
+                tenantSelect.innerHTML = '';
+                
+                // Добавляем опции
+                if (tenantsList.length === 0) {
+                    tenantSelect.innerHTML = '<option value="tnt_default">Нет тенантов</option>';
+                } else {
+                    tenantsList.forEach(tenant => {
+                        const option = document.createElement('option');
+                        option.value = tenant.tenantId;
+                        option.textContent = tenant.tenantId;
+                        if (tenant.tenantId === currentTenantId) {
+                            option.selected = true;
+                        }
+                        tenantSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading tenants:', error);
+                tenantSelect.innerHTML = '<option value="tnt_default">Ошибка загрузки</option>';
+            }
+        }
 
         // Обновление ссылок из конфигурации
         function updateHeaderLinks() {
@@ -484,7 +561,7 @@
         // Сохранение API Key и Tenant ID в localStorage
         function saveApiCredentials() {
             const apiKey = document.getElementById('headerApiKey').value.trim();
-            const tenantId = document.getElementById('headerTenantId').value.trim() || 'tnt_default';
+            const tenantId = document.getElementById('headerTenantId').value || 'tnt_default';
             
             if (apiKey) {
                 localStorage.setItem('apiKey', apiKey);
@@ -493,15 +570,36 @@
         }
 
         // Загрузка API Key и Tenant ID из localStorage
-        function loadApiCredentials() {
+        async function loadApiCredentials() {
             const savedApiKey = localStorage.getItem('apiKey');
-            const savedTenantId = localStorage.getItem('tenantId');
+            const savedTenantId = localStorage.getItem('tenantId') || 'tnt_default';
             
             if (savedApiKey) {
                 document.getElementById('headerApiKey').value = savedApiKey;
             }
-            if (savedTenantId) {
-                document.getElementById('headerTenantId').value = savedTenantId;
+            
+            // Загружаем список тенантов после установки API Key
+            if (savedApiKey) {
+                await loadTenants();
+                // Устанавливаем сохраненный tenantId после загрузки списка
+                if (savedTenantId) {
+                    const tenantSelect = document.getElementById('headerTenantId');
+                    if (tenantSelect.querySelector(`option[value="${savedTenantId}"]`)) {
+                        tenantSelect.value = savedTenantId;
+                    } else {
+                        // Если тенанта нет в списке, добавляем его
+                        const option = document.createElement('option');
+                        option.value = savedTenantId;
+                        option.textContent = savedTenantId;
+                        tenantSelect.insertBefore(option, tenantSelect.firstChild);
+                        tenantSelect.value = savedTenantId;
+                    }
+                }
+            } else {
+                // Если нет API Key, показываем дефолт
+                const tenantSelect = document.getElementById('headerTenantId');
+                tenantSelect.innerHTML = '<option value="tnt_default">tnt_default</option>';
+                tenantSelect.value = 'tnt_default';
             }
         }
 
@@ -510,7 +608,7 @@
             const iframe = document.getElementById('contentFrame');
             if (iframe && iframe.contentWindow) {
                 const apiKey = document.getElementById('headerApiKey').value.trim();
-                const tenantId = document.getElementById('headerTenantId').value.trim() || 'tnt_default';
+                const tenantId = document.getElementById('headerTenantId').value || 'tnt_default';
                 
                 iframe.contentWindow.postMessage({
                     type: 'setApiCredentials',
@@ -542,7 +640,7 @@
             
             // Добавляем параметры к URL для передачи credentials
             const apiKey = document.getElementById('headerApiKey').value.trim();
-            const tenantId = document.getElementById('headerTenantId').value.trim() || 'tnt_default';
+            const tenantId = document.getElementById('headerTenantId').value || 'tnt_default';
             const separator = pageUrl.includes('?') ? '&' : '?';
             const urlWithParams = apiKey 
                 ? `${pageUrl}${separator}apiKey=${encodeURIComponent(apiKey)}&tenantId=${encodeURIComponent(tenantId)}`
@@ -582,7 +680,7 @@
         // Проверка изменений в полях ввода
         function checkForChanges() {
             const apiKey = document.getElementById('headerApiKey').value.trim();
-            const tenantId = document.getElementById('headerTenantId').value.trim() || 'tnt_default';
+            const tenantId = document.getElementById('headerTenantId').value || 'tnt_default';
             const savedApiKey = localStorage.getItem('apiKey') || '';
             const savedTenantId = localStorage.getItem('tenantId') || 'tnt_default';
             
@@ -623,22 +721,32 @@
             document.getElementById('headerApplyButton').addEventListener('click', applyCredentials);
             
             // Обработчики для полей ввода
-            document.getElementById('headerApiKey').addEventListener('change', saveApiCredentials);
-            document.getElementById('headerApiKey').addEventListener('blur', saveApiCredentials);
-            document.getElementById('headerTenantId').addEventListener('change', saveApiCredentials);
-            document.getElementById('headerTenantId').addEventListener('blur', saveApiCredentials);
+            document.getElementById('headerApiKey').addEventListener('change', async function() {
+                saveApiCredentials();
+                await loadTenants();
+                checkForChanges();
+            });
+            document.getElementById('headerApiKey').addEventListener('blur', async function() {
+                saveApiCredentials();
+                await loadTenants();
+                checkForChanges();
+            });
+            document.getElementById('headerTenantId').addEventListener('change', function() {
+                saveApiCredentials();
+                checkForChanges();
+            });
             
             // Проверяем изменения при вводе
             document.getElementById('headerApiKey').addEventListener('input', function() {
                 checkForChanges();
             });
-            document.getElementById('headerTenantId').addEventListener('input', function() {
+            document.getElementById('headerTenantId').addEventListener('change', function() {
                 checkForChanges();
             });
             
             // Проверяем, применены ли текущие значения (при загрузке страницы)
             const apiKey = document.getElementById('headerApiKey').value.trim();
-            const tenantId = document.getElementById('headerTenantId').value.trim() || 'tnt_default';
+            const tenantId = document.getElementById('headerTenantId').value || 'tnt_default';
             const savedApiKey = localStorage.getItem('apiKey') || '';
             const savedTenantId = localStorage.getItem('tenantId') || 'tnt_default';
             

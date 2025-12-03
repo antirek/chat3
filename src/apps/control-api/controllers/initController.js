@@ -77,13 +77,39 @@ export const initController = {
         console.error('❌ Ошибка при создании API ключа:', error);
       }
 
+      // 4. Запустить seed скрипт автоматически
+      try {
+        console.log('🌱 Запуск seed скрипта...');
+        const seedScript = 'node src/scripts/seed.js';
+        
+        // Запускаем seed в фоне (не ждем завершения)
+        execAsync(seedScript, { cwd: process.cwd() })
+          .then(({ stdout, stderr }) => {
+            console.log('✅ Seed script completed');
+            if (stdout) console.log(stdout);
+            if (stderr) console.error('Seed stderr:', stderr);
+          })
+          .catch((error) => {
+            console.error('❌ Seed script error:', error);
+            results.errors.push(`Seed script error: ${error.message}`);
+          });
+        
+        results.seed = {
+          started: true,
+          note: 'Seed script is running in background. Check server logs for progress.'
+        };
+      } catch (error) {
+        results.errors.push(`Seed script start error: ${error.message}`);
+        console.error('❌ Ошибка при запуске seed:', error);
+      }
+
       const statusCode = results.errors.length > 0 ? 207 : 200; // 207 Multi-Status если есть ошибки
       
       res.status(statusCode).json({
         data: results,
         message: results.errors.length > 0 
           ? 'Initialization completed with some errors' 
-          : 'Initialization completed successfully'
+          : 'Initialization completed successfully. Seed script is running in background.'
       });
     } catch (error) {
       console.error('❌ Критическая ошибка инициализации:', error);

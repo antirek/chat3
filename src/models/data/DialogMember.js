@@ -10,8 +10,7 @@ const dialogMemberSchema = new mongoose.Schema({
   tenantId: {
     type: String,
     required: true,
-    index: true,
-    match: /^tnt_[a-z0-9]+$/
+    index: true
   },
   dialogId: {
     type: String,

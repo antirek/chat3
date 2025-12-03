@@ -6782,26 +6782,35 @@
     <script src="config.js"></script>
     <script>
         // Переопределяем fetch для автоматической подстановки правильного URL
+        // Должно быть установлено ДО любых вызовов fetch
         const originalFetch = window.fetch;
         window.fetch = function(url, options) {
             if (typeof url === 'string') {
-                // Проверяем наличие CHAT3_CONFIG
-                if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG) {
-                    // Events и updates идут в control-api
-                    if (url.includes('/events') || url.includes('/updates')) {
-                        // Если URL уже полный (с http://), не меняем его
-                        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                // Если URL уже полный (с http:// или https://), не меняем его
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    // Проверяем наличие CHAT3_CONFIG
+                    if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG) {
+                        // Events и updates идут в control-api
+                        if (url.includes('/events') || url.includes('/updates')) {
                             if (CHAT3_CONFIG.getControlApiUrl) {
                                 url = CHAT3_CONFIG.getControlApiUrl(url);
                             }
+                        } else if (url.startsWith('/api/init')) {
+                            if (CHAT3_CONFIG.getControlApiUrl) {
+                                url = CHAT3_CONFIG.getControlApiUrl(url);
+                            }
+                        } else if (url.startsWith('/api/')) {
+                            if (CHAT3_CONFIG.getTenantApiUrl) {
+                                url = CHAT3_CONFIG.getTenantApiUrl(url);
+                            } else {
+                                // Fallback: используем текущий origin если getTenantApiUrl не доступен
+                                url = window.location.origin + url;
+                            }
                         }
-                    } else if (url.startsWith('/api/init')) {
-                        if (CHAT3_CONFIG.getControlApiUrl) {
-                            url = CHAT3_CONFIG.getControlApiUrl(url);
-                        }
-                    } else if (url.startsWith('/api/')) {
-                        if (CHAT3_CONFIG.getTenantApiUrl) {
-                            url = CHAT3_CONFIG.getTenantApiUrl(url);
+                    } else {
+                        // Если CHAT3_CONFIG еще не загружен, используем текущий origin
+                        if (url.startsWith('/api/')) {
+                            url = window.location.origin + url;
                         }
                     }
                 }

@@ -6,7 +6,6 @@ const updateSchema = new mongoose.Schema({
     type: String,
     required: true,
     index: true,
-    match: /^tnt_[a-z0-9]+$/
   },
   userId: {
     type: String,

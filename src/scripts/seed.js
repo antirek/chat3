@@ -24,113 +24,125 @@ async function seed() {
 
     console.log('✅ Cleared existing data');
 
-    // Create Default Tenant (используется когда X-TENANT-ID не указан)
-    const defaultTenant = await Tenant.create({
-      tenantId: 'tnt_default'
-    });
-
-    console.log(`✅ Created default tenant: ${defaultTenant.tenantId}`);
-
-    // Используем только default tenant для всех тестовых данных
-    const tenant = defaultTenant;
-
-    // Create Users
-    const usersData = [
-      { userId: 'carl' },
-      { userId: 'marta' },
-      { userId: 'sara' },
-      { userId: 'kirk' },
-      { userId: 'john' },
-      { userId: 'alice' },
-      { userId: 'bob' },
-      { userId: 'eve' }
-    ];
-
-    const users = [];
-    for (const userData of usersData) {
-      const user = await User.create({
-        userId: userData.userId,
-        tenantId: tenant.tenantId,
-        lastActiveAt: generateTimestamp()
-      });
-      users.push(user);
-    }
-
-    const userIds = users.map(u => u.userId);
-    console.log(`✅ Created ${users.length} users: ${userIds.join(', ')}`);
-
-    // Create 100 Dialogs with different meta types and channelTypes
-    const channelTypes = ['whatsapp', 'telegram'];
-    const dialogs = [];
+    // Create Multiple Tenants
+    const tenantIds = ['tnt_default', 'tnt_company_a', 'tnt_company_b', 'tnt_company_c', 'tnt_startup'];
+    const tenants = [];
     
-    // Создаем 100 диалогов: 70 internal + 30 external
-    for (let i = 0; i < 100; i++) {
-      const isInternal = i < 70; // Первые 70 - internal
-      const metaType = isInternal ? 'internal' : 'external';
-      const channelType = channelTypes[i % 2]; // Чередуем whatsapp и telegram
-      
-      const dialog = await Dialog.create({
-        tenantId: tenant.tenantId,
-        createdBy: 'system_bot' // String identifier instead of ObjectId
-      });
-      
-      dialogs.push({ 
-        ...dialog.toObject(), 
-        metaType,
-        channelType 
-      });
+    for (const tenantId of tenantIds) {
+      const tenant = await Tenant.create({ tenantId });
+      tenants.push(tenant);
     }
 
-    console.log(`✅ Created ${dialogs.length} dialogs`);
-    console.log(`   - Internal: ${dialogs.filter(d => d.metaType === 'internal').length}`);
-    console.log(`   - External: ${dialogs.filter(d => d.metaType === 'external').length}`);
-    console.log(`   - WhatsApp: ${dialogs.filter(d => d.channelType === 'whatsapp').length}`);
-    console.log(`   - Telegram: ${dialogs.filter(d => d.channelType === 'telegram').length}`);
+    console.log(`✅ Created ${tenants.length} tenants: ${tenantIds.join(', ')}`);
+
+    // Create Users for each tenant
+    const allUsers = [];
+    const userTypes = ['user', 'bot', 'contact'];
+    
+    // Генерируем имена пользователей
+    const userNames = [
+      'alice', 'bob', 'charlie', 'diana', 'eve', 'frank', 'grace', 'henry',
+      'ivy', 'jack', 'kate', 'liam', 'mia', 'noah', 'olivia', 'paul',
+      'quinn', 'ruby', 'sam', 'tina', 'uma', 'victor', 'willa', 'xander'
+    ];
+    
+    for (const tenant of tenants) {
+      const usersPerTenant = Math.floor(Math.random() * 11) + 10; // 10-20 пользователей
+      const tenantUsers = [];
+      
+      for (let i = 0; i < usersPerTenant; i++) {
+        const userId = `${userNames[i % userNames.length]}_${tenant.tenantId.replace('tnt_', '')}`;
+        const userType = userTypes[Math.floor(Math.random() * userTypes.length)];
+        
+        const user = await User.create({
+          userId: userId,
+          tenantId: tenant.tenantId,
+          type: userType,
+          lastActiveAt: generateTimestamp() - Math.random() * 7 * 24 * 60 * 60 * 1000
+        });
+        tenantUsers.push(user);
+        allUsers.push(user);
+      }
+      
+      console.log(`✅ Created ${tenantUsers.length} users for ${tenant.tenantId} (${tenantUsers.filter(u => u.type === 'user').length} users, ${tenantUsers.filter(u => u.type === 'bot').length} bots, ${tenantUsers.filter(u => u.type === 'contact').length} contacts)`);
+    }
+    
+    console.log(`✅ Total users created: ${allUsers.length}`);
+
+    // Create Dialogs for each tenant
+    const channelTypes = ['whatsapp', 'telegram', 'viber', 'sms'];
+    const allDialogs = [];
+    
+    for (const tenant of tenants) {
+      const dialogsPerTenant = Math.floor(Math.random() * 21) + 30; // 30-50 диалогов
+      const tenantDialogs = [];
+      
+      for (let i = 0; i < dialogsPerTenant; i++) {
+        const isInternal = Math.random() < 0.6; // 60% internal, 40% external
+        const metaType = isInternal ? 'internal' : 'external';
+        const channelType = channelTypes[Math.floor(Math.random() * channelTypes.length)];
+        
+        const dialog = await Dialog.create({
+          tenantId: tenant.tenantId,
+          createdBy: 'system_bot'
+        });
+        
+        tenantDialogs.push({ 
+          ...dialog.toObject(), 
+          metaType,
+          channelType 
+        });
+      }
+      
+      allDialogs.push(...tenantDialogs);
+      console.log(`✅ Created ${tenantDialogs.length} dialogs for ${tenant.tenantId}`);
+    }
+
+    console.log(`✅ Total dialogs created: ${allDialogs.length}`);
+    console.log(`   - Internal: ${allDialogs.filter(d => d.metaType === 'internal').length}`);
+    console.log(`   - External: ${allDialogs.filter(d => d.metaType === 'external').length}`);
+    const channelCounts = {};
+    allDialogs.forEach(d => {
+      channelCounts[d.channelType] = (channelCounts[d.channelType] || 0) + 1;
+    });
+    Object.entries(channelCounts).forEach(([channel, count]) => {
+      console.log(`   - ${channel}: ${count}`);
+    });
 
     // Create Dialog Members
     const dialogMembers = [];
 
     console.log('\n👥 Creating dialog members...');
 
-    // Для каждого диалога добавляем участников
-    dialogs.forEach((dialog, dialogIndex) => {
-      // Каждый пользователь участвует в разном количестве диалогов
-      const userParticipation = {
-        'carl': Math.floor(Math.random() * 20) + 50,   // 50-70 диалогов
-        'marta': Math.floor(Math.random() * 15) + 45,  // 45-60 диалогов  
-        'sara': Math.floor(Math.random() * 15) + 40,   // 40-55 диалогов
-        'kirk': Math.floor(Math.random() * 10) + 35,   // 35-45 диалогов
-        'john': Math.floor(Math.random() * 10) + 30,   // 30-40 диалогов
-        'alice': Math.floor(Math.random() * 10) + 25,  // 25-35 диалогов
-        'bob': Math.floor(Math.random() * 10) + 20,    // 20-30 диалогов
-        'eve': Math.floor(Math.random() * 10) + 15     // 15-25 диалогов
-      };
-
-      // Определяем, какие пользователи участвуют в этом диалоге
-      const participants = [];
-      
-      userIds.forEach(userId => {
-        // Вероятность участия пользователя в диалоге
-        const participationChance = userParticipation[userId] / 100; // 0.3-0.7
-        if (Math.random() < participationChance) {
-          participants.push(userId);
-        }
-      });
-
-      // Если никто не участвует, добавляем хотя бы одного
-      if (participants.length === 0) {
-        participants.push(userIds[Math.floor(Math.random() * userIds.length)]);
+    // Группируем пользователей по тенантам
+    const usersByTenant = {};
+    allUsers.forEach(user => {
+      if (!usersByTenant[user.tenantId]) {
+        usersByTenant[user.tenantId] = [];
       }
+      usersByTenant[user.tenantId].push(user);
+    });
+
+    // Для каждого диалога добавляем участников из того же тенанта
+    allDialogs.forEach((dialog) => {
+      const tenantUsers = usersByTenant[dialog.tenantId] || [];
+      if (tenantUsers.length === 0) return;
+
+      // Количество участников в диалоге: 2-8
+      const participantCount = Math.floor(Math.random() * 7) + 2;
+      const selectedUsers = tenantUsers
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.min(participantCount, tenantUsers.length));
 
       // Создаем DialogMember записи для участников
-      participants.forEach(userId => {
-        const unreadCount = Math.floor(Math.random() * 5); // 0-4 непрочитанных
-        const lastSeenAt = generateTimestamp() - Math.random() * 7 * 24 * 60 * 60 * 1000; // Последние 7 дней
-        const lastMessageAt = generateTimestamp() - Math.random() * 3 * 24 * 60 * 60 * 1000; // Последние 3 дня
+      selectedUsers.forEach(user => {
+        const unreadCount = Math.floor(Math.random() * 10); // 0-9 непрочитанных
+        const lastSeenAt = generateTimestamp() - Math.random() * 7 * 24 * 60 * 60 * 1000;
+        const lastMessageAt = generateTimestamp() - Math.random() * 3 * 24 * 60 * 60 * 1000;
 
         dialogMembers.push({
-          userId,
-          tenantId: tenant.tenantId,
+          userId: user.userId,
+          tenantId: dialog.tenantId,
           dialogId: dialog.dialogId,
           unreadCount,
           lastSeenAt,
@@ -178,7 +190,7 @@ async function seed() {
       }
 
       dialogMemberMetaEntries.push({
-        tenantId: tenant.tenantId,
+        tenantId: member.tenantId,
         entityType: 'dialogMember',
         entityId: memberId, // Используем составной ключ dialogId:userId
         key: 'role',
@@ -190,7 +202,7 @@ async function seed() {
       // Muted: 20% участников имеют muted = true
       const isMuted = Math.random() < 0.2;
       dialogMemberMetaEntries.push({
-        tenantId: tenant.tenantId,
+        tenantId: member.tenantId,
         entityType: 'dialogMember',
         entityId: memberId, // Используем составной ключ dialogId:userId
         key: 'muted',
@@ -202,7 +214,7 @@ async function seed() {
       // notifySound: 80% участников имеют notifySound = true
       const notifySound = Math.random() < 0.8;
       dialogMemberMetaEntries.push({
-        tenantId: tenant.tenantId,
+        tenantId: member.tenantId,
         entityType: 'dialogMember',
         entityId: memberId, // Используем составной ключ dialogId:userId
         key: 'notifySound',
@@ -259,29 +271,59 @@ async function seed() {
       'До свидания!'
     ];
 
-    const messageTypes = ['internal.text', 'internal.text', 'internal.text', 'internal.text', 'internal.text', 'system.text']; // Больше текстовых сообщений
-    const senderIds = ['carl', 'marta', 'sara', 'kirk', 'john']; // Произвольные строки вместо ObjectId
+    // Разные типы сообщений
+    const messageTypes = [
+      'internal.text', 'internal.text', 'internal.text', 'internal.text', 'internal.text',
+      'system.text', 'system.text',
+      'system.notification', 'system.join', 'system.leave',
+      'user.text', 'user.image', 'user.file'
+    ];
+    
     const allMessages = [];
 
     // Создаем сообщения для каждого диалога
-    dialogs.forEach((dialog, dialogIndex) => {
-      // Количество сообщений в диалоге: от 1 до 25 (случайно)
-      const messageCount = Math.floor(Math.random() * 25) + 1;
+    allDialogs.forEach((dialog) => {
+      // Количество сообщений в диалоге: от 5 до 50
+      const messageCount = Math.floor(Math.random() * 46) + 5;
+      
+      // Получаем участников диалога для выбора отправителя
+      const dialogParticipants = dialogMembers
+        .filter(m => m.dialogId === dialog.dialogId)
+        .map(m => m.userId);
+      
+      if (dialogParticipants.length === 0) return;
       
       for (let i = 0; i < messageCount; i++) {
-        const randomSenderId = senderIds[Math.floor(Math.random() * senderIds.length)];
+        const randomSenderId = dialogParticipants[Math.floor(Math.random() * dialogParticipants.length)];
         const randomTemplate = messageTemplates[Math.floor(Math.random() * messageTemplates.length)];
         const randomType = messageTypes[Math.floor(Math.random() * messageTypes.length)];
         
-        // Добавляем номер сообщения для разнообразия
-        const messageContent = i === 0 
-          ? `Привет! Это первое сообщение в диалоге ${dialog.dialogId}`
-          : `${randomTemplate} (сообщение ${i + 1})`;
+        // Для системных сообщений используем специальный контент
+        let messageContent;
+        if (randomType.startsWith('system.')) {
+          if (randomType === 'system.notification') {
+            messageContent = `🔔 Уведомление: ${randomTemplate}`;
+          } else if (randomType === 'system.join') {
+            messageContent = `👋 Пользователь ${randomSenderId} присоединился к диалогу`;
+          } else if (randomType === 'system.leave') {
+            messageContent = `👋 Пользователь ${randomSenderId} покинул диалог`;
+          } else {
+            messageContent = `📢 Системное сообщение: ${randomTemplate}`;
+          }
+        } else if (randomType === 'user.image') {
+          messageContent = '📷 [Изображение]';
+        } else if (randomType === 'user.file') {
+          messageContent = '📎 [Файл]';
+        } else {
+          messageContent = i === 0 
+            ? `Привет! Это первое сообщение в диалоге ${dialog.dialogId.substring(0, 10)}...`
+            : `${randomTemplate} (сообщение ${i + 1})`;
+        }
         
         allMessages.push({
-          tenantId: tenant.tenantId,
+          tenantId: dialog.tenantId,
           dialogId: dialog.dialogId,
-          senderId: randomSenderId, // Используем произвольную строку
+          senderId: randomSenderId,
           content: messageContent,
           type: randomType,
         });
@@ -291,66 +333,68 @@ async function seed() {
     // Создаем все сообщения одним запросом
     const messages = await Message.create(allMessages);
 
-    console.log(`✅ Created ${messages.length} messages across ${dialogs.length} dialogs`);
-    console.log(`   - Average messages per dialog: ${Math.round(messages.length / dialogs.length)}`);
-    console.log(`   - Messages range: 1-25 per dialog`);
-    console.log(`   - Sender IDs: carl, marta, sara, kirk, john (произвольные строки)`);
+    console.log(`✅ Created ${messages.length} messages across ${allDialogs.length} dialogs`);
+    console.log(`   - Average messages per dialog: ${Math.round(messages.length / allDialogs.length)}`);
+    console.log(`   - Messages range: 5-50 per dialog`);
 
     // Create Message Statuses
     console.log('\n📊 Creating message statuses...');
     const messageStatuses = [];
-    const statusTypes = ['sent', 'delivered', 'read'];
-    const statusUserIds = ['carl', 'marta', 'sara', 'kirk', 'john'];
+    const statusTypes = ['sent', 'delivered', 'read', 'unread'];
 
-    // Получаем типы пользователей для заполнения userType в статусах
-    const usersWithTypes = await User.find({
-      tenantId: tenant.tenantId,
-      userId: { $in: statusUserIds }
-    }).select('userId type').lean();
-    
+    // Создаем карту пользователей по tenantId для быстрого доступа
     const userTypeMap = new Map();
-    usersWithTypes.forEach(user => {
-      userTypeMap.set(user.userId, user.type || null);
+    allUsers.forEach(user => {
+      userTypeMap.set(`${user.tenantId}:${user.userId}`, user.type || 'user');
     });
 
-    // Создаем статусы для 60% сообщений (случайно выбранных)
-    const messagesWithStatuses = messages.filter(() => Math.random() < 0.6);
+    // Создаем статусы для 70% сообщений (случайно выбранных)
+    const messagesWithStatuses = messages.filter(() => Math.random() < 0.7);
     
-    messagesWithStatuses.forEach((message, messageIndex) => {
-      // Для каждого сообщения создаем статусы для 2-4 случайных пользователей
-      const statusCount = Math.floor(Math.random() * 3) + 2; // 2-4 статуса
-      const selectedUsers = statusUserIds
+    messagesWithStatuses.forEach((message) => {
+      // Получаем участников диалога для этого сообщения
+      const dialogParticipants = dialogMembers
+        .filter(m => m.dialogId === message.dialogId)
+        .map(m => m.userId);
+      
+      if (dialogParticipants.length === 0) return;
+      
+      // Для каждого сообщения создаем статусы для 2-6 случайных пользователей
+      const statusCount = Math.floor(Math.random() * 5) + 2; // 2-6 статусов
+      const selectedUsers = dialogParticipants
         .sort(() => Math.random() - 0.5)
-        .slice(0, statusCount);
+        .slice(0, Math.min(statusCount, dialogParticipants.length));
 
       selectedUsers.forEach((userId, userIndex) => {
         // Время создания статуса - от времени сообщения до текущего времени
-        const messageTime = message.createdAt; // Уже Number с микросекундами
+        const messageTime = message.createdAt;
         const now = generateTimestamp();
         const randomOffset = Math.random() * (now - messageTime);
-        const statusTime = messageTime + randomOffset; // Timestamp с микросекундами
+        const statusTime = messageTime + randomOffset;
         
-        // Статус зависит от порядка пользователя (первый - sent, второй - delivered, остальные - read)
+        // Статус зависит от порядка пользователя
         let status;
         if (userIndex === 0) {
           status = 'sent';
         } else if (userIndex === 1) {
-          status = Math.random() < 0.7 ? 'delivered' : 'sent'; // 70% delivered, 30% sent
+          status = Math.random() < 0.6 ? 'delivered' : 'sent';
+        } else if (userIndex === 2) {
+          status = Math.random() < 0.5 ? 'read' : 'delivered';
         } else {
-          status = Math.random() < 0.8 ? 'read' : 'delivered'; // 80% read, 20% delivered
+          status = Math.random() < 0.7 ? 'read' : (Math.random() < 0.5 ? 'delivered' : 'unread');
         }
 
         // Получаем тип пользователя из карты
-        const userType = userTypeMap.get(userId) || null;
+        const userType = userTypeMap.get(`${message.tenantId}:${userId}`) || 'user';
 
         messageStatuses.push({
           messageId: message.messageId,
           userId,
-          userType: userType, // Заполняем userType
-          tenantId: tenant.tenantId,
+          userType: userType,
+          tenantId: message.tenantId,
           status,
-          createdAt: statusTime, // С микросекундами
-          updatedAt: statusTime  // С микросекундами
+          createdAt: statusTime,
+          updatedAt: statusTime
         });
       });
     });
@@ -371,175 +415,93 @@ async function seed() {
     console.log(`     - read: ${messageStatuses.filter(s => s.status === 'read').length}`);
 
     // Create Meta
-    const metaEntries = [
-      // System bot meta (now using string identifier)
-      {
-        tenantId: defaultTenant.tenantId,
+    const metaEntries = [];
+    
+    // System bot meta для каждого тенанта
+    tenants.forEach(tenant => {
+      metaEntries.push(
+        {
+          tenantId: tenant.tenantId,
+          entityType: 'user',
+          entityId: 'system_bot',
+          key: 'isBot',
+          value: true,
+          dataType: 'boolean',
+        },
+        {
+          tenantId: tenant.tenantId,
+          entityType: 'user',
+          entityId: 'system_bot',
+          key: 'botType',
+          value: 'system',
+          dataType: 'string',
+        },
+        {
+          tenantId: tenant.tenantId,
+          entityType: 'user',
+          entityId: 'system_bot',
+          key: 'capabilities',
+          value: ['notifications', 'system_messages', 'auto_reply'],
+          dataType: 'array',
+        },
+        {
+          tenantId: tenant.tenantId,
+          entityType: 'tenant',
+          entityId: tenant.tenantId,
+          key: 'plan',
+          value: ['premium', 'standard', 'basic'][Math.floor(Math.random() * 3)],
+          dataType: 'string',
+        }
+      );
+    });
+    // User meta для каждого пользователя
+    const themes = ['dark', 'light', 'auto'];
+    const departments = ['Engineering', 'Sales', 'Marketing', 'Support', 'HR', 'Finance', 'Operations'];
+    
+    allUsers.forEach(user => {
+      // Theme для каждого пользователя
+      metaEntries.push({
+        tenantId: user.tenantId,
         entityType: 'user',
-        entityId: 'system_bot',
-        key: 'isBot',
-        value: true,
-        dataType: 'boolean',
-      },
-      {
-        tenantId: defaultTenant.tenantId,
-        entityType: 'user',
-        entityId: 'system_bot',
-        key: 'botType',
-        value: 'system',
-        dataType: 'string',
-      },
-      {
-        tenantId: defaultTenant.tenantId,
-        entityType: 'user',
-        entityId: 'system_bot',
-        key: 'capabilities',
-        value: ['notifications', 'system_messages', 'auto_reply'],
-        dataType: 'array',
-      },
-      // Demo tenant meta
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'tenant',
-        entityId: tenant.tenantId,
-        key: 'plan',
-        value: 'premium',
-        dataType: 'string',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'carl',
+        entityId: user.userId,
         key: 'theme',
-        value: 'dark',
+        value: themes[Math.floor(Math.random() * themes.length)],
         dataType: 'string',
-        createdBy: 'carl',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'marta',
-        key: 'theme',
-        value: 'light',
-        dataType: 'string',
-        createdBy: 'marta',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'sara',
-        key: 'theme',
-        value: 'auto',
-        dataType: 'string',
-        createdBy: 'sara',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'kirk',
-        key: 'theme',
-        value: 'dark',
-        dataType: 'string',
-        createdBy: 'kirk',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'john',
-        key: 'theme',
-        value: 'light',
-        dataType: 'string',
-        createdBy: 'john',
-      },
-      // Meta tags for alice, bob, eve
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'alice',
-        key: 'theme',
-        value: 'dark',
-        dataType: 'string',
-        createdBy: 'alice',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'alice',
-        key: 'email',
-        value: 'alice@example.com',
-        dataType: 'string',
-        createdBy: 'alice',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'alice',
-        key: 'department',
-        value: 'Engineering',
-        dataType: 'string',
-        createdBy: 'alice',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'bob',
-        key: 'theme',
-        value: 'light',
-        dataType: 'string',
-        createdBy: 'bob',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'bob',
-        key: 'email',
-        value: 'bob@example.com',
-        dataType: 'string',
-        createdBy: 'bob',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'bob',
-        key: 'department',
-        value: 'Sales',
-        dataType: 'string',
-        createdBy: 'bob',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'eve',
-        key: 'theme',
-        value: 'auto',
-        dataType: 'string',
-        createdBy: 'eve',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'eve',
-        key: 'email',
-        value: 'eve@example.com',
-        dataType: 'string',
-        createdBy: 'eve',
-      },
-      {
-        tenantId: tenant.tenantId,
-        entityType: 'user',
-        entityId: 'eve',
-        key: 'department',
-        value: 'Marketing',
-        dataType: 'string',
-        createdBy: 'eve',
-      },
-    ];
+        createdBy: user.userId,
+      });
+      
+      // Email для 50% пользователей
+      if (Math.random() < 0.5) {
+        metaEntries.push({
+          tenantId: user.tenantId,
+          entityType: 'user',
+          entityId: user.userId,
+          key: 'email',
+          value: `${user.userId}@example.com`,
+          dataType: 'string',
+          createdBy: user.userId,
+        });
+      }
+      
+      // Department для 40% пользователей
+      if (Math.random() < 0.4) {
+        metaEntries.push({
+          tenantId: user.tenantId,
+          entityType: 'user',
+          entityId: user.userId,
+          key: 'department',
+          value: departments[Math.floor(Math.random() * departments.length)],
+          dataType: 'string',
+          createdBy: user.userId,
+        });
+      }
+    });
 
     // Add meta for each dialog
-    dialogs.forEach((dialog, index) => {
+    allDialogs.forEach((dialog, index) => {
       // Meta type (internal/external)
       metaEntries.push({
-        tenantId: tenant.tenantId,
+        tenantId: dialog.tenantId,
         entityType: 'dialog',
         entityId: dialog.dialogId,
         key: 'type',
@@ -547,9 +509,9 @@ async function seed() {
         dataType: 'string',
       });
 
-      // Channel type (whatsapp/telegram)
+      // Channel type (whatsapp/telegram/viber/sms)
       metaEntries.push({
-        tenantId: tenant.tenantId,
+        tenantId: dialog.tenantId,
         entityType: 'dialog',
         entityId: dialog.dialogId,
         key: 'channelType',
@@ -559,17 +521,17 @@ async function seed() {
 
       // Welcome message
       metaEntries.push({
-        tenantId: tenant.tenantId,
+        tenantId: dialog.tenantId,
         entityType: 'dialog',
         entityId: dialog.dialogId,
         key: 'welcomeMessage',
-        value: `Добро пожаловать в диалог ${dialog.dialogId}!`,
+        value: `Добро пожаловать в диалог ${dialog.dialogId.substring(0, 10)}...!`,
         dataType: 'string',
       });
 
       // Max participants
       metaEntries.push({
-        tenantId: tenant.tenantId,
+        tenantId: dialog.tenantId,
         entityType: 'dialog',
         entityId: dialog.dialogId,
         key: 'maxParticipants',
@@ -583,7 +545,7 @@ async function seed() {
         : ['file_sharing', 'voice_calls'];
       
       metaEntries.push({
-        tenantId: tenant.tenantId,
+        tenantId: dialog.tenantId,
         entityType: 'dialog',
         entityId: dialog.dialogId,
         key: 'features',
@@ -593,7 +555,7 @@ async function seed() {
 
       // Security level
       metaEntries.push({
-        tenantId: tenant.tenantId,
+        tenantId: dialog.tenantId,
         entityType: 'dialog',
         entityId: dialog.dialogId,
         key: 'securityLevel',
@@ -605,13 +567,14 @@ async function seed() {
 
     // Add meta for messages
     messages.forEach((message, index) => {
-      // Определяем channelType и channelId на основе индекса сообщения
-      const channelType = index % 2 === 0 ? 'whatsapp' : 'telegram';
-      const channelId = channelType === 'whatsapp' ? 'W0000' : 'TG0000';
+      // Находим диалог для определения channelType
+      const dialog = allDialogs.find(d => d.dialogId === message.dialogId);
+      const channelType = dialog?.channelType || (index % 2 === 0 ? 'whatsapp' : 'telegram');
+      const channelId = channelType === 'whatsapp' ? `W${String(index % 10000).padStart(4, '0')}` : `TG${String(index % 10000).padStart(4, '0')}`;
       
       // Channel type
       metaEntries.push({
-        tenantId: tenant.tenantId,
+        tenantId: message.tenantId,
         entityType: 'message',
         entityId: message.messageId,
         key: 'channelType',
@@ -621,7 +584,7 @@ async function seed() {
 
       // Channel ID
       metaEntries.push({
-        tenantId: tenant.tenantId,
+        tenantId: message.tenantId,
         entityType: 'message',
         entityId: message.messageId,
         key: 'channelId',
@@ -633,33 +596,37 @@ async function seed() {
     const meta = await Meta.create(metaEntries);
 
     console.log(`✅ Created ${meta.length} meta entries`);
-    console.log(`   - Bot metadata: 3`);
-    console.log(`   - Tenant metadata: 1`);
-    console.log(`   - User metadata: 14 (themes + email/department for alice, bob, eve)`);
-    console.log(`   - Dialog metadata: ${dialogs.length * 6} (6 per dialog: type, channelType, welcomeMessage, maxParticipants, features, securityLevel)`);
+    console.log(`   - Bot metadata: ${tenants.length * 3} (3 per tenant)`);
+    console.log(`   - Tenant metadata: ${tenants.length} (1 per tenant)`);
+    console.log(`   - User metadata: ~${Math.round(allUsers.length * 1.4)} (average 1.4 per user: theme, email, department)`);
+    console.log(`   - Dialog metadata: ${allDialogs.length * 6} (6 per dialog: type, channelType, welcomeMessage, maxParticipants, features, securityLevel)`);
     console.log(`   - Message metadata: ${messages.length * 2} (2 per message: channelType, channelId)`);
     console.log(`   - DialogMember metadata: ${dialogMemberMetaEntries.length} (3 per member: role, muted, notifySound)`);
 
     // Create Message Reactions
     console.log('\n👍 Creating message reactions...');
     const reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '💯', '✨', '🎉', '👏'];
-    const reactionUserIds = ['carl', 'marta', 'sara', 'kirk', 'john'];
     const allReactions = [];
 
     // Для каждого сообщения генерируем реакции
-    messages.forEach((message, messageIndex) => {
+    messages.forEach((message) => {
+      // Получаем участников диалога для реакций
+      const dialogParticipants = dialogMembers
+        .filter(m => m.dialogId === message.dialogId)
+        .map(m => m.userId);
+      
+      if (dialogParticipants.length === 0) return;
       // Количество реакций на сообщение: от 0 до 8 (случайно)
       // 70% сообщений имеют реакции
       const hasReactions = Math.random() < 0.7;
       if (!hasReactions) return;
 
-      const reactionCount = Math.floor(Math.random() * 9); // 0-8 реакций
+      const reactionCount = Math.floor(Math.random() * 8) + 1; // 1-8 реакций
       
       // Выбираем случайных пользователей для реакций (без повторений)
-      const availableUsers = [...reactionUserIds];
-      const selectedUsers = availableUsers
+      const selectedUsers = dialogParticipants
         .sort(() => Math.random() - 0.5)
-        .slice(0, Math.min(reactionCount, availableUsers.length));
+        .slice(0, Math.min(reactionCount, dialogParticipants.length));
 
       selectedUsers.forEach((userId, userIndex) => {
         // Время реакции - от времени сообщения до текущего времени
@@ -672,12 +639,12 @@ async function seed() {
         const reaction = reactions[Math.floor(Math.random() * reactions.length)];
 
         allReactions.push({
-          tenantId: tenant.tenantId,
+          tenantId: message.tenantId,
           messageId: message.messageId,
           userId: userId,
           reaction: reaction,
-          createdAt: reactionTime, // С микросекундами
-          updatedAt: reactionTime  // С микросекундами
+          createdAt: reactionTime,
+          updatedAt: reactionTime
         });
       });
     });
@@ -714,12 +681,12 @@ async function seed() {
 
     // Обновляем счетчики реакций в Message.reactionCounts
     console.log('\n🔄 Updating reaction counts in messages...');
-    const messagesWithReactions = [...new Set(allReactions.map(r => r.messageId))];
+    const messagesWithReactions = [...new Set(allReactions.map(r => ({ messageId: r.messageId, tenantId: r.tenantId })))];
     let updatedCount = 0;
     
-    for (const messageId of messagesWithReactions) {
+    for (const { messageId, tenantId } of messagesWithReactions) {
       try {
-        await reactionUtils.updateReactionCounts(tenant.tenantId, messageId);
+        await reactionUtils.updateReactionCounts(tenantId, messageId);
         updatedCount++;
       } catch (error) {
         console.error(`Error updating reaction counts for message ${messageId}:`, error.message);
@@ -730,51 +697,38 @@ async function seed() {
 
     console.log('\n🎉 Database seeding completed successfully!');
     console.log('\n📊 Summary:');
-    console.log(`   - Tenants: ${await Tenant.countDocuments()} (1 default tenant: ${tenant.tenantId})`);
-    console.log(`   - Users: String identifiers (carl, marta, sara, kirk, john)`);
-    console.log(`   - Dialogs: ${await Dialog.countDocuments()} (70 internal + 30 external = 100 total)`);
-    console.log(`   - Messages: ${await Message.countDocuments()} (${messages.length} total across ${dialogs.length} dialogs)`);
+    console.log(`   - Tenants: ${await Tenant.countDocuments()} (${tenantIds.join(', ')})`);
+    console.log(`   - Users: ${await User.countDocuments()} total across all tenants`);
+    console.log(`   - Dialogs: ${await Dialog.countDocuments()} total across all tenants`);
+    console.log(`   - Messages: ${await Message.countDocuments()} (${messages.length} total)`);
     console.log(`   - Message Statuses: ${await MessageStatus.countDocuments()} (${messageStatuses.length} total)`);
     console.log(`   - Message Reactions: ${await MessageReaction.countDocuments()} (${allReactions.length} total)`);
-    console.log(`   - Meta: ${await Meta.countDocuments()} (5 system/tenant + ${dialogs.length * 6} dialog + ${messages.length * 2} message + ${dialogMemberMetaEntries.length} dialogMember)`);
+    console.log(`   - Meta: ${await Meta.countDocuments()} total`);
+    console.log(`   - Dialog Members: ${await DialogMember.countDocuments()} total`);
+    
+    // Статистика по тенантам
+    console.log('\n📈 Statistics by tenant:');
+    for (const tenant of tenants) {
+      const tenantUsers = await User.countDocuments({ tenantId: tenant.tenantId });
+      const tenantDialogs = await Dialog.countDocuments({ tenantId: tenant.tenantId });
+      const tenantMessages = await Message.countDocuments({ tenantId: tenant.tenantId });
+      console.log(`   - ${tenant.tenantId}: ${tenantUsers} users, ${tenantDialogs} dialogs, ${tenantMessages} messages`);
+    }
+    
+    // Статистика по типам сообщений
+    const messageTypeStats = {};
+    messages.forEach(m => {
+      messageTypeStats[m.type] = (messageTypeStats[m.type] || 0) + 1;
+    });
+    console.log('\n💬 Message types distribution:');
+    Object.entries(messageTypeStats).forEach(([type, count]) => {
+      console.log(`   - ${type}: ${count}`);
+    });
+    
     console.log('\n🤖 System Bot:');
     console.log(`   - Identifier: system_bot`);
-    console.log(`   - Tenant: ${tenant.name} (${tenant.tenantId})`);
+    console.log(`   - Available in all ${tenants.length} tenants`);
     console.log(`   - Capabilities: notifications, system_messages, auto_reply`);
-    console.log('\n💬 Dialogs breakdown:');
-    console.log(`   - By type: 70 internal + 30 external = 100 total`);
-    console.log(`   - By channel: 50 WhatsApp + 50 Telegram = 100 total`);
-    console.log('\n📱 Test filters:');
-    console.log(`   - GET /api/dialogs?filter={"meta":{"type":"internal"}} → 70 dialogs`);
-    console.log(`   - GET /api/dialogs?filter={"meta":{"type":"external"}} → 30 dialogs`);
-    console.log(`   - GET /api/dialogs?filter={"meta":{"channelType":"whatsapp"}} → 50 dialogs`);
-    console.log(`   - GET /api/dialogs?filter={"meta":{"channelType":"telegram"}} → 50 dialogs`);
-    console.log(`   - GET /api/dialogs?filter={"meta":{"type":"internal","channelType":"whatsapp"}} → 35 dialogs`);
-    console.log('\n👥 Dialog Members:');
-    console.log(`   - DialogMember records: ${await DialogMember.countDocuments()} (participants stored in DialogMember model)`);
-    console.log(`   - Use /api/users/{userId}/dialogs to get user's dialogs`);
-    console.log(`   - Use /api/dialogs/{dialogId}/members to get dialog participants`);
-    console.log('\n💬 Message filters:');
-    console.log(`   - GET /api/messages?filter=(meta.channelType,eq,whatsapp) → сообщения из WhatsApp`);
-    console.log(`   - GET /api/messages?filter=(meta.channelType,eq,telegram) → сообщения из Telegram`);
-    console.log(`   - GET /api/messages?filter=(meta.channelId,eq,W0000) → сообщения с ID W0000`);
-    console.log(`   - GET /api/messages?filter=(meta.channelId,eq,TG0000) → сообщения с ID TG0000`);
-    console.log('\n📊 Message Statuses:');
-    console.log(`   - ${messageStatuses.length} total statuses created`);
-    console.log(`   - ${messagesWithStatuses.length} messages have statuses (60% of all messages)`);
-    console.log(`   - Status distribution: sent, delivered, read`);
-    console.log(`   - Each message has 2-4 statuses from different users`);
-    console.log(`   - Use /api/messages/{messageId} to see messageStatuses array`);
-    console.log('\n👍 Message Reactions:');
-    console.log(`   - ${allReactions.length} total reactions created`);
-    console.log(`   - ${messages.filter((m, i) => {
-      const messageReactions = allReactions.filter(r => r.messageId.toString() === m._id.toString());
-      return messageReactions.length > 0;
-    }).length} messages have reactions (70% of all messages)`);
-    console.log(`   - Reaction types: ${reactions.join(', ')}`);
-    console.log(`   - Each message has 0-8 reactions from different users`);
-    console.log(`   - Use /api/messages/{messageId}/reactions to see reactions`);
-    console.log(`   - Reaction counts are cached in Message.reactionCounts`);
     console.log('\n');
 
     process.exit(0);

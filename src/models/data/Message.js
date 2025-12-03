@@ -23,8 +23,7 @@ const messageSchema = new mongoose.Schema({
   },
   tenantId: {
     type: String,
-    required: true,
-    match: /^tnt_[a-z0-9]+$/
+    required: true
   },
   dialogId: {
     type: String,

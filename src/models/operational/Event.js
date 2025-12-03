@@ -17,7 +17,6 @@ const eventSchema = new mongoose.Schema({
     type: String,
     required: true,
     index: true,
-    match: /^tnt_[a-z0-9]+$/
   },
   eventType: {
     type: String,

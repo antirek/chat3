@@ -395,6 +395,19 @@
                         `;
                     }
                     
+                    // Информация о seed
+                    if (data.data && data.data.seed && data.data.seed.started) {
+                        html += `
+                            <div style="margin-top: 15px; padding: 10px; background: #d1ecf1; border-radius: 4px; border: 1px solid #bee5eb;">
+                                <strong>🌱 Seed скрипт запущен</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 13px;">
+                                    База данных заполняется тестовыми данными (несколько тенантов, пользователи, диалоги, сообщения).
+                                    <br>Это может занять некоторое время. Проверьте логи сервера для отслеживания прогресса.
+                                </p>
+                            </div>
+                        `;
+                    }
+                    
                     if (data.data && data.data.errors && data.data.errors.length > 0) {
                         html += `<p style="margin-top: 10px; color: #856404;"><strong>Предупреждения:</strong></p>`;
                         html += `<ul style="margin-top: 5px; color: #856404;">`;

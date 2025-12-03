@@ -22,6 +22,7 @@ app.set('trust proxy', true);
 // Get URLs from environment variables or use defaults
 const CONTROL_APP_URL = process.env.CONTROL_APP_URL || 'http://localhost:3001';
 const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
+const RABBITMQ_MANAGEMENT_URL = process.env.RABBITMQ_MANAGEMENT_URL || 'http://localhost:15672';
 
 // Extract port from URL for server listening
 const PORT = new URL(CONTROL_APP_URL).port || 3001;
@@ -89,13 +90,15 @@ app.get('/config.js', (req, res) => {
   // Safely escape URLs for JavaScript
   const config = {
     TENANT_API_URL: tenantApiUrl,
-    CONTROL_APP_URL: gatewayUrl
+    CONTROL_APP_URL: gatewayUrl,
+    RABBITMQ_MANAGEMENT_URL: RABBITMQ_MANAGEMENT_URL
   };
   
   res.send(`// Конфигурация URL для разных сервисов (генерируется динамически на основе запроса)
 window.CHAT3_CONFIG = {
     TENANT_API_URL: ${JSON.stringify(config.TENANT_API_URL)},
     CONTROL_APP_URL: ${JSON.stringify(config.CONTROL_APP_URL)},
+    RABBITMQ_MANAGEMENT_URL: ${JSON.stringify(config.RABBITMQ_MANAGEMENT_URL)},
     
     getTenantApiUrl: function(path = '') {
         return this.TENANT_API_URL + path;

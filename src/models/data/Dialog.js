@@ -24,7 +24,6 @@ const dialogSchema = new mongoose.Schema({
   tenantId: {
     type: String,
     required: true, 
-    match: /^tnt_[a-z0-9]+$/
   },
   createdBy: {
     type: String,
