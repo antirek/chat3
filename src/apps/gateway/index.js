@@ -15,6 +15,10 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
+// Trust proxy для правильной работы с reverse proxy (nginx)
+// Это позволяет Express правильно определять req.protocol и req.ip
+app.set('trust proxy', true);
+
 // Get URLs from environment variables or use defaults
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3001';
 const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
@@ -45,7 +49,8 @@ app.use('/api/db-explorer', dbExplorerRoutes);
 // 2. Swagger UI - /api-docs
 // ============================================
 app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
-  const protocol = req.protocol;
+  // Учитываем X-Forwarded-Proto для случаев, когда перед gateway стоит reverse proxy
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
   const host = req.get('host');
   const swaggerSpecWithHost = {
     ...swaggerSpec,

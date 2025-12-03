@@ -17,6 +17,10 @@ import { apiJournalMiddleware } from './middleware/apiJournal.js';
 
 const app = express();
 
+// Trust proxy для правильной работы с reverse proxy (nginx)
+// Это позволяет Express правильно определять req.protocol и req.ip
+app.set('trust proxy', true);
+
 // Get URLs from environment variables or use defaults
 const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
 const ADMIN_WEB_URL = process.env.ADMIN_WEB_URL || 'http://localhost:3001';
@@ -50,7 +54,8 @@ app.use(idempotencyGuard);
 
 // Swagger UI with dynamic host
 app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
-  const protocol = req.protocol;
+  // Учитываем X-Forwarded-Proto для случаев, когда перед сервером стоит reverse proxy
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
   const host = req.get('host');
   const swaggerSpecWithHost = {
     ...swaggerSpec,

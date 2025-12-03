@@ -9,6 +9,10 @@ import swaggerSpec from './config/swagger.js';
 
 const app = express();
 
+// Trust proxy для правильной работы с reverse proxy (nginx)
+// Это позволяет Express правильно определять req.protocol и req.ip
+app.set('trust proxy', true);
+
 // Get URLs from environment variables or use defaults
 const CONTROL_API_URL = process.env.CONTROL_API_URL || 'http://localhost:3002';
 const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
@@ -37,7 +41,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Swagger UI with dynamic host
 app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
-  const protocol = req.protocol;
+  // Учитываем X-Forwarded-Proto для случаев, когда перед сервером стоит reverse proxy
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
   const host = req.get('host');
   const swaggerSpecWithHost = {
     ...swaggerSpec,
