@@ -518,15 +518,6 @@ const messageController = {
         ? messageContent.substring(0, MAX_CONTENT_LENGTH) 
         : messageContent;
 
-      const dialogSection = eventUtils.buildDialogSection({
-        dialogId: dialog.dialogId,
-        tenantId: dialog.tenantId,
-        createdBy: dialog.createdBy,
-        createdAt: dialog.createdAt,
-        updatedAt: dialog.updatedAt,
-        meta: dialogMeta
-      });
-
       const messageSection = eventUtils.buildMessageSection({
         messageId: message.messageId,
         dialogId: dialog.dialogId,
@@ -537,18 +528,12 @@ const messageController = {
         quotedMessage
       });
 
-      const actorSection = eventUtils.buildActorSection({
-        actorId: senderId,
-        actorType: 'user',
-        info: senderInfo || null
-      });
-
       const eventContext = eventUtils.buildEventContext({
         eventType: 'message.create',
         dialogId: dialog.dialogId,
         entityId: message.messageId,
         messageId: message.messageId,
-        includedSections: ['dialog', 'message.full', 'actor'],
+        includedSections: ['message.full'],
         updatedFields: ['message']
       });
 
@@ -561,9 +546,7 @@ const messageController = {
         actorType: 'user',
         data: eventUtils.composeEventData({
           context: eventContext,
-          dialog: dialogSection,
-          message: messageSection,
-          actor: actorSection
+          message: messageSection
         })
       });
 
@@ -753,10 +736,6 @@ const messageController = {
 
       const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
 
-      const dialogSection = eventUtils.buildDialogSection({
-        dialogId: message.dialogId
-      });
-
       const MAX_CONTENT_LENGTH = 4096;
       const eventContent = newContent.length > MAX_CONTENT_LENGTH
         ? newContent.substring(0, MAX_CONTENT_LENGTH)
@@ -771,17 +750,12 @@ const messageController = {
         meta
       });
 
-      const actorSection = eventUtils.buildActorSection({
-        actorId: req.apiKey?.name || 'unknown',
-        actorType: 'api'
-      });
-
       const eventContext = eventUtils.buildEventContext({
         eventType: 'message.update',
         dialogId: message.dialogId,
         entityId: message.messageId,
         messageId: message.messageId,
-        includedSections: ['dialog', 'message', 'actor'],
+        includedSections: ['message'],
         updatedFields: ['message.content']
       });
 
@@ -794,9 +768,7 @@ const messageController = {
         actorType: 'api',
         data: eventUtils.composeEventData({
           context: eventContext,
-          dialog: dialogSection,
           message: messageSection,
-          actor: actorSection,
           extra: {
             delta: {
               content: {

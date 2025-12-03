@@ -61,14 +61,6 @@ const dialogMemberController = {
         dialog.dialogId // Передаем строковый dialogId
       );
 
-      const dialogSection = eventUtils.buildDialogSection({
-        dialogId: dialog.dialogId,
-        tenantId: dialog.tenantId,
-        createdBy: dialog.createdBy,
-        createdAt: dialog.createdAt,
-        updatedAt: dialog.updatedAt
-      });
-
       const memberSection = eventUtils.buildMemberSection({
         userId: member.userId,
         state: {
@@ -79,16 +71,11 @@ const dialogMemberController = {
         }
       });
 
-      const actorSection = eventUtils.buildActorSection({
-        actorId: req.apiKey?.name || 'unknown',
-        actorType: 'api'
-      });
-
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.member.add',
         dialogId: dialog.dialogId,
         entityId: dialog.dialogId,
-        includedSections: ['dialog', 'member', 'actor'],
+        includedSections: ['member'],
         updatedFields: ['member']
       });
 
@@ -101,9 +88,7 @@ const dialogMemberController = {
         actorType: 'api',
         data: eventUtils.composeEventData({
           context: eventContext,
-          dialog: dialogSection,
-          member: memberSection,
-          actor: actorSection
+          member: memberSection
         })
       });
 
@@ -312,14 +297,6 @@ const dialogMemberController = {
 
       // Создаем событие dialog.member.remove
       if (member) {
-        const dialogSection = eventUtils.buildDialogSection({
-          dialogId: dialog.dialogId,
-          tenantId: dialog.tenantId,
-          createdBy: dialog.createdBy,
-          createdAt: dialog.createdAt,
-          updatedAt: dialog.updatedAt
-        });
-
         const memberSection = eventUtils.buildMemberSection({
           userId: member.userId,
           state: {
@@ -330,16 +307,11 @@ const dialogMemberController = {
           }
         });
 
-        const actorSection = eventUtils.buildActorSection({
-          actorId: req.apiKey?.name || 'unknown',
-          actorType: 'api'
-        });
-
         const eventContext = eventUtils.buildEventContext({
           eventType: 'dialog.member.remove',
           dialogId: dialog.dialogId,
           entityId: dialog.dialogId,
-          includedSections: ['dialog', 'member', 'actor'],
+          includedSections: ['member'],
           updatedFields: ['member']
         });
 
@@ -352,9 +324,7 @@ const dialogMemberController = {
           actorType: 'api',
           data: eventUtils.composeEventData({
             context: eventContext,
-            dialog: dialogSection,
-            member: memberSection,
-            actor: actorSection
+            member: memberSection
           })
         });
       }
@@ -422,14 +392,6 @@ const dialogMemberController = {
         { new: true, lean: true }
       );
 
-      const dialogSection = eventUtils.buildDialogSection({
-        dialogId: dialog.dialogId,
-        tenantId: dialog.tenantId,
-        createdBy: dialog.createdBy,
-        createdAt: dialog.createdAt,
-        updatedAt: dialog.updatedAt
-      });
-
       const memberSection = eventUtils.buildMemberSection({
         userId,
         state: {
@@ -440,16 +402,11 @@ const dialogMemberController = {
         }
       });
 
-      const actorSection = eventUtils.buildActorSection({
-        actorId: req.apiKey?.name || 'unknown',
-        actorType: 'api'
-      });
-
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.member.update',
         dialogId: dialog.dialogId,
         entityId: dialog.dialogId,
-        includedSections: ['dialog', 'member', 'actor'],
+        includedSections: ['member'],
         updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
       });
 
@@ -462,9 +419,7 @@ const dialogMemberController = {
         actorType: 'api',
         data: eventUtils.composeEventData({
           context: eventContext,
-          dialog: dialogSection,
           member: memberSection,
-          actor: actorSection,
           extra: {
             delta: {
               unreadCount: {

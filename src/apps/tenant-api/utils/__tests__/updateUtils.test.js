@@ -512,12 +512,15 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       
       // Проверяем структуру данных
       // В update.data должны быть поля сообщения + statusUpdate
+      // Для message.status.update member секция не включается
       expect(update.data).toBeDefined();
       expect(update.data.message).toBeDefined();
       expect(update.data.message.messageId || update.data.message._id).toBeDefined();
       expect(update.data.message.statusUpdate).toBeDefined();
       expect(update.data.message.statusUpdate.userId).toBe('user2');
       expect(update.data.message.statusUpdate.status).toBe('read');
+      // member секция убрана для message.status.update
+      expect(update.data.member).toBeUndefined();
     });
 
     test('should include reaction update in message data', async () => {
@@ -576,12 +579,15 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(update).not.toBeNull();
       
       // Проверяем структуру данных
+      // Для message.reaction.update member секция не включается
       expect(update.data).toBeDefined();
       expect(update.data.message).toBeDefined();
       expect(update.data.message.reactionUpdate).toBeDefined();
       expect(update.data.message.reactionUpdate.userId).toBe('user2');
       expect(update.data.message.reactionUpdate.reaction).toBe('👍');
       expect(update.data.message.reactionUpdate.oldReaction).toBeNull();
+      // member секция убрана для message.reaction.update
+      expect(update.data.member).toBeUndefined();
     });
   });
 

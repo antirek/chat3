@@ -580,16 +580,11 @@ export const dialogController = {
         updatedAt: dialog.updatedAt
       });
 
-      const actorSection = eventUtils.buildActorSection({
-        actorId: createdBy,
-        actorType: 'user'
-      });
-
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.create',
         dialogId: dialog.dialogId,
         entityId: dialog.dialogId,
-        includedSections: ['dialog', 'actor'],
+        includedSections: ['dialog'],
         updatedFields: ['dialog']
       });
 
@@ -602,8 +597,7 @@ export const dialogController = {
         actorType: 'user',
         data: eventUtils.composeEventData({
           context: eventContext,
-          dialog: dialogSection,
-          actor: actorSection
+          dialog: dialogSection
         })
       });
 
@@ -661,16 +655,11 @@ export const dialogController = {
         updatedAt: dialog.updatedAt
       });
 
-      const actorSection = eventUtils.buildActorSection({
-        actorId: req.apiKey?.name || 'unknown',
-        actorType: 'api'
-      });
-
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.delete',
         dialogId: dialog.dialogId,
         entityId: dialog.dialogId,
-        includedSections: ['dialog', 'actor'],
+        includedSections: ['dialog'],
         updatedFields: ['dialog']
       });
 
@@ -683,8 +672,7 @@ export const dialogController = {
         actorType: 'api',
         data: eventUtils.composeEventData({
           context: eventContext,
-          dialog: dialogSection,
-          actor: actorSection
+          dialog: dialogSection
         })
       });
 

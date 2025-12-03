@@ -1367,10 +1367,6 @@ const userDialogController = {
       // pre-save hook автоматически обновит счетчики непрочитанных сообщений
       const messageStatus = await MessageStatus.create(newStatusData);
 
-      const dialogSection = eventUtils.buildDialogSection({
-        dialogId: dialogId
-      });
-
       const messageSection = eventUtils.buildMessageSection({
         messageId,
         dialogId: dialogId,
@@ -1388,17 +1384,12 @@ const userDialogController = {
         userId
       });
 
-      const actorSection = eventUtils.buildActorSection({
-        actorId: userId,
-        actorType: 'user'
-      });
-
       const statusContext = eventUtils.buildEventContext({
         eventType: 'message.status.update',
         dialogId: dialogId,
         entityId: messageId,
         messageId,
-        includedSections: ['dialog', 'message.status', 'member', 'actor'],
+        includedSections: ['message.status', 'member'],
         updatedFields: ['message.status']
       });
 
@@ -1411,10 +1402,8 @@ const userDialogController = {
         actorType: 'user',
         data: eventUtils.composeEventData({
           context: statusContext,
-          dialog: dialogSection,
           message: messageSection,
-          member: memberSection,
-          actor: actorSection
+          member: memberSection
         })
       });
 
@@ -1429,10 +1418,6 @@ const userDialogController = {
 
       // Если счетчик был обновлен, создаем событие dialog.member.update
       if (updatedMember) {
-        const dialogSection = eventUtils.buildDialogSection({
-          dialogId: dialogId
-        });
-
         const memberSection = eventUtils.buildMemberSection({
           userId,
           state: {
@@ -1443,16 +1428,11 @@ const userDialogController = {
           }
         });
 
-        const actorSection = eventUtils.buildActorSection({
-          actorId: userId,
-          actorType: 'user'
-        });
-
         const memberContext = eventUtils.buildEventContext({
           eventType: 'dialog.member.update',
           dialogId: dialogId,
           entityId: dialogId,
-          includedSections: ['dialog', 'member', 'actor'],
+          includedSections: ['member'],
           updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
         });
 
@@ -1465,9 +1445,7 @@ const userDialogController = {
           actorType: 'user',
           data: eventUtils.composeEventData({
             context: memberContext,
-            dialog: dialogSection,
-            member: memberSection,
-            actor: actorSection
+            member: memberSection
           })
         });
       }

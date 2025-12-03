@@ -444,7 +444,9 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       senderId: message.senderId,
       type: message.type
     };
-    const includedSections = ['dialog', 'member'];
+    // Для message.status.update и message.reaction.update не включаем member в секции
+    const isStatusOrReactionUpdate = ['message.status.update', 'message.reaction.update'].includes(eventType);
+    const includedSections = isStatusOrReactionUpdate ? ['dialog'] : ['dialog', 'member'];
     const updatedFields = [];
 
     const eventMessage = eventData?.message || {};
@@ -502,14 +504,21 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
 
     const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
     const dialogSection = buildDialogSection(dialog, dialogMeta);
-    const memberMetaEntries = await Promise.all(
-      dialogMembers.map(async member => {
-        const memberId = `${dialog.dialogId}:${member.userId}`;
-        const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
-        return { userId: member.userId, meta: memberMeta || {} };
-      })
-    );
-    const memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
+    
+    // Для message.status.update и message.reaction.update не нужна member секция
+    const needsMemberSection = !['message.status.update', 'message.reaction.update'].includes(eventType);
+    
+    let memberMetaMap = new Map();
+    if (needsMemberSection) {
+      const memberMetaEntries = await Promise.all(
+        dialogMembers.map(async member => {
+          const memberId = `${dialog.dialogId}:${member.userId}`;
+          const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
+          return { userId: member.userId, meta: memberMeta || {} };
+        })
+      );
+      memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
+    }
 
     const reason =
       eventData.reason ||
@@ -517,10 +526,8 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
         eventType.startsWith('message.reaction.') ? 'message_reaction' : null);
 
     const updates = dialogMembers.map(member => {
-      const memberSection = buildMemberSection(member, memberMetaMap.get(member.userId));
       const data = {
         dialog: dialogSection,
-        member: memberSection,
         message: cloneSection(messageSection),
         context: buildContextSection({
           eventType,
@@ -532,6 +539,12 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
           updatedFields: [...updatedFields]
         })
       };
+      
+      // Добавляем member секцию только если нужна
+      if (needsMemberSection) {
+        const memberSection = buildMemberSection(member, memberMetaMap.get(member.userId));
+        data.member = memberSection;
+      }
 
       return {
         tenantId: tenantId,

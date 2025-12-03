@@ -47,10 +47,6 @@ export async function sendTyping(req, res) {
       userId
     );
 
-    const dialogSection = eventUtils.buildDialogSection({
-      dialogId
-    });
-
     const actorInfo = sanitizeResponse({
       ...user,
       meta: userMeta
@@ -63,12 +59,6 @@ export async function sendTyping(req, res) {
       userInfo: actorInfo
     });
 
-    const actorSection = eventUtils.buildActorSection({
-      actorId: userId,
-      actorType: 'user',
-      info: actorInfo
-    });
-
     const memberSection = eventUtils.buildMemberSection({
       userId
     });
@@ -77,7 +67,7 @@ export async function sendTyping(req, res) {
       eventType: 'dialog.typing',
       dialogId,
       entityId: dialogId,
-      includedSections: ['dialog', 'typing', 'member', 'actor'],
+      includedSections: ['typing', 'member'],
       updatedFields: ['typing']
     });
 
@@ -90,10 +80,8 @@ export async function sendTyping(req, res) {
       actorType: 'user',
       data: eventUtils.composeEventData({
         context: typingContext,
-        dialog: dialogSection,
         typing: typingSection,
-        member: memberSection,
-        actor: actorSection
+        member: memberSection
       })
     });
 

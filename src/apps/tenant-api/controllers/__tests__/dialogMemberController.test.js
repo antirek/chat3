@@ -190,7 +190,8 @@ describe('dialogMemberController', () => {
       expect(event.data.member).toMatchObject({
         userId: 'alice'
       });
-      expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
+      // dialog секция убрана из dialog.member.add (dialogId есть в context)
+      expect(event.data.context.dialogId).toBe(dialog.dialogId);
     });
 
     test('adds member with type and name, creates user if not exists', async () => {
@@ -383,7 +384,8 @@ describe('dialogMemberController', () => {
       expect(event).toBeTruthy();
       expect(event.actorId).toBe('sync-service');
       expect(event.data.member.state.unreadCount).toBe(0);
-      expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
+      // dialog секция убрана из dialog.member.update (dialogId есть в context)
+      expect(event.data.context.dialogId).toBe(dialog.dialogId);
 
       const task = await DialogReadTask.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'alice' }).lean();
       expect(task).toBeTruthy();

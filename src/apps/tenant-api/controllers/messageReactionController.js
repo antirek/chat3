@@ -135,17 +135,8 @@ const messageReactionController = {
         // Получаем обновленное сообщение
         const updatedMessage = await Message.findOne({ messageId: messageId });
 
-        const dialogSection = eventUtils.buildDialogSection({
-          dialogId: message.dialogId
-        });
-
         const memberSection = eventUtils.buildMemberSection({
           userId
-        });
-
-        const actorSection = eventUtils.buildActorSection({
-          actorId: userId,
-          actorType: 'user'
         });
 
         const messageSection = eventUtils.buildMessageSection({
@@ -167,7 +158,7 @@ const messageReactionController = {
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
-          includedSections: ['dialog', 'message.reaction', 'member', 'actor'],
+          includedSections: ['message.reaction', 'member'],
           updatedFields: ['message.reaction']
         });
 
@@ -180,10 +171,8 @@ const messageReactionController = {
           actorType: 'user',
           data: eventUtils.composeEventData({
             context: reactionContext,
-            dialog: dialogSection,
             member: memberSection,
-            message: messageSection,
-            actor: actorSection
+            message: messageSection
           })
         });
 
@@ -219,17 +208,8 @@ const messageReactionController = {
         // Получаем обновленное сообщение
         const updatedMessage = await Message.findOne({ messageId: messageId });
 
-        const dialogSection = eventUtils.buildDialogSection({
-          dialogId: message.dialogId
-        });
-
         const memberSection = eventUtils.buildMemberSection({
           userId
-        });
-
-        const actorSection = eventUtils.buildActorSection({
-          actorId: userId,
-          actorType: 'user'
         });
 
         const removeContext = eventUtils.buildEventContext({
@@ -237,7 +217,7 @@ const messageReactionController = {
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
-          includedSections: ['dialog', 'message.reaction', 'member', 'actor'],
+          includedSections: ['message.reaction', 'member'],
           updatedFields: ['message.reaction']
         });
 
@@ -264,10 +244,8 @@ const messageReactionController = {
           actorType: 'user',
           data: eventUtils.composeEventData({
             context: removeContext,
-            dialog: dialogSection,
             member: memberSection,
-            message: removeMessageSection,
-            actor: actorSection
+            message: removeMessageSection
           })
         });
 

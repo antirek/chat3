@@ -215,16 +215,11 @@ async function createDialogUpdateEvent(tenantId, dialogId, actorId) {
       meta: dialogMeta
     });
 
-    const actorSection = eventUtils.buildActorSection({
-      actorId: actorId,
-      actorType: 'api'
-    });
-
     const dialogContext = eventUtils.buildEventContext({
       eventType: 'dialog.update',
       dialogId: dialog.dialogId,
       entityId: dialog.dialogId,
-      includedSections: ['dialog', 'actor'],
+      includedSections: ['dialog'],
       updatedFields: ['dialog.meta']
     });
 
@@ -237,8 +232,7 @@ async function createDialogUpdateEvent(tenantId, dialogId, actorId) {
       actorType: 'api',
       data: eventUtils.composeEventData({
         context: dialogContext,
-        dialog: dialogSection,
-        actor: actorSection
+        dialog: dialogSection
       })
     });
   } catch (error) {
@@ -258,10 +252,6 @@ async function createMessageUpdateEvent(tenantId, messageId, actorId) {
 
     const messageMeta = await metaUtils.getEntityMeta(tenantId, 'message', messageId);
 
-    const dialogSection = eventUtils.buildDialogSection({
-      dialogId: message.dialogId
-    });
-
     const messageSection = eventUtils.buildMessageSection({
       messageId: message.messageId,
       dialogId: message.dialogId,
@@ -271,17 +261,12 @@ async function createMessageUpdateEvent(tenantId, messageId, actorId) {
       meta: messageMeta
     });
 
-    const actorSection = eventUtils.buildActorSection({
-      actorId: actorId,
-      actorType: 'api'
-    });
-
     const messageContext = eventUtils.buildEventContext({
       eventType: 'message.update',
       dialogId: message.dialogId,
       entityId: message.messageId,
       messageId: message.messageId,
-      includedSections: ['dialog', 'message', 'actor'],
+      includedSections: ['message'],
       updatedFields: ['message.meta']
     });
 
@@ -294,9 +279,7 @@ async function createMessageUpdateEvent(tenantId, messageId, actorId) {
       actorType: 'api',
       data: eventUtils.composeEventData({
         context: messageContext,
-        dialog: dialogSection,
-        message: messageSection,
-        actor: actorSection
+        message: messageSection
       })
     });
   } catch (error) {
@@ -334,10 +317,6 @@ async function createDialogMemberUpdateEvent(tenantId, entityId, actorId) {
 
     const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', entityId);
 
-    const dialogSection = eventUtils.buildDialogSection({
-      dialogId: dialog.dialogId
-    });
-
     const memberSection = eventUtils.buildMemberSection({
       userId: dialogMember.userId,
       meta: memberMeta,
@@ -349,16 +328,11 @@ async function createDialogMemberUpdateEvent(tenantId, entityId, actorId) {
       }
     });
 
-    const actorSection = eventUtils.buildActorSection({
-      actorId: actorId,
-      actorType: 'api'
-    });
-
     const memberContext = eventUtils.buildEventContext({
       eventType: 'dialog.member.update',
       dialogId: dialog.dialogId,
       entityId: dialog.dialogId,
-      includedSections: ['dialog', 'member', 'actor'],
+      includedSections: ['member'],
       updatedFields: ['member.meta']
     });
 
@@ -371,9 +345,7 @@ async function createDialogMemberUpdateEvent(tenantId, entityId, actorId) {
       actorType: 'api',
       data: eventUtils.composeEventData({
         context: memberContext,
-        dialog: dialogSection,
-        member: memberSection,
-        actor: actorSection
+        member: memberSection
       })
     });
   } catch (error) {
