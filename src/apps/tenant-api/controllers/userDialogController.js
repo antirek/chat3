@@ -1168,6 +1168,25 @@ const userDialogController = {
   },
 
 
+  /**
+   * Получение постраничного списка всех статусов сообщения из истории
+   * 
+   * ВАЖНО: MessageStatus хранит полную историю изменений статусов.
+   * Каждое изменение статуса создает новую запись в истории.
+   * 
+   * Возвращает все записи статусов для сообщения, отсортированные по времени создания
+   * (новые первыми). Один пользователь может иметь несколько записей.
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} req.params - Параметры пути
+   * @param {string} req.params.userId - ID пользователя
+   * @param {string} req.params.dialogId - ID диалога
+   * @param {string} req.params.messageId - ID сообщения
+   * @param {Object} req.query - Query параметры
+   * @param {number} req.query.page - Номер страницы (по умолчанию 1)
+   * @param {number} req.query.limit - Количество записей на странице (по умолчанию 50)
+   * @param {Object} res - Express response object
+   */
   async getMessageStatuses(req, res) {
     try {
       const { userId, dialogId, messageId } = req.params;
@@ -1203,19 +1222,20 @@ const userDialogController = {
         });
       }
 
-      // 3. Получаем общее количество статусов
+      // 3. Получаем общее количество записей в истории статусов
       const total = await MessageStatus.countDocuments({
         tenantId: req.tenantId,
         messageId: messageId
       });
 
-      // 4. Получаем статусы с пагинацией
+      // 4. Получаем записи истории статусов с пагинацией
+      // Сортируем по времени создания в порядке убывания (новые первыми)
       const statuses = await MessageStatus.find({
         tenantId: req.tenantId,
         messageId: messageId
       })
         .select('messageId userId userType tenantId status createdAt updatedAt')
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: -1 }) // Новые записи первыми
         .skip(skip)
         .limit(limit)
         .lean();
@@ -1267,7 +1287,26 @@ const userDialogController = {
     }
   },
 
-  // Update message status (mark as unread/delivered/read)
+  /**
+   * Создание новой записи в истории статусов сообщения
+   * 
+   * ВАЖНО: Каждое изменение статуса создает новую запись в истории (не обновляет существующую).
+   * MessageStatus хранит полную историю всех изменений статусов для каждого пользователя.
+   * 
+   * При создании записи:
+   * 1. Автоматически заполняется поле userType на основе типа пользователя
+   * 2. Получается последний статус пользователя для определения oldStatus
+   * 3. Автоматически обновляются счетчики непрочитанных сообщений (через pre-save hook)
+   * 4. Генерируется событие изменения статуса для других участников диалога
+   * 
+   * @param {Object} req - Express request object
+   * @param {Object} req.params - Параметры пути
+   * @param {string} req.params.userId - ID пользователя
+   * @param {string} req.params.dialogId - ID диалога
+   * @param {string} req.params.messageId - ID сообщения
+   * @param {string} req.params.status - Новый статус (unread, delivered, read)
+   * @param {Object} res - Express response object
+   */
   async updateMessageStatus(req, res) {
     try {
       const { userId, dialogId, messageId, status } = req.params;
@@ -1294,7 +1333,7 @@ const userDialogController = {
         });
       }
 
-      // Получаем тип пользователя
+      // Получаем тип пользователя для заполнения поля userType
       const user = await User.findOne({
         tenantId: req.tenantId,
         userId: userId
@@ -1302,50 +1341,31 @@ const userDialogController = {
       
       const userType = user?.type || null;
 
-      // Проверяем существующий статус
-      const oldStatus = await MessageStatus.findOne({
+      // Получаем последний статус для определения oldStatus (для событий и счетчиков)
+      const lastStatus = await MessageStatus.findOne({
         messageId: messageId,
         userId: userId,
         tenantId: req.tenantId
-      });
+      })
+        .sort({ createdAt: -1 })
+        .lean();
 
-      // Update or create message status
-      const updateData = {
-        status,
+      const oldStatus = lastStatus?.status || null;
+
+      // Всегда создаем новую запись в истории статусов (не обновляем существующую)
+      const newStatusData = {
+        messageId: messageId,
+        userId: userId,
+        tenantId: req.tenantId,
+        status: status,
+        userType: userType, // Заполняем тип пользователя
+        createdAt: generateTimestamp(),
         updatedAt: generateTimestamp()
       };
-      
-      // Добавляем userType при создании нового статуса или обновляем, если он еще не установлен
-      if (!oldStatus) {
-        // Создаем новый статус - добавляем userType
-        if (userType) {
-          updateData.userType = userType;
-        }
-      } else if (!oldStatus.userType && userType) {
-        // Обновляем существующий статус, если userType еще не был установлен
-        updateData.userType = userType;
-      }
 
-      // Set timestamps based on status
-      if (status === 'read') {
-        updateData.readAt = generateTimestamp();
-      } else if (status === 'delivered') {
-        updateData.deliveredAt = generateTimestamp();
-      }
-
-      const messageStatus = await MessageStatus.findOneAndUpdate(
-        {
-          messageId: messageId,
-          userId: userId,
-          tenantId: req.tenantId
-        },
-        updateData,
-        { 
-          new: true, 
-          upsert: true, 
-          runValidators: true 
-        }
-      ).select('-__v');
+      // Создаем новую запись в истории
+      // pre-save hook автоматически обновит счетчики непрочитанных сообщений
+      const messageStatus = await MessageStatus.create(newStatusData);
 
       const dialogSection = eventUtils.buildDialogSection({
         dialogId: dialogId
@@ -1360,7 +1380,7 @@ const userDialogController = {
         statusUpdate: {
           userId,
           status,
-          oldStatus: oldStatus?.status || null
+          oldStatus: oldStatus
         }
       });
 
@@ -1404,7 +1424,7 @@ const userDialogController = {
         req.tenantId,
         messageId,
         userId,
-        oldStatus?.status || null,
+        oldStatus,
         status
       );
 

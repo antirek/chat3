@@ -207,16 +207,23 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *                           Матрица статусов сообщения, сгруппированная по userType и status.
  *                           Исключает статусы текущего пользователя (userId из пути запроса).
  *                           
+ *                           **Важно:**
+ *                           - Матрица содержит суммарные значения по всем статусам в истории
+ *                           - Каждое изменение статуса увеличивает счетчик для соответствующей комбинации userType и status
+ *                           - Это позволяет видеть, сколько раз сообщение проходило через каждый статус
+ *                           
  *                           Каждый элемент матрицы содержит:
  *                           - userType: тип пользователя (user, bot, contact) или null
  *                           - status: статус сообщения (sent, unread, delivered, read)
- *                           - count: количество пользователей данного типа с данным статусом
+ *                           - count: суммарное количество записей в истории для данной комбинации userType и status
  *                           
  *                           Пример:
+ *                           Если пользователь marta (userType: "user") менял статус: unread → delivered → read,
+ *                           то в матрице будет:
  *                           [
- *                             {count: 2, userType: "bot", status: "unread"},
- *                             {count: 1, userType: "user", status: "read"},
- *                             {count: 3, userType: "user", status: "unread"}
+ *                             {count: 1, userType: "user", status: "unread"},
+ *                             {count: 1, userType: "user", status: "delivered"},
+ *                             {count: 1, userType: "user", status: "read"}
  *                           ]
  *                         items:
  *                           type: object
@@ -365,16 +372,23 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *                         Матрица статусов сообщения, сгруппированная по userType и status.
  *                         Исключает статусы текущего пользователя (userId из пути запроса).
  *                         
+ *                         **Важно:**
+ *                         - Матрица содержит суммарные значения по всем статусам в истории
+ *                         - Каждое изменение статуса увеличивает счетчик для соответствующей комбинации userType и status
+ *                         - Это позволяет видеть, сколько раз сообщение проходило через каждый статус
+ *                         
  *                         Каждый элемент матрицы содержит:
  *                         - userType: тип пользователя (user, bot, contact) или null
  *                         - status: статус сообщения (sent, unread, delivered, read)
- *                         - count: количество пользователей данного типа с данным статусом
+ *                         - count: суммарное количество записей в истории для данной комбинации userType и status
  *                         
  *                         Пример:
+ *                         Если пользователь marta (userType: "user") менял статус: unread → delivered → read,
+ *                         то в матрице будет:
  *                         [
- *                           {count: 2, userType: "bot", status: "unread"},
- *                           {count: 1, userType: "user", status: "read"},
- *                           {count: 3, userType: "user", status: "unread"}
+ *                           {count: 1, userType: "user", status: "unread"},
+ *                           {count: 1, userType: "user", status: "delivered"},
+ *                           {count: 1, userType: "user", status: "read"}
  *                         ]
  *                       items:
  *                         type: object
@@ -434,9 +448,16 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePer
  * @swagger
  * /api/users/{userId}/dialogs/{dialogId}/messages/{messageId}/statuses:
  *   get:
- *     summary: Get paginated list of all message statuses
+ *     summary: Get paginated list of all message statuses (history)
  *     description: |
- *       Возвращает постраничный список всех статусов сообщения.
+ *       Возвращает постраничный список всех статусов сообщения из истории изменений.
+ *       
+ *       **Важно о MessageStatus:**
+ *       - MessageStatus хранит полную историю изменений статусов для каждого пользователя
+ *       - Каждое изменение статуса создает новую запись в истории (не обновляет существующую)
+ *       - Один пользователь может иметь несколько записей статусов для одного сообщения
+ *       - Записи отсортированы по времени создания (createdAt) в порядке убывания
+ *       
  *       Доступен только для участников диалога.
  *     tags: [MessageStatus]
  *     security:
@@ -482,26 +503,46 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePer
  *               properties:
  *                 data:
  *                   type: array
- *                   description: Array of message statuses
+ *                   description: |
+ *                     Массив записей истории статусов сообщения.
+ *                     Каждая запись представляет одно изменение статуса для конкретного пользователя.
+ *                     Записи отсортированы по времени создания (createdAt) в порядке убывания (новые первыми).
  *                   items:
  *                     type: object
  *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: Уникальный идентификатор записи статуса
  *                       messageId:
  *                         type: string
+ *                         description: ID сообщения
  *                       userId:
  *                         type: string
+ *                         description: ID пользователя, для которого установлен статус
  *                       userType:
  *                         type: string
  *                         nullable: true
+ *                         description: |
+ *                           Тип пользователя (user, bot, contact и т.д.).
+ *                           Заполняется автоматически при создании записи на основе типа пользователя.
  *                       tenantId:
  *                         type: string
+ *                         description: ID тенанта
  *                       status:
  *                         type: string
  *                         enum: [sent, unread, delivered, read]
+ *                         description: |
+ *                           Статус сообщения:
+ *                           - sent: отправлено
+ *                           - unread: не прочитано
+ *                           - delivered: доставлено
+ *                           - read: прочитано
  *                       createdAt:
  *                         type: number
+ *                         description: Timestamp создания записи (микросекунды)
  *                       updatedAt:
  *                         type: number
+ *                         description: Timestamp обновления записи (микросекунды)
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -657,11 +698,23 @@ router.post('/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action',
  * @swagger
  * /api/users/{userId}/dialogs/{dialogId}/messages/{messageId}/status/{status}:
  *   post:
- *     summary: Update message status (mark as unread/delivered/read)
+ *     summary: Create new message status entry (add to history)
  *     description: |
- *       Обновляет статус сообщения для указанного пользователя.
+ *       Создает новую запись в истории статусов сообщения для указанного пользователя.
+ *       
+ *       **Важно о MessageStatus:**
+ *       - Каждое изменение статуса создает новую запись в истории (не обновляет существующую)
+ *       - MessageStatus хранит полную историю всех изменений статусов для каждого пользователя
+ *       - При создании новой записи автоматически заполняется поле `userType` на основе типа пользователя
+ *       - Автоматически обновляются счетчики непрочитанных сообщений (unreadCount)
+ *       - Генерируется событие изменения статуса для других участников диалога
+ *       
  *       Доступен только для участников диалога.
- *       Статусы: unread (отправлено), delivered (доставлено), read (прочитано)
+ *       
+ *       Статусы:
+ *       - unread: не прочитано (по умолчанию для новых сообщений)
+ *       - delivered: доставлено
+ *       - read: прочитано
  *     tags: [MessageStatus]
  *     security:
  *       - ApiKeyAuth: []
@@ -694,7 +747,7 @@ router.post('/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action',
  *         example: "read"
  *     responses:
  *       200:
- *         description: Message status updated successfully
+ *         description: Message status entry created successfully
  *         content:
  *           application/json:
  *             schema:
@@ -702,27 +755,39 @@ router.post('/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action',
  *               properties:
  *                 data:
  *                   type: object
+ *                   description: Созданная запись в истории статусов
  *                   properties:
  *                     _id:
  *                       type: string
+ *                       description: Уникальный идентификатор записи статуса
  *                     messageId:
  *                       type: string
+ *                       description: ID сообщения
  *                     userId:
  *                       type: string
+ *                       description: ID пользователя
  *                     userType:
  *                       type: string
+ *                       nullable: true
+ *                       description: |
+ *                         Тип пользователя (user, bot, contact и т.д.).
+ *                         Заполняется автоматически при создании записи.
+ *                     tenantId:
+ *                       type: string
+ *                       description: ID тенанта
  *                     status:
  *                       type: string
- *                     readAt:
- *                       type: number
- *                     deliveredAt:
- *                       type: number
+ *                       enum: [sent, unread, delivered, read]
+ *                       description: Установленный статус сообщения
  *                     createdAt:
  *                       type: number
+ *                       description: Timestamp создания записи (микросекунды)
  *                     updatedAt:
  *                       type: number
+ *                       description: Timestamp обновления записи (микросекунды)
  *                 message:
  *                   type: string
+ *                   description: Сообщение об успешном создании записи
  *       400:
  *         description: Bad Request - Invalid status
  *       403:

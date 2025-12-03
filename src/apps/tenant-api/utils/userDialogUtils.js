@@ -79,6 +79,30 @@ export function mergeMetaRecordsForScope(records = [], scope) {
 
 /**
  * Формирование матрицы статусов сообщения (исключая статусы текущего пользователя)
+ * 
+ * ВАЖНО: Считает суммарные значения по всем статусам в истории для каждого userType и status.
+ * Это означает, что если пользователь менял статус несколько раз (например: unread → delivered → read),
+ * то каждая запись в истории будет учтена в матрице.
+ * 
+ * Пример:
+ * Если пользователь marta (userType: "user") менял статус:
+ * - unread (createdAt: 1000)
+ * - delivered (createdAt: 2000)
+ * - read (createdAt: 3000)
+ * 
+ * То в матрице будет:
+ * [
+ *   { userType: "user", status: "unread", count: 1 },
+ *   { userType: "user", status: "delivered", count: 1 },
+ *   { userType: "user", status: "read", count: 1 }
+ * ]
+ * 
+ * Это позволяет видеть, сколько раз сообщение проходило через каждый статус.
+ * 
+ * @param {string} tenantId - ID тенанта
+ * @param {string} messageId - ID сообщения
+ * @param {string} excludeUserId - ID пользователя, статусы которого нужно исключить
+ * @returns {Promise<Array>} Массив объектов { userType, status, count }
  */
 export async function buildStatusMessageMatrix(tenantId, messageId, excludeUserId) {
   return await MessageStatus.aggregate([
@@ -86,16 +110,17 @@ export async function buildStatusMessageMatrix(tenantId, messageId, excludeUserI
       $match: {
         tenantId: tenantId,
         messageId: messageId,
-        userId: { $ne: excludeUserId }
+        userId: { $ne: excludeUserId } // Исключаем статусы текущего пользователя
       }
     },
+    // Группируем по userType и status, считая все записи в истории
     {
       $group: {
         _id: {
           userType: { $ifNull: ['$userType', null] },
           status: '$status'
         },
-        count: { $sum: 1 }
+        count: { $sum: 1 } // Считаем все записи в истории, а не только последние
       }
     },
     {

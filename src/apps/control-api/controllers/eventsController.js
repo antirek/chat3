@@ -265,6 +265,162 @@ export const eventsController = {
         message: error.message
       });
     }
+  },
+
+  // Get all events with pagination
+  async getAllEvents(req, res) {
+    try {
+      const tenantId = req.query.tenantId || req.headers['x-tenant-id'];
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 50;
+      const skip = (page - 1) * limit;
+
+      if (!tenantId) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'tenantId is required (query parameter or X-Tenant-Id header)'
+        });
+      }
+
+      // Build filter
+      const filter = { tenantId };
+      
+      // Optional filters
+      if (req.query.eventType) {
+        filter.eventType = req.query.eventType;
+      }
+      if (req.query.entityType) {
+        filter.entityType = req.query.entityType;
+      }
+      if (req.query.entityId) {
+        filter.entityId = req.query.entityId;
+      }
+      if (req.query.actorId) {
+        filter.actorId = req.query.actorId;
+      }
+
+      // Get total count
+      const total = await Event.countDocuments(filter);
+
+      // Get events with pagination
+      const events = await Event.find(filter)
+        .sort({ createdAt: -1 }) // Обратный хронологический порядок
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      // For each event, get updates count
+      const eventsWithUpdates = await Promise.all(
+        events.map(async (event) => {
+          try {
+            const updatesCount = await Update.countDocuments({
+              tenantId,
+              eventId: event._id
+            });
+            return {
+              ...event,
+              updatesCount
+            };
+          } catch (err) {
+            return {
+              ...event,
+              updatesCount: 0
+            };
+          }
+        })
+      );
+
+      const pages = Math.ceil(total / limit);
+
+      res.json({
+        data: eventsWithUpdates,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  // Get all updates with pagination
+  async getAllUpdates(req, res) {
+    try {
+      const tenantId = req.query.tenantId || req.headers['x-tenant-id'];
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 50;
+      const skip = (page - 1) * limit;
+
+      if (!tenantId) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'tenantId is required (query parameter or X-Tenant-Id header)'
+        });
+      }
+
+      // Build filter
+      const filter = { tenantId };
+      
+      // Optional filters
+      if (req.query.userId) {
+        filter.userId = req.query.userId;
+      }
+      if (req.query.dialogId) {
+        filter.dialogId = req.query.dialogId;
+      }
+      if (req.query.entityId) {
+        filter.entityId = req.query.entityId;
+      }
+      if (req.query.eventType) {
+        filter.eventType = req.query.eventType;
+      }
+      if (req.query.eventId) {
+        // eventId может быть ObjectId или строкой
+        filter.eventId = req.query.eventId;
+      }
+      if (req.query.published !== undefined) {
+        filter.published = req.query.published === 'true';
+      }
+
+      // Get total count
+      const total = await Update.countDocuments(filter);
+
+      // Get updates with pagination
+      const updates = await Update.find(filter)
+        .sort({ createdAt: -1 }) // Обратный хронологический порядок
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      // Transform eventId to string
+      const updatesWithStringEventId = updates.map(update => ({
+        ...update,
+        eventId: update.eventId ? String(update.eventId) : null
+      }));
+
+      const pages = Math.ceil(total / limit);
+
+      res.json({
+        data: updatesWithStringEventId,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
   }
 };
 
