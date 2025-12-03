@@ -2,6 +2,8 @@ import * as metaUtils from '../utils/metaUtils.js';
 import { getMetaScopeOptions } from '../utils/metaScopeUtils.js';
 import { Dialog, Message, DialogMember } from '../../../models/index.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
+import * as eventUtils from '../utils/eventUtils.js';
+import * as updateUtils from '../../../utils/updateUtils.js';
 
 const metaController = {
   // Get all meta for an entity
@@ -87,6 +89,11 @@ const metaController = {
         }
       );
 
+      // Генерируем событие dialog.update при обновлении мета-тегов диалога
+      if (entityType === 'dialog') {
+        await createDialogUpdateEvent(req.tenantId, entityId, req.userId || req.apiKey?.name || 'api');
+      }
+
       res.json({
         data: sanitizeResponse(meta),
         message: 'Meta set successfully'
@@ -154,6 +161,11 @@ const metaController = {
         });
       }
 
+      // Генерируем событие dialog.update при удалении мета-тегов диалога
+      if (entityType === 'dialog') {
+        await createDialogUpdateEvent(req.tenantId, entityId, req.userId || req.apiKey?.name || 'api');
+      }
+
       res.json({
         message: 'Meta deleted successfully'
       });
@@ -171,6 +183,59 @@ const metaController = {
     }
   }
 };
+
+// Helper function to create dialog.update event
+async function createDialogUpdateEvent(tenantId, dialogId, actorId) {
+  try {
+    const dialog = await Dialog.findOne({ dialogId, tenantId });
+    if (!dialog) {
+      console.warn(`Dialog ${dialogId} not found for update event`);
+      return;
+    }
+
+    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+
+    const dialogSection = eventUtils.buildDialogSection({
+      dialogId: dialog.dialogId,
+      tenantId: dialog.tenantId,
+      name: dialog.name,
+      createdBy: dialog.createdBy,
+      createdAt: dialog.createdAt,
+      updatedAt: dialog.updatedAt,
+      meta: dialogMeta
+    });
+
+    const actorSection = eventUtils.buildActorSection({
+      actorId: actorId,
+      actorType: 'api'
+    });
+
+    const dialogContext = eventUtils.buildEventContext({
+      eventType: 'dialog.update',
+      dialogId: dialog.dialogId,
+      entityId: dialog.dialogId,
+      includedSections: ['dialog', 'actor'],
+      updatedFields: ['dialog.meta']
+    });
+
+    await eventUtils.createEvent({
+      tenantId,
+      eventType: 'dialog.update',
+      entityType: 'dialog',
+      entityId: dialog.dialogId,
+      actorId: actorId,
+      actorType: 'api',
+      data: eventUtils.composeEventData({
+        context: dialogContext,
+        dialog: dialogSection,
+        actor: actorSection
+      })
+    });
+  } catch (error) {
+    console.error('Error creating dialog.update event:', error);
+    // Не прерываем выполнение, если не удалось создать событие
+  }
+}
 
 // Helper function to verify entity exists
 async function verifyEntityExists(entityType, entityId, tenantId) {
