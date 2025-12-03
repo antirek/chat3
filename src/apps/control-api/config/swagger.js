@@ -18,7 +18,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: process.env.GATEWAY_URL || process.env.CONTROL_API_URL || 'http://localhost:3001',
+        url: process.env.CONTROL_APP_URL || 'http://localhost:3001',
         description: 'Gateway Server'
       }
     ],

@@ -374,6 +374,7 @@
             <div class="header-links">
                 <a href="#" id="tenantApiLink" target="_blank" class="header-link">OpenAPI Tenant-api</a>
                 <a href="#" id="controlApiLink" target="_blank" class="header-link">OpenAPI Control-api</a>
+                <a href="#" id="rabbitmqLink" target="_blank" class="header-link">RabbitMQ Manage UI</a>
             </div>
             <div class="header-inputs">
                 <div class="header-input-group">
@@ -463,12 +464,16 @@
             if (window.CHAT3_CONFIG) {
                 const tenantApiLink = document.getElementById('tenantApiLink');
                 const controlApiLink = document.getElementById('controlApiLink');
+                const rabbitmqLink = document.getElementById('rabbitmqLink');
                 
                 if (tenantApiLink && CHAT3_CONFIG.TENANT_API_URL) {
                     tenantApiLink.href = `${CHAT3_CONFIG.TENANT_API_URL}/api-docs`;
                 }
-                if (controlApiLink && CHAT3_CONFIG.CONTROL_API_URL) {
-                    controlApiLink.href = `${CHAT3_CONFIG.CONTROL_API_URL}/api-docs`;
+                if (controlApiLink && CHAT3_CONFIG.CONTROL_APP_URL) {
+                    controlApiLink.href = `${CHAT3_CONFIG.CONTROL_APP_URL}/api-docs`;
+                }
+                if (rabbitmqLink && CHAT3_CONFIG.RABBITMQ_MANAGEMENT_URL) {
+                    rabbitmqLink.href = CHAT3_CONFIG.RABBITMQ_MANAGEMENT_URL;
                 }
             } else {
                 // Повторная попытка, если config.js еще не загрузился

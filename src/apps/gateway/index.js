@@ -20,11 +20,11 @@ const app = express();
 app.set('trust proxy', true);
 
 // Get URLs from environment variables or use defaults
-const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3001';
+const CONTROL_APP_URL = process.env.CONTROL_APP_URL || 'http://localhost:3001';
 const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
 
 // Extract port from URL for server listening
-const PORT = new URL(GATEWAY_URL).port || 3001;
+const PORT = new URL(CONTROL_APP_URL).port || 3001;
 
 // CORS middleware - разрешаем запросы с разных источников
 app.use(cors({
@@ -89,22 +89,20 @@ app.get('/config.js', (req, res) => {
   // Safely escape URLs for JavaScript
   const config = {
     TENANT_API_URL: tenantApiUrl,
-    CONTROL_API_URL: gatewayUrl,
-    API_TEST_URL: gatewayUrl
+    CONTROL_APP_URL: gatewayUrl
   };
   
   res.send(`// Конфигурация URL для разных сервисов (генерируется динамически на основе запроса)
 window.CHAT3_CONFIG = {
     TENANT_API_URL: ${JSON.stringify(config.TENANT_API_URL)},
-    CONTROL_API_URL: ${JSON.stringify(config.CONTROL_API_URL)},
-    API_TEST_URL: ${JSON.stringify(config.API_TEST_URL)},
+    CONTROL_APP_URL: ${JSON.stringify(config.CONTROL_APP_URL)},
     
     getTenantApiUrl: function(path = '') {
         return this.TENANT_API_URL + path;
     },
     
     getControlApiUrl: function(path = '') {
-        return this.CONTROL_API_URL + path;
+        return this.CONTROL_APP_URL + path;
     }
 };`);
 });
@@ -128,14 +126,14 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     version: '1.0.0',
     endpoints: {
-      apiDocs: `${GATEWAY_URL}/api-docs`,
-      init: `${GATEWAY_URL}/api/init`,
-      seed: `${GATEWAY_URL}/api/init/seed`,
-      dialogEvents: `${GATEWAY_URL}/api/dialogs/{dialogId}/events`,
-      dialogUpdates: `${GATEWAY_URL}/api/dialogs/{dialogId}/updates`,
-      messageEvents: `${GATEWAY_URL}/api/messages/{messageId}/events`,
-      messageUpdates: `${GATEWAY_URL}/api/messages/{messageId}/updates`,
-      apiTest: `${GATEWAY_URL}`
+      apiDocs: `${CONTROL_APP_URL}/api-docs`,
+      init: `${CONTROL_APP_URL}/api/init`,
+      seed: `${CONTROL_APP_URL}/api/init/seed`,
+      dialogEvents: `${CONTROL_APP_URL}/api/dialogs/{dialogId}/events`,
+      dialogUpdates: `${CONTROL_APP_URL}/api/dialogs/{dialogId}/updates`,
+      messageEvents: `${CONTROL_APP_URL}/api/messages/{messageId}/events`,
+      messageUpdates: `${CONTROL_APP_URL}/api/messages/{messageId}/updates`,
+      apiTest: `${CONTROL_APP_URL}`
     }
   });
 });
@@ -150,17 +148,17 @@ const startServer = async () => {
 
     // Start server
     app.listen(PORT, () => {
-      console.log(`\n🚀 Chat3 Gateway is running on ${GATEWAY_URL}`);
-      console.log(`📚 API Documentation: ${GATEWAY_URL}/api-docs`);
-      console.log(`🧪 API Test Suite: ${GATEWAY_URL}`);
-      console.log(`💚 Health Check: ${GATEWAY_URL}/health`);
+      console.log(`\n🚀 Chat3 Gateway is running on ${CONTROL_APP_URL}`);
+      console.log(`📚 API Documentation: ${CONTROL_APP_URL}/api-docs`);
+      console.log(`🧪 API Test Suite: ${CONTROL_APP_URL}`);
+      console.log(`💚 Health Check: ${CONTROL_APP_URL}/health`);
       console.log(`\n🔑 Endpoints:`);
-      console.log(`   POST ${GATEWAY_URL}/api/init - Initialize system (create tenant and API key)`);
-      console.log(`   POST ${GATEWAY_URL}/api/init/seed - Run database seed script`);
-      console.log(`   GET  ${GATEWAY_URL}/api/dialogs/{dialogId}/events - Get events for a dialog`);
-      console.log(`   GET  ${GATEWAY_URL}/api/dialogs/{dialogId}/updates - Get updates for a dialog`);
-      console.log(`   GET  ${GATEWAY_URL}/api/messages/{messageId}/events - Get events for a message`);
-      console.log(`   GET  ${GATEWAY_URL}/api/messages/{messageId}/updates - Get updates for a message\n`);
+      console.log(`   POST ${CONTROL_APP_URL}/api/init - Initialize system (create tenant and API key)`);
+      console.log(`   POST ${CONTROL_APP_URL}/api/init/seed - Run database seed script`);
+      console.log(`   GET  ${CONTROL_APP_URL}/api/dialogs/{dialogId}/events - Get events for a dialog`);
+      console.log(`   GET  ${CONTROL_APP_URL}/api/dialogs/{dialogId}/updates - Get updates for a dialog`);
+      console.log(`   GET  ${CONTROL_APP_URL}/api/messages/{messageId}/events - Get events for a message`);
+      console.log(`   GET  ${CONTROL_APP_URL}/api/messages/{messageId}/updates - Get updates for a message\n`);
     });
   } catch (error) {
     console.error('Failed to start Gateway server:', error);

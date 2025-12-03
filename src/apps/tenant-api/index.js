@@ -23,21 +23,13 @@ app.set('trust proxy', true);
 
 // Get URLs from environment variables or use defaults
 const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
-const ADMIN_WEB_URL = process.env.ADMIN_WEB_URL || 'http://localhost:3001';
-const CONTROL_API_URL = process.env.CONTROL_API_URL || 'http://localhost:3002';
-const API_TEST_URL = process.env.API_TEST_URL || 'http://localhost:3003';
 
 // Extract port from URL for server listening
 const PORT = new URL(TENANT_API_URL).port || 3000;
 
-// CORS middleware - разрешаем запросы с api-test и других источников
+// CORS middleware - разрешаем запросы с разных источников
 app.use(cors({
-  origin: [
-    API_TEST_URL,
-    ADMIN_WEB_URL,
-    CONTROL_API_URL,
-    TENANT_API_URL
-  ],
+  origin: '*', // В production можно ограничить конкретными доменами
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Idempotency-Key', 'X-Tenant-Id', 'x-tenant-id']
