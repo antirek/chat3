@@ -23,7 +23,6 @@ const DIALOG_MEMBER_UPDATE_EVENTS = [
 const MESSAGE_UPDATE_EVENTS = [
   'message.create',
   'message.update',
-  'message.delete',
   'message.reaction.update',
   'message.status.update'
 ];
@@ -438,7 +437,7 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       return;
     }
 
-    const includeFullMessage = ['message.create', 'message.update', 'message.delete'].includes(eventType);
+    const includeFullMessage = ['message.create', 'message.update'].includes(eventType);
     let messageSection = {
       messageId: message.messageId,
       dialogId: dialog.dialogId,

@@ -5,15 +5,14 @@
 | Тип события | Описание | Используется | Где создается | Создает Update | Комментарий |
 |------------|----------|--------------|---------------|----------------|-------------|
 | `dialog.create` | Создан диалог | ✅ Да | `dialogController.create` | ✅ DialogUpdate | Активно используется |
-| `dialog.update` | Обновлен диалог | ❌ Нет | - | ✅ DialogUpdate | **Не используется, можно удалить** |
+| `dialog.update` | Обновлен диалог | ✅ Да | `metaController.setMeta`, `metaController.deleteMeta` (для диалогов) | ✅ DialogUpdate | Используется при обновлении мета-тегов диалога |
 | `dialog.delete` | Удален диалог | ✅ Да | `dialogController.delete` | ✅ DialogUpdate | Активно используется |
 | `message.create` | Создано сообщение | ✅ Да | `messageController.create` | ✅ MessageUpdate | Активно используется |
-| `message.update` | Обновлено сообщение | ✅ Да | `messageController.update` | ✅ MessageUpdate | Используется для редактирования сообщений |
-| `message.delete` | Удалено сообщение | ❌ Нет | - | ✅ MessageUpdate | **Не используется, можно удалить** |
+| `message.update` | Обновлено сообщение | ✅ Да | `messageController.update`, `metaController.setMeta`, `metaController.deleteMeta` (для сообщений) | ✅ MessageUpdate | Используется для редактирования сообщений и обновления мета-тегов |
 | `dialog.member.add` | Добавлен участник диалога | ✅ Да | `dialogMemberController.addMember` | ✅ DialogUpdate | Активно используется |
 | `dialog.member.remove` | Удален участник диалога | ✅ Да | `dialogMemberController.removeMember` | ✅ DialogUpdate | Активно используется |
-| `dialog.member.update` | Обновлен участник диалога | ✅ Да | `userDialogController.updateMessageStatus`, `messageStatusController.update`, `dialogMemberController.updateMember` | ✅ DialogMemberUpdate | Используется для обновления unreadCount, lastSeenAt |
-| `message.status.update` | Обновлен статус сообщения | ✅ Да | `userDialogController.updateMessageStatus`, `messageStatusController.update` | ✅ MessageUpdate | Активно используется (объединено с message.status.create, так как статусы теперь история) |
+| `dialog.member.update` | Обновлен участник диалога | ✅ Да | `userDialogController.updateMessageStatus`, `dialogMemberController.updateMember`, `metaController.setMeta`, `metaController.deleteMeta` (для участников диалога) | ✅ DialogMemberUpdate | Используется для обновления unreadCount, lastSeenAt и мета-тегов (messageStatusController удален) |
+| `message.status.update` | Обновлен статус сообщения | ✅ Да | `userDialogController.updateMessageStatus` | ✅ MessageUpdate | Активно используется (объединено с message.status.create, так как статусы теперь история) |
 | `message.reaction.update` | Обновлена реакция на сообщение | ✅ Да | `messageReactionController.setOrUnsetReaction` (action=set/unset) | ✅ MessageUpdate | Активно используется (объединено с message.reaction.add и message.reaction.remove) |
 | `dialog.typing` | Пользователь печатает в диалоге | ✅ Да | `typingController.setTyping` | ✅ TypingUpdate | Активно используется |
 
@@ -26,22 +25,22 @@ Updates создаются автоматически на основе собы
 |-----------|-------------------|------------|-------------|
 | `DialogUpdate` | `dialog.create`, `dialog.update`, `dialog.delete`, `dialog.member.add`, `dialog.member.remove` | Все участники диалога | Создается для всех активных участников |
 | `DialogMemberUpdate` | `dialog.member.update` | Конкретный участник диалога | Создается только для одного пользователя |
-| `MessageUpdate` | `message.create`, `message.update`, `message.delete`, `message.reaction.update`, `message.status.update` | Все участники диалога | Создается для всех активных участников |
+| `MessageUpdate` | `message.create`, `message.update`, `message.reaction.update`, `message.status.update` | Все участники диалога | Создается для всех активных участников |
 | `TypingUpdate` | `dialog.typing` | Все участники диалога (кроме инициатора) | Создается для всех активных участников кроме того, кто печатает |
 
 ## Анализ и рекомендации по оптимизации
 
 ### 1. События, которые можно удалить
 
-#### `dialog.update`
-- **Статус**: Не используется нигде в коде
-- **Рекомендация**: Удалить из enum в `Event.js`
-- **Риск**: Низкий, так как не используется
+#### ~~`dialog.update`~~ ✅ Теперь используется
+- **Статус**: ✅ Используется в `metaController` при обновлении мета-тегов диалога
+- **Где создается**: `metaController.setMeta`, `metaController.deleteMeta` (когда `entityType === 'dialog'`)
+- **Статус**: ✅ Активно используется
 
-#### `message.delete`
-- **Статус**: Не используется нигде в коде
-- **Рекомендация**: Удалить из enum в `Event.js`
-- **Риск**: Низкий, так как не используется
+#### ~~`message.delete`~~ ✅ Удалено
+- **Статус**: ✅ Удалено из enum в `Event.js`
+- **Причина**: Пока нет метода для удаления сообщений
+- **Статус**: ✅ Удалено из всех мест
 
 #### ~~`message.reaction.add` и `message.reaction.remove`~~ ✅ Объединено
 - **Статус**: ✅ Объединено в `message.reaction.update`
@@ -50,11 +49,10 @@ Updates создаются автоматически на основе собы
   - `reaction === null && oldReaction !== null` → удаление
 - **Статус**: ✅ Выполнено
 
-#### `tenant.create`, `tenant.update`, `tenant.delete`
-- **Статус**: Не используются нигде в коде
-- **Рекомендация**: Удалить из enum в `Event.js`
+#### ~~`tenant.create`, `tenant.update`, `tenant.delete`~~ ✅ Удалено
+- **Статус**: ✅ Удалено из enum в `Event.js`
 - **Обоснование**: События для tenant не создаются, управление tenant происходит через control-api
-- **Риск**: Низкий, так как не используются
+- **Статус**: ✅ Удалено из всех мест
 
 ### 2. События, требующие внимания
 
@@ -77,10 +75,17 @@ Updates создаются автоматически на основе собы
 
 ### 4. Проблемы с данными в событиях
 
-#### `message.reaction.add` - несоответствие counts и reactionSet
+#### ~~`message.reaction.add` - несоответствие counts и reactionSet~~ ✅ Исправлено
 - **Проблема**: В событии используется `message.reactionCounts`, который может не соответствовать реальному `reactionSet`
 - **Решение**: ✅ Исправлено - теперь используется `updateReactionCounts()` для пересчета всех счетчиков
-- **Статус**: Исправлено
+- **Статус**: ✅ Исправлено
+
+### 5. Удаленные контроллеры
+
+#### ~~`messageStatusController`~~ ✅ Удален
+- **Причина**: Не использовался в маршрутах, содержал устаревшую логику (`findOneAndUpdate` вместо создания истории)
+- **Замена**: Функциональность полностью покрыта `userDialogController.updateMessageStatus`
+- **Статус**: ✅ Удален
 
 ## Итоговые рекомендации
 
@@ -91,10 +96,8 @@ Updates создаются автоматически на основе собы
    - ✅ `tenant.update` - удалено
    - ✅ `tenant.delete` - удалено
 
-2. **Осталось удалить неиспользуемые типы событий:**
-   - `dialog.update`
-   - `message.delete`
-   - `message.reaction.update`
+2. **✅ Удалено неиспользуемых типов событий:**
+   - ✅ `message.delete` - удалено (пока нет метода для удаления сообщений)
 
 3. **Обновить документацию** после удаления оставшихся типов
 
@@ -112,45 +115,45 @@ Updates создаются автоматически на основе собы
 
 ## Статистика использования
 
-- **Всего типов событий**: 12 (было 18)
-- **Активно используется**: 9 (75%)
-- **Не используется**: 3 (25%)
-- **Удалено**: 4 типа (tenant.create, tenant.update, tenant.delete, message.status.create)
+- **Всего типов событий**: 11 (было 18)
+- **Активно используется**: 11 (100%)
+- **Не используется**: 0 (0%)
+- **Удалено**: 5 типов (tenant.create, tenant.update, tenant.delete, message.status.create, message.delete)
 - **Объединено**: 
   - message.status.create → message.status.update
   - message.reaction.add + message.reaction.remove → message.reaction.update
-- **Осталось удалить**: 3 типа (dialog.update, message.delete, message.reaction.update - уже не используется, можно удалить из enum)
+- **Активировано**: `dialog.update` теперь используется при обновлении мета-тегов диалога
 
 ## Детальный анализ неиспользуемых событий
 
-### `dialog.update`
+### ~~`dialog.update`~~ ✅ Теперь используется
 - **Где упоминается**: 
   - Enum в `Event.js` (строка 26)
   - Описание в `Event.js` (строка 98)
   - В `updateUtils.js` в массиве `DIALOG_UPDATE_EVENTS` (строка 13)
-  - В тестах `eventUtils.test.js` (используется только для тестирования)
   - В `api-test-user-dialogs.html` и `api-test-events-updates.html` (отображение в UI)
-- **Где создается**: Нигде
-- **Действие**: Удалить из enum, массивов и UI
+- **Где создается**: ✅ `metaController.setMeta`, `metaController.deleteMeta` (когда `entityType === 'dialog'`)
+- **Статус**: ✅ Активно используется при обновлении мета-тегов диалога
 
-### `message.delete`
+### ~~`message.delete`~~ ✅ Удалено
+- **Где упоминалось**: 
+  - Enum в `Event.js` (строка 30) ✅ Удалено
+  - Описание в `Event.js` (строка 96) ✅ Удалено
+  - В `updateUtils.js` в массиве `MESSAGE_UPDATE_EVENTS` (строка 26) ✅ Удалено
+  - В `updateUtils.js` в функции `createMessageUpdate` (строка 441) ✅ Удалено
+  - В `api-test-user-dialogs.html` (отображение в UI) ✅ Удалено
+- **Где создавалось**: Нигде
+- **Причина удаления**: Пока нет метода для удаления сообщений
+- **Статус**: ✅ Удалено из всех мест
+
+### ~~`message.reaction.update`~~ ✅ Теперь используется
 - **Где упоминается**: 
-  - Enum в `Event.js` (строка 30)
+  - Enum в `Event.js` (строка 35)
   - Описание в `Event.js` (строка 102)
-  - В `updateUtils.js` в массиве `MESSAGE_UPDATE_EVENTS` (строка 26)
-  - В `updateUtils.js` в функции `createMessageUpdate` (строка 444)
+  - В `updateUtils.js` в массиве `MESSAGE_UPDATE_EVENTS` (строка 27)
   - В `api-test-user-dialogs.html` и `api-test-events-updates.html` (отображение в UI)
-- **Где создается**: Нигде
-- **Действие**: Удалить из enum, массивов и UI
-
-### `message.reaction.update`
-- **Где упоминается**: 
-  - Enum в `Event.js` (строка 37)
-  - Описание в `Event.js` (строка 109)
-  - В `updateUtils.js` в массиве `MESSAGE_UPDATE_EVENTS` (строка 28)
-  - В `api-test-user-dialogs.html` и `api-test-events-updates.html` (отображение в UI)
-- **Где создается**: Нигде
-- **Действие**: Удалить из enum, массивов и UI
+- **Где создается**: ✅ `messageReactionController.setOrUnsetReaction` (при `action=set` и `action=unset`)
+- **Статус**: ✅ Активно используется (объединено с message.reaction.add и message.reaction.remove)
 
 ### ~~`tenant.create`, `tenant.update`, `tenant.delete`~~ ✅ Удалено
 - **Где упоминалось**: 
@@ -164,20 +167,22 @@ Updates создаются автоматически на основе собы
 ## Файлы, требующие изменений при удалении событий
 
 1. **`src/models/operational/Event.js`**
-   - ✅ Удалено из enum: `tenant.create`, `tenant.update`, `tenant.delete` (строки 40-42)
-   - ✅ Удалено описания из `typeDescriptions` (строки 112-114)
-   - Осталось удалить из enum: `dialog.update` (строка 26), `message.delete` (строка 30), `message.reaction.update` (строка 37)
-   - Осталось удалить описания: строки 98, 102, 109
+   - ✅ Удалено из enum: `tenant.create`, `tenant.update`, `tenant.delete`, `message.delete`
+   - ✅ Удалено описания из `typeDescriptions` для tenant и message.delete событий
+   - ✅ `dialog.update` - используется (не удалять)
+   - ✅ `message.reaction.update` - используется (не удалять)
 
 2. **`src/utils/updateUtils.js`**
-   - Удалить `dialog.update` из `DIALOG_UPDATE_EVENTS` (строка 13)
-   - Удалить `message.delete` из `MESSAGE_UPDATE_EVENTS` (строка 26)
-   - Удалить `message.reaction.update` из `MESSAGE_UPDATE_EVENTS` (строка 28)
-   - Обновить условие в `createMessageUpdate` (строка 444) - убрать `message.delete`
+   - ✅ `dialog.update` - оставить в `DIALOG_UPDATE_EVENTS` (используется)
+   - ✅ `message.reaction.update` - оставить в `MESSAGE_UPDATE_EVENTS` (используется)
+   - ✅ Удалено `message.delete` из `MESSAGE_UPDATE_EVENTS`
+   - ✅ Обновлено условие в `createMessageUpdate` - убрано `message.delete`
 
 3. **`src/apps/api-test/public/api-test-user-dialogs.html`**
-   - ✅ Удалено `tenant.create`, `tenant.update`, `tenant.delete` из объектов `eventTypeLabels` (строки 4430-4432, 5431-5433)
-   - Осталось удалить: `dialog.update` (строки 4416, 5417), `message.delete` (строки 4420, 5424), `message.reaction.update` (строки 4427, 5428)
+   - ✅ Удалено `tenant.create`, `tenant.update`, `tenant.delete` из объектов `eventTypeLabels`
+   - ✅ Удалено `message.delete` из объектов `eventTypeLabels`
+   - ✅ `dialog.update` - оставить (используется)
+   - ✅ `message.reaction.update` - оставить (используется)
 
 4. **`src/apps/api-test/public/api-test-events-updates.html`**
    - Проверить наличие упоминаний и удалить при необходимости

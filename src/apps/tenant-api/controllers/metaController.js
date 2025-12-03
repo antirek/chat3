@@ -89,9 +89,14 @@ const metaController = {
         }
       );
 
-      // Генерируем событие dialog.update при обновлении мета-тегов диалога
+      // Генерируем события при обновлении мета-тегов
+      const actorId = req.userId || req.apiKey?.name || 'api';
       if (entityType === 'dialog') {
-        await createDialogUpdateEvent(req.tenantId, entityId, req.userId || req.apiKey?.name || 'api');
+        await createDialogUpdateEvent(req.tenantId, entityId, actorId);
+      } else if (entityType === 'message') {
+        await createMessageUpdateEvent(req.tenantId, entityId, actorId);
+      } else if (entityType === 'dialogMember') {
+        await createDialogMemberUpdateEvent(req.tenantId, entityId, actorId);
       }
 
       res.json({
@@ -161,9 +166,14 @@ const metaController = {
         });
       }
 
-      // Генерируем событие dialog.update при удалении мета-тегов диалога
+      // Генерируем события при удалении мета-тегов
+      const actorId = req.userId || req.apiKey?.name || 'api';
       if (entityType === 'dialog') {
-        await createDialogUpdateEvent(req.tenantId, entityId, req.userId || req.apiKey?.name || 'api');
+        await createDialogUpdateEvent(req.tenantId, entityId, actorId);
+      } else if (entityType === 'message') {
+        await createMessageUpdateEvent(req.tenantId, entityId, actorId);
+      } else if (entityType === 'dialogMember') {
+        await createDialogMemberUpdateEvent(req.tenantId, entityId, actorId);
       }
 
       res.json({
@@ -233,6 +243,141 @@ async function createDialogUpdateEvent(tenantId, dialogId, actorId) {
     });
   } catch (error) {
     console.error('Error creating dialog.update event:', error);
+    // Не прерываем выполнение, если не удалось создать событие
+  }
+}
+
+// Helper function to create message.update event
+async function createMessageUpdateEvent(tenantId, messageId, actorId) {
+  try {
+    const message = await Message.findOne({ messageId, tenantId });
+    if (!message) {
+      console.warn(`Message ${messageId} not found for update event`);
+      return;
+    }
+
+    const messageMeta = await metaUtils.getEntityMeta(tenantId, 'message', messageId);
+
+    const dialogSection = eventUtils.buildDialogSection({
+      dialogId: message.dialogId
+    });
+
+    const messageSection = eventUtils.buildMessageSection({
+      messageId: message.messageId,
+      dialogId: message.dialogId,
+      senderId: message.senderId,
+      type: message.type,
+      content: message.content,
+      meta: messageMeta
+    });
+
+    const actorSection = eventUtils.buildActorSection({
+      actorId: actorId,
+      actorType: 'api'
+    });
+
+    const messageContext = eventUtils.buildEventContext({
+      eventType: 'message.update',
+      dialogId: message.dialogId,
+      entityId: message.messageId,
+      messageId: message.messageId,
+      includedSections: ['dialog', 'message', 'actor'],
+      updatedFields: ['message.meta']
+    });
+
+    await eventUtils.createEvent({
+      tenantId,
+      eventType: 'message.update',
+      entityType: 'message',
+      entityId: message.messageId,
+      actorId: actorId,
+      actorType: 'api',
+      data: eventUtils.composeEventData({
+        context: messageContext,
+        dialog: dialogSection,
+        message: messageSection,
+        actor: actorSection
+      })
+    });
+  } catch (error) {
+    console.error('Error creating message.update event:', error);
+    // Не прерываем выполнение, если не удалось создать событие
+  }
+}
+
+// Helper function to create dialog.member.update event
+async function createDialogMemberUpdateEvent(tenantId, entityId, actorId) {
+  try {
+    // entityId для DialogMember - это составной ключ dialogId:userId
+    const parts = entityId.split(':');
+    if (parts.length !== 2) {
+      console.warn(`Invalid DialogMember entityId format: ${entityId}`);
+      return;
+    }
+    const [dialogId, userId] = parts;
+
+    const dialogMember = await DialogMember.findOne({
+      dialogId: String(dialogId).trim(),
+      userId: String(userId).trim(),
+      tenantId: String(tenantId).trim()
+    });
+    if (!dialogMember) {
+      console.warn(`DialogMember ${entityId} not found for update event`);
+      return;
+    }
+
+    const dialog = await Dialog.findOne({ dialogId, tenantId });
+    if (!dialog) {
+      console.warn(`Dialog ${dialogId} not found for member update event`);
+      return;
+    }
+
+    const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', entityId);
+
+    const dialogSection = eventUtils.buildDialogSection({
+      dialogId: dialog.dialogId
+    });
+
+    const memberSection = eventUtils.buildMemberSection({
+      userId: dialogMember.userId,
+      meta: memberMeta,
+      state: {
+        unreadCount: dialogMember.unreadCount,
+        lastSeenAt: dialogMember.lastSeenAt,
+        lastMessageAt: dialogMember.lastMessageAt,
+        isActive: dialogMember.isActive
+      }
+    });
+
+    const actorSection = eventUtils.buildActorSection({
+      actorId: actorId,
+      actorType: 'api'
+    });
+
+    const memberContext = eventUtils.buildEventContext({
+      eventType: 'dialog.member.update',
+      dialogId: dialog.dialogId,
+      entityId: dialog.dialogId,
+      includedSections: ['dialog', 'member', 'actor'],
+      updatedFields: ['member.meta']
+    });
+
+    await eventUtils.createEvent({
+      tenantId,
+      eventType: 'dialog.member.update',
+      entityType: 'dialogMember',
+      entityId: dialog.dialogId,
+      actorId: actorId,
+      actorType: 'api',
+      data: eventUtils.composeEventData({
+        context: memberContext,
+        dialog: dialogSection,
+        member: memberSection,
+        actor: actorSection
+      })
+    });
+  } catch (error) {
+    console.error('Error creating dialog.member.update event:', error);
     // Не прерываем выполнение, если не удалось создать событие
   }
 }
