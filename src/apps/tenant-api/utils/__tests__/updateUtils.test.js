@@ -523,7 +523,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
     test('should include reaction update in message data', async () => {
       const dialogId = generateDialogId();
       const messageId = generateMessageId();
-      const eventId = await createEventAndGetId('message.reaction.add');
+      const eventId = await createEventAndGetId('message.reaction.update');
 
       await Dialog.create({
         tenantId,
@@ -560,7 +560,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         messageId,
         eventId,
-        'message.reaction.add',
+        'message.reaction.update',
         eventData
       );
 

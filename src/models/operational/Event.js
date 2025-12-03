@@ -31,15 +31,9 @@ const eventSchema = new mongoose.Schema({
       'dialog.member.add',
       'dialog.member.remove',
       'dialog.member.update',
-      'message.status.create',
       'message.status.update',
-      'message.reaction.add',
       'message.reaction.update',
-      'message.reaction.remove',
-      'dialog.typing',
-      'tenant.create',
-      'tenant.update',
-      'tenant.delete'
+      'dialog.typing'
     ],
     index: true
   },
@@ -103,15 +97,9 @@ eventSchema.virtual('description').get(function() {
     'dialog.member.add': 'Добавлен участник диалога',
     'dialog.member.remove': 'Удален участник диалога',
     'dialog.member.update': 'Обновлен участник диалога',
-    'message.status.create': 'Создан статус сообщения',
     'message.status.update': 'Обновлен статус сообщения',
-    'message.reaction.add': 'Добавлена реакция на сообщение',
     'message.reaction.update': 'Обновлена реакция на сообщение',
-    'message.reaction.remove': 'Удалена реакция на сообщение',
-    'dialog.typing': 'Пользователь печатает в диалоге',
-    'tenant.create': 'Создан tenant',
-    'tenant.update': 'Обновлен tenant',
-    'tenant.delete': 'Удален tenant'
+    'dialog.typing': 'Пользователь печатает в диалоге'
   };
   
   return typeDescriptions[this.eventType] || this.eventType;

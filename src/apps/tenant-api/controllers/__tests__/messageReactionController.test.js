@@ -163,7 +163,7 @@ describe('messageReactionController', () => {
       const updatedMessage = await Message.findOne({ messageId: message.messageId }).lean();
       expect(updatedMessage.reactionCounts).toEqual({ '🔥': 1 });
 
-      const event = await Event.findOne({ tenantId, eventType: 'message.reaction.add' }).lean();
+      const event = await Event.findOne({ tenantId, eventType: 'message.reaction.update' }).lean();
       expect(event).toBeTruthy();
       expect(event.entityId).toBe(message.messageId);
       expect(event.data.message.reactionUpdate).toMatchObject({
@@ -288,7 +288,7 @@ describe('messageReactionController', () => {
       const updatedMessage = await Message.findOne({ messageId: message.messageId }).lean();
       expect(updatedMessage.reactionCounts).toEqual({});
 
-      const event = await Event.findOne({ tenantId, eventType: 'message.reaction.remove' }).lean();
+      const event = await Event.findOne({ tenantId, eventType: 'message.reaction.update' }).lean();
       expect(event).toBeTruthy();
       expect(event.entityId).toBe(message.messageId);
       expect(event.data.message.reactionUpdate).toMatchObject({

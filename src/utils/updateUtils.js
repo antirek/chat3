@@ -24,10 +24,7 @@ const MESSAGE_UPDATE_EVENTS = [
   'message.create',
   'message.update',
   'message.delete',
-  'message.reaction.add',
   'message.reaction.update',
-  'message.reaction.remove',
-  'message.status.create',
   'message.status.update'
 ];
 

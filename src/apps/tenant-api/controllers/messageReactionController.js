@@ -129,8 +129,8 @@ const messageReactionController = {
         });
         await reactionDoc.save();
 
-        // Увеличиваем счетчик
-        await reactionUtils.incrementReactionCount(req.tenantId, messageId, reaction);
+        // Пересчитываем все счетчики реакций для гарантии корректности
+        await reactionUtils.updateReactionCounts(req.tenantId, messageId);
 
         // Получаем обновленное сообщение
         const updatedMessage = await Message.findOne({ messageId: messageId });
@@ -163,7 +163,7 @@ const messageReactionController = {
         });
 
         const reactionContext = eventUtils.buildEventContext({
-          eventType: 'message.reaction.add',
+          eventType: 'message.reaction.update',
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
@@ -173,7 +173,7 @@ const messageReactionController = {
 
         await eventUtils.createEvent({
           tenantId: req.tenantId,
-          eventType: 'message.reaction.add',
+          eventType: 'message.reaction.update',
           entityType: 'messageReaction',
           entityId: messageId,
           actorId: userId,
@@ -213,8 +213,8 @@ const messageReactionController = {
         // Удаляем реакцию
         await MessageReaction.deleteOne({ _id: reactionToDelete._id });
 
-        // Уменьшаем счетчик
-        await reactionUtils.decrementReactionCount(req.tenantId, messageId, reaction);
+        // Пересчитываем все счетчики реакций для гарантии корректности
+        await reactionUtils.updateReactionCounts(req.tenantId, messageId);
 
         // Получаем обновленное сообщение
         const updatedMessage = await Message.findOne({ messageId: messageId });
@@ -233,7 +233,7 @@ const messageReactionController = {
         });
 
         const removeContext = eventUtils.buildEventContext({
-          eventType: 'message.reaction.remove',
+          eventType: 'message.reaction.update',
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
@@ -257,7 +257,7 @@ const messageReactionController = {
 
         await eventUtils.createEvent({
           tenantId: req.tenantId,
-          eventType: 'message.reaction.remove',
+          eventType: 'message.reaction.update',
           entityType: 'messageReaction',
           entityId: messageId,
           actorId: userId,

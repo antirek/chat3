@@ -1393,9 +1393,8 @@ const userDialogController = {
         actorType: 'user'
       });
 
-      const statusEventType = oldStatus ? 'message.status.update' : 'message.status.create';
       const statusContext = eventUtils.buildEventContext({
-        eventType: statusEventType,
+        eventType: 'message.status.update',
         dialogId: dialogId,
         entityId: messageId,
         messageId,
@@ -1405,7 +1404,7 @@ const userDialogController = {
 
       await eventUtils.createEvent({
         tenantId: req.tenantId,
-        eventType: statusEventType,
+        eventType: 'message.status.update',
         entityType: 'messageStatus',
         entityId: messageId,
         actorId: userId,

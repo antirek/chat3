@@ -132,11 +132,11 @@ describe('messageStatusController.updateMessageStatus', () => {
     expect(statusDoc).toBeTruthy();
     expect(statusDoc.status).toBe('delivered');
 
-    const event = await Event.findOne({ tenantId, eventType: 'message.status.create' }).lean();
+    const event = await Event.findOne({ tenantId, eventType: 'message.status.update' }).lean();
     expect(event).toBeTruthy();
     expect(event.entityId).toBe(message.messageId);
     expect(event.data.context).toMatchObject({
-      eventType: 'message.status.create',
+      eventType: 'message.status.update',
       dialogId: dialog.dialogId,
       entityId: message.messageId
     });
