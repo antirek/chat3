@@ -65,13 +65,14 @@ app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
 });
 
 // API Routes
+// Важно: более специфичные роуты должны регистрироваться раньше общих
 app.use('/api/tenants', tenantRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', userDialogRoutes); // Сначала специфичные роуты с /dialogs
+app.use('/api/users', userRoutes); // Затем общие роуты с /:userId
 app.use('/api/dialogs', dialogRoutes);
 app.use('/api/dialogs', messageRoutes);
 app.use('/api/messages', messageInfoRoutes);
 app.use('/api/dialogs', dialogMemberRoutes);
-app.use('/api/users', userDialogRoutes);
 app.use('/api/meta', metaRoutes);
 
 // API health check endpoint
