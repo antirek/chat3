@@ -192,6 +192,77 @@
         .info-box li {
             margin-bottom: 5px;
         }
+
+        .api-key-display {
+            margin-top: 15px;
+            padding: 20px;
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 6px;
+        }
+
+        .api-key-display h3 {
+            font-size: 16px;
+            color: #856404;
+            margin-bottom: 15px;
+        }
+
+        .api-key-value {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            word-break: break-all;
+            margin-bottom: 10px;
+        }
+
+        .api-key-value code {
+            flex: 1;
+            color: #333;
+        }
+
+        .copy-btn {
+            padding: 6px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .copy-btn:active {
+            background: #4a5fc8;
+        }
+
+        .copy-success {
+            background: #48bb78 !important;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .warning-box h3 {
+            font-size: 14px;
+            color: #856404;
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
@@ -203,18 +274,20 @@
 
         <div class="content">
             <div class="info-box">
-                <h3>ℹ️ Что делает инициализация:</h3>
+                <h3>⚠️ Внимание!</h3>
                 <ul>
-                    <li><strong>Инициализация:</strong> Создает tenant с ID <code>tnt_default</code> и API ключ (если их нет)</li>
-                    <li><strong>Заполнение данными:</strong> Запускает скрипт seed для создания тестовых пользователей, диалогов и сообщений</li>
+                    <li><strong>Инициализация удалит все данные</strong> из базы данных (пользователи, диалоги, сообщения, ключи и т.д.)</li>
+                    <li>После удаления будет создан базовый tenant (<code>tnt_default</code>) и сгенерирован новый API ключ</li>
+                    <li><strong>Важно:</strong> Сохраните API ключ после инициализации - он понадобится для работы с системой</li>
+                    <li><strong>Заполнение данными:</strong> После инициализации запустите seed для создания тестовых данных</li>
                 </ul>
             </div>
 
             <div class="section">
                 <h2>1. Инициализация системы</h2>
                 <p>
-                    Создает базовый tenant (<code>tnt_default</code>) и генерирует API ключ для доступа к системе.
-                    Если tenant или активный API ключ уже существуют, они не будут пересозданы.
+                    <strong>Удаляет все данные</strong>, создает базовый tenant (<code>tnt_default</code>) и генерирует новый API ключ.
+                    После инициализации обязательно скопируйте и сохраните API ключ!
                 </p>
                 <div class="button-group">
                     <button id="initBtn" class="btn-primary" onclick="initialize()">
@@ -258,6 +331,24 @@
         });
 
         async function initialize() {
+            // Подтверждение перед инициализацией
+            const confirmed = confirm(
+                '⚠️ ВНИМАНИЕ!\n\n' +
+                'Инициализация удалит ВСЕ данные из базы данных:\n' +
+                '- Все пользователи\n' +
+                '- Все диалоги\n' +
+                '- Все сообщения\n' +
+                '- Все API ключи\n' +
+                '- Все tenant\n' +
+                '- И все остальные данные\n\n' +
+                'После удаления будет создан базовый tenant и новый API ключ.\n\n' +
+                'Продолжить?'
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
             const btn = document.getElementById('initBtn');
             const resultDiv = document.getElementById('initResult');
             
@@ -278,20 +369,42 @@
 
                 if (response.ok || response.status === 207) {
                     resultDiv.className = 'result success';
-                    resultDiv.innerHTML = `
-                        <strong>✅ Инициализация завершена</strong>
-                        <pre>${JSON.stringify(data, null, 2)}</pre>
-                    `;
                     
-                    // Если создан API ключ, показываем его
-                    if (data.data && data.data.apiKey && data.data.apiKey.created) {
-                        resultDiv.innerHTML += `
-                            <p style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 4px;">
-                                <strong>🔑 Создан API ключ:</strong><br>
-                                <code style="font-size: 12px; word-break: break-all;">${data.data.apiKey.key}</code>
-                            </p>
+                    let html = '<strong>✅ Инициализация завершена успешно</strong>';
+                    
+                    if (data.data && data.data.tenant && data.data.tenant.created) {
+                        html += `<p style="margin-top: 10px;"><strong>Tenant:</strong> ${data.data.tenant.tenantId}</p>`;
+                    }
+                    
+                    // Показываем API ключ в удобном виде для копирования
+                    if (data.data && data.data.apiKey && data.data.apiKey.key) {
+                        const apiKey = data.data.apiKey.key;
+                        html += `
+                            <div class="api-key-display">
+                                <h3>🔑 API ключ создан - скопируйте и сохраните его!</h3>
+                                <div class="api-key-value">
+                                    <code id="apiKeyValue">${apiKey}</code>
+                                    <button class="copy-btn" onclick="copyApiKey('${apiKey}')" id="copyBtn">
+                                        📋 Копировать
+                                    </button>
+                                </div>
+                                <p style="font-size: 12px; color: #856404; margin: 0;">
+                                    ⚠️ Этот ключ больше не будет показан. Обязательно сохраните его!
+                                </p>
+                            </div>
                         `;
                     }
+                    
+                    if (data.data && data.data.errors && data.data.errors.length > 0) {
+                        html += `<p style="margin-top: 10px; color: #856404;"><strong>Предупреждения:</strong></p>`;
+                        html += `<ul style="margin-top: 5px; color: #856404;">`;
+                        data.data.errors.forEach(error => {
+                            html += `<li>${error}</li>`;
+                        });
+                        html += `</ul>`;
+                    }
+                    
+                    resultDiv.innerHTML = html;
                 } else {
                     resultDiv.className = 'result error';
                     resultDiv.innerHTML = `
@@ -308,6 +421,44 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<span>⚙️</span> <span>Провести инициализацию</span>';
+            }
+        }
+
+        async function copyApiKey(apiKey) {
+            try {
+                await navigator.clipboard.writeText(apiKey);
+                const btn = document.getElementById('copyBtn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✅ Скопировано!';
+                btn.classList.add('copy-success');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('copy-success');
+                }, 2000);
+            } catch (error) {
+                // Fallback для старых браузеров
+                const textArea = document.createElement('textarea');
+                textArea.value = apiKey;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    const btn = document.getElementById('copyBtn');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '✅ Скопировано!';
+                    btn.classList.add('copy-success');
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.classList.remove('copy-success');
+                    }, 2000);
+                } catch (err) {
+                    alert('Не удалось скопировать ключ. Скопируйте вручную: ' + apiKey);
+                }
+                document.body.removeChild(textArea);
             }
         }
 

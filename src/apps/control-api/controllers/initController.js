@@ -1,4 +1,7 @@
-import { Tenant, ApiKey } from '../../../models/index.js';
+import { 
+  Tenant, ApiKey, User, Dialog, Message, Meta, DialogMember, 
+  MessageStatus, Event, MessageReaction, Update 
+} from '../../../models/index.js';
 import connectDB from '../../../config/database.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -6,7 +9,7 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 export const initController = {
-  // Инициализация: создание tenant и API ключа
+  // Инициализация: удаление всех данных, создание tenant и API ключа
   async initialize(req, res) {
     try {
       await connectDB();
@@ -17,58 +20,61 @@ export const initController = {
         errors: []
       };
 
-      // 1. Создать tenant tnt_default (если не существует)
+      // 1. Удалить все данные
       try {
-        let tenant = await Tenant.findOne({ tenantId: 'tnt_default' });
-        
-        if (!tenant) {
-          tenant = await Tenant.create({
-            tenantId: 'tnt_default'
-          });
-          results.tenant = {
-            tenantId: tenant.tenantId,
-            created: true
-          };
-        } else {
-          results.tenant = {
-            tenantId: tenant.tenantId,
-            created: false,
-            message: 'Tenant already exists'
-          };
-        }
+        console.log('🗑️  Удаление всех данных...');
+        await User.deleteMany({});
+        await Dialog.deleteMany({});
+        await Message.deleteMany({});
+        await Meta.deleteMany({});
+        await DialogMember.deleteMany({});
+        await MessageStatus.deleteMany({});
+        await MessageReaction.deleteMany({});
+        await Event.deleteMany({});
+        await Update.deleteMany({});
+        await ApiKey.deleteMany({});
+        await Tenant.deleteMany({});
+        console.log('✅ Все данные удалены');
       } catch (error) {
-        results.errors.push(`Tenant creation error: ${error.message}`);
+        results.errors.push(`Data deletion error: ${error.message}`);
+        console.error('❌ Ошибка при удалении данных:', error);
       }
 
-      // 2. Создать API ключ (если не существует хотя бы одного активного)
+      // 2. Создать tenant tnt_default
       try {
-        const existingApiKey = await ApiKey.findOne({ isActive: true });
+        const tenant = await Tenant.create({
+          tenantId: 'tnt_default'
+        });
+        results.tenant = {
+          tenantId: tenant.tenantId,
+          created: true
+        };
+        console.log(`✅ Создан tenant: ${tenant.tenantId}`);
+      } catch (error) {
+        results.errors.push(`Tenant creation error: ${error.message}`);
+        console.error('❌ Ошибка при создании tenant:', error);
+      }
+
+      // 3. Создать API ключ
+      try {
+        const key = ApiKey.generateKey();
+        const apiKey = await ApiKey.create({
+          key,
+          name: 'Default API Key',
+          description: 'Auto-generated API key for initialization',
+          permissions: ['read', 'write', 'delete'],
+          isActive: true
+        });
         
-        if (!existingApiKey) {
-          const key = ApiKey.generateKey();
-          const apiKey = await ApiKey.create({
-            key,
-            name: 'Default API Key',
-            description: 'Auto-generated API key for initialization',
-            permissions: ['read', 'write', 'delete'],
-            isActive: true
-          });
-          
-          results.apiKey = {
-            key: apiKey.key,
-            name: apiKey.name,
-            created: true
-          };
-        } else {
-          results.apiKey = {
-            key: existingApiKey.key,
-            name: existingApiKey.name,
-            created: false,
-            message: 'Active API key already exists'
-          };
-        }
+        results.apiKey = {
+          key: apiKey.key,
+          name: apiKey.name,
+          created: true
+        };
+        console.log(`✅ Создан API ключ: ${apiKey.key.substring(0, 20)}...`);
       } catch (error) {
         results.errors.push(`API key creation error: ${error.message}`);
+        console.error('❌ Ошибка при создании API ключа:', error);
       }
 
       const statusCode = results.errors.length > 0 ? 207 : 200; // 207 Multi-Status если есть ошибки
@@ -80,6 +86,7 @@ export const initController = {
           : 'Initialization completed successfully'
       });
     } catch (error) {
+      console.error('❌ Критическая ошибка инициализации:', error);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
