@@ -404,6 +404,36 @@
             border-color: #e0448f;
         }
 
+        .reaction-item-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .reaction-item-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .reaction-item-btn.active {
+            background: #4fc3f7;
+            border-color: #4fc3f7;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .reaction-item-btn.active:hover {
+            background: #29b6f6;
+            border-color: #29b6f6;
+        }
+
         .action-button.events-button {
             background: #9c27b0;
             color: white;
@@ -1464,10 +1494,10 @@
                 <span class="close" onclick="closeReactionModal()">&times;</span>
             </div>
             <div class="modal-body">
-                <!-- Секция существующих реакций -->
+                <!-- Секция реакций -->
                 <div id="existingReactionsSection" style="margin-bottom: 25px;">
-                    <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Существующие реакции:</h3>
-                    <div id="existingReactionsList" style="max-height: 200px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 6px; padding: 10px; background: #f8f9fa;">
+                    <h3 style="margin-bottom: 15px; color: #333; font-size: 16px;">Реакции:</h3>
+                    <div id="existingReactionsList" style="min-height: 100px; border: 1px solid #e9ecef; border-radius: 6px; padding: 15px; background: #f8f9fa;">
                         <div class="loading">Загрузка реакций...</div>
                     </div>
                 </div>
@@ -1475,28 +1505,17 @@
                 <!-- Форма добавления реакции -->
                 <form id="addReactionForm">
                     <div class="form-group">
-                        <label for="reactionUser">Пользователь:</label>
-                        <select id="reactionUser" required>
-                            <option value="carl">Carl</option>
-                            <option value="marta">Marta</option>
-                            <option value="sara">Sara</option>
-                            <option value="kirk">Kirk</option>
-                            <option value="john">John</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
                         <label>Добавить реакцию:</label>
-                        <div class="reactions-container" style="display: flex; gap: 15px; justify-content: center; padding: 20px 0;">
-                            <button type="button" class="reaction-btn" onclick="addReaction('👍')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">👍</button>
-                            <button type="button" class="reaction-btn" onclick="addReaction('❤️')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">❤️</button>
-                            <button type="button" class="reaction-btn" onclick="addReaction('😂')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">😂</button>
-                            <button type="button" class="reaction-btn" onclick="addReaction('🔥')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">🔥</button>
-                            <button type="button" class="reaction-btn" onclick="addReaction('🎉')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">🎉</button>
+                        <div class="reactions-container" style="display: flex; gap: 15px; justify-content: center; padding: 20px 0; flex-wrap: wrap;">
+                            <button type="button" class="reaction-btn" onclick="toggleReaction('👍')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">👍</button>
+                            <button type="button" class="reaction-btn" onclick="toggleReaction('❤️')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">❤️</button>
+                            <button type="button" class="reaction-btn" onclick="toggleReaction('😂')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">😂</button>
+                            <button type="button" class="reaction-btn" onclick="toggleReaction('🔥')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">🔥</button>
+                            <button type="button" class="reaction-btn" onclick="toggleReaction('🎉')" style="font-size: 32px; padding: 10px 20px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s;">🎉</button>
                         </div>
-                        <input type="hidden" id="selectedReaction" required>
                     </div>
                     <div class="form-actions">
-                        <button type="button" onclick="closeReactionModal()">Отмена</button>
+                        <button type="button" onclick="closeReactionModal()">Закрыть</button>
                     </div>
                 </form>
             </div>
@@ -2346,7 +2365,6 @@
                                     <th onclick="toggleMessageSort('createdAt')" style="cursor: pointer;">Время <span class="sort-indicator" id="sort-message-createdAt">${getMessageSortIndicator('createdAt')}</span></th>
                                     <th>Содержимое</th>
                                     <th>Статус</th>
-                                    <th>Реакция</th>
                                     <th>Инфо</th>
                                 </tr>
                             </thead>
@@ -2408,9 +2426,6 @@
                                             ` : `
                                                 <span style="color: #999;">${statusDisplay}</span>
                                             `}
-                                        </td>
-                                        <td style="font-size: 20px;">
-                                            ${ctx.myReaction || '-'}
                                         </td>
                                         <td class="actions-column">
                                             <button class="info-button" onclick="showMessageInfo('${message.messageId}')">ℹ️ Инфо</button>
@@ -4086,15 +4101,22 @@
         // Переменная для хранения текущего messageId для реакции
         let currentMessageIdForReaction = null;
 
-        // Загрузка существующих реакций
+        // Загрузка reactionSet из сообщения
         async function loadExistingReactions(messageId) {
             const reactionsList = document.getElementById('existingReactionsList');
             
+            if (!currentUserId || !currentDialogId) {
+                reactionsList.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px;">Сначала выберите пользователя и диалог</div>';
+                return;
+            }
+            
             try {
-                const response = await fetch(`/api/messages/${messageId}/reactions`, {
+                // Получаем данные сообщения для reactionSet
+                const response = await fetch(`/api/users/${currentUserId}/dialogs/${currentDialogId}/messages/${messageId}`, {
                     method: 'GET',
                     headers: {
-                        'X-API-Key': apiKey
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
                     }
                 });
 
@@ -4103,33 +4125,38 @@
                 }
 
                 const data = await response.json();
-                const reactions = data.data?.reactions || [];
+                const message = data.data || {};
+                const reactionSet = message.reactionSet || [];
                 
-                if (reactions.length === 0) {
+                if (reactionSet.length === 0) {
                     reactionsList.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px;">Реакций пока нет</div>';
                     return;
                 }
 
-                // Форматируем список реакций
+                // Сохраняем reactionSet для использования в toggleReaction
+                window.currentReactionSet = reactionSet;
+
+                // Форматируем reactionSet как кнопки
                 reactionsList.innerHTML = `
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="border-bottom: 2px solid #dee2e6;">
-                                <th style="text-align: left; padding: 8px; color: #495057; font-weight: 600;">Реакция</th>
-                                <th style="text-align: left; padding: 8px; color: #495057; font-weight: 600;">Пользователь</th>
-                                <th style="text-align: left; padding: 8px; color: #495057; font-weight: 600;">Время</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${reactions.map(reaction => `
-                                <tr style="border-bottom: 1px solid #e9ecef;">
-                                    <td style="padding: 8px; font-size: 20px;">${reaction.reaction}</td>
-                                    <td style="padding: 8px; color: #495057;">${reaction.userId}</td>
-                                    <td style="padding: 8px; color: #6c757d; font-size: 12px;">${formatMessageTime(reaction.createdAt)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                        ${reactionSet.map(item => {
+                            const isActive = item.me ? 'active' : '';
+                            const style = item.me 
+                                ? 'background: #4fc3f7; border-color: #4fc3f7; color: white; transform: scale(1.1);'
+                                : 'background: white; border-color: #ddd;';
+                            return `
+                                <button 
+                                    type="button" 
+                                    class="reaction-item-btn ${isActive}" 
+                                    onclick="toggleReaction('${item.reaction}')"
+                                    data-reaction="${item.reaction}"
+                                    style="font-size: 24px; padding: 8px 16px; border: 2px solid; border-radius: 20px; cursor: pointer; transition: all 0.2s; ${style}">
+                                    <span style="font-size: 20px;">${item.reaction}</span>
+                                    <span style="margin-left: 8px; font-size: 14px; font-weight: 600;">${item.count}</span>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
                 `;
             } catch (error) {
                 console.error('Error loading reactions:', error);
@@ -4139,16 +4166,22 @@
 
         // Открытие модального окна для добавления реакции
         async function showReactionModal(messageId) {
-            currentMessageIdForReaction = messageId;
+            if (!currentUserId) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
             
-            // Сбрасываем форму
-            document.getElementById('reactionUser').value = 'carl';
-            document.getElementById('selectedReaction').value = '';
+            if (!currentDialogId) {
+                alert('Сначала выберите диалог');
+                return;
+            }
+            
+            currentMessageIdForReaction = messageId;
             
             // Показываем модальное окно
             document.getElementById('reactionModal').style.display = 'block';
             
-            // Загружаем существующие реакции
+            // Загружаем reactionSet
             await loadExistingReactions(messageId);
         }
 
@@ -4158,17 +4191,18 @@
             currentMessageIdForReaction = null;
         }
 
-        // Добавление реакции
-        async function addReaction(reaction) {
+        // Переключение реакции (добавление/удаление)
+        async function toggleReaction(reaction) {
             if (!currentMessageIdForReaction) {
                 alert('Ошибка: не выбран сообщение');
                 return;
             }
 
-            const userId = document.getElementById('reactionUser').value;
+            // Используем текущего пользователя
+            const userId = currentUserId;
 
             if (!userId) {
-                alert('Пожалуйста, выберите пользователя');
+                alert('Сначала выберите пользователя');
                 return;
             }
 
@@ -4177,8 +4211,22 @@
                 return;
             }
 
+            // Проверяем, есть ли уже эта реакция у пользователя
+            const reactionSet = window.currentReactionSet || [];
+            const existingReaction = reactionSet.find(r => r.reaction === reaction);
+            const isActive = existingReaction && existingReaction.me;
+
             try {
-                const response = await fetch(`/api/messages/${currentMessageIdForReaction}/reactions`, {
+                // Определяем action: если реакция активна - unset, иначе - set
+                const action = isActive ? 'unset' : 'set';
+                
+                // Используем новый эндпоинт POST /api/users/{userId}/dialogs/{dialogId}/messages/{messageId}/reactions/{action}
+                let url = `/api/users/${userId}/dialogs/${currentDialogId}/messages/${currentMessageIdForReaction}/reactions/${action}`;
+                if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                    url = CHAT3_CONFIG.getTenantApiUrl(url);
+                }
+                
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -4186,7 +4234,6 @@
                         'X-TENANT-ID': tenantId
                     },
                     body: JSON.stringify({
-                        userId: userId,
                         reaction: reaction
                     })
                 });
@@ -4197,7 +4244,7 @@
                 }
 
                 const data = await response.json();
-                console.log('Reaction added:', data);
+                console.log(isActive ? 'Reaction unset:' : 'Reaction set:', data);
                 
                 // Обновляем список реакций
                 await loadExistingReactions(currentMessageIdForReaction);
@@ -4208,8 +4255,8 @@
                 }
                 
             } catch (error) {
-                console.error('Error adding reaction:', error);
-                alert(`Ошибка при добавлении реакции: ${error.message}`);
+                console.error('Error toggling reaction:', error);
+                alert(`Ошибка при ${isActive ? 'снятии' : 'установке'} реакции: ${error.message}`);
             }
         }
 
@@ -4483,6 +4530,11 @@
                 alert('Сначала выберите пользователя');
                 return;
             }
+            
+            if (!currentDialogId) {
+                alert('Сначала выберите диалог');
+                return;
+            }
 
             const modal = document.getElementById('statusMatrixModal');
             const content = document.getElementById('statusMatrixContent');
@@ -4495,7 +4547,7 @@
             } else {
                 baseUrl = window.location.origin.replace(':3001', ':3000');
             }
-            const url = `${baseUrl}/api/users/${currentUserId}/messages/${messageId}/statusMatrix`;
+            const url = `${baseUrl}/api/users/${currentUserId}/dialogs/${currentDialogId}/messages/${messageId}`;
 
             // Отображаем URL
             urlElement.textContent = url;
@@ -4505,7 +4557,8 @@
             content.innerHTML = '<div class="loading">Загрузка матрицы статусов...</div>';
 
             try {
-                const response = await fetch(`/api/users/${currentUserId}/messages/${messageId}/statusMatrix`, {
+                // Загружаем данные сообщения, чтобы получить statusMessageMatrix
+                const response = await fetch(`/api/users/${currentUserId}/dialogs/${currentDialogId}/messages/${messageId}`, {
                     headers: {
                         'X-API-Key': apiKey,
                         'X-TENANT-ID': tenantId
@@ -4525,7 +4578,8 @@
                 }
 
                 const data = await response.json();
-                const matrix = data.data || [];
+                const message = data.data || {};
+                const matrix = message.statusMessageMatrix || [];
 
                 if (matrix.length === 0) {
                     content.innerHTML = `

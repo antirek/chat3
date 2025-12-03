@@ -1101,12 +1101,32 @@ const userDialogController = {
             }
           ]);
 
-          // Получаем реакцию пользователя на сообщение
-          const reaction = await MessageReaction.findOne({
+          // Получаем все реакции на сообщение
+          const allReactions = await MessageReaction.find({
             tenantId: req.tenantId,
-            messageId: message.messageId,
-            userId: userId
+            messageId: message.messageId
           }).lean();
+
+          // Формируем reactionSet: группируем реакции по типу и проверяем, есть ли у текущего пользователя
+          const reactionMap = new Map();
+          
+          allReactions.forEach(r => {
+            const reactionType = r.reaction;
+            if (!reactionMap.has(reactionType)) {
+              reactionMap.set(reactionType, {
+                reaction: reactionType,
+                count: 0,
+                me: false
+              });
+            }
+            const item = reactionMap.get(reactionType);
+            item.count++;
+            if (r.userId === userId) {
+              item.me = true;
+            }
+          });
+          
+          const reactionSet = Array.from(reactionMap.values());
 
           // Получаем метаданные сообщения
           const messageMeta = await fetchMeta('message', message.messageId);
@@ -1114,10 +1134,10 @@ const userDialogController = {
           // Формируем обогащенное сообщение с контекстом пользователя
           const contextData = {
             userId: userId,
-            isMine: message.senderId === userId,
+            isMine: message.senderId === userId
             // statuses: null, // Статусы только для данного пользователя
             // statuses: myStatuses, // Закомментировано: всегда возвращаем null
-            myReaction: reaction ? reaction.reaction : null
+            // myReaction: userReaction // Удалено: используйте reactionSet для получения информации о реакциях
           };
 
           // Добавляем userInfo если пользователь найден в User модели
@@ -1127,14 +1147,18 @@ const userDialogController = {
 
           const senderInfo = await getSenderInfo(req.tenantId, message.senderId, senderInfoCache, metaScopeOptions);
 
+          // Исключаем reactionCounts из ответа
+          const { reactionCounts, ...messageWithoutReactionCounts } = message;
+
           return {
-            ...message,
+            ...messageWithoutReactionCounts,
             meta: messageMeta,
             // Контекстные данные для конкретного пользователя
             context: contextData,
             // Матрица статусов (количество пар userType-status, исключая свои статусы)
             statusMessageMatrix: statusMessageMatrix,
             // statuses: messageStatuses, // Закомментировано: заменено на statusMessageMatrix
+            reactionSet: reactionSet,
             senderInfo: senderInfo || null
           };
         })
@@ -1254,18 +1278,32 @@ const userDialogController = {
         }
       ]);
 
-      // 5. Получаем реакцию пользователя на сообщение
-      const reaction = await MessageReaction.findOne({
-        tenantId: req.tenantId,
-        messageId: messageId,
-        userId: userId
-      }).lean();
-
-      // 6. Получаем все реакции на сообщение
+      // 5. Получаем все реакции на сообщение
       const allReactions = await MessageReaction.find({
         tenantId: req.tenantId,
         messageId: messageId
       }).lean();
+
+      // 5.5. Формируем reactionSet: группируем реакции по типу и проверяем, есть ли у текущего пользователя
+      const reactionMap = new Map();
+      
+      allReactions.forEach(r => {
+        const reactionType = r.reaction;
+        if (!reactionMap.has(reactionType)) {
+          reactionMap.set(reactionType, {
+            reaction: reactionType,
+            count: 0,
+            me: false
+          });
+        }
+        const item = reactionMap.get(reactionType);
+        item.count++;
+        if (r.userId === userId) {
+          item.me = true;
+        }
+      });
+      
+      const reactionSet = Array.from(reactionMap.values());
 
       // 7. Получаем метаданные сообщения
       const messageMeta = await fetchMeta('message', message.messageId);
@@ -1307,10 +1345,10 @@ const userDialogController = {
       // 8. Формируем ответ с контекстом пользователя
       const contextData = {
         userId: userId,
-        isMine: message.senderId === userId,
+        isMine: message.senderId === userId
         // statuses: null, // Статусы только для данного пользователя
         // statuses: myStatuses, // Закомментировано: всегда возвращаем null
-        myReaction: reaction ? reaction.reaction : null
+        // myReaction: userReaction // Удалено: используйте reactionSet для получения информации о реакциях
       };
 
       // Добавляем userInfo если пользователь найден
@@ -1320,14 +1358,17 @@ const userDialogController = {
 
       const senderInfo = await getSenderInfo(req.tenantId, message.senderId, undefined, metaScopeOptions);
 
+      // Исключаем reactionCounts из ответа
+      const { reactionCounts, ...messageWithoutReactionCounts } = message;
+
       const enrichedMessage = {
-        ...message,
+        ...messageWithoutReactionCounts,
         meta: messageMeta,
         // Контекстные данные для конкретного пользователя
         context: contextData,
         // Матрица статусов (количество пар userId-status, исключая свои статусы)
         statusMessageMatrix: statusMessageMatrix,
-        reactions: allReactions,
+        reactionSet: reactionSet,
         senderInfo: senderInfo || null
       };
 
@@ -1353,74 +1394,6 @@ const userDialogController = {
     }
   },
 
-  async getMessageStatusMatrix(req, res) {
-    try {
-      const { userId, messageId } = req.params;
-
-      // Проверяем, что сообщение существует и принадлежит тенанту
-      const message = await Message.findOne({
-        messageId: messageId,
-        tenantId: req.tenantId
-      }).select('messageId dialogId').lean();
-
-      if (!message) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: 'Message not found'
-        });
-      }
-
-      // Агрегируем статусы по userType и status (исключая статусы текущего пользователя)
-      const statusMatrix = await MessageStatus.aggregate([
-        {
-          $match: {
-            messageId: messageId,
-            tenantId: req.tenantId,
-            userId: { $ne: userId } // Исключаем статусы текущего пользователя
-          }
-        },
-        {
-          $group: {
-            _id: {
-              userType: { $ifNull: ['$userType', null] },
-              status: '$status'
-            },
-            count: { $sum: 1 }
-          }
-        },
-        {
-          $project: {
-            _id: 0,
-            userType: '$_id.userType',
-            status: '$_id.status',
-            count: 1
-          }
-        },
-        {
-          $sort: {
-            userType: 1,
-            status: 1
-          }
-        }
-      ]);
-
-      return res.json({
-        data: statusMatrix
-      });
-    } catch (error) {
-      console.error('Error in getMessageStatusMatrix:', error);
-      if (error.name === 'CastError') {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: 'Invalid message ID'
-        });
-      }
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: error.message
-      });
-    }
-  },
 
   async getMessageStatuses(req, res) {
     try {
@@ -1487,6 +1460,33 @@ const userDialogController = {
       });
     } catch (error) {
       console.error('Error in getMessageStatuses:', error);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  // Middleware для проверки членства пользователя в диалоге
+  async checkDialogMembership(req, res, next) {
+    try {
+      const { userId, dialogId } = req.params;
+
+      const member = await DialogMember.findOne({
+        tenantId: req.tenantId,
+        dialogId: dialogId,
+        userId: userId
+      });
+
+      if (!member) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'User is not a member of this dialog'
+        });
+      }
+
+      next();
+    } catch (error) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message

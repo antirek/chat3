@@ -50,8 +50,9 @@ messageReactionSchema.pre('save', function(next) {
   next();
 });
 
-// Составной уникальный индекс: один пользователь может иметь только одну реакцию на сообщение
-messageReactionSchema.index({ tenantId: 1, messageId: 1, userId: 1 }, { unique: true });
+// Составной уникальный индекс: один пользователь может иметь только одну реакцию определенного типа на сообщение
+// Пользователь может иметь несколько разных реакций на одно сообщение
+messageReactionSchema.index({ tenantId: 1, messageId: 1, userId: 1, reaction: 1 }, { unique: true });
 
 // Индекс для подсчета реакций по типу
 messageReactionSchema.index({ tenantId: 1, messageId: 1, reaction: 1 });

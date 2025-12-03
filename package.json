@@ -16,6 +16,7 @@
     "add-test-users": "node src/scripts/add-test-users.js",
     "add-dialog-members": "node src/scripts/add-dialog-members.js",
     "fill-message-status-usertype": "node src/scripts/fill-message-status-usertype.js",
+    "update-message-reaction-index": "node src/scripts/update-message-reaction-index.js",
     "generate-key": "node src/scripts/generateApiKey.js",
     "generate-demo-key": "node src/scripts/generateDemoApiKey.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",

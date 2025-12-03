@@ -7,8 +7,10 @@ const messageReactionController = {
   // Получить все реакции для сообщения
   async getMessageReactions(req, res) {
     try {
-      const { messageId } = req.params;
-      const { reaction, userId } = req.query;
+      const { messageId, userId: pathUserId } = req.params;
+      const { reaction, userId: queryUserId } = req.query;
+      // userId из пути имеет приоритет над query параметром
+      const userId = pathUserId || queryUserId;
 
       // Проверяем, что сообщение существует и принадлежит tenant
       const message = await Message.findOne({
@@ -66,12 +68,13 @@ const messageReactionController = {
     }
   },
 
-  // Добавить или обновить реакцию
-  async addOrUpdateReaction(req, res) {
+  // Установить или снять реакцию (set/unset)
+  async setOrUnsetReaction(req, res) {
     try {
-      const { messageId } = req.params;
-      const { reaction } = req.body;
-      const userId = req.userId || req.body.userId; // Из запроса или из middleware
+      const { messageId, action, userId: pathUserId } = req.params;
+      const { reaction, userId: bodyUserId } = req.body;
+      // Приоритет: userId из пути > userId из тела запроса > userId из middleware
+      const userId = pathUserId || bodyUserId || req.userId;
 
       if (!userId) {
         return res.status(400).json({
@@ -100,118 +103,181 @@ const messageReactionController = {
         });
       }
 
-      // Проверяем существующую реакцию этого пользователя
-      const existingReaction = await MessageReaction.findOne({
-        tenantId: req.tenantId,
-        messageId: messageId,
-        userId: userId
-      });
+      if (action === 'set') {
+        // Устанавливаем реакцию
+        const existingReaction = await MessageReaction.findOne({
+          tenantId: req.tenantId,
+          messageId: messageId,
+          userId: userId,
+          reaction: reaction
+        });
 
-      let reactionDoc;
-      let eventType;
-      let oldReaction = null;
-
-      if (existingReaction) {
-        // Обновляем существующую реакцию
-        oldReaction = existingReaction.reaction;
-        
-        if (existingReaction.reaction === reaction) {
-          // Та же реакция - ничего не делаем
+        if (existingReaction) {
+          // Реакция уже существует
           return res.json({
             data: existingReaction,
             message: 'Reaction already exists'
           });
         }
 
-        // Обновляем реакцию
-        existingReaction.reaction = reaction;
-        existingReaction.updatedAt = new Date();
-        reactionDoc = await existingReaction.save();
-
-        eventType = 'message.reaction.update';
-
-        // Обновляем счетчики: уменьшаем старую, увеличиваем новую
-        await reactionUtils.decrementReactionCount(req.tenantId, messageId, oldReaction);
-        await reactionUtils.incrementReactionCount(req.tenantId, messageId, reaction);
-      } else {
         // Создаем новую реакцию
-        reactionDoc = new MessageReaction({
+        const reactionDoc = new MessageReaction({
           tenantId: req.tenantId,
           messageId: messageId,
           userId: userId,
           reaction: reaction
         });
-        reactionDoc = await reactionDoc.save();
+        await reactionDoc.save();
 
-        eventType = 'message.reaction.add';
-
-        // Увеличиваем счетчик новой реакции
+        // Увеличиваем счетчик
         await reactionUtils.incrementReactionCount(req.tenantId, messageId, reaction);
-      }
 
-      // Получаем обновленное сообщение для получения актуальных счетчиков
-      const updatedMessage = await Message.findOne({ messageId: messageId });
+        // Получаем обновленное сообщение
+        const updatedMessage = await Message.findOne({ messageId: messageId });
 
-      const dialogSection = eventUtils.buildDialogSection({
-        dialogId: message.dialogId
-      });
+        const dialogSection = eventUtils.buildDialogSection({
+          dialogId: message.dialogId
+        });
 
-      const memberSection = eventUtils.buildMemberSection({
-        userId
-      });
+        const memberSection = eventUtils.buildMemberSection({
+          userId
+        });
 
-      const actorSection = eventUtils.buildActorSection({
-        actorId: userId,
-        actorType: 'user'
-      });
+        const actorSection = eventUtils.buildActorSection({
+          actorId: userId,
+          actorType: 'user'
+        });
 
-      const messageSection = eventUtils.buildMessageSection({
-        messageId,
-        dialogId: message.dialogId,
-        senderId: message.senderId,
-        type: message.type,
-        content: message.content,
-        reactionUpdate: {
-          userId,
-          reaction,
-          oldReaction,
-          counts: updatedMessage.reactionCounts
+        const messageSection = eventUtils.buildMessageSection({
+          messageId,
+          dialogId: message.dialogId,
+          senderId: message.senderId,
+          type: message.type,
+          content: message.content,
+          reactionUpdate: {
+            userId,
+            reaction,
+            oldReaction: null,
+            counts: updatedMessage.reactionCounts
+          }
+        });
+
+        const reactionContext = eventUtils.buildEventContext({
+          eventType: 'message.reaction.add',
+          dialogId: message.dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message.reaction', 'member', 'actor'],
+          updatedFields: ['message.reaction']
+        });
+
+        await eventUtils.createEvent({
+          tenantId: req.tenantId,
+          eventType: 'message.reaction.add',
+          entityType: 'messageReaction',
+          entityId: messageId,
+          actorId: userId,
+          actorType: 'user',
+          data: eventUtils.composeEventData({
+            context: reactionContext,
+            dialog: dialogSection,
+            member: memberSection,
+            message: messageSection,
+            actor: actorSection
+          })
+        });
+
+        res.status(201).json({
+          data: sanitizeResponse({
+            reaction: reactionDoc,
+            counts: updatedMessage.reactionCounts
+          }),
+          message: 'Reaction set successfully'
+        });
+      } else if (action === 'unset') {
+        // Снимаем реакцию
+        const reactionToDelete = await MessageReaction.findOne({
+          tenantId: req.tenantId,
+          messageId: messageId,
+          userId: userId,
+          reaction: reaction
+        });
+
+        if (!reactionToDelete) {
+          return res.status(404).json({
+            error: 'Not Found',
+            message: 'Reaction not found'
+          });
         }
-      });
 
-      const reactionContext = eventUtils.buildEventContext({
-        eventType,
-        dialogId: message.dialogId,
-        entityId: messageId,
-        messageId,
-        includedSections: ['dialog', 'message.reaction', 'member', 'actor'],
-        updatedFields: ['message.reaction']
-      });
+        // Удаляем реакцию
+        await MessageReaction.deleteOne({ _id: reactionToDelete._id });
 
-      // Создаем событие
-      await eventUtils.createEvent({
-        tenantId: req.tenantId,
-        eventType,
-        entityType: 'messageReaction',
-        entityId: messageId,
-        actorId: userId,
-        actorType: 'user',
-        data: eventUtils.composeEventData({
-          context: reactionContext,
-          dialog: dialogSection,
-          member: memberSection,
-          message: messageSection,
-          actor: actorSection
-        })
-      });
+        // Уменьшаем счетчик
+        await reactionUtils.decrementReactionCount(req.tenantId, messageId, reaction);
 
-      res.status(existingReaction ? 200 : 201).json({
-        data: sanitizeResponse({
-          reaction: reactionDoc,
-          counts: updatedMessage.reactionCounts
-        }),
-        message: existingReaction ? 'Reaction updated successfully' : 'Reaction added successfully'
-      });
+        // Получаем обновленное сообщение
+        const updatedMessage = await Message.findOne({ messageId: messageId });
+
+        const dialogSection = eventUtils.buildDialogSection({
+          dialogId: message.dialogId
+        });
+
+        const memberSection = eventUtils.buildMemberSection({
+          userId
+        });
+
+        const actorSection = eventUtils.buildActorSection({
+          actorId: userId,
+          actorType: 'user'
+        });
+
+        const removeContext = eventUtils.buildEventContext({
+          eventType: 'message.reaction.remove',
+          dialogId: message.dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message.reaction', 'member', 'actor'],
+          updatedFields: ['message.reaction']
+        });
+
+        const removeMessageSection = eventUtils.buildMessageSection({
+          messageId,
+          dialogId: message.dialogId,
+          senderId: message.senderId,
+          type: message.type,
+          content: message.content,
+          reactionUpdate: {
+            userId,
+            reaction: null,
+            oldReaction: reactionToDelete.reaction,
+            counts: updatedMessage.reactionCounts
+          }
+        });
+
+        await eventUtils.createEvent({
+          tenantId: req.tenantId,
+          eventType: 'message.reaction.remove',
+          entityType: 'messageReaction',
+          entityId: messageId,
+          actorId: userId,
+          actorType: 'user',
+          data: eventUtils.composeEventData({
+            context: removeContext,
+            dialog: dialogSection,
+            member: memberSection,
+            message: removeMessageSection,
+            actor: actorSection
+          })
+        });
+
+        res.json({
+          data: sanitizeResponse({
+            counts: updatedMessage.reactionCounts
+          }),
+          message: 'Reaction unset successfully'
+        });
+      }
     } catch (error) {
       if (error.name === 'CastError') {
         return res.status(400).json({
@@ -220,139 +286,9 @@ const messageReactionController = {
         });
       }
       if (error.code === 11000) {
-        // Duplicate key error - реакция уже существует
         return res.status(409).json({
           error: 'Conflict',
           message: 'Reaction already exists for this user and message'
-        });
-      }
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: error.message
-      });
-    }
-  },
-
-  // Удалить реакцию
-  async removeReaction(req, res) {
-    try {
-      const { messageId, reaction } = req.params;
-      const userId = req.userId || req.query.userId; // Из запроса или из middleware
-
-      if (!userId) {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: 'User ID is required'
-        });
-      }
-
-      // Проверяем, что сообщение существует
-      const message = await Message.findOne({
-        messageId: messageId,
-        tenantId: req.tenantId
-      });
-
-      if (!message) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: 'Message not found'
-        });
-      }
-
-      // Формируем фильтр
-      const filter = {
-        tenantId: req.tenantId,
-        messageId: messageId,
-        userId: userId
-      };
-
-      // Если указан конкретный тип реакции, удаляем только его
-      if (reaction) {
-        filter.reaction = reaction;
-      }
-
-      // Находим реакцию для события
-      const reactionToDelete = await MessageReaction.findOne(filter);
-
-      if (!reactionToDelete) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: 'Reaction not found'
-        });
-      }
-
-      // Удаляем реакцию
-      await MessageReaction.deleteOne({ _id: reactionToDelete._id });
-
-      // Уменьшаем счетчик
-      await reactionUtils.decrementReactionCount(req.tenantId, messageId, reactionToDelete.reaction);
-
-      // Получаем обновленное сообщение для получения актуальных счетчиков
-      const updatedMessage = await Message.findOne({ messageId: messageId });
-
-      const dialogSection = eventUtils.buildDialogSection({
-        dialogId: message.dialogId
-      });
-
-      const memberSection = eventUtils.buildMemberSection({
-        userId
-      });
-
-      const actorSection = eventUtils.buildActorSection({
-        actorId: userId,
-        actorType: 'user'
-      });
-
-      const removeContext = eventUtils.buildEventContext({
-        eventType: 'message.reaction.remove',
-        dialogId: message.dialogId,
-        entityId: messageId,
-        messageId,
-        includedSections: ['dialog', 'message.reaction', 'member', 'actor'],
-        updatedFields: ['message.reaction']
-      });
-
-      const removeMessageSection = eventUtils.buildMessageSection({
-        messageId,
-        dialogId: message.dialogId,
-        senderId: message.senderId,
-        type: message.type,
-        content: message.content,
-        reactionUpdate: {
-          userId,
-          reaction: null,
-          oldReaction: reactionToDelete.reaction,
-          counts: updatedMessage.reactionCounts
-        }
-      });
-
-      await eventUtils.createEvent({
-        tenantId: req.tenantId,
-        eventType: 'message.reaction.remove',
-        entityType: 'messageReaction',
-        entityId: messageId,
-        actorId: userId,
-        actorType: 'user',
-        data: eventUtils.composeEventData({
-          context: removeContext,
-          dialog: dialogSection,
-          member: memberSection,
-          message: removeMessageSection,
-          actor: actorSection
-        })
-      });
-
-      res.json({
-        data: sanitizeResponse({
-          counts: updatedMessage.reactionCounts
-        }),
-        message: 'Reaction removed successfully'
-      });
-    } catch (error) {
-      if (error.name === 'CastError') {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: 'Invalid message ID'
         });
       }
       res.status(500).json({

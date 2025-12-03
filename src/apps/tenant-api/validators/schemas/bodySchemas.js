@@ -127,11 +127,12 @@ export const updateMessageContentSchema = Joi.object({
 });
 
 /**
- * Схема валидации добавления реакции
+ * Схема валидации добавления/удаления реакции
  */
 export const addReactionSchema = Joi.object({
   reaction: Joi.string().trim().min(1).max(50).required(),
-  userId: Joi.string().trim().min(1).max(100).optional()
+  userId: Joi.string().trim().min(1).max(100).optional(),
+  action: Joi.string().valid('set', 'unset').optional().default('set')
 });
 
 /**

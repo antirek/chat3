@@ -1,9 +1,10 @@
 import express from 'express';
 import userDialogController from '../controllers/userDialogController.js';
+import messageReactionController from '../controllers/messageReactionController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
-import { validateUserId, validateDialogId, validateMessageId } from '../validators/urlValidators/index.js';
-import { validateQuery } from '../validators/middleware.js';
-import { userDialogsQuerySchema } from '../validators/schemas/index.js';
+import { validateUserId, validateDialogId, validateMessageId, validateAction } from '../validators/urlValidators/index.js';
+import { validateQuery, validateBody } from '../validators/middleware.js';
+import { userDialogsQuerySchema, addReactionSchema, reactionsQuerySchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -108,7 +109,7 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *   get:
  *     summary: Get messages from a dialog in context of specific user
  *     description: |
- *       Возвращает сообщения с контекстными данными пользователя (isMine, myReaction, statusMessageMatrix).
+ *       Возвращает сообщения с контекстными данными пользователя (isMine, statusMessageMatrix, reactionSet).
  *       Доступно только для участников диалога.
  *       
  *       **Важно**: 
@@ -181,8 +182,6 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *                         type: number
  *                       updatedAt:
  *                         type: number
- *                       reactionCounts:
- *                         type: object
  *                       meta:
  *                         type: object
  *                       context:
@@ -202,10 +201,6 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *                               Статусы сообщения для текущего пользователя.
  *                               ⚠️ **REMOVED**: Поле удалено из ответа.
  *                               Для получения информации о статусах используйте `statusMessageMatrix` в корне объекта сообщения.
- *                           myReaction:
- *                             type: string
- *                             nullable: true
- *                             description: Current user's reaction (emoji) or null
  *                       statusMessageMatrix:
  *                         type: array
  *                         description: |
@@ -240,6 +235,35 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *                               type: integer
  *                               description: Количество пользователей данного типа с данным статусом
  *                               example: 5
+ *                       reactionSet:
+ *                         type: array
+ *                         description: |
+ *                           Набор реакций на сообщение, сгруппированный по типу реакции.
+ *                           Каждый элемент содержит:
+ *                           - reaction: эмодзи реакции (например, "👍", "❤️")
+ *                           - count: количество пользователей, поставивших эту реакцию
+ *                           - me: true, если текущий пользователь поставил эту реакцию, иначе false
+ *                           
+ *                           Пример:
+ *                           [
+ *                             {reaction: "👍", count: 5, me: true},
+ *                             {reaction: "❤️", count: 3, me: false}
+ *                           ]
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             reaction:
+ *                               type: string
+ *                               description: Эмодзи реакции
+ *                               example: "👍"
+ *                             count:
+ *                               type: integer
+ *                               description: Количество пользователей с этой реакцией
+ *                               example: 5
+ *                             me:
+ *                               type: boolean
+ *                               description: true, если текущий пользователь поставил эту реакцию
+ *                               example: true
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -319,8 +343,6 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *                       type: number
  *                     updatedAt:
  *                       type: number
- *                     reactionCounts:
- *                       type: object
  *                     meta:
  *                       type: object
  *                     context:
@@ -337,9 +359,6 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *                             Статусы сообщения для текущего пользователя.
  *                             ⚠️ **REMOVED**: Поле удалено из ответа.
  *                             Для получения информации о статусах используйте `statusMessageMatrix` в корне объекта сообщения.
- *                         myReaction:
- *                           type: string
- *                           nullable: true
  *                     statusMessageMatrix:
  *                       type: array
  *                       description: |
@@ -374,9 +393,35 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *                             type: integer
  *                             description: Количество пользователей данного типа с данным статусом
  *                             example: 5
- *                     reactions:
+ *                     reactionSet:
  *                       type: array
- *                       description: All reactions from all users
+ *                       description: |
+ *                         Набор реакций на сообщение, сгруппированный по типу реакции.
+ *                         Каждый элемент содержит:
+ *                         - reaction: эмодзи реакции (например, "👍", "❤️")
+ *                         - count: количество пользователей, поставивших эту реакцию
+ *                         - me: true, если текущий пользователь поставил эту реакцию, иначе false
+ *                         
+ *                         Пример:
+ *                         [
+ *                           {reaction: "👍", count: 5, me: true},
+ *                           {reaction: "❤️", count: 3, me: false}
+ *                         ]
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           reaction:
+ *                             type: string
+ *                             description: Эмодзи реакции
+ *                             example: "👍"
+ *                           count:
+ *                             type: integer
+ *                             description: Количество пользователей с этой реакцией
+ *                             example: 5
+ *                           me:
+ *                             type: boolean
+ *                             description: true, если текущий пользователь поставил эту реакцию
+ *                             example: true
  *       403:
  *         description: Forbidden - User is not a member of this dialog
  *       404:
@@ -384,87 +429,6 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  */
 router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePermission('read'), validateUserId, validateDialogId, validateMessageId, userDialogController.getUserDialogMessage);
 
-/**
- * @swagger
- * /api/users/{userId}/messages/{messageId}/statusMatrix:
- *   get:
- *     summary: Get message status matrix grouped by userType and status
- *     description: |
- *       Возвращает матрицу статусов сообщения, сгруппированную по userType и status.
- *       Исключает статусы текущего пользователя (userId из пути запроса).
- *       
- *       Матрица показывает, сколько пользователей каждого типа имеют каждый статус для данного сообщения.
- *       Это полезно для анализа доставки и прочтения сообщений в групповых чатах.
- *       
- *       ⚠️ **DEPRECATED**: Этот метод устарел. Используйте `/api/users/{userId}/dialogs/{dialogId}/messages/{messageId}` 
- *       который возвращает `statusMessageMatrix` в ответе.
- *     deprecated: true
- *     tags: [UserDialogs]
- *     security:
- *       - ApiKeyAuth: []
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID пользователя, статусы которого будут исключены из матрицы
- *       - in: path
- *         name: messageId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID сообщения
- *     responses:
- *       200:
- *         description: Матрица статусов успешно получена
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: array
- *                   description: |
- *                     Массив объектов, каждый из которых представляет комбинацию userType и status.
- *                     
- *                     Формат каждого элемента:
- *                     - userType: тип пользователя (user, bot, contact) или null, если тип не определен
- *                     - status: статус сообщения (sent, unread, delivered, read)
- *                     - count: количество пользователей данного типа с данным статусом
- *                     
- *                     Пример ответа:
- *                     [
- *                       {count: 2, userType: "bot", status: "unread"},
- *                       {count: 1, userType: "user", status: "read"},
- *                       {count: 3, userType: "user", status: "unread"},
- *                       {count: 1, userType: null, status: "delivered"}
- *                     ]
- *                   items:
- *                     type: object
- *                     properties:
- *                       userType:
- *                         type: string
- *                         nullable: true
- *                         description: Тип пользователя (user, bot, contact) или null, если тип не определен
- *                         example: "user"
- *                       status:
- *                         type: string
- *                         enum: [sent, unread, delivered, read]
- *                         description: Статус сообщения
- *                         example: "read"
- *                       count:
- *                         type: integer
- *                         description: Количество пользователей данного типа с данным статусом
- *                         example: 5
- *                 message:
- *                   type: string
- *                   description: Сообщение об успешном выполнении
- *                   example: "Message status matrix retrieved successfully"
- *       404:
- *         description: Message not found
- */
-router.get('/:userId/messages/:messageId/statusMatrix', apiAuth, requirePermission('read'), validateUserId, validateMessageId, userDialogController.getMessageStatusMatrix);
 
 /**
  * @swagger
@@ -555,5 +519,141 @@ router.get('/:userId/messages/:messageId/statusMatrix', apiAuth, requirePermissi
  *         description: Message not found
  */
 router.get('/:userId/dialogs/:dialogId/messages/:messageId/statuses', apiAuth, requirePermission('read'), validateUserId, validateDialogId, validateMessageId, userDialogController.getMessageStatuses);
+
+/**
+ * @swagger
+ * /api/users/{userId}/dialogs/{dialogId}/messages/{messageId}/reactions:
+ *   get:
+ *     summary: Get all reactions for a message
+ *     description: |
+ *       Возвращает все реакции на сообщение.
+ *       Доступен только для участников диалога.
+ *     tags: [MessageReactions]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *       - in: path
+ *         name: dialogId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Dialog ID
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Message ID
+ *       - in: query
+ *         name: reaction
+ *         schema:
+ *           type: string
+ *         description: Filter by reaction type
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         description: Filter by user ID
+ *     responses:
+ *       200:
+ *         description: Reactions retrieved successfully
+ *       403:
+ *         description: Forbidden - User is not a member of this dialog
+ *       404:
+ *         description: Message not found
+ */
+router.get('/:userId/dialogs/:dialogId/messages/:messageId/reactions', 
+  apiAuth,
+  requirePermission('read'),
+  validateUserId,
+  validateDialogId,
+  validateMessageId,
+  validateQuery(reactionsQuerySchema),
+  userDialogController.checkDialogMembership,
+  messageReactionController.getMessageReactions
+);
+
+/**
+ * @swagger
+ * /api/users/{userId}/dialogs/{dialogId}/messages/{messageId}/reactions/{action}:
+ *   post:
+ *     summary: Set or unset reaction for a message
+ *     description: |
+ *       Устанавливает (set) или снимает (unset) реакцию на сообщение.
+ *       Доступен только для участников диалога.
+ *       - action='set': добавляет реакцию (если её еще нет)
+ *       - action='unset': удаляет реакцию (если она существует)
+ *     tags: [MessageReactions]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *       - in: path
+ *         name: dialogId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Dialog ID
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Message ID
+ *       - in: path
+ *         name: action
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [set, unset]
+ *         description: Action to perform - 'set' to add reaction, 'unset' to remove
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reaction
+ *             properties:
+ *               reaction:
+ *                 type: string
+ *                 description: Reaction type (emoji or text)
+ *                 example: "👍"
+ *               userId:
+ *                 type: string
+ *                 description: User ID (if not provided in path, uses userId from path)
+ *     responses:
+ *       201:
+ *         description: Reaction set successfully
+ *       200:
+ *         description: Reaction unset successfully
+ *       403:
+ *         description: Forbidden - User is not a member of this dialog
+ *       404:
+ *         description: Message not found or reaction not found (for unset)
+ */
+router.post('/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action',
+  apiAuth,
+  requirePermission('write'),
+  validateUserId,
+  validateDialogId,
+  validateMessageId,
+  validateAction,
+  validateBody(addReactionSchema),
+  userDialogController.checkDialogMembership,
+  messageReactionController.setOrUnsetReaction
+);
 
 export default router;
