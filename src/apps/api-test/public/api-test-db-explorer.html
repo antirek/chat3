@@ -247,6 +247,25 @@
             text-align: center;
             padding: 40px;
             color: #6c757d;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .empty-refresh-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .empty-refresh-btn:hover {
+            background: #5568d3;
         }
 
         .modal {
@@ -838,6 +857,19 @@
             loadModelData();
         }
 
+        // Обновить данные модели (сброс фильтров и перезагрузка)
+        function refreshModelData() {
+            if (!currentModel) return;
+            
+            // Сбрасываем фильтры
+            filters = {};
+            currentPage = 1;
+            originalData = [];
+            
+            // Перезагружаем данные
+            loadModelData();
+        }
+
         // Сформировать MongoDB фильтр для API
         function buildApiFilter() {
             const apiFilter = {};
@@ -902,7 +934,12 @@
                 const result = await response.json();
 
                 if (result.data.length === 0) {
-                    content.innerHTML = '<div class="empty">Нет данных</div>';
+                    content.innerHTML = `
+                        <div class="empty">
+                            <div>Нет данных</div>
+                            <button class="empty-refresh-btn" onclick="refreshModelData()">🔄 Обновить</button>
+                        </div>
+                    `;
                     document.getElementById('pagination').style.display = 'none';
                     originalData = [];
                     return;
@@ -1496,12 +1533,22 @@
                 (filters.createdAt_type && (currentModel === 'ApiJournal' || currentModel === 'DialogReadTask'));
             
             if (filteredData.length === 0 && hasActiveFilters) {
-                document.getElementById('dataPanelContent').innerHTML = '<div class="empty">Нет данных, соответствующих фильтрам</div>';
+                document.getElementById('dataPanelContent').innerHTML = `
+                    <div class="empty">
+                        <div>Нет данных, соответствующих фильтрам</div>
+                        <button class="empty-refresh-btn" onclick="loadModelData()">🔄 Обновить</button>
+                    </div>
+                `;
                 return;
             }
             
             if (filteredData.length === 0) {
-                document.getElementById('dataPanelContent').innerHTML = '<div class="empty">Нет данных</div>';
+                document.getElementById('dataPanelContent').innerHTML = `
+                    <div class="empty">
+                        <div>Нет данных</div>
+                        <button class="empty-refresh-btn" onclick="loadModelData()">🔄 Обновить</button>
+                    </div>
+                `;
                 return;
             }
 
