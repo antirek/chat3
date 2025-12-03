@@ -83,6 +83,7 @@ export const initController = {
         const seedScript = 'node src/scripts/seed.js';
         
         // Запускаем seed в фоне (не ждем завершения)
+        // Ошибки логируются, но не добавляются в results.errors, так как ответ уже будет отправлен
         execAsync(seedScript, { cwd: process.cwd() })
           .then(({ stdout, stderr }) => {
             console.log('✅ Seed script completed');
@@ -90,8 +91,8 @@ export const initController = {
             if (stderr) console.error('Seed stderr:', stderr);
           })
           .catch((error) => {
+            // Логируем ошибку, но не добавляем в results.errors, так как ответ уже отправлен
             console.error('❌ Seed script error:', error);
-            results.errors.push(`Seed script error: ${error.message}`);
           });
         
         results.seed = {
@@ -99,6 +100,7 @@ export const initController = {
           note: 'Seed script is running in background. Check server logs for progress.'
         };
       } catch (error) {
+        // Ошибки запуска seed добавляем в results.errors, так как они происходят до отправки ответа
         results.errors.push(`Seed script start error: ${error.message}`);
         console.error('❌ Ошибка при запуске seed:', error);
       }

@@ -710,12 +710,12 @@
         }
 
         // Восстановление последней активной страницы при загрузке
-        window.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('DOMContentLoaded', async function() {
             // Обновляем ссылки из конфигурации
             updateHeaderLinks();
             
-            // Загружаем сохраненные credentials
-            loadApiCredentials();
+            // Загружаем сохраненные credentials (ждем завершения загрузки тенантов)
+            await loadApiCredentials();
             
             // Обработчик для кнопки применения
             document.getElementById('headerApplyButton').addEventListener('click', applyCredentials);
@@ -745,6 +745,7 @@
             });
             
             // Проверяем, применены ли текущие значения (при загрузке страницы)
+            // Выполняется после загрузки тенантов, чтобы tenantId был правильно установлен
             const apiKey = document.getElementById('headerApiKey').value.trim();
             const tenantId = document.getElementById('headerTenantId').value || 'tnt_default';
             const savedApiKey = localStorage.getItem('apiKey') || '';
@@ -779,4 +780,3 @@
     </script>
 </body>
 </html>
-
