@@ -389,6 +389,200 @@
             border-color: #667eea;
             box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
         }
+        
+        /* Стили для модального окна выбора дат */
+        .date-range-modal-content {
+            max-width: 700px;
+            width: 90%;
+        }
+        
+        .date-range-container {
+            display: flex;
+            gap: 15px;
+            min-height: 280px;
+        }
+        
+        .date-range-presets {
+            width: 180px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-right: 15px;
+            border-right: 1px solid #e9ecef;
+        }
+        
+        .date-preset-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            background: #f8f9fa;
+            color: #495057;
+            cursor: pointer;
+            font-size: 13px;
+            text-align: left;
+            transition: all 0.2s;
+        }
+        
+        .date-preset-btn:hover {
+            background: #e9ecef;
+        }
+        
+        .date-preset-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .date-range-calendar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .date-inputs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .date-input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+        
+        .date-input-wrapper input {
+            width: 100%;
+            padding: 6px 10px 6px 32px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .date-input-wrapper::before {
+            content: '📅';
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+        }
+        
+        .calendar-container {
+            flex: 1;
+        }
+        
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .calendar-nav-btn {
+            background: none;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            color: #495057;
+            padding: 3px 6px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+        
+        .calendar-nav-btn:hover {
+            background: #f8f9fa;
+        }
+        
+        .calendar-month-year {
+            font-weight: 600;
+            font-size: 13px;
+            color: #495057;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+        
+        .calendar-day-header {
+            text-align: center;
+            font-weight: 600;
+            font-size: 10px;
+            color: #6c757d;
+            padding: 4px 2px;
+        }
+        
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid transparent;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+            background: white;
+            min-height: 24px;
+        }
+        
+        .calendar-day:hover {
+            background: #f8f9fa;
+        }
+        
+        .calendar-day.other-month {
+            color: #ced4da;
+        }
+        
+        .calendar-day.selected {
+            background: #667eea;
+            color: white;
+        }
+        
+        .calendar-day.range-start {
+            background: #667eea;
+            color: white;
+            border-top-left-radius: 4px;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .calendar-day.range-end {
+            background: #667eea;
+            color: white;
+            border-top-right-radius: 4px;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .calendar-day.in-range {
+            background: #e7f3ff;
+            color: #495057;
+        }
+        
+        .date-range-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .date-range-actions .btn {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .date-range-actions .btn-primary {
+            background: #28a745;
+        }
+        
+        .date-range-actions .btn-primary:hover {
+            background: #218838;
+        }
+        
+        .calendar-day.selected {
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -486,6 +680,53 @@
                         <button type="submit" class="btn btn-primary">Создать</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для выбора диапазона дат -->
+    <div id="dateRangeModal" class="modal">
+        <div class="modal-content date-range-modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Выбрать диапазон дат</h2>
+                <button class="modal-close" onclick="closeDateRangeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="date-range-container">
+                    <!-- Левая панель с предустановками -->
+                    <div class="date-range-presets">
+                        <button class="date-preset-btn" data-preset="today" onclick="selectDatePreset('today')">Сегодня</button>
+                        <button class="date-preset-btn" data-preset="yesterday" onclick="selectDatePreset('yesterday')">Вчера</button>
+                        <button class="date-preset-btn" data-preset="last7days" onclick="selectDatePreset('last7days')">Последние 7 дней</button>
+                        <button class="date-preset-btn" data-preset="last30days" onclick="selectDatePreset('last30days')">Последние 30 дней</button>
+                        <button class="date-preset-btn" data-preset="custom" onclick="selectDatePreset('custom')">Выбрать</button>
+                        <div style="flex: 1;"></div>
+                        <div class="date-range-actions" style="border-top: none; padding-top: 0; margin-top: 0;">
+                            <button type="button" class="btn btn-secondary" onclick="closeDateRangeModal()" style="flex: 1;">Отмена</button>
+                            <button type="button" class="btn btn-primary" onclick="applyDateRange()" style="flex: 1; background: #28a745;">Применить</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Правая панель с календарем -->
+                    <div class="date-range-calendar">
+                        <div class="date-inputs">
+                            <div class="date-input-wrapper">
+                                <input type="date" id="dateRangeFrom" />
+                            </div>
+                            <div class="date-input-wrapper">
+                                <input type="date" id="dateRangeTo" />
+                            </div>
+                        </div>
+                        <div class="calendar-container">
+                            <div class="calendar-header">
+                                <button class="calendar-nav-btn" onclick="changeCalendarMonth(-1)">‹</button>
+                                <div class="calendar-month-year" id="calendarMonthYear"></div>
+                                <button class="calendar-nav-btn" onclick="changeCalendarMonth(1)">›</button>
+                            </div>
+                            <div class="calendar-grid" id="calendarGrid"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -597,6 +838,44 @@
             loadModelData();
         }
 
+        // Сформировать MongoDB фильтр для API
+        function buildApiFilter() {
+            const apiFilter = {};
+            
+            // Фильтр по дате для createdAt в ApiJournal и DialogReadTask
+            if ((currentModel === 'ApiJournal' || currentModel === 'DialogReadTask') && filters.createdAt_type) {
+                const dateRange = getDateRange(filters.createdAt_type);
+                if (dateRange) {
+                    // MongoDB фильтр по диапазону дат
+                    // createdAt может быть в секундах или миллисекундах, используем оба варианта
+                    apiFilter.createdAt = {
+                        $gte: dateRange.start,
+                        $lte: dateRange.end
+                    };
+                }
+            }
+            
+            // Добавляем другие фильтры (кроме служебных полей дат)
+            Object.keys(filters).forEach(key => {
+                if (key !== 'createdAt_type' && key !== 'createdAt_from' && key !== 'createdAt_to') {
+                    const filterValue = filters[key];
+                    if (filterValue && (typeof filterValue !== 'string' || filterValue.trim())) {
+                        // Для булевых полей преобразуем строку в boolean
+                        if (key === 'isActive' && (filterValue === 'true' || filterValue === 'false')) {
+                            apiFilter[key] = filterValue === 'true';
+                        } else if (typeof filterValue === 'string') {
+                            // Для строковых значений используем regex для поиска
+                            apiFilter[key] = { $regex: filterValue, $options: 'i' };
+                        } else {
+                            apiFilter[key] = filterValue;
+                        }
+                    }
+                }
+            });
+            
+            return Object.keys(apiFilter).length > 0 ? apiFilter : null;
+        }
+
         // Загрузить данные модели
         async function loadModelData() {
             if (!currentModel) return;
@@ -604,6 +883,12 @@
             const url = new URL(getControlApiUrl(`/api/db-explorer/models/${currentModel}`));
             url.searchParams.set('page', currentPage);
             url.searchParams.set('limit', currentLimit);
+
+            // Добавляем фильтр, если он есть
+            const apiFilter = buildApiFilter();
+            if (apiFilter) {
+                url.searchParams.set('filter', JSON.stringify(apiFilter));
+            }
 
             const content = document.getElementById('dataPanelContent');
             content.innerHTML = '<div class="loading">Загрузка данных...</div>';
@@ -726,16 +1011,114 @@
             };
         }
 
-        // Применить фильтры к данным
+        // Получить timestamp из значения даты
+        function getTimestamp(value) {
+            if (typeof value === 'number') {
+                // Если число больше 1000000000000, это миллисекунды, иначе секунды
+                return value > 1000000000000 ? value : value * 1000;
+            } else if (typeof value === 'string') {
+                const parsed = parseFloat(value);
+                if (!isNaN(parsed)) {
+                    return parsed > 1000000000000 ? parsed : parsed * 1000;
+                }
+                const date = new Date(value);
+                return isNaN(date.getTime()) ? null : date.getTime();
+            } else if (value instanceof Date) {
+                return isNaN(value.getTime()) ? null : value.getTime();
+            }
+            return null;
+        }
+
+        // Получить начало дня (00:00:00) для даты
+        function getStartOfDay(date) {
+            const d = new Date(date);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+        }
+
+        // Получить конец дня (23:59:59.999) для даты
+        function getEndOfDay(date) {
+            const d = new Date(date);
+            d.setHours(23, 59, 59, 999);
+            return d.getTime();
+        }
+
+        // Получить диапазон дат для фильтра
+        function getDateRange(filterType) {
+            const now = new Date();
+            let startDate, endDate;
+
+            switch(filterType) {
+                case 'today':
+                    startDate = getStartOfDay(now);
+                    endDate = getEndOfDay(now);
+                    break;
+                case 'yesterday':
+                    const yesterday = new Date(now);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    startDate = getStartOfDay(yesterday);
+                    endDate = getEndOfDay(yesterday);
+                    break;
+                case 'last7days':
+                    const last7days = new Date(now);
+                    last7days.setDate(last7days.getDate() - 7);
+                    startDate = getStartOfDay(last7days);
+                    endDate = getEndOfDay(now);
+                    break;
+                case 'last30days':
+                    const last30days = new Date(now);
+                    last30days.setDate(last30days.getDate() - 30);
+                    startDate = getStartOfDay(last30days);
+                    endDate = getEndOfDay(now);
+                    break;
+                case 'custom':
+                    // Для custom используем значения из filters
+                    const fromDate = filters.createdAt_from;
+                    const toDate = filters.createdAt_to;
+                    if (fromDate && toDate) {
+                        startDate = getStartOfDay(new Date(fromDate));
+                        endDate = getEndOfDay(new Date(toDate));
+                    } else {
+                        return null;
+                    }
+                    break;
+                default:
+                    return null;
+            }
+
+            return { start: startDate, end: endDate };
+        }
+
+        // Применить фильтры к данным (только для клиентской фильтрации других полей)
+        // Фильтрация по датам выполняется на сервере
         function applyFilters(data) {
             if (!filters || Object.keys(filters).length === 0) {
                 return data;
             }
             
+            // Фильтрация по датам выполняется на сервере, пропускаем её здесь
+            const hasDateFilter = (currentModel === 'ApiJournal' || currentModel === 'DialogReadTask') && 
+                                  filters.createdAt_type;
+            
+            // Если есть только фильтр по дате и нет других фильтров, возвращаем данные как есть
+            const otherFilters = Object.keys(filters).filter(key => 
+                key !== 'createdAt_type' && key !== 'createdAt_from' && key !== 'createdAt_to'
+            );
+            
+            if (hasDateFilter && otherFilters.length === 0) {
+                return data; // Фильтрация по дате уже выполнена на сервере
+            }
+            
             return data.filter(item => {
+                // Проверяем только фильтры, которые не применяются на сервере
                 return Object.keys(filters).every(key => {
-                    const filterValue = filters[key].trim();
-                    if (!filterValue) {
+                    // Пропускаем служебные поля фильтров дат (они применяются на сервере)
+                    if (key === 'createdAt_type' || key === 'createdAt_from' || key === 'createdAt_to') {
+                        return true;
+                    }
+
+                    const filterValue = filters[key];
+                    if (!filterValue || (typeof filterValue === 'string' && !filterValue.trim())) {
                         return true; // Пустой фильтр - пропускаем
                     }
                     
@@ -748,12 +1131,13 @@
                     }
                     
                     if (itemValue === null || itemValue === undefined) {
-                        return filterValue.toLowerCase() === 'null';
+                        return String(filterValue).toLowerCase() === 'null';
                     }
                     
                     // Преобразуем значение в строку для поиска
                     const valueStr = String(itemValue).toLowerCase();
-                    return valueStr.includes(filterValue.toLowerCase());
+                    const filterStr = String(filterValue).toLowerCase();
+                    return valueStr.includes(filterStr);
                 });
             });
         }
@@ -771,6 +1155,327 @@
             renderTable(filteredData, originalData);
         }
 
+        // Применить фильтр по дате
+        function applyDateFilter(fieldName, filterType) {
+            if (filterType) {
+                filters[`${fieldName}_type`] = filterType;
+                // Очищаем диапазон дат, если выбран не custom
+                if (filterType !== 'custom') {
+                    delete filters[`${fieldName}_from`];
+                    delete filters[`${fieldName}_to`];
+                }
+            } else {
+                delete filters[`${fieldName}_type`];
+                delete filters[`${fieldName}_from`];
+                delete filters[`${fieldName}_to`];
+            }
+            
+            // Сбрасываем на первую страницу при изменении фильтра
+            currentPage = 1;
+            
+            // Перезагружаем данные с сервера с применением фильтра
+            loadModelData();
+        }
+
+        // Переменные для работы с календарем
+        let currentCalendarDate = new Date();
+        let selectedDateRange = { from: null, to: null };
+        let isSelectingRange = false;
+
+        // Форматировать дату в формат YYYY-MM-DD (локальное время)
+        function formatDateLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Показать модальное окно для выбора диапазона дат
+        function showDateRangeModal() {
+            // Устанавливаем значения по умолчанию (последние 30 дней)
+            const toDate = new Date();
+            const fromDate = new Date();
+            fromDate.setDate(fromDate.getDate() - 30);
+            
+            // Если уже есть сохраненные значения, используем их
+            if (filters.createdAt_from && filters.createdAt_to) {
+                fromDate.setTime(new Date(filters.createdAt_from).getTime());
+                toDate.setTime(new Date(filters.createdAt_to).getTime());
+                selectedDateRange = { from: new Date(filters.createdAt_from), to: new Date(filters.createdAt_to) };
+                currentCalendarDate = new Date(filters.createdAt_from);
+            } else {
+                selectedDateRange = { from: fromDate, to: toDate };
+                currentCalendarDate = new Date();
+            }
+            
+            document.getElementById('dateRangeFrom').value = formatDateLocal(fromDate);
+            document.getElementById('dateRangeTo').value = formatDateLocal(toDate);
+            
+            // Сбрасываем активную предустановку
+            document.querySelectorAll('.date-preset-btn').forEach(btn => btn.classList.remove('active'));
+            
+            // Инициализируем календарь
+            renderCalendar();
+            
+            // Инициализируем обработчики для полей ввода
+            setTimeout(() => {
+                initDateInputHandlers();
+            }, 100);
+            
+            document.getElementById('dateRangeModal').style.display = 'block';
+        }
+
+        // Выбрать предустановку даты
+        function selectDatePreset(preset) {
+            // Убираем активный класс со всех кнопок
+            document.querySelectorAll('.date-preset-btn').forEach(btn => btn.classList.remove('active'));
+            
+            // Добавляем активный класс к выбранной кнопке
+            const btn = document.querySelector(`[data-preset="${preset}"]`);
+            if (btn) {
+                btn.classList.add('active');
+            }
+            
+            const now = new Date();
+            let fromDate, toDate;
+            
+            switch(preset) {
+                case 'today':
+                    fromDate = new Date(now);
+                    toDate = new Date(now);
+                    break;
+                case 'yesterday':
+                    fromDate = new Date(now);
+                    fromDate.setDate(fromDate.getDate() - 1);
+                    toDate = new Date(fromDate);
+                    break;
+                case 'last7days':
+                    fromDate = new Date(now);
+                    fromDate.setDate(fromDate.getDate() - 7);
+                    toDate = new Date(now);
+                    break;
+                case 'last30days':
+                    fromDate = new Date(now);
+                    fromDate.setDate(fromDate.getDate() - 30);
+                    toDate = new Date(now);
+                    break;
+                case 'custom':
+                    // Для custom не меняем даты, только активируем режим выбора
+                    return;
+            }
+            
+            selectedDateRange = { from: fromDate, to: toDate };
+            document.getElementById('dateRangeFrom').value = formatDateLocal(fromDate);
+            document.getElementById('dateRangeTo').value = formatDateLocal(toDate);
+            
+            // Обновляем календарь
+            currentCalendarDate = new Date(fromDate);
+            renderCalendar();
+        }
+
+        // Изменить месяц календаря
+        function changeCalendarMonth(delta) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        // Отобразить календарь
+        function renderCalendar() {
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+            
+            // Обновляем заголовок месяца
+            const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
+                              'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+            document.getElementById('calendarMonthYear').textContent = `${monthNames[month]} ${year}`;
+            
+            // Получаем первый день месяца и день недели
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay() + (firstDay.getDay() === 0 ? -6 : 1)); // Понедельник
+            
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+            
+            // Заголовки дней недели
+            const dayHeaders = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
+            dayHeaders.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'calendar-day-header';
+                header.textContent = day;
+                grid.appendChild(header);
+            });
+            
+            // Дни календаря (6 недель)
+            const currentDate = new Date(startDate);
+            for (let i = 0; i < 42; i++) {
+                const day = new Date(currentDate);
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                
+                // Проверяем, относится ли день к текущему месяцу
+                if (day.getMonth() !== month) {
+                    dayElement.classList.add('other-month');
+                }
+                
+                // Проверяем, находится ли день в выбранном диапазоне
+                if (selectedDateRange.from && selectedDateRange.to) {
+                    // Нормализуем даты для сравнения (только день, без времени)
+                    const dayNormalized = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+                    const fromNormalized = new Date(selectedDateRange.from.getFullYear(), 
+                                                    selectedDateRange.from.getMonth(), 
+                                                    selectedDateRange.from.getDate());
+                    const toNormalized = new Date(selectedDateRange.to.getFullYear(), 
+                                                  selectedDateRange.to.getMonth(), 
+                                                  selectedDateRange.to.getDate());
+                    
+                    const dayTime = dayNormalized.getTime();
+                    const fromTime = fromNormalized.getTime();
+                    const toTime = toNormalized.getTime();
+                    
+                    if (dayTime >= fromTime && dayTime <= toTime) {
+                        dayElement.classList.add('in-range');
+                        if (dayTime === fromTime) {
+                            dayElement.classList.add('range-start');
+                        }
+                        if (dayTime === toTime) {
+                            dayElement.classList.add('range-end');
+                        }
+                    }
+                }
+                
+                dayElement.textContent = day.getDate();
+                dayElement.onclick = () => selectCalendarDate(day);
+                grid.appendChild(dayElement);
+                
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+        }
+
+        // Выбрать дату в календаре
+        function selectCalendarDate(date) {
+            // Нормализуем дату (убираем время)
+            const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            
+            if (!selectedDateRange.from || (selectedDateRange.from && selectedDateRange.to)) {
+                // Начинаем новый выбор
+                selectedDateRange = { from: normalizedDate, to: null };
+                isSelectingRange = true;
+            } else {
+                // Завершаем выбор диапазона
+                selectedDateRange.to = normalizedDate;
+                isSelectingRange = false;
+                
+                // Убеждаемся, что from <= to
+                const fromTime = selectedDateRange.from.getTime();
+                const toTime = selectedDateRange.to.getTime();
+                if (fromTime > toTime) {
+                    const temp = selectedDateRange.from;
+                    selectedDateRange.from = selectedDateRange.to;
+                    selectedDateRange.to = temp;
+                }
+            }
+            
+            // Обновляем поля ввода (используем локальное форматирование)
+            if (selectedDateRange.from) {
+                document.getElementById('dateRangeFrom').value = formatDateLocal(selectedDateRange.from);
+            }
+            if (selectedDateRange.to) {
+                document.getElementById('dateRangeTo').value = formatDateLocal(selectedDateRange.to);
+            }
+            
+            // Активируем кнопку "Выбрать"
+            document.querySelectorAll('.date-preset-btn').forEach(btn => btn.classList.remove('active'));
+            const customBtn = document.querySelector('[data-preset="custom"]');
+            if (customBtn) {
+                customBtn.classList.add('active');
+            }
+            
+            // Перерисовываем календарь
+            renderCalendar();
+        }
+
+        // Закрыть модальное окно выбора диапазона дат
+        function closeDateRangeModal() {
+            document.getElementById('dateRangeModal').style.display = 'none';
+            
+            // Если фильтр был "custom", но даты не были применены, сбрасываем фильтр
+            const select = document.getElementById('dateFilter_createdAt');
+            if (select && select.value === 'custom' && (!filters.createdAt_from || !filters.createdAt_to)) {
+                select.value = '';
+                applyDateFilter('createdAt', '');
+            }
+        }
+
+        // Применить выбранный диапазон дат
+        function applyDateRange() {
+            const fromDate = document.getElementById('dateRangeFrom').value;
+            const toDate = document.getElementById('dateRangeTo').value;
+            
+            if (!fromDate || !toDate) {
+                alert('Пожалуйста, выберите обе даты');
+                return;
+            }
+            
+            if (new Date(fromDate) > new Date(toDate)) {
+                alert('Дата "От" не может быть больше даты "До"');
+                return;
+            }
+            
+            filters.createdAt_type = 'custom';
+            filters.createdAt_from = fromDate;
+            filters.createdAt_to = toDate;
+            
+            closeDateRangeModal();
+            
+            // Обновляем выпадающий список
+            const select = document.getElementById('dateFilter_createdAt');
+            if (select) {
+                select.value = 'custom';
+            }
+            
+            // Сбрасываем на первую страницу при изменении фильтра
+            currentPage = 1;
+            
+            // Перезагружаем данные с сервера с применением фильтра
+            loadModelData();
+        }
+
+        // Обработчики для полей ввода дат (синхронизация с календарем)
+        function initDateInputHandlers() {
+            const fromInput = document.getElementById('dateRangeFrom');
+            const toInput = document.getElementById('dateRangeTo');
+            
+            if (fromInput) {
+                fromInput.addEventListener('change', function() {
+                    const date = new Date(this.value);
+                    if (!isNaN(date.getTime())) {
+                        selectedDateRange.from = date;
+                        if (!selectedDateRange.to || selectedDateRange.to < selectedDateRange.from) {
+                            selectedDateRange.to = date;
+                            toInput.value = this.value;
+                        }
+                        renderCalendar();
+                    }
+                });
+            }
+            
+            if (toInput) {
+                toInput.addEventListener('change', function() {
+                    const date = new Date(this.value);
+                    if (!isNaN(date.getTime())) {
+                        selectedDateRange.to = date;
+                        if (!selectedDateRange.from || selectedDateRange.from > selectedDateRange.to) {
+                            selectedDateRange.from = date;
+                            fromInput.value = this.value;
+                        }
+                        renderCalendar();
+                    }
+                });
+            }
+        }
+
         // Отобразить таблицу
         function renderTable(data, sourceData = null) {
             // Сохраняем исходные данные для фильтрации
@@ -783,7 +1488,14 @@
             // Применяем фильтры к исходным данным
             const filteredData = applyFilters(originalData);
             
-            if (filteredData.length === 0 && Object.keys(filters).length > 0) {
+            // Проверяем, есть ли активные фильтры (исключая служебные поля)
+            const activeFilters = Object.keys(filters).filter(key => 
+                key !== 'createdAt_type' && key !== 'createdAt_from' && key !== 'createdAt_to'
+            );
+            const hasActiveFilters = activeFilters.length > 0 || 
+                (filters.createdAt_type && (currentModel === 'ApiJournal' || currentModel === 'DialogReadTask'));
+            
+            if (filteredData.length === 0 && hasActiveFilters) {
                 document.getElementById('dataPanelContent').innerHTML = '<div class="empty">Нет данных, соответствующих фильтрам</div>';
                 return;
             }
@@ -807,7 +1519,12 @@
                 });
             });
 
-            const keys = Array.from(allKeys).slice(0, 20); // Ограничиваем количество колонок
+            let keys = Array.from(allKeys).slice(0, 20); // Ограничиваем количество колонок
+
+            // Для моделей ApiJournal и DialogReadTask делаем createdAt первой колонкой
+            if ((currentModel === 'ApiJournal' || currentModel === 'DialogReadTask') && keys.includes('createdAt')) {
+                keys = ['createdAt', ...keys.filter(key => key !== 'createdAt')];
+            }
 
             let html = '<div class="table-container"><table><thead>';
             
@@ -829,6 +1546,19 @@
                             <option value="">Все</option>
                             <option value="true" ${filterValue === 'true' ? 'selected' : ''}>true</option>
                             <option value="false" ${filterValue === 'false' ? 'selected' : ''}>false</option>
+                        </select>
+                    </td>`;
+                } else if (key === 'createdAt' && (currentModel === 'ApiJournal' || currentModel === 'DialogReadTask')) {
+                    // Для createdAt в ApiJournal и DialogReadTask используем специальный фильтр
+                    const dateFilterType = filters[`${key}_type`] || '';
+                    html += `<td>
+                        <select class="filter-select date-filter-select" data-field="${escapeHtml(key)}" id="dateFilter_${escapeHtml(key)}">
+                            <option value="">Все</option>
+                            <option value="today" ${dateFilterType === 'today' ? 'selected' : ''}>Сегодня</option>
+                            <option value="yesterday" ${dateFilterType === 'yesterday' ? 'selected' : ''}>Вчера</option>
+                            <option value="last7days" ${dateFilterType === 'last7days' ? 'selected' : ''}>Последние 7 дней</option>
+                            <option value="last30days" ${dateFilterType === 'last30days' ? 'selected' : ''}>Последние 30 дней</option>
+                            <option value="custom" ${dateFilterType === 'custom' ? 'selected' : ''}>Выбрать</option>
                         </select>
                     </td>`;
                 } else {
@@ -931,7 +1661,17 @@
                 select.addEventListener('change', function() {
                     const fieldName = this.getAttribute('data-field');
                     const filterValue = this.value;
-                    applyFilter(fieldName, filterValue);
+                    
+                    // Специальная обработка для фильтра дат
+                    if (this.classList.contains('date-filter-select')) {
+                        if (filterValue === 'custom') {
+                            showDateRangeModal();
+                        } else {
+                            applyDateFilter(fieldName, filterValue);
+                        }
+                    } else {
+                        applyFilter(fieldName, filterValue);
+                    }
                 });
             });
         }
@@ -1129,6 +1869,7 @@
             const itemModal = document.getElementById('itemModal');
             const createModal = document.getElementById('createModal');
             const dataModal = document.getElementById('dataModal');
+            const dateRangeModal = document.getElementById('dateRangeModal');
             if (event.target === itemModal) {
                 closeItemModal();
             }
@@ -1137,6 +1878,9 @@
             }
             if (event.target === dataModal) {
                 closeDataModal();
+            }
+            if (event.target === dateRangeModal) {
+                closeDateRangeModal();
             }
         }
 
