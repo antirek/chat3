@@ -349,12 +349,45 @@
             gap: 5px;
         }
 
+        .filter-row {
+            background: #f8f9fa;
+        }
+        
+        .filter-row td {
+            padding: 8px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
         .filter-input {
-            padding: 8px 12px;
+            padding: 6px 10px;
             border: 1px solid #ced4da;
             border-radius: 4px;
-            font-size: 14px;
-            width: 200px;
+            font-size: 12px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .filter-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+        
+        .filter-select {
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
         }
     </style>
 </head>
@@ -464,6 +497,8 @@
         let currentLimit = 50;
         let totalPages = 1;
         let modelsByCategory = {};
+        let filters = {}; // Хранилище фильтров по полям
+        let originalData = []; // Исходные данные до фильтрации
 
         // Получить URL для control-api
         function getControlApiUrl(path = '') {
@@ -543,6 +578,8 @@
         function selectModel(modelName) {
             currentModel = modelName;
             currentPage = 1;
+            filters = {}; // Сбрасываем фильтры при смене модели
+            originalData = []; // Очищаем исходные данные
 
             // Обновить активный элемент
             document.querySelectorAll('.model-item').forEach(item => {
@@ -582,10 +619,13 @@
                 if (result.data.length === 0) {
                     content.innerHTML = '<div class="empty">Нет данных</div>';
                     document.getElementById('pagination').style.display = 'none';
+                    originalData = [];
                     return;
                 }
 
-                renderTable(result.data);
+                // Сохраняем исходные данные и отображаем таблицу
+                originalData = result.data;
+                renderTable(result.data, result.data);
                 updatePagination(result.pagination);
             } catch (error) {
                 content.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
@@ -686,16 +726,76 @@
             };
         }
 
+        // Применить фильтры к данным
+        function applyFilters(data) {
+            if (!filters || Object.keys(filters).length === 0) {
+                return data;
+            }
+            
+            return data.filter(item => {
+                return Object.keys(filters).every(key => {
+                    const filterValue = filters[key].trim();
+                    if (!filterValue) {
+                        return true; // Пустой фильтр - пропускаем
+                    }
+                    
+                    const itemValue = item[key];
+                    
+                    // Специальная обработка для булевых полей (например, isActive)
+                    if (key === 'isActive' && (filterValue === 'true' || filterValue === 'false')) {
+                        const filterBool = filterValue === 'true';
+                        return itemValue === filterBool;
+                    }
+                    
+                    if (itemValue === null || itemValue === undefined) {
+                        return filterValue.toLowerCase() === 'null';
+                    }
+                    
+                    // Преобразуем значение в строку для поиска
+                    const valueStr = String(itemValue).toLowerCase();
+                    return valueStr.includes(filterValue.toLowerCase());
+                });
+            });
+        }
+
+        // Применить фильтр для конкретного поля
+        function applyFilter(fieldName, filterValue) {
+            if (filterValue && filterValue.trim()) {
+                filters[fieldName] = filterValue.trim();
+            } else {
+                delete filters[fieldName];
+            }
+            
+            // Применяем фильтры к исходным данным и перерисовываем таблицу
+            const filteredData = applyFilters(originalData);
+            renderTable(filteredData, originalData);
+        }
+
         // Отобразить таблицу
-        function renderTable(data) {
-            if (data.length === 0) {
+        function renderTable(data, sourceData = null) {
+            // Сохраняем исходные данные для фильтрации
+            if (sourceData) {
+                originalData = sourceData;
+            } else if (originalData.length === 0) {
+                originalData = data;
+            }
+            
+            // Применяем фильтры к исходным данным
+            const filteredData = applyFilters(originalData);
+            
+            if (filteredData.length === 0 && Object.keys(filters).length > 0) {
+                document.getElementById('dataPanelContent').innerHTML = '<div class="empty">Нет данных, соответствующих фильтрам</div>';
+                return;
+            }
+            
+            if (filteredData.length === 0) {
                 document.getElementById('dataPanelContent').innerHTML = '<div class="empty">Нет данных</div>';
                 return;
             }
 
-            // Получаем все уникальные ключи из данных
+            // Получаем все уникальные ключи из исходных данных (до фильтрации)
             const allKeys = new Set();
-            data.forEach(item => {
+            originalData.forEach(item => {
                 Object.keys(item).forEach(key => {
                     if (key !== '_id' && key !== '__v') {
                         // Скрываем entityId для модели Update
@@ -709,13 +809,37 @@
 
             const keys = Array.from(allKeys).slice(0, 20); // Ограничиваем количество колонок
 
-            let html = '<div class="table-container"><table><thead><tr>';
+            let html = '<div class="table-container"><table><thead>';
+            
+            // Строка заголовков
+            html += '<tr>';
             keys.forEach(key => {
                 html += `<th>${escapeHtml(key)}</th>`;
             });
-            html += '<th>Действия</th></tr></thead><tbody>';
+            html += '<th>Действия</th></tr>';
+            
+            // Строка фильтров
+            html += '<tr class="filter-row">';
+            keys.forEach(key => {
+                const filterValue = filters[key] || '';
+                if (key === 'isActive') {
+                    // Для isActive используем выпадающий список
+                    html += `<td>
+                        <select class="filter-select" data-field="${escapeHtml(key)}">
+                            <option value="">Все</option>
+                            <option value="true" ${filterValue === 'true' ? 'selected' : ''}>true</option>
+                            <option value="false" ${filterValue === 'false' ? 'selected' : ''}>false</option>
+                        </select>
+                    </td>`;
+                } else {
+                    html += `<td><input type="text" class="filter-input" data-field="${escapeHtml(key)}" value="${escapeHtml(filterValue)}" placeholder="Фильтр..." /></td>`;
+                }
+            });
+            html += '<td></td></tr>';
+            
+            html += '</thead><tbody>';
 
-            data.forEach((item, index) => {
+            filteredData.forEach((item, index) => {
                 html += '<tr>';
                 keys.forEach(key => {
                     const value = item[key];
@@ -778,6 +902,36 @@
                     if (window.dataModalCache && window.dataModalCache[dataId]) {
                         showDataModal(window.dataModalCache[dataId]);
                     }
+                });
+            });
+            
+            // Добавляем обработчики для полей фильтров
+            document.querySelectorAll('.filter-input').forEach(input => {
+                // Обработка нажатия Enter
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        const fieldName = this.getAttribute('data-field');
+                        const filterValue = this.value;
+                        applyFilter(fieldName, filterValue);
+                    }
+                });
+                
+                // Обработка очистки поля (когда пользователь очищает поле)
+                input.addEventListener('blur', function() {
+                    const fieldName = this.getAttribute('data-field');
+                    const filterValue = this.value;
+                    if (!filterValue || !filterValue.trim()) {
+                        applyFilter(fieldName, '');
+                    }
+                });
+            });
+            
+            // Добавляем обработчики для выпадающих списков фильтров
+            document.querySelectorAll('.filter-select').forEach(select => {
+                select.addEventListener('change', function() {
+                    const fieldName = this.getAttribute('data-field');
+                    const filterValue = this.value;
+                    applyFilter(fieldName, filterValue);
                 });
             });
         }
