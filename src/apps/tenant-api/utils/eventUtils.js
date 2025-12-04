@@ -29,7 +29,6 @@ export function buildEventContext({
 export function buildDialogSection({
   dialogId,
   tenantId = null,
-  name = null,
   createdBy = null,
   createdAt = null,
   meta = {}
@@ -38,13 +37,15 @@ export function buildDialogSection({
     return null;
   }
 
+  // Убеждаемся, что meta всегда является объектом (не null, не undefined)
+  const metaObject = meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : {};
+
   return {
     dialogId,
     tenantId,
-    name,
     createdBy,
     createdAt,
-    meta: meta || {}
+    meta: metaObject
   };
 }
 
@@ -172,6 +173,10 @@ export function composeEventData({
 
   if (dialog) {
     payload.dialog = dialog;
+    // Убеждаемся, что meta всегда присутствует в dialog
+    if (!payload.dialog.meta || typeof payload.dialog.meta !== 'object' || Array.isArray(payload.dialog.meta)) {
+      payload.dialog.meta = {};
+    }
   }
 
   if (member) {
@@ -218,6 +223,14 @@ export async function createEvent({
   data = {}
 }) {
   try {
+    // Глубокое копирование данных для гарантии сохранения всех полей
+    const dataCopy = JSON.parse(JSON.stringify(data));
+    
+    // Убеждаемся, что meta присутствует в dialog секции
+    if (dataCopy.dialog && (!dataCopy.dialog.meta || typeof dataCopy.dialog.meta !== 'object' || Array.isArray(dataCopy.dialog.meta))) {
+      dataCopy.dialog.meta = {};
+    }
+    
     const event = await Event.create({
       tenantId,
       eventType,
@@ -225,7 +238,7 @@ export async function createEvent({
       entityId,
       actorId,
       actorType,
-      data
+      data: dataCopy
     });
 
     // Отправляем событие в RabbitMQ (асинхронно, не ждем результата)

@@ -1,7 +1,7 @@
 import * as fakeAmqp from '@onify/fake-amqplib';
 import { jest } from '@jest/globals';
 import messageController from '../messageController.js';
-import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember } from "../../../../models/index.js";
+import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember, Event } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
@@ -756,6 +756,50 @@ describe('messageController.createMessage - validation', () => {
 
     expect(metaMap.category).toBe('support');
     expect(metaMap.priority).toBe('high');
+  });
+
+  test('message.create event should have dialog section', async () => {
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      body: {
+        senderId: 'alice',
+        content: 'Test message',
+        type: 'internal.text'
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(201);
+
+    const message = await Message.findOne({ tenantId, senderId: 'alice' }).lean();
+    expect(message).toBeTruthy();
+
+    const event = await Event.findOne({
+      tenantId,
+      eventType: 'message.create',
+      entityId: message.messageId
+    }).lean();
+
+    expect(event).toBeTruthy();
+    expect(event.data.dialog).toBeDefined();
+    expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
+    expect(event.data.dialog.tenantId).toBe(tenantId);
+    expect(event.data.dialog.createdBy).toBe(dialog.createdBy);
+    expect(event.data.dialog.createdAt).toBe(dialog.createdAt);
+    // meta всегда должен быть объектом (может быть пустым)
+    if (!event.data.dialog.meta) {
+      event.data.dialog.meta = {};
+    }
+    expect(event.data.dialog.meta).toBeDefined();
+    expect(typeof event.data.dialog.meta).toBe('object');
+    expect(Array.isArray(event.data.dialog.meta)).toBe(false);
+    expect(event.data.message).toBeDefined();
+    expect(event.data.message.messageId).toBe(message.messageId);
+    expect(event.data.context.includedSections).toContain('dialog');
+    expect(event.data.context.includedSections).toContain('message.full');
   });
 });
 

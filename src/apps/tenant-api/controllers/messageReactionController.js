@@ -151,7 +151,13 @@ const messageReactionController = {
         }
 
         const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
-        const dialogSection = eventUtils.buildDialogSection(dialog, dialogMeta || {});
+        const dialogSection = eventUtils.buildDialogSection({
+          dialogId: dialog.dialogId,
+          tenantId: dialog.tenantId,
+          createdBy: dialog.createdBy,
+          createdAt: dialog.createdAt,
+          meta: dialogMeta || {}
+        });
 
         // Формируем reactionSet для события
         const reactionSet = await buildReactionSet(req.tenantId, messageId, userId);
@@ -239,7 +245,13 @@ const messageReactionController = {
         }
 
         const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
-        const dialogSection = eventUtils.buildDialogSection(dialog, dialogMeta || {});
+        const dialogSection = eventUtils.buildDialogSection({
+          dialogId: dialog.dialogId,
+          tenantId: dialog.tenantId,
+          createdBy: dialog.createdBy,
+          createdAt: dialog.createdAt,
+          meta: dialogMeta || {}
+        });
 
         // Формируем reactionSet для события
         const reactionSet = await buildReactionSet(req.tenantId, messageId, userId);

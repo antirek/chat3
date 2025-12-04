@@ -1392,7 +1392,13 @@ const userDialogController = {
       }
 
       const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
-      const dialogSection = eventUtils.buildDialogSection(dialog, dialogMeta || {});
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        createdBy: dialog.createdBy,
+        createdAt: dialog.createdAt,
+        meta: dialogMeta || {}
+      });
 
       // Формируем полную матрицу статусов для Event
       const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, messageId, message.senderId);

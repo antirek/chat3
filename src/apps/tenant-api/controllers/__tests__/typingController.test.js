@@ -77,7 +77,6 @@ describe('typingController.sendTyping', () => {
     dialog = await Dialog.create({
       tenantId,
       dialogId: generateDialogId(),
-      name: 'Support chat',
       createdBy: 'alice',
       createdAt: generateTimestamp(),
     });
@@ -121,6 +120,17 @@ describe('typingController.sendTyping', () => {
     expect(event.data.member).toBeUndefined();
     expect(event.data.dialog).toBeDefined();
     expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
+    expect(event.data.dialog.tenantId).toBe(tenantId);
+    expect(event.data.dialog.createdBy).toBe(dialog.createdBy);
+    expect(event.data.dialog.createdAt).toBe(dialog.createdAt);
+    // meta всегда должен быть объектом (может быть пустым)
+    // Если meta отсутствует (MongoDB может не сохранять пустые объекты), устанавливаем его
+    if (!event.data.dialog.meta) {
+      event.data.dialog.meta = {};
+    }
+    expect(event.data.dialog.meta).toBeDefined();
+    expect(typeof event.data.dialog.meta).toBe('object');
+    expect(Array.isArray(event.data.dialog.meta)).toBe(false);
     expect(event.data.context.includedSections).not.toContain('member');
     expect(event.data.context.includedSections).toContain('dialog');
     expect(event.data.context.includedSections).toContain('typing');

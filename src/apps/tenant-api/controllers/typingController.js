@@ -66,7 +66,13 @@ export async function sendTyping(req, res) {
     }
 
     const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
-    const dialogSection = eventUtils.buildDialogSection(fullDialog, dialogMeta || {});
+    const dialogSection = eventUtils.buildDialogSection({
+      dialogId: fullDialog.dialogId,
+      tenantId: fullDialog.tenantId,
+      createdBy: fullDialog.createdBy,
+      createdAt: fullDialog.createdAt,
+      meta: dialogMeta || {}
+    });
 
     const typingSection = eventUtils.buildTypingSection({
       userId,

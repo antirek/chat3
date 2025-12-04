@@ -63,7 +63,13 @@ const dialogMemberController = {
 
       // Получаем метаданные диалога для события
       const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
-      const dialogSection = eventUtils.buildDialogSection(dialog, dialogMeta || {});
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        createdBy: dialog.createdBy,
+        createdAt: dialog.createdAt,
+        meta: dialogMeta || {}
+      });
 
       const memberSection = eventUtils.buildMemberSection({
         userId: member.userId,
@@ -403,7 +409,13 @@ const dialogMemberController = {
 
       // Получаем метаданные диалога для события
       const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
-      const dialogSection = eventUtils.buildDialogSection(dialog, dialogMeta || {});
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        createdBy: dialog.createdBy,
+        createdAt: dialog.createdAt,
+        meta: dialogMeta || {}
+      });
 
       const memberSection = eventUtils.buildMemberSection({
         userId,

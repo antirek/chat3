@@ -208,7 +208,6 @@ async function createDialogUpdateEvent(tenantId, dialogId, actorId) {
     const dialogSection = eventUtils.buildDialogSection({
       dialogId: dialog.dialogId,
       tenantId: dialog.tenantId,
-      name: dialog.name,
       createdBy: dialog.createdBy,
       createdAt: dialog.createdAt,
       meta: dialogMeta
@@ -251,6 +250,25 @@ async function createMessageUpdateEvent(tenantId, messageId, actorId) {
 
     const messageMeta = await metaUtils.getEntityMeta(tenantId, 'message', messageId);
 
+    // Получаем диалог и его метаданные для события
+    const { Dialog } = await import('../../models/index.js');
+    const dialog = await Dialog.findOne({
+      dialogId: message.dialogId,
+      tenantId
+    }).lean();
+
+    let dialogSection = null;
+    if (dialog) {
+      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialog.dialogId);
+      dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        createdBy: dialog.createdBy,
+        createdAt: dialog.createdAt,
+        meta: dialogMeta || {}
+      });
+    }
+
     const messageSection = eventUtils.buildMessageSection({
       messageId: message.messageId,
       dialogId: message.dialogId,
@@ -265,7 +283,7 @@ async function createMessageUpdateEvent(tenantId, messageId, actorId) {
       dialogId: message.dialogId,
       entityId: message.messageId,
       messageId: message.messageId,
-      includedSections: ['message'],
+      includedSections: dialogSection ? ['dialog', 'message'] : ['message'],
       updatedFields: ['message.meta']
     });
 
@@ -278,6 +296,7 @@ async function createMessageUpdateEvent(tenantId, messageId, actorId) {
       actorType: 'api',
       data: eventUtils.composeEventData({
         context: messageContext,
+        dialog: dialogSection,
         message: messageSection
       })
     });

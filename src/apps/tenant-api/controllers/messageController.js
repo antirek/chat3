@@ -505,6 +505,15 @@ const messageController = {
         message.messageId
       );
 
+      // Используем уже полученные метаданные диалога для события
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        createdBy: dialog.createdBy,
+        createdAt: dialog.createdAt,
+        meta: dialogMeta || {}
+      });
+
       const senderInfo = await getSenderInfo(req.tenantId, senderId);
 
       // Ограничиваем контент до 4096 символов для события
@@ -528,7 +537,7 @@ const messageController = {
         dialogId: dialog.dialogId,
         entityId: message.messageId,
         messageId: message.messageId,
-        includedSections: ['message.full'],
+        includedSections: ['dialog', 'message.full'],
         updatedFields: ['message']
       });
 
@@ -541,6 +550,7 @@ const messageController = {
         actorType: 'user',
         data: eventUtils.composeEventData({
           context: eventContext,
+          dialog: dialogSection,
           message: messageSection
         })
       });
@@ -717,6 +727,24 @@ const messageController = {
         message.messageId
       );
 
+      // Получаем диалог и его метаданные для события
+      const dialog = await Dialog.findOne({
+        dialogId: message.dialogId,
+        tenantId: req.tenantId
+      }).lean();
+
+      let dialogSection = null;
+      if (dialog) {
+        const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
+        dialogSection = eventUtils.buildDialogSection({
+          dialogId: dialog.dialogId,
+          tenantId: dialog.tenantId,
+          createdBy: dialog.createdBy,
+          createdAt: dialog.createdAt,
+          meta: dialogMeta || {}
+        });
+      }
+
       const MAX_CONTENT_LENGTH = 4096;
       const eventContent = newContent.length > MAX_CONTENT_LENGTH
         ? newContent.substring(0, MAX_CONTENT_LENGTH)
@@ -736,7 +764,7 @@ const messageController = {
         dialogId: message.dialogId,
         entityId: message.messageId,
         messageId: message.messageId,
-        includedSections: ['message'],
+        includedSections: dialogSection ? ['dialog', 'message'] : ['message'],
         updatedFields: ['message.content']
       });
 
@@ -749,6 +777,7 @@ const messageController = {
         actorType: 'api',
         data: eventUtils.composeEventData({
           context: eventContext,
+          dialog: dialogSection,
           message: messageSection,
           extra: {
             delta: {
