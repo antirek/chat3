@@ -139,10 +139,6 @@ const messageReactionController = {
         // Формируем reactionSet для события
         const reactionSet = await buildReactionSet(req.tenantId, messageId, userId);
 
-        const memberSection = eventUtils.buildMemberSection({
-          userId
-        });
-
         const messageSection = eventUtils.buildMessageSection({
           messageId,
           dialogId: message.dialogId,
@@ -162,7 +158,7 @@ const messageReactionController = {
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
-          includedSections: ['message.reaction', 'member'],
+          includedSections: ['message.reaction'],
           updatedFields: ['message.reaction']
         });
 
@@ -175,7 +171,6 @@ const messageReactionController = {
           actorType: 'user',
           data: eventUtils.composeEventData({
             context: reactionContext,
-            member: memberSection,
             message: messageSection
           })
         });
@@ -215,16 +210,12 @@ const messageReactionController = {
         // Формируем reactionSet для события
         const reactionSet = await buildReactionSet(req.tenantId, messageId, userId);
 
-        const memberSection = eventUtils.buildMemberSection({
-          userId
-        });
-
         const removeContext = eventUtils.buildEventContext({
           eventType: 'message.reaction.update',
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
-          includedSections: ['message.reaction', 'member'],
+          includedSections: ['message.reaction'],
           updatedFields: ['message.reaction']
         });
 
@@ -251,7 +242,6 @@ const messageReactionController = {
           actorType: 'user',
           data: eventUtils.composeEventData({
             context: removeContext,
-            member: memberSection,
             message: removeMessageSection
           })
         });

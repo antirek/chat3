@@ -170,6 +170,11 @@ describe('messageReactionController', () => {
       expect(event.data.message.reactionUpdate.reactionSet).toEqual([
         { reaction: '🔥', count: 1, me: true }
       ]);
+      
+      // Проверяем, что member секция отсутствует
+      expect(event.data.member).toBeUndefined();
+      expect(event.data.context.includedSections).not.toContain('member');
+      expect(event.data.context.includedSections).toContain('message.reaction');
     });
 
     test('returns existing reaction when reaction already exists', async () => {
@@ -292,6 +297,11 @@ describe('messageReactionController', () => {
         oldReaction: '🔥'
       });
       expect(event.data.message.reactionUpdate.reactionSet || []).toEqual([]);
+      
+      // Проверяем, что member секция отсутствует
+      expect(event.data.member).toBeUndefined();
+      expect(event.data.context.includedSections).not.toContain('member');
+      expect(event.data.context.includedSections).toContain('message.reaction');
     });
 
     test('removes only specific reaction when user has multiple', async () => {

@@ -59,15 +59,11 @@ export async function sendTyping(req, res) {
       userInfo: actorInfo
     });
 
-    const memberSection = eventUtils.buildMemberSection({
-      userId
-    });
-
     const typingContext = eventUtils.buildEventContext({
       eventType: 'dialog.typing',
       dialogId,
       entityId: dialogId,
-      includedSections: ['typing', 'member'],
+      includedSections: ['typing'],
       updatedFields: ['typing']
     });
 
@@ -80,8 +76,7 @@ export async function sendTyping(req, res) {
       actorType: 'user',
       data: eventUtils.composeEventData({
         context: typingContext,
-        typing: typingSection,
-        member: memberSection
+        typing: typingSection
       })
     });
 

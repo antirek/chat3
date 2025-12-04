@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import userDialogController from '../userDialogController.js';
-import { Tenant, User, Dialog, DialogMember, Meta, Message } from "../../../../models/index.js";
+import { Tenant, User, Dialog, DialogMember, Meta, Message, Event } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
@@ -1408,6 +1408,98 @@ describe('userDialogController', () => {
         expect(item).toHaveProperty('count');
         expect(typeof item.count).toBe('number');
       }
+    });
+  });
+
+  describe('updateMessageStatus - event structure validation', () => {
+    let dialog;
+    let message;
+    const userId = 'usr_test';
+    const timestamp = generateTimestamp();
+
+    beforeEach(async () => {
+      await User.create({
+        tenantId,
+        userId,
+        lastActiveAt: timestamp,
+        createdAt: timestamp
+      });
+
+      dialog = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId,
+        createdAt: timestamp
+      });
+
+      await DialogMember.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId,
+        isActive: true,
+        unreadCount: 0,
+        joinedAt: timestamp
+      });
+
+      message = await Message.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        messageId: generateMessageId(),
+        senderId: userId,
+        content: 'Test message',
+        type: 'internal.text',
+        createdAt: timestamp
+      });
+    });
+
+    test('message.status.update event should not have member section', async () => {
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId, messageId: message.messageId, status: 'read' },
+        {}
+      );
+      const res = createMockRes();
+
+      await userDialogController.updateMessageStatus(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+
+      const event = await Event.findOne({
+        tenantId,
+        eventType: 'message.status.update',
+        entityId: message.messageId
+      }).lean();
+
+      expect(event).toBeTruthy();
+      expect(event.data.member).toBeUndefined();
+      expect(event.data.message).toBeDefined();
+      expect(event.data.message.statusUpdate).toBeDefined();
+      expect(event.data.context.includedSections).not.toContain('member');
+      expect(event.data.context.includedSections).toContain('message.status');
+    });
+
+    test('message.status.update event should have message section with statusUpdate', async () => {
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId, messageId: message.messageId, status: 'read' },
+        {}
+      );
+      const res = createMockRes();
+
+      await userDialogController.updateMessageStatus(req, res);
+
+      const event = await Event.findOne({
+        tenantId,
+        eventType: 'message.status.update',
+        entityId: message.messageId
+      }).lean();
+
+      expect(event).toBeTruthy();
+      expect(event.data.message).toBeDefined();
+      expect(event.data.message.messageId).toBe(message.messageId);
+      expect(event.data.message.statusUpdate).toBeDefined();
+      expect(event.data.message.statusUpdate.userId).toBe(userId);
+      expect(event.data.message.statusUpdate.status).toBe('read');
+      expect(event.data.message.statusMessageMatrix).toBeDefined();
+      expect(Array.isArray(event.data.message.statusMessageMatrix)).toBe(true);
     });
   });
 });

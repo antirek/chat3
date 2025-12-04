@@ -116,6 +116,11 @@ describe('typingController.sendTyping', () => {
     expect(event.actorId).toBe('alice');
     expect(event.data.context.dialogId).toBe(dialog.dialogId);
     expect(event.data.typing.userId).toBe('alice');
+    
+    // Проверяем, что member секция отсутствует
+    expect(event.data.member).toBeUndefined();
+    expect(event.data.context.includedSections).not.toContain('member');
+    expect(event.data.context.includedSections).toContain('typing');
   });
 
   test('returns 404 when dialog not found', async () => {

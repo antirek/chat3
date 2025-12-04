@@ -1395,16 +1395,12 @@ const userDialogController = {
         statusMessageMatrix
       });
 
-      const memberSection = eventUtils.buildMemberSection({
-        userId
-      });
-
       const statusContext = eventUtils.buildEventContext({
         eventType: 'message.status.update',
         dialogId: dialogId,
         entityId: messageId,
         messageId,
-        includedSections: ['message.status', 'member'],
+        includedSections: ['message.status'],
         updatedFields: ['message.status']
       });
 
@@ -1417,8 +1413,7 @@ const userDialogController = {
         actorType: 'user',
         data: eventUtils.composeEventData({
           context: statusContext,
-          message: messageSection,
-          member: memberSection
+          message: messageSection
         })
       });
 

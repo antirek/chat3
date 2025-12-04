@@ -191,6 +191,10 @@ describe('dialogMemberController', () => {
       });
       // dialog секция убрана из dialog.member.add (dialogId есть в context)
       expect(event.data.context.dialogId).toBe(dialog.dialogId);
+      
+      // Проверяем, что member секция присутствует и includedSections содержит 'member'
+      expect(event.data.member).toBeDefined();
+      expect(event.data.context.includedSections).toContain('member');
     });
 
     test('adds member with type and name, creates user if not exists', async () => {
@@ -382,7 +386,12 @@ describe('dialogMemberController', () => {
       const event = await Event.findOne({ tenantId, eventType: 'dialog.member.update' }).lean();
       expect(event).toBeTruthy();
       expect(event.actorId).toBe('sync-service');
+      
+      // Проверяем, что member секция присутствует
+      expect(event.data.member).toBeDefined();
       expect(event.data.member.state.unreadCount).toBe(0);
+      expect(event.data.context.includedSections).toContain('member');
+      
       // dialog секция убрана из dialog.member.update (dialogId есть в context)
       expect(event.data.context.dialogId).toBe(dialog.dialogId);
 
