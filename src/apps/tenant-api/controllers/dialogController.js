@@ -572,11 +572,14 @@ export const dialogController = {
         }
       }
 
+      // Получаем метаданные диалога для события
+      const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
       const dialogSection = eventUtils.buildDialogSection({
         dialogId: dialog.dialogId,
         tenantId: dialog.tenantId,
         createdBy,
-        createdAt: dialog.createdAt
+        createdAt: dialog.createdAt,
+        meta: dialogMeta || {}
       });
 
       const eventContext = eventUtils.buildEventContext({
@@ -646,11 +649,14 @@ export const dialogController = {
         });
       }
 
+      // Получаем метаданные диалога для события
+      const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
       const dialogSection = eventUtils.buildDialogSection({
         dialogId: dialog.dialogId,
         tenantId: dialog.tenantId,
         createdBy: dialog.createdBy,
-        createdAt: dialog.createdAt
+        createdAt: dialog.createdAt,
+        meta: dialogMeta || {}
       });
 
       const eventContext = eventUtils.buildEventContext({

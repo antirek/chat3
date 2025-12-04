@@ -1,5 +1,5 @@
-import mongoose from 'mongoose';
-import { Dialog, Message, DialogMember, Meta, MessageStatus, Update, User } from '../models/index.js';
+import { Message, DialogMember, 
+  MessageStatus, Update, User } from '../models/index.js';
 import * as metaUtils from '../apps/tenant-api/utils/metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from '../apps/tenant-api/utils/responseUtils.js';
@@ -31,20 +31,6 @@ const MESSAGE_UPDATE_EVENTS = [
 const TYPING_EVENTS = [
   'dialog.typing'
 ];
-
-function buildDialogSection(dialog, dialogMeta = {}) {
-  if (!dialog) {
-    return null;
-  }
-
-  return {
-    dialogId: dialog.dialogId,
-    tenantId: dialog.tenantId,
-    createdBy: dialog.createdBy,
-    createdAt: dialog.createdAt,
-    meta: dialogMeta || {}
-  };
-}
 
 function buildMemberSection(member, memberMeta = {}, overrides = {}) {
   if (!member) {
@@ -172,19 +158,14 @@ async function buildFullMessagePayload(tenantId, message, senderCache = new Map(
  */
 export async function createDialogUpdate(tenantId, dialogId, eventId, eventType, eventData = {}) {
   try {
-    // Используем данные из event.data напрямую, если они есть
-    let eventDialog = eventData.dialog;
+    // Используем данные из event.data напрямую
+    const eventDialog = eventData.dialog;
     let eventContext = eventData.context || {};
 
-    // Fallback: если данных нет в event.data, загружаем из БД (для обратной совместимости)
+    // Секция dialog должна всегда присутствовать в event.data
     if (!eventDialog || !eventDialog.dialogId) {
-      const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: tenantId });
-      if (!dialog) {
-        console.error(`Dialog with dialogId ${dialogId} not found for update`);
-        return;
-      }
-      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
-      eventDialog = buildDialogSection(dialog, dialogMeta);
+      console.error(`Dialog section missing in event.data for event ${eventId} (${eventType}). This should not happen.`);
+      return;
     }
 
     if (!eventContext.eventType) {
@@ -312,20 +293,15 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
  */
 export async function createDialogMemberUpdate(tenantId, dialogId, userId, eventId, eventType, eventData = {}) {
   try {
-    // Используем данные из event.data напрямую, если они есть
-    let eventDialog = eventData.dialog;
+    // Используем данные из event.data напрямую
+    const eventDialog = eventData.dialog;
     const eventMember = eventData.member;
     let eventContext = eventData.context || {};
 
-    // Fallback: если данных нет в event.data, загружаем из БД (для обратной совместимости)
+    // Секция dialog должна всегда присутствовать в event.data
     if (!eventDialog || !eventDialog.dialogId) {
-      const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: tenantId });
-      if (!dialog) {
-        console.error(`Dialog with dialogId ${dialogId} not found for update`);
-        return;
-      }
-      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
-      eventDialog = buildDialogSection(dialog, dialogMeta);
+      console.error(`Dialog section missing in event.data for event ${eventId} (${eventType}). This should not happen.`);
+      return;
     }
 
     // Получаем конкретного участника из БД (нужно для получения полных данных)
@@ -428,20 +404,15 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
  */
 export async function createMessageUpdate(tenantId, dialogId, messageId, eventId, eventType, eventData = {}) {
   try {
-    // Используем данные из event.data напрямую, если они есть
-    let eventDialog = eventData.dialog;
+    // Используем данные из event.data напрямую
+    const eventDialog = eventData.dialog;
     let eventMessage = eventData.message || {};
     let eventContext = eventData.context || {};
 
-    // Fallback: если данных нет в event.data, загружаем из БД (для обратной совместимости)
+    // Секция dialog должна всегда присутствовать в event.data
     if (!eventDialog || !eventDialog.dialogId) {
-      const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: tenantId });
-      if (!dialog) {
-        console.error(`Dialog with dialogId ${dialogId} not found for update`);
-        return;
-      }
-      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
-      eventDialog = buildDialogSection(dialog, dialogMeta);
+      console.error(`Dialog section missing in event.data for event ${eventId} (${eventType}). This should not happen.`);
+      return;
     }
 
     if (!eventMessage || !eventMessage.messageId) {
@@ -594,20 +565,15 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
  */
 export async function createTypingUpdate(tenantId, dialogId, typingUserId, eventId, eventType, eventData = {}) {
   try {
-    // Используем данные из event.data напрямую, если они есть
-    let eventDialog = eventData.dialog;
+    // Используем данные из event.data напрямую
+    const eventDialog = eventData.dialog;
     const eventTyping = eventData.typing || {};
     let eventContext = eventData.context || {};
 
-    // Fallback: если данных нет в event.data, загружаем из БД (для обратной совместимости)
+    // Секция dialog должна всегда присутствовать в event.data
     if (!eventDialog || !eventDialog.dialogId) {
-      const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: tenantId });
-      if (!dialog) {
-        console.error(`Dialog with dialogId ${dialogId} not found for typing update`);
-        return;
-      }
-      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
-      eventDialog = buildDialogSection(dialog, dialogMeta);
+      console.error(`Dialog section missing in event.data for event ${eventId} (${eventType}). This should not happen.`);
+      return;
     }
 
     if (!eventContext.eventType) {
