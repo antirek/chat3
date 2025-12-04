@@ -4,6 +4,7 @@ import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
+import { buildStatusMessageMatrix, buildReactionSet } from '../utils/userDialogUtils.js';
 
 /**
  * Helper function to enrich messages with meta data and statuses
@@ -24,7 +25,7 @@ async function getSenderInfo(tenantId, senderId, cache = new Map()) {
     tenantId,
     userId: senderId
   })
-    .select('userId name lastActiveAt createdAt updatedAt')
+    .select('userId name lastActiveAt createdAt')
     .lean();
 
   if (!user) {
@@ -57,16 +58,13 @@ async function enrichMessagesWithMetaAndStatuses(messages, tenantId) {
         message.messageId
       );
       
-      // Get message statuses sorted by date (newest first)
-      const messageStatuses = await MessageStatus.find({
-        messageId: message.messageId,
-        tenantId: tenantId
-      })
-        .select('userId status readAt createdAt')
-        .sort({ createdAt: -1 })
-        .lean(); // Используем .lean() для получения объектов вместо Mongoose документов
-      
       const messageObj = message.toObject ? message.toObject() : message;
+      
+      // Формируем матрицу статусов (исключая статусы отправителя сообщения)
+      const statusMessageMatrix = await buildStatusMessageMatrix(tenantId, message.messageId, messageObj.senderId);
+      
+      // Формируем reactionSet (без currentUserId, так как это общий эндпоинт)
+      const reactionSet = await buildReactionSet(tenantId, message.messageId, null);
       
       const senderInfo = await getSenderInfo(tenantId, messageObj.senderId, senderInfoCache);
 
@@ -74,7 +72,8 @@ async function enrichMessagesWithMetaAndStatuses(messages, tenantId) {
       return {
         ...messageObj,
         meta,
-        statuses: messageStatuses,
+        statusMessageMatrix,
+        reactionSet,
         senderInfo: senderInfo || null
       };
     })
@@ -602,15 +601,6 @@ const messageController = {
         });
       }
 
-      // Получаем статусы сообщения (свежие в начале)
-      const messageStatuses = await MessageStatus.find({
-        messageId: message.messageId,
-        tenantId: req.tenantId
-      })
-        .select('userId status readAt createdAt')
-        .sort({ createdAt: -1 })
-        .lean(); // Используем .lean() для получения объектов вместо Mongoose документов
-
       // Получаем метаданные сообщения
       const meta = await metaUtils.getEntityMeta(
         req.tenantId,
@@ -618,16 +608,23 @@ const messageController = {
         message.messageId
       );
 
-      const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
-
       const messageObj = message.toObject();
+      
+      // Формируем матрицу статусов (исключая статусы отправителя сообщения)
+      const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, message.messageId, messageObj.senderId);
+      
+      // Формируем reactionSet (без currentUserId, так как это общий эндпоинт)
+      const reactionSet = await buildReactionSet(req.tenantId, message.messageId, null);
+
+      const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
       
       // dialogId теперь уже строка в формате dlg_, не нужно преобразовывать
 
       res.json({
         data: sanitizeResponse({
           ...messageObj,
-          statuses: messageStatuses,
+          statusMessageMatrix,
+          reactionSet,
           meta,
           senderInfo: senderInfo || null
         })
@@ -676,22 +673,21 @@ const messageController = {
           message.messageId
         );
 
-        const messageStatuses = await MessageStatus.find({
-          messageId: message.messageId,
-          tenantId: req.tenantId
-        })
-          .select('userId status readAt createdAt')
-          .sort({ createdAt: -1 })
-          .lean();
+        const messageObj = message.toObject();
+
+        // Формируем матрицу статусов (исключая статусы отправителя сообщения)
+        const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, message.messageId, messageObj.senderId);
+        
+        // Формируем reactionSet (без currentUserId, так как это общий эндпоинт)
+        const reactionSet = await buildReactionSet(req.tenantId, message.messageId, null);
 
         const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
-
-        const messageObj = message.toObject();
 
         return res.json({
           data: sanitizeResponse({
             ...messageObj,
-            statuses: messageStatuses,
+            statusMessageMatrix,
+            reactionSet,
             meta,
             senderInfo: senderInfo || null
           }),
@@ -720,16 +716,6 @@ const messageController = {
         'message',
         message.messageId
       );
-
-      const messageStatuses = await MessageStatus.find({
-        messageId: message.messageId,
-        tenantId: req.tenantId
-      })
-        .select('userId status readAt createdAt')
-        .sort({ createdAt: -1 })
-        .lean();
-
-      const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
 
       const MAX_CONTENT_LENGTH = 4096;
       const eventContent = newContent.length > MAX_CONTENT_LENGTH
@@ -777,10 +763,19 @@ const messageController = {
 
       const messageObj = message.toObject();
 
+      // Формируем матрицу статусов (исключая статусы отправителя сообщения)
+      const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, message.messageId, messageObj.senderId);
+      
+      // Формируем reactionSet (без currentUserId, так как это общий эндпоинт)
+      const reactionSet = await buildReactionSet(req.tenantId, message.messageId, null);
+
+      const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
+
       res.json({
         data: sanitizeResponse({
           ...messageObj,
-          statuses: messageStatuses,
+          statusMessageMatrix,
+          reactionSet,
           meta,
           senderInfo: senderInfo || null
         }),

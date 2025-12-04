@@ -81,23 +81,34 @@ const router = express.Router();
  *                       meta:
  *                         type: object
  *                         description: Message meta data (channelType, channelId)
- *                       statuses:
+ *                       statusMessageMatrix:
  *                         type: array
- *                         description: Array of message statuses sorted by date (newest first)
+ *                         description: Matrix of message statuses aggregated by userType and status (excluding sender's statuses)
  *                         items:
  *                           type: object
  *                           properties:
- *                             userId:
+ *                             userType:
  *                               type: string
+ *                               nullable: true
  *                             status:
  *                               type: string
- *                               enum: [sent, delivered, read]
- *                             readAt:
+ *                               enum: [sent, delivered, read, unread]
+ *                             count:
+ *                               type: integer
+ *                               description: Number of status entries in history for this userType and status
+ *                       reactionSet:
+ *                         type: array
+ *                         description: Set of reactions on the message
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             reaction:
  *                               type: string
- *                               format: date-time
- *                             createdAt:
- *                               type: string
- *                               format: date-time
+ *                             count:
+ *                               type: integer
+ *                             me:
+ *                               type: boolean
+ *                               description: Whether current user (if any) has this reaction
  *                       createdAt:
  *                         type: string
  *                         format: date-time

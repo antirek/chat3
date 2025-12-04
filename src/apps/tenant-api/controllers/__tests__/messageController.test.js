@@ -843,8 +843,10 @@ describe('messageController.getMessageById - error handling', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data).toBeTruthy();
     expect(res.body.data.messageId).toBe(message.messageId);
-    expect(res.body.data.statuses).toHaveLength(1);
-    expect(res.body.data.statuses[0].userId).toBe('bob');
+    expect(res.body.data.statusMessageMatrix).toBeDefined();
+    expect(Array.isArray(res.body.data.statusMessageMatrix)).toBe(true);
+    expect(res.body.data.reactionSet).toBeDefined();
+    expect(Array.isArray(res.body.data.reactionSet)).toBe(true);
     expect(res.body.data.meta).toEqual(expect.objectContaining({ category: 'test' }));
     expect(res.body.data.senderInfo).toBeTruthy();
     expect(res.body.data.senderInfo.userId).toBe('alice');
