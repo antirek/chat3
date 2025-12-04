@@ -3233,13 +3233,8 @@
                 baseUrl = window.location.origin.replace(':3001', ':3000');
             }
             
-            // Формируем URL в зависимости от наличия currentUserId
-            let url;
-            if (currentUserId) {
-                url = `${baseUrl}/api/users/${currentUserId}/dialogs/${dialogId}`;
-            } else {
-                url = `${baseUrl}/api/dialogs/${dialogId}`;
-            }
+            // Используем стандартный роут для получения диалога
+            const url = `${baseUrl}/api/dialogs/${dialogId}`;
             
             try {
                 const response = await fetch(url, {

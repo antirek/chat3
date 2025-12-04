@@ -171,7 +171,9 @@ describe('messageReactionController', () => {
         reaction: '🔥',
         oldReaction: null
       });
-      expect(event.data.message.reactionUpdate.counts).toEqual({ '🔥': 1 });
+      expect(event.data.message.reactionUpdate.reactionSet).toEqual([
+        { reaction: '🔥', count: 1, me: true }
+      ]);
     });
 
     test('returns existing reaction when reaction already exists', async () => {
@@ -296,7 +298,7 @@ describe('messageReactionController', () => {
         reaction: null,
         oldReaction: '🔥'
       });
-      expect(event.data.message.reactionUpdate.counts || {}).toEqual({});
+      expect(event.data.message.reactionUpdate.reactionSet || []).toEqual([]);
     });
 
     test('removes only specific reaction when user has multiple', async () => {
