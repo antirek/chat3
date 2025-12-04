@@ -32,24 +32,6 @@ const TYPING_EVENTS = [
   'dialog.typing'
 ];
 
-function buildMemberSection(member, memberMeta = {}, overrides = {}) {
-  if (!member) {
-    return null;
-  }
-
-  const state = {
-    unreadCount: overrides.unreadCount ?? member.unreadCount ?? null,
-    lastSeenAt: overrides.lastSeenAt ?? member.lastSeenAt ?? null,
-    lastMessageAt: overrides.lastMessageAt ?? member.lastMessageAt ?? null,
-    isActive: overrides.isActive ?? member.isActive ?? null
-  };
-
-  return {
-    userId: member.userId,
-    meta: memberMeta || {},
-    state
-  };
-}
 
 function cloneSection(section) {
   if (!section) {
@@ -145,7 +127,7 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
         eventType,
         dialogId: eventDialog.dialogId,
         entityId: eventDialog.dialogId,
-        includedSections: ['dialog', 'member']
+        includedSections: eventData.member ? ['dialog', 'member'] : ['dialog']
       };
     }
 
@@ -157,83 +139,45 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
     }).lean();
 
     // Для события dialog.member.remove нужно также создать update для удаляемого пользователя
-    let removedMember = null;
+    let removedMemberUserId = null;
     if (eventType === 'dialog.member.remove' && eventData.member) {
-      const removedUserId = eventData.member.userId;
-      if (removedUserId) {
-        // Проверяем, не является ли удаляемый пользователь уже в списке активных
-        const isAlreadyInList = dialogMembers.some(m => m.userId === removedUserId);
-        
-        if (!isAlreadyInList) {
-          // Получаем информацию об удаляемом участнике (даже если он уже неактивен)
-          removedMember = await DialogMember.findOne({
-            tenantId: tenantId,
-            dialogId: eventDialog.dialogId,
-            userId: removedUserId
-          }).lean();
-          
-          // Если не нашли в БД, создаем объект из данных события
-          if (!removedMember && eventData.member) {
-            removedMember = {
-              userId: removedUserId,
-              tenantId: tenantId,
-              dialogId: eventDialog.dialogId,
-              unreadCount: eventData.member.state?.unreadCount ?? 0,
-              lastSeenAt: eventData.member.state?.lastSeenAt ?? null,
-              lastMessageAt: eventData.member.state?.lastMessageAt ?? null,
-              isActive: false,
-              role: eventData.member.role || 'member'
-            };
-          }
-        }
-      }
+      removedMemberUserId = eventData.member.userId;
     }
 
-    if (dialogMembers.length === 0 && !removedMember) {
+    if (dialogMembers.length === 0 && !removedMemberUserId) {
       console.log(`No active members found for dialog ${dialogId} and no removed member to notify`);
       return;
     }
     
     // Собираем всех участников для создания updates (активные + удаляемый, если есть)
-    const allMembersForUpdates = [...dialogMembers];
-    if (removedMember) {
-      allMembersForUpdates.push(removedMember);
+    const allMemberUserIds = dialogMembers.map(m => m.userId);
+    if (removedMemberUserId && !allMemberUserIds.includes(removedMemberUserId)) {
+      allMemberUserIds.push(removedMemberUserId);
     }
-    
-    // Загружаем метаданные участников
-    const memberMetaEntries = await Promise.all(
-      allMembersForUpdates.map(async member => {
-        const memberId = `${eventDialog.dialogId}:${member.userId}`;
-        const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
-        return { userId: member.userId, meta: memberMeta || {} };
-      })
-    );
-    const memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
 
     // Используем context из event.data, если есть, иначе создаем минимальный
     const context = eventContext.eventType ? cloneSection(eventContext) : {
       eventType,
       dialogId: eventDialog.dialogId,
       entityId: eventDialog.dialogId,
-      includedSections: ['dialog', 'member']
+      includedSections: eventData.member ? ['dialog', 'member'] : ['dialog']
     };
 
-    const updates = allMembersForUpdates.map((member) => {
-      // Для удаляемого пользователя устанавливаем isActive: false
-      const isRemovedMember = removedMember && member.userId === removedMember.userId;
-      const memberOverrides = isRemovedMember ? { isActive: false } : {};
-      
-      const memberSection = buildMemberSection(member, memberMetaMap.get(member.userId), memberOverrides);
-
+    const updates = allMemberUserIds.map((userId) => {
       const data = {
         dialog: cloneSection(eventDialog),
-        member: memberSection,
         context: cloneSection(context)
       };
 
+      // Если в event.data есть member секция, добавляем её в update
+      // Для dialog.member.add/remove/update member секция должна быть в event.data
+      if (eventData.member) {
+        data.member = cloneSection(eventData.member);
+      }
+
       return {
         tenantId: tenantId,
-        userId: member.userId,
+        userId: userId,
         dialogId: eventDialog.dialogId,
         entityId: eventDialog.dialogId,
         eventId: eventId,
@@ -276,72 +220,24 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
       return;
     }
 
-    // Получаем конкретного участника из БД (нужно для получения полных данных)
-    const member = await DialogMember.findOne({
-      tenantId: tenantId,
-      dialogId: eventDialog.dialogId,
-      userId: userId,
-      isActive: true
-    }).lean();
-
-    if (!member) {
-      console.log(`Member ${userId} not found in dialog ${dialogId}`);
+    // Секция member должна присутствовать в event.data для dialog.member.update
+    if (!eventMember) {
+      console.error(`Member section missing in event.data for event ${eventId} (${eventType}). This should not happen.`);
       return;
     }
 
-    // Загружаем метаданные участника
-    const memberId = `${eventDialog.dialogId}:${member.userId}`;
-    const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
-    
-    // Используем state из event.data.member, если есть
-    const eventMemberState = eventMember?.state || {};
-    const overrideUnreadCount = eventMemberState.unreadCount !== undefined
-      ? eventMemberState.unreadCount
-      : eventData.unreadCount;
-    const overrideLastSeenAt = eventMemberState.lastSeenAt !== undefined
-      ? eventMemberState.lastSeenAt
-      : eventData.lastSeenAt;
-
-    const memberSection = buildMemberSection(member, memberMeta, {
-      unreadCount: overrideUnreadCount,
-      lastSeenAt: overrideLastSeenAt,
-      lastMessageAt: eventMemberState.lastMessageAt
-    });
-
-    // Используем updatedFields из event.context, если есть
-    let updatedFields = Array.isArray(eventContext.updatedFields)
-      ? [...eventContext.updatedFields]
-      : [];
-    if (!updatedFields.length) {
-      if (eventMemberState.unreadCount !== undefined) {
-        updatedFields.push('member.state.unreadCount');
-      }
-      if (eventMemberState.lastSeenAt !== undefined) {
-        updatedFields.push('member.state.lastSeenAt');
-      }
-      if (eventData.unreadCount !== undefined && !updatedFields.includes('member.state.unreadCount')) {
-        updatedFields.push('member.state.unreadCount');
-      }
-      if (eventData.lastSeenAt !== undefined && !updatedFields.includes('member.state.lastSeenAt')) {
-        updatedFields.push('member.state.lastSeenAt');
-      }
-    }
-
     // Используем context из event.data, если есть, иначе создаем минимальный
-    const context = eventContext.eventType ? {
-      ...cloneSection(eventContext),
-      updatedFields
-    } : {
+    const context = eventContext.eventType ? cloneSection(eventContext) : {
       eventType,
       dialogId: eventDialog.dialogId,
       entityId: eventDialog.dialogId,
       includedSections: ['dialog', 'member'],
-      updatedFields
+      updatedFields: eventContext.updatedFields || []
     };
 
     const data = {
       dialog: cloneSection(eventDialog),
-      member: memberSection,
+      member: cloneSection(eventMember),
       context
     };
 
@@ -464,22 +360,6 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       return;
     }
 
-    // Для message.status.update и message.reaction.update не нужна member секция
-    const needsMemberSection = !['message.status.update', 'message.reaction.update'].includes(eventType);
-    
-    // Загружаем метаданные участников только если нужна member секция
-    let memberMetaMap = new Map();
-    if (needsMemberSection) {
-      const memberMetaEntries = await Promise.all(
-        dialogMembers.map(async member => {
-          const memberId = `${eventDialog.dialogId}:${member.userId}`;
-          const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
-          return { userId: member.userId, meta: memberMeta || {} };
-        })
-      );
-      memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
-    }
-
     // Используем context из event.data, если есть, иначе создаем минимальный
     const context = eventContext.eventType ? cloneSection(eventContext) : {
       eventType,
@@ -497,10 +377,10 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
         context: cloneSection(context)
       };
       
-      // Добавляем member секцию только если нужна
-      if (needsMemberSection) {
-        const memberSection = buildMemberSection(member, memberMetaMap.get(member.userId));
-        data.member = memberSection;
+      // Если в event.data есть member секция, добавляем её в update
+      // Для message.create/update member секция может быть в event.data
+      if (eventData.member) {
+        data.member = cloneSection(eventData.member);
       }
 
       return {
@@ -553,7 +433,7 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
         eventType,
         dialogId: eventDialog.dialogId,
         entityId: eventDialog.dialogId,
-        includedSections: ['dialog', 'member', 'typing']
+        includedSections: eventData.member ? ['dialog', 'member', 'typing'] : ['dialog', 'typing']
       };
     }
 
@@ -579,27 +459,27 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
       userInfo: eventTyping.userInfo ?? legacyTyping.userInfo ?? null
     };
 
-    // Загружаем метаданные участников
-    const memberMetaEntries = await Promise.all(
-      dialogMembers.map(async member => {
-        const meta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', `${eventDialog.dialogId}:${member.userId}`);
-        return { userId: member.userId, meta: meta || {} };
-      })
-    );
-    const memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
-
     // Используем context из event.data, если есть, иначе создаем минимальный
     const context = eventContext.eventType ? cloneSection(eventContext) : {
       eventType,
       dialogId: eventDialog.dialogId,
       entityId: eventDialog.dialogId,
-      includedSections: ['dialog', 'member', 'typing']
+      includedSections: eventData.member ? ['dialog', 'member', 'typing'] : ['dialog', 'typing']
     };
 
     const updatesPayload = dialogMembers
       .filter(member => member.userId !== typingUserId)
       .map(member => {
-        const memberSection = buildMemberSection(member, memberMetaMap.get(member.userId));
+        const data = {
+          dialog: cloneSection(eventDialog),
+          typing: typingSection,
+          context: cloneSection(context)
+        };
+
+        // Если в event.data есть member секция, добавляем её в update
+        if (eventData.member) {
+          data.member = cloneSection(eventData.member);
+        }
 
         return {
           tenantId,
@@ -608,12 +488,7 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
           entityId: eventDialog.dialogId,
           eventId,
           eventType,
-          data: {
-            dialog: cloneSection(eventDialog),
-            member: memberSection,
-            typing: typingSection,
-            context: cloneSection(context)
-          },
+          data,
           published: false
         };
       });

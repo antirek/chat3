@@ -278,7 +278,8 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(update.data.dialog).toBeDefined();
       expect(update.data.dialog.meta).toHaveProperty('channel');
       expect(update.data.dialog.meta.channel).toBe('telegram');
-      expect(update.data.member).toBeDefined();
+      // Для dialog.create member секция не должна быть в update, если её нет в event.data
+      expect(update.data.member).toBeUndefined();
     });
 
     test('should create update for removed member in dialog.member.remove event', async () => {
