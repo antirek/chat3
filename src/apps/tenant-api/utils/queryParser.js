@@ -447,6 +447,44 @@ async function processAllMembersFilter(userIds, tenantId) {
 }
 
 /**
+ * Парсит строку сортировки для обычных полей
+ * @param {string} sortString - Строка сортировки вида "(createdAt,desc)" или "(createdAt,asc)"
+ * @returns {string|null} Строка для Mongoose sort (например, "-createdAt" или "createdAt") или null если невалидный формат
+ */
+export function parseSort(sortString) {
+  if (!sortString || typeof sortString !== 'string') {
+    return null;
+  }
+
+  // Убираем пробелы
+  sortString = sortString.trim();
+
+  // Проверяем формат: (field,direction)
+  const sortRegex = /^\(([^,]+),([^)]+)\)$/;
+  const match = sortString.match(sortRegex);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, field, direction] = match;
+  
+  // Валидируем направление сортировки
+  const validDirections = ['asc', 'desc', '1', '-1'];
+  const normalizedDirection = direction.trim().toLowerCase();
+  
+  if (!validDirections.includes(normalizedDirection)) {
+    return null;
+  }
+
+  // Конвертируем направление в Mongoose формат
+  const fieldName = field.trim();
+  const isDesc = normalizedDirection === 'desc' || normalizedDirection === '-1';
+  
+  return isDesc ? `-${fieldName}` : fieldName;
+}
+
+/**
  * Парсит строку сортировки для полей участников
  * @param {string} sortString - Строка сортировки вида "(member[carl].unreadCount,desc)"
  * @returns {object} Объект с информацией о сортировке
@@ -493,6 +531,7 @@ export default {
   parseFilters,
   extractMetaFilters,
   processMemberFilters,
+  parseSort,
   parseMemberSort,
   operatorToMongo,
 };

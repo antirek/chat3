@@ -5,7 +5,7 @@ import {
   User } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { getMetaScopeOptions } from '../utils/metaScopeUtils.js';
-import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
+import { parseFilters, extractMetaFilters, parseSort } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { validateGetUserDialogMessagesResponse, validateGetUserDialogMessageResponse } from '../validators/schemas/responseSchemas.js';
 import * as eventUtils from '../utils/eventUtils.js';
@@ -941,7 +941,19 @@ const userDialogController = {
       const total = await Message.countDocuments(query);
 
       // Получаем сообщения с сортировкой по времени создания (новые сначала по умолчанию)
-      const sortOption = req.query.sort || '-createdAt';
+      let sortOption = '-createdAt'; // По умолчанию
+      
+      if (req.query.sort) {
+        // Пробуем распарсить формат (field,direction)
+        const parsedSort = parseSort(req.query.sort);
+        if (parsedSort) {
+          sortOption = parsedSort;
+        } else {
+          // Если не удалось распарсить, используем как есть (для обратной совместимости)
+          sortOption = req.query.sort;
+        }
+      }
+      
       const messages = await Message.find(query)
         .sort(sortOption)
         .skip(skip)

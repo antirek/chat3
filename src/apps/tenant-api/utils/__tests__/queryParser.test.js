@@ -1,4 +1,4 @@
-import { parseFilter, parseFilters, extractMetaFilters, parseMemberSort } from '../queryParser.js';
+import { parseFilter, parseFilters, extractMetaFilters, parseMemberSort, parseSort } from '../queryParser.js';
 
 describe('queryParser', () => {
   describe('parseFilter', () => {
@@ -430,6 +430,47 @@ describe('queryParser', () => {
         direction: -1,
         originalString: '(member[carl].unreadCount,desc)' // trimmed
       });
+    });
+  });
+
+  describe('parseSort', () => {
+    test('should parse sort string with desc direction', () => {
+      const result = parseSort('(createdAt,desc)');
+      expect(result).toBe('-createdAt');
+    });
+
+    test('should parse sort string with asc direction', () => {
+      const result = parseSort('(createdAt,asc)');
+      expect(result).toBe('createdAt');
+    });
+
+    test('should parse sort string with numeric directions', () => {
+      expect(parseSort('(createdAt,1)')).toBe('createdAt');
+      expect(parseSort('(createdAt,-1)')).toBe('-createdAt');
+    });
+
+    test('should handle whitespace in sort string', () => {
+      expect(parseSort('  (createdAt,desc)  ')).toBe('-createdAt');
+      expect(parseSort('( createdAt , desc )')).toBe('-createdAt');
+    });
+
+    test('should return null for invalid format', () => {
+      expect(parseSort('invalid')).toBeNull();
+      expect(parseSort('createdAt,desc')).toBeNull();
+      expect(parseSort('(createdAt,invalid)')).toBeNull();
+      expect(parseSort('(createdAt)')).toBeNull();
+    });
+
+    test('should return null for empty string', () => {
+      expect(parseSort('')).toBeNull();
+      expect(parseSort(null)).toBeNull();
+      expect(parseSort(undefined)).toBeNull();
+    });
+
+    test('should handle different field names', () => {
+      expect(parseSort('(updatedAt,desc)')).toBe('-updatedAt');
+      expect(parseSort('(messageId,asc)')).toBe('messageId');
+      expect(parseSort('(senderId,desc)')).toBe('-senderId');
     });
   });
 });
