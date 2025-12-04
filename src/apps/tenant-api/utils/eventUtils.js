@@ -81,7 +81,8 @@ export function buildMessageSection({
   quotedMessage = null,
   attachments = null,
   statusUpdate = null,
-  reactionUpdate = null
+  reactionUpdate = null,
+  statusMessageMatrix = null
 } = {}) {
   if (!messageId) {
     return null;
@@ -99,7 +100,8 @@ export function buildMessageSection({
     quotedMessage: quotedMessage || null,
     attachments: attachments || null,
     statusUpdate: statusUpdate || null,
-    reactionUpdate: reactionUpdate || null
+    reactionUpdate: reactionUpdate || null,
+    statusMessageMatrix: statusMessageMatrix || null
   };
 }
 

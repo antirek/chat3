@@ -168,28 +168,38 @@ async function buildFullMessagePayload(tenantId, message, senderCache = new Map(
 
 /**
  * Формирует DialogUpdate для всех участников диалога
+ * Использует данные из event.data напрямую, без перезагрузки из БД
  */
 export async function createDialogUpdate(tenantId, dialogId, eventId, eventType, eventData = {}) {
   try {
-    // dialogId всегда приходит как строка dlg_*
-    // Находим Dialog по строковому dialogId
-    const dialog = await Dialog.findOne({ 
-      dialogId: dialogId, 
-      tenantId: tenantId 
-    });
-    
-    if (!dialog) {
-      console.error(`Dialog with dialogId ${dialogId} not found for update`);
-      return;
+    // Используем данные из event.data напрямую, если они есть
+    let eventDialog = eventData.dialog;
+    let eventContext = eventData.context || {};
+
+    // Fallback: если данных нет в event.data, загружаем из БД (для обратной совместимости)
+    if (!eventDialog || !eventDialog.dialogId) {
+      const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: tenantId });
+      if (!dialog) {
+        console.error(`Dialog with dialogId ${dialogId} not found for update`);
+        return;
+      }
+      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+      eventDialog = buildDialogSection(dialog, dialogMeta);
     }
 
-    // Получаем метаданные диалога (используем dialogId строку)
-    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+    if (!eventContext.eventType) {
+      eventContext = {
+        eventType,
+        dialogId: eventDialog.dialogId,
+        entityId: eventDialog.dialogId,
+        includedSections: ['dialog', 'member']
+      };
+    }
 
-    // Получаем всех участников диалога (используем dialog.dialogId строка)
+    // Получаем всех участников диалога (единственное, что нужно загрузить из БД)
     const dialogMembers = await DialogMember.find({
       tenantId: tenantId,
-      dialogId: dialog.dialogId, // DialogMember.dialogId - это строка dlg_*
+      dialogId: eventDialog.dialogId,
       isActive: true
     }).lean();
 
@@ -205,7 +215,7 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
           // Получаем информацию об удаляемом участнике (даже если он уже неактивен)
           removedMember = await DialogMember.findOne({
             tenantId: tenantId,
-            dialogId: dialog.dialogId,
+            dialogId: eventDialog.dialogId,
             userId: removedUserId
           }).lean();
           
@@ -214,7 +224,7 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
             removedMember = {
               userId: removedUserId,
               tenantId: tenantId,
-              dialogId: dialog.dialogId,
+              dialogId: eventDialog.dialogId,
               unreadCount: eventData.member.state?.unreadCount ?? 0,
               lastSeenAt: eventData.member.state?.lastSeenAt ?? null,
               lastMessageAt: eventData.member.state?.lastMessageAt ?? null,
@@ -230,8 +240,6 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
       console.log(`No active members found for dialog ${dialogId} and no removed member to notify`);
       return;
     }
-
-    const dialogSection = buildDialogSection(dialog, dialogMeta);
     
     // Собираем всех участников для создания updates (активные + удаляемый, если есть)
     const allMembersForUpdates = [...dialogMembers];
@@ -239,14 +247,23 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
       allMembersForUpdates.push(removedMember);
     }
     
+    // Загружаем метаданные участников
     const memberMetaEntries = await Promise.all(
       allMembersForUpdates.map(async member => {
-        const memberId = `${dialog.dialogId}:${member.userId}`;
+        const memberId = `${eventDialog.dialogId}:${member.userId}`;
         const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
         return { userId: member.userId, meta: memberMeta || {} };
       })
     );
     const memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
+
+    // Используем context из event.data, если есть, иначе создаем минимальный
+    const context = eventContext.eventType ? cloneSection(eventContext) : {
+      eventType,
+      dialogId: eventDialog.dialogId,
+      entityId: eventDialog.dialogId,
+      includedSections: ['dialog', 'member']
+    };
 
     const updates = allMembersForUpdates.map((member) => {
       // Для удаляемого пользователя устанавливаем isActive: false
@@ -256,21 +273,16 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
       const memberSection = buildMemberSection(member, memberMetaMap.get(member.userId), memberOverrides);
 
       const data = {
-        dialog: dialogSection,
+        dialog: cloneSection(eventDialog),
         member: memberSection,
-        context: buildContextSection({
-          eventType,
-          dialogId: dialog.dialogId,
-          entityId: dialog.dialogId,
-          includedSections: ['dialog', 'member']
-        })
+        context: cloneSection(context)
       };
 
       return {
         tenantId: tenantId,
         userId: member.userId,
-        dialogId: dialog.dialogId,
-        entityId: dialog.dialogId,
+        dialogId: eventDialog.dialogId,
+        entityId: eventDialog.dialogId,
         eventId: eventId,
         eventType: eventType,
         data,
@@ -296,29 +308,30 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
 
 /**
  * Формирует DialogMemberUpdate для конкретного участника диалога
- * Используется для событий, которые касаются только одного участника (например, изменение unreadCount)
+ * Использует данные из event.data напрямую, без перезагрузки из БД
  */
 export async function createDialogMemberUpdate(tenantId, dialogId, userId, eventId, eventType, eventData = {}) {
   try {
-    // dialogId всегда приходит как строка dlg_*
-    // Находим Dialog по строковому dialogId
-    const dialog = await Dialog.findOne({ 
-      dialogId: dialogId, 
-      tenantId: tenantId 
-    });
-    
-    if (!dialog) {
-      console.error(`Dialog with dialogId ${dialogId} not found for update`);
-      return;
+    // Используем данные из event.data напрямую, если они есть
+    let eventDialog = eventData.dialog;
+    const eventMember = eventData.member;
+    let eventContext = eventData.context || {};
+
+    // Fallback: если данных нет в event.data, загружаем из БД (для обратной совместимости)
+    if (!eventDialog || !eventDialog.dialogId) {
+      const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: tenantId });
+      if (!dialog) {
+        console.error(`Dialog with dialogId ${dialogId} not found for update`);
+        return;
+      }
+      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+      eventDialog = buildDialogSection(dialog, dialogMeta);
     }
 
-    // Получаем метаданные диалога
-    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
-
-    // Получаем конкретного участника
+    // Получаем конкретного участника из БД (нужно для получения полных данных)
     const member = await DialogMember.findOne({
       tenantId: tenantId,
-      dialogId: dialog.dialogId,
+      dialogId: eventDialog.dialogId,
       userId: userId,
       isActive: true
     }).lean();
@@ -328,9 +341,12 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
       return;
     }
 
-    const memberId = `${dialog.dialogId}:${member.userId}`;
+    // Загружаем метаданные участника
+    const memberId = `${eventDialog.dialogId}:${member.userId}`;
     const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
-    const eventMemberState = eventData?.member?.state || {};
+    
+    // Используем state из event.data.member, если есть
+    const eventMemberState = eventMember?.state || {};
     const overrideUnreadCount = eventMemberState.unreadCount !== undefined
       ? eventMemberState.unreadCount
       : eventData.unreadCount;
@@ -343,8 +359,10 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
       lastSeenAt: overrideLastSeenAt,
       lastMessageAt: eventMemberState.lastMessageAt
     });
-    let updatedFields = Array.isArray(eventData?.context?.updatedFields)
-      ? [...eventData.context.updatedFields]
+
+    // Используем updatedFields из event.context, если есть
+    let updatedFields = Array.isArray(eventContext.updatedFields)
+      ? [...eventContext.updatedFields]
       : [];
     if (!updatedFields.length) {
       if (eventMemberState.unreadCount !== undefined) {
@@ -361,25 +379,29 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
       }
     }
 
-    const dialogSection = buildDialogSection(dialog, dialogMeta);
+    // Используем context из event.data, если есть, иначе создаем минимальный
+    const context = eventContext.eventType ? {
+      ...cloneSection(eventContext),
+      updatedFields
+    } : {
+      eventType,
+      dialogId: eventDialog.dialogId,
+      entityId: eventDialog.dialogId,
+      includedSections: ['dialog', 'member'],
+      updatedFields
+    };
 
     const data = {
-      dialog: dialogSection,
+      dialog: cloneSection(eventDialog),
       member: memberSection,
-      context: buildContextSection({
-        eventType,
-        dialogId: dialog.dialogId,
-        entityId: dialog.dialogId,
-        includedSections: ['dialog', 'member'],
-        updatedFields
-      })
+      context
     };
 
     const updateData = {
       tenantId: tenantId,
       userId: userId,
-      dialogId: dialog.dialogId,
-      entityId: dialog.dialogId,
+      dialogId: eventDialog.dialogId,
+      entityId: eventDialog.dialogId,
       eventId: eventId,
       eventType: eventType,
       data,
@@ -402,32 +424,95 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
 
 /**
  * Формирует MessageUpdate для всех участников диалога
+ * Использует данные из event.data напрямую, без перезагрузки из БД
  */
 export async function createMessageUpdate(tenantId, dialogId, messageId, eventId, eventType, eventData = {}) {
   try {
-    // Получаем сообщение по messageId (строка msg_*)
-    const message = await Message.findOne({ messageId: messageId, tenantId: tenantId });
-    if (!message) {
-      console.error(`Message ${messageId} not found for update`);
-      return;
+    // Используем данные из event.data напрямую, если они есть
+    let eventDialog = eventData.dialog;
+    let eventMessage = eventData.message || {};
+    let eventContext = eventData.context || {};
+
+    // Fallback: если данных нет в event.data, загружаем из БД (для обратной совместимости)
+    if (!eventDialog || !eventDialog.dialogId) {
+      const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: tenantId });
+      if (!dialog) {
+        console.error(`Dialog with dialogId ${dialogId} not found for update`);
+        return;
+      }
+      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+      eventDialog = buildDialogSection(dialog, dialogMeta);
     }
 
-    // dialogId приходит как строка dlg_*
-    // Находим Dialog чтобы получить его _id (ObjectId)
-    const dialog = await Dialog.findOne({ 
-      dialogId: dialogId, 
-      tenantId: tenantId 
-    });
-    
-    if (!dialog) {
-      console.error(`Dialog with dialogId ${dialogId} not found for update`);
-      return;
+    if (!eventMessage || !eventMessage.messageId) {
+      const message = await Message.findOne({ messageId: messageId, tenantId: tenantId });
+      if (!message) {
+        console.error(`Message ${messageId} not found for update`);
+        return;
+      }
+      // Для message.create/update нужно полное сообщение
+      if (['message.create', 'message.update'].includes(eventType)) {
+        const senderCache = new Map();
+        eventMessage = await buildFullMessagePayload(tenantId, message, senderCache);
+        if (!eventMessage) {
+          console.error(`Failed to build message payload for ${messageId}`);
+          return;
+        }
+        eventMessage.dialogId = eventDialog.dialogId;
+      } else {
+        // Для других типов создаем минимальную структуру
+        eventMessage = {
+          messageId: message.messageId,
+          dialogId: eventDialog.dialogId,
+          senderId: message.senderId,
+          type: message.type
+        };
+        // Добавляем данные из eventData, если есть
+        if (eventData.message?.statusUpdate) {
+          eventMessage.statusUpdate = eventData.message.statusUpdate;
+        } else if (eventType.startsWith('message.status.') && eventData.userId) {
+          // Fallback для старого формата: { userId, newStatus, oldStatus }
+          eventMessage.statusUpdate = {
+            userId: eventData.userId,
+            status: eventData.newStatus,
+            oldStatus: eventData.oldStatus ?? null
+          };
+          // Для message.status.update нужно добавить statusMessageMatrix
+          const statusMessageMatrix = await buildStatusMessageMatrix(tenantId, messageId, message.senderId);
+          eventMessage.statusMessageMatrix = statusMessageMatrix;
+        }
+        if (eventData.message?.reactionUpdate) {
+          eventMessage.reactionUpdate = eventData.message.reactionUpdate;
+        } else if (eventType.startsWith('message.reaction.') && eventData.userId) {
+          // Fallback для старого формата
+          eventMessage.reactionUpdate = {
+            userId: eventData.userId,
+            reaction: eventData.reaction,
+            oldReaction: eventData.oldReaction ?? null,
+            reactionSet: eventData.reactionSet ?? null
+          };
+        }
+        if (eventData.message?.statusMessageMatrix) {
+          eventMessage.statusMessageMatrix = eventData.message.statusMessageMatrix;
+        }
+      }
     }
 
-    // Получаем всех участников диалога (используем dialog.dialogId строка)
+    if (!eventContext.eventType) {
+      eventContext = {
+        eventType,
+        dialogId: eventDialog.dialogId,
+        entityId: eventMessage.messageId,
+        messageId: eventMessage.messageId,
+        includedSections: eventContext.includedSections || [],
+        updatedFields: eventContext.updatedFields || []
+      };
+    }
+
+    // Получаем всех участников диалога (единственное, что нужно загрузить из БД)
     const dialogMembers = await DialogMember.find({
       tenantId: tenantId,
-      dialogId: dialog.dialogId, // DialogMember.dialogId - это строка dlg_*
+      dialogId: eventDialog.dialogId,
       isActive: true
     }).select('userId').lean();
 
@@ -436,97 +521,15 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       return;
     }
 
-    const includeFullMessage = ['message.create', 'message.update'].includes(eventType);
-    let messageSection = {
-      messageId: message.messageId,
-      dialogId: dialog.dialogId,
-      senderId: message.senderId,
-      type: message.type
-    };
-    // Для message.status.update и message.reaction.update не включаем member в секции
-    const isStatusOrReactionUpdate = ['message.status.update', 'message.reaction.update'].includes(eventType);
-    const includedSections = isStatusOrReactionUpdate ? ['dialog'] : ['dialog', 'member'];
-    const updatedFields = [];
-
-    const eventMessage = eventData?.message || {};
-    const reactionUpdate = eventMessage.reactionUpdate;
-    const statusUpdate = eventMessage.statusUpdate;
-
-    if (includeFullMessage) {
-      const senderCache = new Map();
-      const fullMessage = await buildFullMessagePayload(tenantId, message, senderCache);
-      if (!fullMessage) {
-        console.error(`Failed to build message payload for ${messageId}`);
-        return;
-      }
-
-      // Используем reactionSet из события, если есть, иначе используем reactionCounts из сообщения
-      if (reactionUpdate?.reactionSet) {
-        // reactionSet уже есть в reactionUpdate, будет использован ниже
-        fullMessage.reactionCounts = message.reactionCounts || {};
-      } else if (reactionUpdate?.counts) {
-        // Fallback для обратной совместимости
-        fullMessage.reactionCounts = reactionUpdate.counts;
-      } else {
-        fullMessage.reactionCounts = message.reactionCounts || {};
-      }
-
-      fullMessage.dialogId = dialog.dialogId;
-      messageSection = fullMessage;
-      includedSections.push('message.full');
-      updatedFields.push('message');
-    }
-
-    if (statusUpdate) {
-      messageSection.statusUpdate = statusUpdate;
-      includedSections.push('message.status');
-      updatedFields.push('message.status');
-      
-      // Добавляем полную матрицу статусов для message.status.update
-      const statusMessageMatrix = await buildStatusMessageMatrix(tenantId, messageId, message.senderId);
-      messageSection.statusMessageMatrix = statusMessageMatrix;
-    } else if (eventType.startsWith('message.status.')) {
-      messageSection.statusUpdate = {
-        userId: eventData.userId,
-        status: eventData.newStatus,
-        oldStatus: eventData.oldStatus ?? null
-      };
-      includedSections.push('message.status');
-      updatedFields.push('message.status');
-      
-      // Добавляем полную матрицу статусов для message.status.update
-      const statusMessageMatrix = await buildStatusMessageMatrix(tenantId, messageId, message.senderId);
-      messageSection.statusMessageMatrix = statusMessageMatrix;
-    }
-
-    if (reactionUpdate) {
-      messageSection.reactionUpdate = reactionUpdate;
-      includedSections.push('message.reaction');
-      updatedFields.push('message.reaction');
-    } else if (eventType.startsWith('message.reaction.')) {
-      // Fallback: если reactionUpdate не передан в eventData, создаем минимальную структуру
-      // В реальности reactionUpdate всегда должен быть в eventData.message.reactionUpdate
-      messageSection.reactionUpdate = {
-        userId: eventData.userId,
-        reaction: eventData.reaction,
-        oldReaction: eventData.oldReaction ?? null,
-        reactionSet: eventData.reactionSet ?? null
-      };
-      includedSections.push('message.reaction');
-      updatedFields.push('message.reaction');
-    }
-
-    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
-    const dialogSection = buildDialogSection(dialog, dialogMeta);
-    
     // Для message.status.update и message.reaction.update не нужна member секция
     const needsMemberSection = !['message.status.update', 'message.reaction.update'].includes(eventType);
     
+    // Загружаем метаданные участников только если нужна member секция
     let memberMetaMap = new Map();
     if (needsMemberSection) {
       const memberMetaEntries = await Promise.all(
         dialogMembers.map(async member => {
-          const memberId = `${dialog.dialogId}:${member.userId}`;
+          const memberId = `${eventDialog.dialogId}:${member.userId}`;
           const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', memberId);
           return { userId: member.userId, meta: memberMeta || {} };
         })
@@ -534,24 +537,21 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
     }
 
-    const reason =
-      eventData.reason ||
-      (eventType.startsWith('message.status.') ? 'message_status' :
-        eventType.startsWith('message.reaction.') ? 'message_reaction' : null);
+    // Используем context из event.data, если есть, иначе создаем минимальный
+    const context = eventContext.eventType ? cloneSection(eventContext) : {
+      eventType,
+      dialogId: eventDialog.dialogId,
+      entityId: eventMessage.messageId,
+      messageId: eventMessage.messageId,
+      includedSections: eventContext.includedSections || [],
+      updatedFields: eventContext.updatedFields || []
+    };
 
     const updates = dialogMembers.map(member => {
       const data = {
-        dialog: dialogSection,
-        message: cloneSection(messageSection),
-        context: buildContextSection({
-          eventType,
-          dialogId: dialog.dialogId,
-          entityId: message.messageId,
-          messageId: message.messageId,
-          reason,
-          includedSections: [...includedSections],
-          updatedFields: [...updatedFields]
-        })
+        dialog: cloneSection(eventDialog),
+        message: cloneSection(eventMessage),
+        context: cloneSection(context)
       };
       
       // Добавляем member секцию только если нужна
@@ -563,8 +563,8 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       return {
         tenantId: tenantId,
         userId: member.userId,
-        dialogId: dialog.dialogId,
-        entityId: message.messageId,
+        dialogId: eventDialog.dialogId,
+        entityId: eventMessage.messageId,
         eventId: eventId,
         eventType: eventType,
         data,
@@ -590,22 +590,39 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
 
 /**
  * Формирует TypingUpdate для всех участников диалога (кроме инициатора)
+ * Использует данные из event.data напрямую, без перезагрузки из БД
  */
 export async function createTypingUpdate(tenantId, dialogId, typingUserId, eventId, eventType, eventData = {}) {
   try {
-    const dialog = await Dialog.findOne({
-      dialogId,
-      tenantId
-    });
+    // Используем данные из event.data напрямую, если они есть
+    let eventDialog = eventData.dialog;
+    const eventTyping = eventData.typing || {};
+    let eventContext = eventData.context || {};
 
-    if (!dialog) {
-      console.error(`Dialog with dialogId ${dialogId} not found for typing update`);
-      return;
+    // Fallback: если данных нет в event.data, загружаем из БД (для обратной совместимости)
+    if (!eventDialog || !eventDialog.dialogId) {
+      const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: tenantId });
+      if (!dialog) {
+        console.error(`Dialog with dialogId ${dialogId} not found for typing update`);
+        return;
+      }
+      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+      eventDialog = buildDialogSection(dialog, dialogMeta);
     }
 
+    if (!eventContext.eventType) {
+      eventContext = {
+        eventType,
+        dialogId: eventDialog.dialogId,
+        entityId: eventDialog.dialogId,
+        includedSections: ['dialog', 'member', 'typing']
+      };
+    }
+
+    // Получаем всех участников диалога (единственное, что нужно загрузить из БД)
     const dialogMembers = await DialogMember.find({
       tenantId,
-      dialogId: dialog.dialogId,
+      dialogId: eventDialog.dialogId,
       isActive: true
     }).lean();
 
@@ -614,28 +631,31 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
       return;
     }
 
-    const typingPayload = eventData?.typing || {};
-    const legacyTyping = eventData?.typing ? {} : eventData;
-    const expiresInMs = typingPayload.expiresInMs ?? legacyTyping.expiresInMs ?? DEFAULT_TYPING_EXPIRES_MS;
-    const timestamp = typingPayload.timestamp ?? legacyTyping.timestamp ?? Date.now();
-    const userInfo = typingPayload.userInfo ?? legacyTyping.userInfo ?? null;
+    // Используем typing данные из event.data
+    // Поддерживаем как новый формат (eventData.typing), так и старый (плоские поля в eventData)
+    const legacyTyping = eventData.typing ? {} : eventData;
+    const typingSection = {
+      userId: typingUserId,
+      expiresInMs: eventTyping.expiresInMs ?? legacyTyping.expiresInMs ?? DEFAULT_TYPING_EXPIRES_MS,
+      timestamp: eventTyping.timestamp ?? legacyTyping.timestamp ?? Date.now(),
+      userInfo: eventTyping.userInfo ?? legacyTyping.userInfo ?? null
+    };
 
-    // Получаем метаданные диалога для dialogInfo
-    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
-    const dialogSection = buildDialogSection(dialog, dialogMeta);
+    // Загружаем метаданные участников
     const memberMetaEntries = await Promise.all(
       dialogMembers.map(async member => {
-        const meta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', `${dialog.dialogId}:${member.userId}`);
+        const meta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', `${eventDialog.dialogId}:${member.userId}`);
         return { userId: member.userId, meta: meta || {} };
       })
     );
     const memberMetaMap = new Map(memberMetaEntries.map(entry => [entry.userId, entry.meta]));
 
-    const typingSection = {
-      userId: typingUserId,
-      expiresInMs,
-      timestamp,
-      userInfo
+    // Используем context из event.data, если есть, иначе создаем минимальный
+    const context = eventContext.eventType ? cloneSection(eventContext) : {
+      eventType,
+      dialogId: eventDialog.dialogId,
+      entityId: eventDialog.dialogId,
+      includedSections: ['dialog', 'member', 'typing']
     };
 
     const updatesPayload = dialogMembers
@@ -646,20 +666,15 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
         return {
           tenantId,
           userId: member.userId,
-          dialogId: dialog.dialogId,
-          entityId: dialog.dialogId,
+          dialogId: eventDialog.dialogId,
+          entityId: eventDialog.dialogId,
           eventId,
           eventType,
           data: {
-            dialog: dialogSection,
+            dialog: cloneSection(eventDialog),
             member: memberSection,
             typing: typingSection,
-            context: buildContextSection({
-              eventType,
-              dialogId: dialog.dialogId,
-              entityId: dialog.dialogId,
-              includedSections: ['dialog', 'member', 'typing']
-            })
+            context: cloneSection(context)
           },
           published: false
         };

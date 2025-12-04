@@ -1378,6 +1378,9 @@ const userDialogController = {
       // pre-save hook автоматически обновит счетчики непрочитанных сообщений
       const messageStatus = await MessageStatus.create(newStatusData);
 
+      // Формируем полную матрицу статусов для Event
+      const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, messageId, message.senderId);
+
       const messageSection = eventUtils.buildMessageSection({
         messageId,
         dialogId: dialogId,
@@ -1388,7 +1391,8 @@ const userDialogController = {
           userId,
           status,
           oldStatus: oldStatus
-        }
+        },
+        statusMessageMatrix
       });
 
       const memberSection = eventUtils.buildMemberSection({
