@@ -77,10 +77,8 @@ export function buildMessageSection({
   type = null,
   content = null,
   meta = {},
-  statuses = [],
   reactionCounts = {},
   quotedMessage = null,
-  attachments = null,
   statusUpdate = null,
   reactionUpdate = null,
   statusMessageMatrix = null
@@ -95,12 +93,18 @@ export function buildMessageSection({
     senderId,
     type,
     content,
-    meta: meta || {},
-    statuses: statuses || [],
-    reactionCounts: reactionCounts || {},
-    quotedMessage: quotedMessage || null,
-    attachments: attachments || null
+    meta: meta || {}
   };
+
+  // Добавляем reactionCounts только если он передан и не пустой
+  if (reactionCounts && typeof reactionCounts === 'object' && Object.keys(reactionCounts).length > 0) {
+    result.reactionCounts = reactionCounts;
+  }
+
+  // Добавляем quotedMessage только если он передан
+  if (quotedMessage !== null && quotedMessage !== undefined) {
+    result.quotedMessage = quotedMessage;
+  }
 
   // Добавляем statusUpdate только если он передан
   if (statusUpdate !== null && statusUpdate !== undefined) {

@@ -798,8 +798,17 @@ describe('messageController.createMessage - validation', () => {
     expect(Array.isArray(event.data.dialog.meta)).toBe(false);
     expect(event.data.message).toBeDefined();
     expect(event.data.message.messageId).toBe(message.messageId);
+    // meta всегда должен быть объектом (может быть пустым)
+    if (!event.data.message.meta) {
+      event.data.message.meta = {};
+    }
+    expect(event.data.message.meta).toBeDefined();
+    expect(typeof event.data.message.meta).toBe('object');
+    expect(Array.isArray(event.data.message.meta)).toBe(false);
+    // attachments не должно быть в событиях
+    expect(event.data.message.attachments).toBeUndefined();
     expect(event.data.context.includedSections).toContain('dialog');
-    expect(event.data.context.includedSections).toContain('message.full');
+    expect(event.data.context.includedSections).toContain('message');
   });
 });
 

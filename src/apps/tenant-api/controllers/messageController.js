@@ -537,7 +537,7 @@ const messageController = {
         dialogId: dialog.dialogId,
         entityId: message.messageId,
         messageId: message.messageId,
-        includedSections: ['dialog', 'message.full'],
+        includedSections: ['dialog', 'message'],
         updatedFields: ['message']
       });
 

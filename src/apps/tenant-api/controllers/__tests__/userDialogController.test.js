@@ -1505,6 +1505,8 @@ describe('userDialogController', () => {
       expect(event.data.message.statusUpdate.status).toBe('read');
       expect(event.data.message.statusMessageMatrix).toBeDefined();
       expect(Array.isArray(event.data.message.statusMessageMatrix)).toBe(true);
+      // statuses не должно быть в message.status.update, так как есть statusMessageMatrix
+      expect(event.data.message.statuses).toBeUndefined();
       expect(event.data.context.includedSections).toContain('dialog');
       expect(event.data.context.includedSections).toContain('message');
       
