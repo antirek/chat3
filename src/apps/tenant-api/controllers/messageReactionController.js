@@ -158,7 +158,7 @@ const messageReactionController = {
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
-          includedSections: ['message.reaction'],
+          includedSections: ['message'],
           updatedFields: ['message.reaction']
         });
 
@@ -215,7 +215,7 @@ const messageReactionController = {
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
-          includedSections: ['message.reaction'],
+          includedSections: ['message'],
           updatedFields: ['message.reaction']
         });
 

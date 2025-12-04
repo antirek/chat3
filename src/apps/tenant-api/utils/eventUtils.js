@@ -88,7 +88,7 @@ export function buildMessageSection({
     return null;
   }
 
-  return {
+  const result = {
     messageId,
     dialogId,
     senderId,
@@ -98,11 +98,25 @@ export function buildMessageSection({
     statuses: statuses || [],
     reactionCounts: reactionCounts || {},
     quotedMessage: quotedMessage || null,
-    attachments: attachments || null,
-    statusUpdate: statusUpdate || null,
-    reactionUpdate: reactionUpdate || null,
-    statusMessageMatrix: statusMessageMatrix || null
+    attachments: attachments || null
   };
+
+  // Добавляем statusUpdate только если он передан
+  if (statusUpdate !== null && statusUpdate !== undefined) {
+    result.statusUpdate = statusUpdate;
+  }
+
+  // Добавляем reactionUpdate только если он передан (не null и не undefined)
+  if (reactionUpdate !== null && reactionUpdate !== undefined) {
+    result.reactionUpdate = reactionUpdate;
+  }
+
+  // Добавляем statusMessageMatrix только если он передан
+  if (statusMessageMatrix !== null && statusMessageMatrix !== undefined) {
+    result.statusMessageMatrix = statusMessageMatrix;
+  }
+
+  return result;
 }
 
 export function buildTypingSection({

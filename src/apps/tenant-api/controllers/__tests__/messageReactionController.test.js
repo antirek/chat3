@@ -174,7 +174,7 @@ describe('messageReactionController', () => {
       // Проверяем, что member секция отсутствует
       expect(event.data.member).toBeUndefined();
       expect(event.data.context.includedSections).not.toContain('member');
-      expect(event.data.context.includedSections).toContain('message.reaction');
+      expect(event.data.context.includedSections).toContain('message');
     });
 
     test('returns existing reaction when reaction already exists', async () => {
@@ -301,7 +301,7 @@ describe('messageReactionController', () => {
       // Проверяем, что member секция отсутствует
       expect(event.data.member).toBeUndefined();
       expect(event.data.context.includedSections).not.toContain('member');
-      expect(event.data.context.includedSections).toContain('message.reaction');
+      expect(event.data.context.includedSections).toContain('message');
     });
 
     test('removes only specific reaction when user has multiple', async () => {

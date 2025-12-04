@@ -1400,7 +1400,7 @@ const userDialogController = {
         dialogId: dialogId,
         entityId: messageId,
         messageId,
-        includedSections: ['message.status'],
+        includedSections: ['message'],
         updatedFields: ['message.status']
       });
 
