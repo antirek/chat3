@@ -82,6 +82,8 @@ async function processEvent(eventData) {
       }
       
       if (dialogId) {
+        // Передаем весь объект data из события (содержит dialog, member, message, typing, context)
+        // updateUtils.createDialogUpdate использует eventData.dialog напрямую из этого объекта
         await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, eventType, data);
         console.log(`✅ Created DialogUpdate for event ${eventId}`);
       } else {
@@ -95,6 +97,8 @@ async function processEvent(eventData) {
       const userId = memberPayload.userId || data.userId;
       
       if (dialogId && userId) {
+        // Передаем весь объект data из события (содержит dialog, member, message, typing, context)
+        // updateUtils.createDialogMemberUpdate использует eventData.dialog и eventData.member напрямую из этого объекта
         await updateUtils.createDialogMemberUpdate(tenantId, dialogId, userId, eventId, eventType, data);
         console.log(`✅ Created DialogMemberUpdate for user ${userId} in event ${eventId}`);
       } else {

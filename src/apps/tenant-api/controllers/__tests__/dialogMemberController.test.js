@@ -189,11 +189,12 @@ describe('dialogMemberController', () => {
       expect(event.data.member).toMatchObject({
         userId: 'alice'
       });
-      // dialog секция убрана из dialog.member.add (dialogId есть в context)
-      expect(event.data.context.dialogId).toBe(dialog.dialogId);
       
-      // Проверяем, что member секция присутствует и includedSections содержит 'member'
+      // Проверяем, что dialog и member секции присутствуют
+      expect(event.data.dialog).toBeDefined();
+      expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
       expect(event.data.member).toBeDefined();
+      expect(event.data.context.includedSections).toContain('dialog');
       expect(event.data.context.includedSections).toContain('member');
     });
 
@@ -321,9 +322,15 @@ describe('dialogMemberController', () => {
         eventType: 'dialog.member.remove',
         dialogId: dialog.dialogId
       });
+      
+      // Проверяем, что dialog и member секции присутствуют
+      expect(event.data.dialog).toBeDefined();
+      expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
       expect(event.data.member).toBeDefined();
       expect(event.data.member.userId).toBe('alice');
       expect(event.data.member.state.unreadCount).toBe(2);
+      expect(event.data.context.includedSections).toContain('dialog');
+      expect(event.data.context.includedSections).toContain('member');
     });
 
     test('returns 404 when dialog not found', async () => {
@@ -387,13 +394,13 @@ describe('dialogMemberController', () => {
       expect(event).toBeTruthy();
       expect(event.actorId).toBe('sync-service');
       
-      // Проверяем, что member секция присутствует
+      // Проверяем, что dialog и member секции присутствуют
+      expect(event.data.dialog).toBeDefined();
+      expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
       expect(event.data.member).toBeDefined();
       expect(event.data.member.state.unreadCount).toBe(0);
+      expect(event.data.context.includedSections).toContain('dialog');
       expect(event.data.context.includedSections).toContain('member');
-      
-      // dialog секция убрана из dialog.member.update (dialogId есть в context)
-      expect(event.data.context.dialogId).toBe(dialog.dialogId);
 
       const task = await DialogReadTask.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'alice' }).lean();
       expect(task).toBeTruthy();

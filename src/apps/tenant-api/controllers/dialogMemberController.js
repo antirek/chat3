@@ -61,6 +61,10 @@ const dialogMemberController = {
         dialog.dialogId // Передаем строковый dialogId
       );
 
+      // Получаем метаданные диалога для события
+      const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
+      const dialogSection = eventUtils.buildDialogSection(dialog, dialogMeta || {});
+
       const memberSection = eventUtils.buildMemberSection({
         userId: member.userId,
         state: {
@@ -75,7 +79,7 @@ const dialogMemberController = {
         eventType: 'dialog.member.add',
         dialogId: dialog.dialogId,
         entityId: dialog.dialogId,
-        includedSections: ['member'],
+        includedSections: ['dialog', 'member'],
         updatedFields: ['member']
       });
 
@@ -88,6 +92,7 @@ const dialogMemberController = {
         actorType: 'api',
         data: eventUtils.composeEventData({
           context: eventContext,
+          dialog: dialogSection,
           member: memberSection
         })
       });
@@ -297,6 +302,10 @@ const dialogMemberController = {
 
       // Создаем событие dialog.member.remove
       if (member) {
+        // Получаем метаданные диалога для события
+        const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
+        const dialogSection = eventUtils.buildDialogSection(dialog, dialogMeta || {});
+
         const memberSection = eventUtils.buildMemberSection({
           userId: member.userId,
           state: {
@@ -311,7 +320,7 @@ const dialogMemberController = {
           eventType: 'dialog.member.remove',
           dialogId: dialog.dialogId,
           entityId: dialog.dialogId,
-          includedSections: ['member'],
+          includedSections: ['dialog', 'member'],
           updatedFields: ['member']
         });
 
@@ -324,6 +333,7 @@ const dialogMemberController = {
           actorType: 'api',
           data: eventUtils.composeEventData({
             context: eventContext,
+            dialog: dialogSection,
             member: memberSection
           })
         });
@@ -391,6 +401,10 @@ const dialogMemberController = {
         { new: true, lean: true }
       );
 
+      // Получаем метаданные диалога для события
+      const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
+      const dialogSection = eventUtils.buildDialogSection(dialog, dialogMeta || {});
+
       const memberSection = eventUtils.buildMemberSection({
         userId,
         state: {
@@ -405,7 +419,7 @@ const dialogMemberController = {
         eventType: 'dialog.member.update',
         dialogId: dialog.dialogId,
         entityId: dialog.dialogId,
-        includedSections: ['member'],
+        includedSections: ['dialog', 'member'],
         updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
       });
 
@@ -418,6 +432,7 @@ const dialogMemberController = {
         actorType: 'api',
         data: eventUtils.composeEventData({
           context: eventContext,
+          dialog: dialogSection,
           member: memberSection,
           extra: {
             delta: {
