@@ -38,7 +38,6 @@ async function getSenderInfo(tenantId, senderId, cache = new Map()) {
     userId: user.userId,
     lastActiveAt: user.lastActiveAt ?? null,
     createdAt: user.createdAt ?? null,
-    updatedAt: user.updatedAt ?? null,
     meta: userMeta
   };
 
@@ -482,7 +481,6 @@ const messageController = {
               content: quotedMsg.content,
               type: quotedMsg.type,
               createdAt: quotedMsg.createdAt,
-              updatedAt: quotedMsg.updatedAt,
               meta: quotedMessageMeta || {},
               senderInfo: quotedSenderInfo || null
             };

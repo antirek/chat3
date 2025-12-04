@@ -376,8 +376,7 @@ const dialogMemberController = {
 
       const timestamp = generateTimestamp();
       const updatePayload = {
-        unreadCount,
-        updatedAt: timestamp
+        unreadCount
       };
 
       if (typeof lastSeenAt === 'number') {

@@ -21,8 +21,7 @@ export async function ensureUserExists(tenantId, userId, options = {}) {
         tenantId,
         userId,
         type: options.type || 'user',
-        createdAt: timestamp,
-        updatedAt: timestamp
+        createdAt: timestamp
       });
 
       console.log(`✅ Created user ${userId} in tenant ${tenantId}`);
@@ -34,7 +33,6 @@ export async function ensureUserExists(tenantId, userId, options = {}) {
       }
 
       if (Object.keys(updateFields).length > 0) {
-        updateFields.updatedAt = generateTimestamp();
         await User.updateOne({ tenantId, userId }, { $set: updateFields });
         user = { ...user, ...updateFields };
         console.log(`✅ Updated user ${userId} in tenant ${tenantId}`);

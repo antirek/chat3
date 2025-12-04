@@ -100,9 +100,6 @@ const router = express.Router();
  *                       createdAt:
  *                         type: string
  *                         format: date-time
- *                       updatedAt:
- *                         type: string
- *                         format: date-time
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -179,9 +176,6 @@ router.get('/', apiAuth, requirePermission('read'), validateQuery(messagesQueryS
  *                             type: string
  *                             format: date-time
  *                     createdAt:
- *                       type: string
- *                       format: date-time
- *                     updatedAt:
  *                       type: string
  *                       format: date-time
  *       401:

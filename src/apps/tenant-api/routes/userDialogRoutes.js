@@ -180,8 +180,6 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *                         type: string
  *                       createdAt:
  *                         type: number
- *                       updatedAt:
- *                         type: number
  *                       meta:
  *                         type: object
  *                       context:
@@ -347,8 +345,6 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *                     type:
  *                       type: string
  *                     createdAt:
- *                       type: number
- *                     updatedAt:
  *                       type: number
  *                     meta:
  *                       type: object
@@ -540,9 +536,6 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePer
  *                       createdAt:
  *                         type: number
  *                         description: Timestamp создания записи (микросекунды)
- *                       updatedAt:
- *                         type: number
- *                         description: Timestamp обновления записи (микросекунды)
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -782,9 +775,6 @@ router.post('/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action',
  *                     createdAt:
  *                       type: number
  *                       description: Timestamp создания записи (микросекунды)
- *                     updatedAt:
- *                       type: number
- *                       description: Timestamp обновления записи (микросекунды)
  *                 message:
  *                   type: string
  *                   description: Сообщение об успешном создании записи

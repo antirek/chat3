@@ -214,7 +214,6 @@ export async function getUserById(req, res) {
             tenantId: req.tenantId,
             lastActiveAt: null,
             createdAt: null,
-            updatedAt: null,
             meta: userMeta
           })
         });
@@ -406,8 +405,7 @@ export async function updateUserActivity(req, res) {
         tenantId: req.tenantId
       },
       {
-        lastActiveAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
+        lastActiveAt: generateTimestamp()
       },
       { new: true }
     );

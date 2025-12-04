@@ -85,9 +85,6 @@ const router = express.Router();
  *                       createdAt:
  *                         type: string
  *                         example: "1730891234567.123456"
- *                       updatedAt:
- *                         type: string
- *                         example: "1730891234567.123456"
  *                       meta:
  *                         type: object
  *                         example: {"theme": "dark", "email": "carl@example.com"}
@@ -150,9 +147,6 @@ router.get('/', apiAuth, userController.getUsers);
  *                       type: string
  *                       example: "1730891234567.123456"
  *                     createdAt:
- *                       type: string
- *                       example: "1730891234567.123456"
- *                     updatedAt:
  *                       type: string
  *                       example: "1730891234567.123456"
  *                     meta:
@@ -219,8 +213,6 @@ router.get('/:userId', apiAuth, validateUserId, userController.getUserById);
  *                     lastActiveAt:
  *                       type: string
  *                     createdAt:
- *                       type: string
- *                     updatedAt:
  *                       type: string
  *       409:
  *         description: Conflict - user already exists

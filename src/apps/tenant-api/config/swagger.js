@@ -55,10 +55,6 @@ const options = {
             createdAt: {
               type: 'number',
               description: 'Timestamp создания (микросекунды)'
-            },
-            updatedAt: {
-              type: 'number',
-              description: 'Timestamp обновления (микросекунды)'
             }
           }
         },

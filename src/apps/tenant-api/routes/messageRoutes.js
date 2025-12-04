@@ -101,9 +101,6 @@ const router = express.Router();
  *                       createdAt:
  *                         type: string
  *                         format: date-time
- *                       updatedAt:
- *                         type: string
- *                         format: date-time
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -208,9 +205,6 @@ router.get('/:dialogId/messages', apiAuth, requirePermission('read'), validateDi
  *                       type: object
  *                       description: Message meta data
  *                     createdAt:
- *                       type: string
- *                       format: date-time
- *                     updatedAt:
  *                       type: string
  *                       format: date-time
  *                 message:

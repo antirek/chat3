@@ -88,8 +88,7 @@ export async function runDialogReadTask(task, options = {}) {
           update: {
             $set: {
               status: 'read',
-              readAt: readTimestamp,
-              updatedAt: readTimestamp
+              readAt: readTimestamp
             },
             $setOnInsert: {
               createdAt: readTimestamp

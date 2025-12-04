@@ -6,12 +6,9 @@ const formatTenantResponse = (tenant, meta = null) => {
   const tenantObj = tenant.toObject ? tenant.toObject() : tenant;
   const { _id, __v, ...rest } = tenantObj;
   
-  // Форматируем createdAt и updatedAt в строки с 6 знаками после точки
+  // Форматируем createdAt в строку с 6 знаками после точки
   if (rest.createdAt !== undefined) {
     rest.createdAt = rest.createdAt.toFixed(6);
-  }
-  if (rest.updatedAt !== undefined) {
-    rest.updatedAt = rest.updatedAt.toFixed(6);
   }
   
   if (meta !== null) {

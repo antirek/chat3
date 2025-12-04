@@ -650,8 +650,7 @@ export const dialogController = {
         dialogId: dialog.dialogId,
         tenantId: dialog.tenantId,
         createdBy: dialog.createdBy,
-        createdAt: dialog.createdAt,
-        updatedAt: dialog.updatedAt
+        createdAt: dialog.createdAt
       });
 
       const eventContext = eventUtils.buildEventContext({

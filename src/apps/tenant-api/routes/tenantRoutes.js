@@ -65,8 +65,6 @@ router.get('/', apiAuth, requirePermission('read'), validateQuery(paginationSche
  *                       type: string
  *                     createdAt:
  *                       type: number
- *                     updatedAt:
- *                       type: number
  *                     meta:
  *                       type: object
  *                       additionalProperties: true

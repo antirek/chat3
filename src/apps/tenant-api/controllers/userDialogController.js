@@ -965,7 +965,7 @@ const userDialogController = {
       const allStatuses = await MessageStatus.find({
         tenantId: req.tenantId,
         messageId: { $in: messageIds }
-      }).select('messageId userId userType tenantId status createdAt updatedAt').lean();
+      }).select('messageId userId userType tenantId status createdAt').lean();
 
       // Группируем статусы по messageId для быстрого доступа
       const statusesByMessage = {};
@@ -1110,7 +1110,7 @@ const userDialogController = {
       const allStatuses = await MessageStatus.find({
         tenantId: req.tenantId,
         messageId: messageId
-      }).select('messageId userId userType tenantId status createdAt updatedAt').lean();
+      }).select('messageId userId userType tenantId status createdAt').lean();
 
       // 4. Фильтруем статусы для текущего пользователя
       // const myStatuses = allStatuses.filter(s => s.userId === userId);
@@ -1371,8 +1371,7 @@ const userDialogController = {
         tenantId: req.tenantId,
         status: status,
         userType: userType, // Заполняем тип пользователя
-        createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
+        createdAt: generateTimestamp()
       };
 
       // Создаем новую запись в истории

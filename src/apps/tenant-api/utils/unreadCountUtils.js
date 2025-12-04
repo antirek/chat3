@@ -23,8 +23,7 @@ export async function incrementUnreadCount(tenantId, userId, dialogId, messageId
 
     const updateData = {
       $inc: { unreadCount: 1 },
-      lastMessageAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
+      lastMessageAt: generateTimestamp()
     };
 
     const options = { new: true };
@@ -74,8 +73,7 @@ export async function decrementUnreadCount(tenantId, userId, dialogId, count = 1
             unreadCount: {
               $max: [0, { $add: ['$unreadCount', -count] }]
             },
-            lastSeenAt: generateTimestamp(),
-            updatedAt: generateTimestamp()
+            lastSeenAt: generateTimestamp()
           }
         }
       ],
@@ -109,8 +107,7 @@ export async function resetUnreadCount(tenantId, userId, dialogId) {
       filter,
       {
         unreadCount: 0,
-        lastSeenAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
+        lastSeenAt: generateTimestamp()
       },
       { upsert: true, new: true }
     );
@@ -174,8 +171,7 @@ export async function syncUnreadCount(tenantId, userId, dialogId) {
       },
       {
         unreadCount: realCount,
-        lastSeenAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
+        lastSeenAt: generateTimestamp()
       },
       { upsert: true, new: true }
     );
@@ -229,8 +225,7 @@ export async function updateCountersOnStatusChange(tenantId, messageId, userId, 
         filter,
         {
           $inc: { unreadCount: -1 },
-          lastSeenAt: generateTimestamp(),
-          updatedAt: generateTimestamp()
+          lastSeenAt: generateTimestamp()
         },
         { new: true }
       );
@@ -313,8 +308,7 @@ export async function updateLastSeen(tenantId, userId, dialogId) {
         dialogId
       },
       {
-        lastSeenAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
+        lastSeenAt: generateTimestamp()
       },
       { upsert: true, new: true }
     );

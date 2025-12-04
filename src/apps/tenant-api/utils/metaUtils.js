@@ -121,8 +121,7 @@ export async function setEntityMeta(tenantId, entityType, entityId, key, value, 
         value,
         dataType,
         createdBy: options.createdBy,
-        scope: scopeValue,
-        updatedAt: generateTimestamp()
+        scope: scopeValue
       },
       {
         upsert: true,
