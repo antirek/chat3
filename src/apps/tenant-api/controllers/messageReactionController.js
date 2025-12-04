@@ -2,6 +2,7 @@ import { MessageReaction, Message, Dialog } from '../../../models/index.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import * as reactionUtils from '../utils/reactionUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
+import { buildReactionSet } from '../utils/userDialogUtils.js';
 
 const messageReactionController = {
   // Получить все реакции для сообщения
@@ -135,6 +136,9 @@ const messageReactionController = {
         // Получаем обновленное сообщение
         const updatedMessage = await Message.findOne({ messageId: messageId });
 
+        // Формируем reactionSet для события
+        const reactionSet = await buildReactionSet(req.tenantId, messageId, userId);
+
         const memberSection = eventUtils.buildMemberSection({
           userId
         });
@@ -149,7 +153,7 @@ const messageReactionController = {
             userId,
             reaction,
             oldReaction: null,
-            counts: updatedMessage.reactionCounts
+            reactionSet: reactionSet
           }
         });
 
@@ -208,6 +212,9 @@ const messageReactionController = {
         // Получаем обновленное сообщение
         const updatedMessage = await Message.findOne({ messageId: messageId });
 
+        // Формируем reactionSet для события
+        const reactionSet = await buildReactionSet(req.tenantId, messageId, userId);
+
         const memberSection = eventUtils.buildMemberSection({
           userId
         });
@@ -231,7 +238,7 @@ const messageReactionController = {
             userId,
             reaction: null,
             oldReaction: reactionToDelete.reaction,
-            counts: updatedMessage.reactionCounts
+            reactionSet: reactionSet
           }
         });
 

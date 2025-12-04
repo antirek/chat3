@@ -461,7 +461,12 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
         return;
       }
 
-      if (reactionUpdate?.counts) {
+      // Используем reactionSet из события, если есть, иначе используем reactionCounts из сообщения
+      if (reactionUpdate?.reactionSet) {
+        // reactionSet уже есть в reactionUpdate, будет использован ниже
+        fullMessage.reactionCounts = message.reactionCounts || {};
+      } else if (reactionUpdate?.counts) {
+        // Fallback для обратной совместимости
         fullMessage.reactionCounts = reactionUpdate.counts;
       } else {
         fullMessage.reactionCounts = message.reactionCounts || {};
@@ -492,11 +497,13 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       includedSections.push('message.reaction');
       updatedFields.push('message.reaction');
     } else if (eventType.startsWith('message.reaction.')) {
+      // Fallback: если reactionUpdate не передан в eventData, создаем минимальную структуру
+      // В реальности reactionUpdate всегда должен быть в eventData.message.reactionUpdate
       messageSection.reactionUpdate = {
         userId: eventData.userId,
         reaction: eventData.reaction,
         oldReaction: eventData.oldReaction ?? null,
-        counts: eventData.reactionCounts ?? null
+        reactionSet: eventData.reactionSet ?? null
       };
       includedSections.push('message.reaction');
       updatedFields.push('message.reaction');
