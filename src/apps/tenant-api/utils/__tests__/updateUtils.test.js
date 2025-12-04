@@ -519,6 +519,9 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(update.data.message.statusUpdate).toBeDefined();
       expect(update.data.message.statusUpdate.userId).toBe('user2');
       expect(update.data.message.statusUpdate.status).toBe('read');
+      // Проверяем наличие statusMessageMatrix в update
+      expect(update.data.message.statusMessageMatrix).toBeDefined();
+      expect(Array.isArray(update.data.message.statusMessageMatrix)).toBe(true);
       // member секция убрана для message.status.update
       expect(update.data.member).toBeUndefined();
     });

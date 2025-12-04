@@ -5,6 +5,7 @@ import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from '../apps/tenant-api/utils/responseUtils.js';
 import { generateTimestamp } from './timestampUtils.js';
 import { getUserType } from '../apps/tenant-api/utils/userTypeUtils.js';
+import { buildStatusMessageMatrix } from '../apps/tenant-api/utils/userDialogUtils.js';
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 
@@ -480,6 +481,10 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       messageSection.statusUpdate = statusUpdate;
       includedSections.push('message.status');
       updatedFields.push('message.status');
+      
+      // Добавляем полную матрицу статусов для message.status.update
+      const statusMessageMatrix = await buildStatusMessageMatrix(tenantId, messageId, message.senderId);
+      messageSection.statusMessageMatrix = statusMessageMatrix;
     } else if (eventType.startsWith('message.status.')) {
       messageSection.statusUpdate = {
         userId: eventData.userId,
@@ -488,6 +493,10 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       };
       includedSections.push('message.status');
       updatedFields.push('message.status');
+      
+      // Добавляем полную матрицу статусов для message.status.update
+      const statusMessageMatrix = await buildStatusMessageMatrix(tenantId, messageId, message.senderId);
+      messageSection.statusMessageMatrix = statusMessageMatrix;
     }
 
     if (reactionUpdate) {
