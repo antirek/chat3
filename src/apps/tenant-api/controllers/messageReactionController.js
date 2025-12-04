@@ -1,6 +1,7 @@
 import { MessageReaction, Message, Dialog } from '../../../models/index.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import * as reactionUtils from '../utils/reactionUtils.js';
+import * as metaUtils from '../utils/metaUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { buildReactionSet } from '../utils/userDialogUtils.js';
 
@@ -136,6 +137,22 @@ const messageReactionController = {
         // Получаем обновленное сообщение
         const updatedMessage = await Message.findOne({ messageId: messageId });
 
+        // Получаем диалог и его метаданные для события
+        const dialog = await Dialog.findOne({
+          dialogId: message.dialogId,
+          tenantId: req.tenantId
+        }).lean();
+
+        if (!dialog) {
+          return res.status(404).json({
+            error: 'Not Found',
+            message: 'Dialog not found'
+          });
+        }
+
+        const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
+        const dialogSection = eventUtils.buildDialogSection(dialog, dialogMeta || {});
+
         // Формируем reactionSet для события
         const reactionSet = await buildReactionSet(req.tenantId, messageId, userId);
 
@@ -158,7 +175,7 @@ const messageReactionController = {
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
-          includedSections: ['message'],
+          includedSections: ['dialog', 'message'],
           updatedFields: ['message.reaction']
         });
 
@@ -171,6 +188,7 @@ const messageReactionController = {
           actorType: 'user',
           data: eventUtils.composeEventData({
             context: reactionContext,
+            dialog: dialogSection,
             message: messageSection
           })
         });
@@ -207,6 +225,22 @@ const messageReactionController = {
         // Получаем обновленное сообщение
         const updatedMessage = await Message.findOne({ messageId: messageId });
 
+        // Получаем диалог и его метаданные для события
+        const dialog = await Dialog.findOne({
+          dialogId: message.dialogId,
+          tenantId: req.tenantId
+        }).lean();
+
+        if (!dialog) {
+          return res.status(404).json({
+            error: 'Not Found',
+            message: 'Dialog not found'
+          });
+        }
+
+        const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
+        const dialogSection = eventUtils.buildDialogSection(dialog, dialogMeta || {});
+
         // Формируем reactionSet для события
         const reactionSet = await buildReactionSet(req.tenantId, messageId, userId);
 
@@ -215,7 +249,7 @@ const messageReactionController = {
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
-          includedSections: ['message'],
+          includedSections: ['dialog', 'message'],
           updatedFields: ['message.reaction']
         });
 
@@ -242,6 +276,7 @@ const messageReactionController = {
           actorType: 'user',
           data: eventUtils.composeEventData({
             context: removeContext,
+            dialog: dialogSection,
             message: removeMessageSection
           })
         });

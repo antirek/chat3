@@ -117,9 +117,12 @@ describe('typingController.sendTyping', () => {
     expect(event.data.context.dialogId).toBe(dialog.dialogId);
     expect(event.data.typing.userId).toBe('alice');
     
-    // Проверяем, что member секция отсутствует
+    // Проверяем, что member секция отсутствует, но dialog присутствует
     expect(event.data.member).toBeUndefined();
+    expect(event.data.dialog).toBeDefined();
+    expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
     expect(event.data.context.includedSections).not.toContain('member');
+    expect(event.data.context.includedSections).toContain('dialog');
     expect(event.data.context.includedSections).toContain('typing');
   });
 

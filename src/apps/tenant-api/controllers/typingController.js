@@ -52,6 +52,22 @@ export async function sendTyping(req, res) {
       meta: userMeta
     });
 
+    // Получаем полные данные диалога и его метаданные для события
+    const fullDialog = await Dialog.findOne({
+      dialogId,
+      tenantId
+    }).lean();
+
+    if (!fullDialog) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Dialog not found'
+      });
+    }
+
+    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+    const dialogSection = eventUtils.buildDialogSection(fullDialog, dialogMeta || {});
+
     const typingSection = eventUtils.buildTypingSection({
       userId,
       expiresInMs: DEFAULT_TYPING_EXPIRES_MS,
@@ -63,7 +79,7 @@ export async function sendTyping(req, res) {
       eventType: 'dialog.typing',
       dialogId,
       entityId: dialogId,
-      includedSections: ['typing'],
+      includedSections: ['dialog', 'typing'],
       updatedFields: ['typing']
     });
 
@@ -76,6 +92,7 @@ export async function sendTyping(req, res) {
       actorType: 'user',
       data: eventUtils.composeEventData({
         context: typingContext,
+        dialog: dialogSection,
         typing: typingSection
       })
     });

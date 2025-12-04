@@ -1378,6 +1378,22 @@ const userDialogController = {
       // pre-save hook автоматически обновит счетчики непрочитанных сообщений
       const messageStatus = await MessageStatus.create(newStatusData);
 
+      // Получаем диалог и его метаданные для события
+      const dialog = await Dialog.findOne({
+        dialogId: dialogId,
+        tenantId: req.tenantId
+      }).lean();
+
+      if (!dialog) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Dialog not found'
+        });
+      }
+
+      const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
+      const dialogSection = eventUtils.buildDialogSection(dialog, dialogMeta || {});
+
       // Формируем полную матрицу статусов для Event
       const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, messageId, message.senderId);
 
@@ -1400,7 +1416,7 @@ const userDialogController = {
         dialogId: dialogId,
         entityId: messageId,
         messageId,
-        includedSections: ['message'],
+        includedSections: ['dialog', 'message'],
         updatedFields: ['message.status']
       });
 
@@ -1413,6 +1429,7 @@ const userDialogController = {
         actorType: 'user',
         data: eventUtils.composeEventData({
           context: statusContext,
+          dialog: dialogSection,
           message: messageSection
         })
       });

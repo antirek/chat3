@@ -171,9 +171,12 @@ describe('messageReactionController', () => {
         { reaction: '🔥', count: 1, me: true }
       ]);
       
-      // Проверяем, что member секция отсутствует
+      // Проверяем, что member секция отсутствует, но dialog присутствует
       expect(event.data.member).toBeUndefined();
+      expect(event.data.dialog).toBeDefined();
+      expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
       expect(event.data.context.includedSections).not.toContain('member');
+      expect(event.data.context.includedSections).toContain('dialog');
       expect(event.data.context.includedSections).toContain('message');
     });
 
@@ -298,9 +301,12 @@ describe('messageReactionController', () => {
       });
       expect(event.data.message.reactionUpdate.reactionSet || []).toEqual([]);
       
-      // Проверяем, что member секция отсутствует
+      // Проверяем, что member секция отсутствует, но dialog присутствует
       expect(event.data.member).toBeUndefined();
+      expect(event.data.dialog).toBeDefined();
+      expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
       expect(event.data.context.includedSections).not.toContain('member');
+      expect(event.data.context.includedSections).toContain('dialog');
       expect(event.data.context.includedSections).toContain('message');
     });
 

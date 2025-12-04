@@ -1471,9 +1471,12 @@ describe('userDialogController', () => {
 
       expect(event).toBeTruthy();
       expect(event.data.member).toBeUndefined();
+      expect(event.data.dialog).toBeDefined();
+      expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
       expect(event.data.message).toBeDefined();
       expect(event.data.message.statusUpdate).toBeDefined();
       expect(event.data.context.includedSections).not.toContain('member');
+      expect(event.data.context.includedSections).toContain('dialog');
       expect(event.data.context.includedSections).toContain('message');
     });
 
@@ -1493,6 +1496,8 @@ describe('userDialogController', () => {
       }).lean();
 
       expect(event).toBeTruthy();
+      expect(event.data.dialog).toBeDefined();
+      expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
       expect(event.data.message).toBeDefined();
       expect(event.data.message.messageId).toBe(message.messageId);
       expect(event.data.message.statusUpdate).toBeDefined();
@@ -1500,6 +1505,8 @@ describe('userDialogController', () => {
       expect(event.data.message.statusUpdate.status).toBe('read');
       expect(event.data.message.statusMessageMatrix).toBeDefined();
       expect(Array.isArray(event.data.message.statusMessageMatrix)).toBe(true);
+      expect(event.data.context.includedSections).toContain('dialog');
+      expect(event.data.context.includedSections).toContain('message');
       
       // Проверяем, что reactionUpdate отсутствует в событии статуса
       expect(event.data.message.reactionUpdate).toBeUndefined();
