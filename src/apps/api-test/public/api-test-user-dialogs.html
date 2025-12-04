@@ -3242,9 +3242,10 @@
             }
             
             try {
-                const response = await fetch(`/api/dialogs/${dialogId}`, {
+                const response = await fetch(url, {
                     headers: {
-                        'X-API-Key': apiKey
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
                     }
                 });
 
