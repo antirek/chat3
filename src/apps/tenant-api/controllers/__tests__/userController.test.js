@@ -61,21 +61,18 @@ describe('userController.getUsers', () => {
         userId: 'agent_carl',
         lastActiveAt: generateTimestamp(),
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       },
       {
         tenantId,
         userId: 'manager_alice',
         lastActiveAt: generateTimestamp(),
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       },
       {
         tenantId,
         userId: 'guest_zoe',
         lastActiveAt: generateTimestamp(),
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       }
     ]);
 
@@ -296,7 +293,6 @@ describe('userController.getUserById', () => {
       name: 'Carl Johnson',
       lastActiveAt: generateTimestamp(),
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
   });
 
@@ -424,7 +420,6 @@ describe('userController.createUser', () => {
       name: 'Existing',
       lastActiveAt: generateTimestamp(),
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     const req = {
@@ -458,7 +453,6 @@ describe('userController.updateUser', () => {
       userId: 'agent_carl',
       lastActiveAt: generateTimestamp(),
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
   });
 
@@ -562,7 +556,6 @@ describe('userController.deleteUser', () => {
       name: 'Delete Me',
       lastActiveAt: generateTimestamp(),
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
   });
 
@@ -630,7 +623,6 @@ describe('userController.updateUserActivity', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data.userId).toBe('active_user');
     expect(Number(res.body.data.lastActiveAt)).toBeGreaterThan(0);
-    expect(Number(res.body.data.updatedAt)).toBeGreaterThan(0);
   });
 
   test('returns 404 when user missing', async () => {

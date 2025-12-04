@@ -28,11 +28,6 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: generateTimestamp,
     description: 'Timestamp в миллисекундах с точностью до микросекунд'
-  },
-  updatedAt: {
-    type: Number,
-    default: generateTimestamp,
-    description: 'Timestamp в миллисекундах с точностью до микросекунд'
   }
 }, {
   timestamps: false // Отключаем автоматические timestamps
@@ -44,9 +39,8 @@ userSchema.index({ userId: 1, tenantId: 1 }, { unique: true });
 // Индекс для поиска по tenantId
 userSchema.index({ tenantId: 1 });
 
-// Hook для обновления updatedAt при сохранении
+// Pre-save hook для установки createdAt при создании
 userSchema.pre('save', function(next) {
-  this.updatedAt = generateTimestamp();
   if (this.isNew) {
     this.createdAt = generateTimestamp();
   }

@@ -468,7 +468,7 @@ describe('queryParser', () => {
     });
 
     test('should handle different field names', () => {
-      expect(parseSort('(updatedAt,desc)')).toBe('-updatedAt');
+      expect(parseSort('(createdAt,desc)')).toBe('-createdAt');
       expect(parseSort('(messageId,asc)')).toBe('messageId');
       expect(parseSort('(senderId,desc)')).toBe('-senderId');
     });

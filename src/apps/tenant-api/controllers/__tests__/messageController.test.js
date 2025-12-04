@@ -112,7 +112,6 @@ describe('messageController.getAll - filter combinations', () => {
       
       createdBy: 'alice',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     const baseTimestamp = generateTimestamp();
@@ -125,7 +124,6 @@ describe('messageController.getAll - filter combinations', () => {
       content: 'Email update',
       type: 'internal.text',
       createdAt: baseTimestamp,
-      updatedAt: baseTimestamp
     });
 
     message2 = await Message.create({
@@ -135,8 +133,7 @@ describe('messageController.getAll - filter combinations', () => {
       senderId: 'bob',
       content: 'Support update',
       type: 'internal.text',
-      createdAt: baseTimestamp + 1000,
-      updatedAt: baseTimestamp + 1000
+      createdAt: baseTimestamp + 1000
     });
 
     message3 = await Message.create({
@@ -146,8 +143,7 @@ describe('messageController.getAll - filter combinations', () => {
       senderId: 'alice',
       content: 'Internal note',
       type: 'internal.text',
-      createdAt: baseTimestamp + 2000,
-      updatedAt: baseTimestamp + 2000
+      createdAt: baseTimestamp + 2000
     });
 
     await Meta.create([
@@ -158,9 +154,9 @@ describe('messageController.getAll - filter combinations', () => {
     ]);
 
     await MessageStatus.create([
-      { tenantId, messageId: message1.messageId, userId: 'bob', status: 'read', createdAt: generateTimestamp(), updatedAt: generateTimestamp() },
-      { tenantId, messageId: message2.messageId, userId: 'alice', status: 'delivered', createdAt: generateTimestamp(), updatedAt: generateTimestamp() },
-      { tenantId, messageId: message3.messageId, userId: 'bob', status: 'unread', createdAt: generateTimestamp(), updatedAt: generateTimestamp() }
+      { tenantId, messageId: message1.messageId, userId: 'bob', status: 'read', createdAt: generateTimestamp() },
+      { tenantId, messageId: message2.messageId, userId: 'alice', status: 'delivered', createdAt: generateTimestamp() },
+      { tenantId, messageId: message3.messageId, userId: 'bob', status: 'unread', createdAt: generateTimestamp() }
     ]);
   });
 
@@ -259,7 +255,6 @@ describe('messageController.createMessage - unread handling', () => {
       
       createdBy: 'alice',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     await DialogMember.create([
@@ -348,7 +343,6 @@ describe('messageController.updateMessageContent', () => {
       
       createdBy: 'alice',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     message = await Message.create({
@@ -359,7 +353,6 @@ describe('messageController.updateMessageContent', () => {
       content: 'Original content',
       type: 'internal.text',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
   });
 
@@ -370,7 +363,7 @@ describe('messageController.updateMessageContent', () => {
     await messageController.updateMessageContent(req, res);
 
     expect(res.body.data.content).toBe('Updated content');
-    expect(res.body.data.meta).toEqual(expect.objectContaining({ updated: true }));
+    expect(res.body.data.meta).toEqual(expect.objectContaining({ editedAt: expect.any(Number) }));
 
     const updated = await Message.findOne({ tenantId, messageId: message.messageId }).lean();
     expect(updated.content).toBe('Updated content');
@@ -388,7 +381,7 @@ describe('messageController.updateMessageContent', () => {
       return acc;
     }, {});
 
-    expect(updatedMeta.updated).toBe(true);
+    expect(updatedMeta.editedAt).toBeGreaterThan(0);
   });
 
   test('returns 400 when clearing content of internal.text message', async () => {
@@ -459,7 +452,6 @@ describe('messageController.getDialogMessages', () => {
       
       createdBy: 'alice',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
   });
 
@@ -487,7 +479,6 @@ describe('messageController.getDialogMessages', () => {
       content: 'Message 1',
       type: 'internal.text',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     const message2 = await Message.create({
@@ -497,8 +488,7 @@ describe('messageController.getDialogMessages', () => {
       senderId: 'bob',
       content: 'Message 2',
       type: 'internal.text',
-      createdAt: generateTimestamp() + 1000,
-      updatedAt: generateTimestamp() + 1000
+      createdAt: generateTimestamp() + 1000
     });
 
     await Meta.create({
@@ -537,7 +527,6 @@ describe('messageController.getDialogMessages', () => {
       content: 'Test message',
       type: 'internal.text',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     const req = {
@@ -577,7 +566,6 @@ describe('messageController.getDialogMessages', () => {
       content: 'First',
       type: 'internal.text',
       createdAt: baseTimestamp,
-      updatedAt: baseTimestamp
     });
 
     const message2 = await Message.create({
@@ -587,8 +575,7 @@ describe('messageController.getDialogMessages', () => {
       senderId: 'bob',
       content: 'Second',
       type: 'internal.text',
-      createdAt: baseTimestamp + 1000,
-      updatedAt: baseTimestamp + 1000
+      createdAt: baseTimestamp + 1000
     });
 
     const req = {
@@ -673,7 +660,6 @@ describe('messageController.createMessage - validation', () => {
       
       createdBy: 'alice',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
   });
 
@@ -817,7 +803,6 @@ describe('messageController.getMessageById - error handling', () => {
       
       createdBy: 'alice',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     const message = await Message.create({
@@ -828,7 +813,6 @@ describe('messageController.getMessageById - error handling', () => {
       content: 'Test message',
       type: 'internal.text',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     await MessageStatus.create({
@@ -837,7 +821,6 @@ describe('messageController.getMessageById - error handling', () => {
       userId: 'bob',
       status: 'read',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     await Meta.create({

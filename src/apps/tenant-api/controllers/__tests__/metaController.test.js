@@ -435,7 +435,6 @@ describe('metaController', () => {
         
         createdBy: 'alice',
         createdAt: Date.now(),
-        updatedAt: Date.now()
       });
 
       const req = createMockReq({
@@ -467,7 +466,6 @@ describe('metaController', () => {
         
         createdBy: 'alice',
         createdAt: Date.now(),
-        updatedAt: Date.now()
       });
 
       const req = createMockReq({
@@ -524,7 +522,6 @@ describe('metaController', () => {
         
         createdBy: 'alice',
         createdAt: Date.now(),
-        updatedAt: Date.now()
       });
 
       const req = createMockReq({
@@ -555,7 +552,6 @@ describe('metaController', () => {
         
         createdBy: 'alice',
         createdAt: Date.now(),
-        updatedAt: Date.now()
       });
 
       // Create meta with scope and without scope

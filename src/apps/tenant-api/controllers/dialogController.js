@@ -178,18 +178,18 @@ export const dialogController = {
       const memberSortInfo = parseMemberSort(sortField);
       const isDialogMemberSort = sortField && ['lastSeenAt', 'lastMessageAt', 'unreadCount'].includes(sortField);
       const isMemberSpecificSort = memberSortInfo !== null;
-      const isUpdatedAtSort = sortField && sortField.includes('updatedAt');
+      const isCreatedAtSort = sortField && sortField.includes('createdAt');
       
       let dialogs;
       
-      if (isUpdatedAtSort) {
-        // Простая сортировка по updatedAt диалога
+      if (isCreatedAtSort) {
+        // Простая сортировка по createdAt диалога
         const sortDirection = sortField.includes('desc') ? -1 : 1;
         
         dialogs = await Dialog.find(query)
           .skip(skip)
           .limit(limit)
-          .sort({ updatedAt: sortDirection })
+          .sort({ createdAt: sortDirection })
           .select('-__v')
           .populate('tenantId', 'name domain')
           .populate('createdBy', 'username email');
@@ -576,8 +576,7 @@ export const dialogController = {
         dialogId: dialog.dialogId,
         tenantId: dialog.tenantId,
         createdBy,
-        createdAt: dialog.createdAt,
-        updatedAt: dialog.updatedAt
+        createdAt: dialog.createdAt
       });
 
       const eventContext = eventUtils.buildEventContext({

@@ -32,7 +32,6 @@ export function buildDialogSection({
   name = null,
   createdBy = null,
   createdAt = null,
-  updatedAt = null,
   meta = {}
 } = {}) {
   if (!dialogId) {
@@ -45,7 +44,6 @@ export function buildDialogSection({
     name,
     createdBy,
     createdAt,
-    updatedAt,
     meta: meta || {}
   };
 }

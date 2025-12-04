@@ -184,7 +184,6 @@ describe('metaUtils - Integration Tests with MongoDB', () => {
       expect(metaFull[0]).toHaveProperty('value');
       expect(metaFull[0]).toHaveProperty('dataType');
       expect(metaFull[0]).toHaveProperty('createdAt');
-      expect(metaFull[0]).toHaveProperty('updatedAt');
       expect(metaFull[0]).not.toHaveProperty('__v');
     });
 

@@ -79,7 +79,6 @@ describe('dialogController.getAll - filter combinations', () => {
       createdBy: 'carl',
       name: 'Sales Daily',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     dialogB = await Dialog.create({
@@ -88,7 +87,6 @@ describe('dialogController.getAll - filter combinations', () => {
       createdBy: 'carl',
       name: 'Sales Weekly',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     dialogC = await Dialog.create({
@@ -97,7 +95,6 @@ describe('dialogController.getAll - filter combinations', () => {
       createdBy: 'carl',
       name: 'Engineering',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     dialogD = await Dialog.create({
@@ -106,7 +103,6 @@ describe('dialogController.getAll - filter combinations', () => {
       createdBy: 'carl',
       name: 'Support',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     await DialogMember.create([
@@ -295,7 +291,6 @@ describe('dialogController.getAll - sorting modes', () => {
       createdBy: 'carl',
       name: 'First dialog',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     dialogTwo = await Dialog.create({
@@ -303,8 +298,7 @@ describe('dialogController.getAll - sorting modes', () => {
       tenantId,
       createdBy: 'carl',
       name: 'Second dialog',
-      createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp() + 1000
+      createdAt: generateTimestamp() + 1000
     });
 
     await DialogMember.create([
@@ -313,8 +307,8 @@ describe('dialogController.getAll - sorting modes', () => {
     ]);
   });
 
-  test('sorts by dialog updatedAt when requested', async () => {
-    const req = createMockReq(tenantId, { sort: '(updatedAt,desc)', page: 1, limit: 10 });
+  test('sorts by dialog createdAt when requested', async () => {
+    const req = createMockReq(tenantId, { sort: '(createdAt,desc)', page: 1, limit: 10 });
     const res = createMockRes();
 
     await dialogController.getAll(req, res);
@@ -366,7 +360,6 @@ describe('dialogController.getById', () => {
       createdBy: 'carl',
       name: 'Customer Support',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     await DialogMember.create([
@@ -545,7 +538,6 @@ describe('dialogController.create', () => {
       userId: 'existing',
       type: 'user',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     const req = createMockReq(
@@ -685,7 +677,6 @@ describe('dialogController.delete', () => {
       createdBy: 'carl',
       name: 'To be deleted',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     // Meta is stored using dialogId in production, but controller deletes by _id

@@ -575,8 +575,8 @@
                     <label>🔄 Сортировка:</label>
                     <select id="sortExample" onchange="updateSortInput()">
                         <option value="">Выберите пример сортировки</option>
-                        <option value="(updatedAt,desc)">🕒 Обновление диалога (новые сверху)</option>
-                        <option value="(updatedAt,asc)">🕒 Обновление диалога (старые сверху)</option>
+                        <option value="(createdAt,desc)">🕒 Создание диалога (новые сверху)</option>
+                        <option value="(createdAt,asc)">🕒 Создание диалога (старые сверху)</option>
                         <option value="(member[carl].unreadCount,desc)">📬 Непрочитанные Carl (больше сверху)</option>
                         <option value="(member[carl].unreadCount,asc)">📬 Непрочитанные Carl (меньше сверху)</option>
                         <option value="(member[marta].unreadCount,desc)">📬 Непрочитанные Marta (больше сверху)</option>
@@ -864,7 +864,7 @@
                             <thead>
                                 <tr>
                                     <th>Dialog ID</th>
-                                    <th onclick="toggleSort('updatedAt')">Обновлен <span class="sort-indicator">◄</span></th>
+                                    <th onclick="toggleSort('createdAt')">Создан <span class="sort-indicator">◄</span></th>
                                     <th>Пользователи</th>
                                     <th>Инфо</th>
                                 </tr>
@@ -876,7 +876,7 @@
                                     return `
                                     <tr onclick="selectDialog('${safeDialogId}', '${safeDialogId}')" class="dialog-row ${isSelected}" data-dialog-id="${safeDialogId.replace(/"/g, '&quot;')}">
                                         <td>${dialog.dialogId.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
-                                        <td>${formatUpdatedAt(dialog.updatedAt)}</td>
+                                        <td>${formatUpdatedAt(dialog.createdAt)}</td>
                                         <td>${formatMembers(dialog.members)}</td>
                                         <td><button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${safeDialogId}')">ℹ️ Инфо</button></td>
                                     </tr>
@@ -909,12 +909,12 @@
             await loadDialogsWithFilter(combinedFilter, page, currentSort);
         }
 
-        // Форматирование времени обновления диалога
-        function formatUpdatedAt(updatedAt) {
-            if (!updatedAt) return '-';
+        // Форматирование времени создания диалога
+        function formatUpdatedAt(createdAt) {
+            if (!createdAt) return '-';
             
             // Преобразуем строку с числом в число, если нужно (timestamp с микросекундами)
-            const timestamp = typeof updatedAt === 'string' ? parseFloat(updatedAt) : updatedAt;
+            const timestamp = typeof createdAt === 'string' ? parseFloat(createdAt) : createdAt;
             const date = new Date(timestamp);
             return date.toLocaleString();
         }

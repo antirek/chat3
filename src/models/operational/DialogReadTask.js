@@ -57,10 +57,6 @@ const dialogReadTaskSchema = new mongoose.Schema({
     type: Number,
     default: generateTimestamp
   },
-  updatedAt: {
-    type: Number,
-    default: generateTimestamp
-  },
   startedAt: {
     type: Number,
     default: null
@@ -75,8 +71,11 @@ const dialogReadTaskSchema = new mongoose.Schema({
 
 dialogReadTaskSchema.index({ tenantId: 1, dialogId: 1, userId: 1, status: 1 });
 
+// Pre-save hook для установки createdAt при создании
 dialogReadTaskSchema.pre('save', function(next) {
-  this.updatedAt = generateTimestamp();
+  if (this.isNew) {
+    this.createdAt = generateTimestamp();
+  }
   next();
 });
 

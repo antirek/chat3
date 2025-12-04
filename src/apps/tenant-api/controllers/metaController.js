@@ -211,7 +211,6 @@ async function createDialogUpdateEvent(tenantId, dialogId, actorId) {
       name: dialog.name,
       createdBy: dialog.createdBy,
       createdAt: dialog.createdAt,
-      updatedAt: dialog.updatedAt,
       meta: dialogMeta
     });
 

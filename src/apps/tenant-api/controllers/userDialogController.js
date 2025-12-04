@@ -591,7 +591,7 @@ const userDialogController = {
       const dialogsData = await Dialog.find({
         dialogId: { $in: uniqueDialogIds },
         tenantId: req.tenantId
-      }).select('dialogId name createdAt updatedAt _id').lean();
+      }).select('dialogId name createdAt _id').lean();
 
       // Создаем Map для быстрого поиска
       const dialogsMap = new Map(dialogsData.map(d => [d.dialogId, d]));

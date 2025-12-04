@@ -72,7 +72,6 @@ describe('typingController.sendTyping', () => {
       name: 'Alice',
       lastActiveAt: generateTimestamp(),
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     dialog = await Dialog.create({
@@ -81,7 +80,6 @@ describe('typingController.sendTyping', () => {
       name: 'Support chat',
       createdBy: 'alice',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     await DialogMember.create({
@@ -93,7 +91,6 @@ describe('typingController.sendTyping', () => {
       lastSeenAt: generateTimestamp(),
       lastMessageAt: generateTimestamp(),
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
   });
 

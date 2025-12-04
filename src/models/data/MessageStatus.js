@@ -61,19 +61,13 @@ const messageStatusSchema = new mongoose.Schema({
     default: generateTimestamp,
     required: true,
     description: 'Timestamp создания (микросекунды)'
-  },
-  updatedAt: {
-    type: Number,
-    default: generateTimestamp,
-    description: 'Timestamp обновления (микросекунды)'
   }
 }, {
   timestamps: false // Отключаем автоматические timestamps
 });
 
-// Pre-save hook для обновления updatedAt с микросекундами
+// Pre-save hook для установки createdAt при создании
 messageStatusSchema.pre('save', function(next) {
-  this.updatedAt = generateTimestamp();
   if (this.isNew) {
     this.createdAt = generateTimestamp();
   }

@@ -64,7 +64,6 @@ describe('dialogMemberController', () => {
       name: 'Support Chat',
       createdBy: 'owner',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
   });
 
@@ -416,7 +415,6 @@ describe('dialogMemberController', () => {
         
         createdBy: 'alice',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       const req = createMockReq(
@@ -449,7 +447,6 @@ describe('dialogMemberController', () => {
         
         createdBy: 'alice',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       const req = createMockReq(
@@ -480,7 +477,6 @@ describe('dialogMemberController', () => {
         
         createdBy: 'alice',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       const req = createMockReq(
@@ -512,7 +508,6 @@ describe('dialogMemberController', () => {
         
         createdBy: 'alice',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       await DialogMember.create({
@@ -561,7 +556,6 @@ describe('dialogMemberController', () => {
         
         createdBy: 'alice',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       await DialogMember.create([
@@ -620,7 +614,6 @@ describe('dialogMemberController', () => {
         
         createdBy: 'alice',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       await DialogMember.create({
@@ -661,7 +654,6 @@ describe('dialogMemberController', () => {
         
         createdBy: 'alice',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       const req = createMockReq(
@@ -708,7 +700,6 @@ describe('dialogMemberController', () => {
         
         createdBy: 'alice',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       const req = createMockReq(
@@ -731,7 +722,6 @@ describe('dialogMemberController', () => {
         
         createdBy: 'alice',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       const member = await DialogMember.create({

@@ -34,19 +34,13 @@ const dialogSchema = new mongoose.Schema({
     type: Number,
     default: generateTimestamp,
     description: 'Timestamp в миллисекундах с точностью до микросекунд'
-  },
-  updatedAt: {
-    type: Number,
-    default: generateTimestamp,
-    description: 'Timestamp в миллисекундах с точностью до микросекунд'
   }
 }, {
   timestamps: false // Отключаем автоматические timestamps
 });
 
-// Pre-save hook для обновления updatedAt с микросекундами
+// Pre-save hook для установки createdAt при создании
 dialogSchema.pre('save', function(next) {
-  this.updatedAt = generateTimestamp();
   if (this.isNew) {
     this.createdAt = generateTimestamp();
   }

@@ -157,7 +157,7 @@ const messageController = {
 
       // Get messages with pagination
       const messages = await Message.find(query)
-        .select('messageId dialogId senderId content type createdAt updatedAt')
+        .select('messageId dialogId senderId content type createdAt')
         .sort(sortOptions)
         .skip(skip)
         .limit(limit);
@@ -268,8 +268,6 @@ const messageController = {
           
           if (field === 'createdAt') {
             sortOptions = { createdAt: direction === 'asc' ? 1 : -1 };
-          } else if (field === 'updatedAt') {
-            sortOptions = { updatedAt: direction === 'asc' ? 1 : -1 };
           } else if (field === 'senderId') {
             sortOptions = { senderId: direction === 'asc' ? 1 : -1 };
           } else {
@@ -704,17 +702,16 @@ const messageController = {
       }
 
       message.content = newContent;
-      message.updatedAt = generateTimestamp();
       await message.save();
 
-      // Отмечаем сообщение как обновлённое через мета-тег
+      // Отмечаем сообщение как отредактированное через мета-тег editedAt
       await metaUtils.setEntityMeta(
         req.tenantId,
         'message',
         message.messageId,
-        'updated',
-        true,
-        'boolean',
+        'editedAt',
+        generateTimestamp(),
+        'number',
         {
           createdBy: req.apiKey?.name || 'unknown'
         }

@@ -41,7 +41,6 @@ function buildDialogSection(dialog, dialogMeta = {}) {
     tenantId: dialog.tenantId,
     createdBy: dialog.createdBy,
     createdAt: dialog.createdAt,
-    updatedAt: dialog.updatedAt,
     meta: dialogMeta || {}
   };
 }
@@ -132,7 +131,6 @@ async function getSenderInfo(tenantId, senderId, cache = new Map()) {
     userId: senderId,
     lastActiveAt: user?.lastActiveAt ?? null,
     createdAt: user?.createdAt ?? null,
-    updatedAt: user?.updatedAt ?? null,
     meta: userMeta
   };
 

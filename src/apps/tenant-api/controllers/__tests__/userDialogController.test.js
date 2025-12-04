@@ -107,7 +107,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       dialog2 = await Dialog.create({
@@ -116,7 +115,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       dialog3 = await Dialog.create({
@@ -125,7 +123,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       dialog4 = await Dialog.create({
@@ -134,7 +131,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       // Create dialog members
@@ -314,7 +310,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       dialog2 = await Dialog.create({
@@ -323,7 +318,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       dialog3 = await Dialog.create({
@@ -332,7 +326,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       // Create dialog members
@@ -427,7 +420,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       dialog2 = await Dialog.create({
@@ -436,7 +428,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       dialog3 = await Dialog.create({
@@ -445,7 +436,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       // Create dialog members - user1 is member of all dialogs
@@ -566,7 +556,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       dialog2 = await Dialog.create({
@@ -575,7 +564,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       dialog3 = await Dialog.create({
@@ -584,7 +572,6 @@ describe('userDialogController', () => {
         createdBy: userId1,
         
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       // Create dialog members
@@ -684,8 +671,7 @@ describe('userDialogController', () => {
           dialogId: generateDialogId(),
           tenantId,
           createdBy: userId1,
-          createdAt: generateTimestamp() + i * 1000, // Different timestamps
-          updatedAt: generateTimestamp() + i * 1000
+          createdAt: generateTimestamp() + i * 1000 // Different timestamps
         });
 
         await DialogMember.create({
@@ -938,7 +924,6 @@ describe('userDialogController', () => {
         
         createdBy: userId,
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       await DialogMember.create({
@@ -972,7 +957,6 @@ describe('userDialogController', () => {
         
         createdBy: userId,
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       const dialog2 = await Dialog.create({
@@ -981,7 +965,6 @@ describe('userDialogController', () => {
         
         createdBy: userId,
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       await DialogMember.create([
@@ -1045,7 +1028,6 @@ describe('userDialogController', () => {
         
         createdBy: userId,
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       const dialog2 = await Dialog.create({
@@ -1054,7 +1036,6 @@ describe('userDialogController', () => {
         
         createdBy: userId,
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       await DialogMember.create([
@@ -1101,7 +1082,6 @@ describe('userDialogController', () => {
         
         createdBy: userId,
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       await DialogMember.create({
@@ -1160,7 +1140,6 @@ describe('userDialogController', () => {
         
         createdBy: userId,
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       const dialog2 = await Dialog.create({
@@ -1169,7 +1148,6 @@ describe('userDialogController', () => {
         
         createdBy: userId,
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       await DialogMember.create([

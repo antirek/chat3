@@ -84,7 +84,6 @@ describe('messageReactionController', () => {
       name: 'General Chat',
       createdBy: 'owner',
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
 
     message = await Message.create({
@@ -96,7 +95,6 @@ describe('messageReactionController', () => {
       type: 'internal.text',
       reactionCounts: {},
       createdAt: generateTimestamp(),
-      updatedAt: generateTimestamp()
     });
   });
 
@@ -108,7 +106,6 @@ describe('messageReactionController', () => {
         userId: 'bob',
         reaction: '👍',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
       await MessageReaction.create({
         tenantId,
@@ -116,7 +113,6 @@ describe('messageReactionController', () => {
         userId: 'carol',
         reaction: '❤️',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       message.reactionCounts = { '👍': 1, '❤️': 1 };
@@ -183,7 +179,6 @@ describe('messageReactionController', () => {
         userId: 'bob',
         reaction: '👍',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
 
       const req = createMockReq({
@@ -211,7 +206,6 @@ describe('messageReactionController', () => {
         userId: 'bob',
         reaction: '👍',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
       message.reactionCounts = { '👍': 1 };
       await message.save();
@@ -268,7 +262,6 @@ describe('messageReactionController', () => {
         userId: 'bob',
         reaction: '🔥',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
       message.reactionCounts = { '🔥': 1 };
       await message.save();
@@ -308,7 +301,6 @@ describe('messageReactionController', () => {
         userId: 'bob',
         reaction: '👍',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
       await MessageReaction.create({
         tenantId,
@@ -316,7 +308,6 @@ describe('messageReactionController', () => {
         userId: 'bob',
         reaction: '❤️',
         createdAt: generateTimestamp(),
-        updatedAt: generateTimestamp()
       });
       message.reactionCounts = { '👍': 1, '❤️': 1 };
       await message.save();
