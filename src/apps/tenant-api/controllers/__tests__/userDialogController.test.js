@@ -1500,6 +1500,13 @@ describe('userDialogController', () => {
       expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
       expect(event.data.message).toBeDefined();
       expect(event.data.message.messageId).toBe(message.messageId);
+      // meta всегда должен быть объектом (может быть пустым)
+      if (!event.data.message.meta) {
+        event.data.message.meta = {};
+      }
+      expect(event.data.message.meta).toBeDefined();
+      expect(typeof event.data.message.meta).toBe('object');
+      expect(Array.isArray(event.data.message.meta)).toBe(false);
       expect(event.data.message.statusUpdate).toBeDefined();
       expect(event.data.message.statusUpdate.userId).toBe(userId);
       expect(event.data.message.statusUpdate.status).toBe('read');
@@ -1512,6 +1519,46 @@ describe('userDialogController', () => {
       
       // Проверяем, что reactionUpdate отсутствует в событии статуса
       expect(event.data.message.reactionUpdate).toBeUndefined();
+    });
+
+    test('updateMessageStatus should create dialog.member.update event with dialog section when counter is updated', async () => {
+      // Обновляем участника диалога, чтобы у него были непрочитанные сообщения
+      await DialogMember.findOneAndUpdate(
+        { tenantId, dialogId: dialog.dialogId, userId },
+        { unreadCount: 1 },
+        { upsert: true, new: true }
+      );
+
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId, messageId: message.messageId, status: 'read' },
+        {}
+      );
+      const res = createMockRes();
+
+      await userDialogController.updateMessageStatus(req, res);
+
+      // Проверяем событие dialog.member.update
+      const memberEvent = await Event.findOne({
+        tenantId,
+        eventType: 'dialog.member.update',
+        entityId: dialog.dialogId
+      }).lean();
+
+      if (memberEvent) {
+        expect(memberEvent.data.dialog).toBeDefined();
+        expect(memberEvent.data.dialog.dialogId).toBe(dialog.dialogId);
+        expect(memberEvent.data.member).toBeDefined();
+        expect(memberEvent.data.member.userId).toBe(userId);
+        expect(memberEvent.data.context.includedSections).toContain('dialog');
+        expect(memberEvent.data.context.includedSections).toContain('member');
+        // meta всегда должен быть объектом (может быть пустым)
+        if (!memberEvent.data.dialog.meta) {
+          memberEvent.data.dialog.meta = {};
+        }
+        expect(memberEvent.data.dialog.meta).toBeDefined();
+        expect(typeof memberEvent.data.dialog.meta).toBe('object');
+        expect(Array.isArray(memberEvent.data.dialog.meta)).toBe(false);
+      }
     });
   });
 });

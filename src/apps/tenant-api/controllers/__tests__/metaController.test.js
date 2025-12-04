@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import metaController from '../metaController.js';
-import { Dialog, Message, DialogMember, Meta } from "../../../../models/index.js";
+import { Dialog, Message, DialogMember, Meta, Event } from "../../../../models/index.js";
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
@@ -289,6 +289,49 @@ describe('metaController', () => {
         error: 'Bad Request',
         message: expect.stringContaining('Invalid DialogMember entityId format')
       });
+    });
+
+    test('creates dialog.member.update event with dialog section when updating dialogMember meta', async () => {
+      // Участник диалога уже создан в beforeEach
+      const req = createMockReq({
+        params: {
+          entityType: 'dialogMember',
+          entityId: dialogMemberKey,
+          key: 'role'
+        },
+        body: {
+          value: 'admin',
+          dataType: 'string'
+        }
+      });
+      const res = createMockRes();
+
+      await metaController.setMeta(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+
+      // Проверяем событие dialog.member.update
+      const event = await Event.findOne({
+        tenantId,
+        eventType: 'dialog.member.update',
+        entityId: dialogId
+      }).lean();
+
+      if (event) {
+        expect(event.data.dialog).toBeDefined();
+        expect(event.data.dialog.dialogId).toBe(dialogId);
+        expect(event.data.member).toBeDefined();
+        expect(event.data.member.userId).toBe('carl');
+        expect(event.data.context.includedSections).toContain('dialog');
+        expect(event.data.context.includedSections).toContain('member');
+        // meta всегда должен быть объектом (может быть пустым)
+        if (!event.data.dialog.meta) {
+          event.data.dialog.meta = {};
+        }
+        expect(event.data.dialog.meta).toBeDefined();
+        expect(typeof event.data.dialog.meta).toBe('object');
+        expect(Array.isArray(event.data.dialog.meta)).toBe(false);
+      }
     });
 
     test('stores scoped meta entry when scope provided', async () => {

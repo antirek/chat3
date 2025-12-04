@@ -1400,6 +1400,9 @@ const userDialogController = {
         meta: dialogMeta || {}
       });
 
+      // Получаем мета-теги сообщения для события
+      const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', messageId);
+
       // Формируем полную матрицу статусов для Event
       const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, messageId, message.senderId);
 
@@ -1409,6 +1412,7 @@ const userDialogController = {
         senderId: message.senderId,
         type: message.type,
         content: message.content,
+        meta: messageMeta || {},
         statusUpdate: {
           userId,
           status,
@@ -1451,6 +1455,7 @@ const userDialogController = {
 
       // Если счетчик был обновлен, создаем событие dialog.member.update
       if (updatedMember) {
+        // Используем уже полученную секцию dialog из события message.status.update
         const memberSection = eventUtils.buildMemberSection({
           userId,
           state: {
@@ -1465,7 +1470,7 @@ const userDialogController = {
           eventType: 'dialog.member.update',
           dialogId: dialogId,
           entityId: dialogId,
-          includedSections: ['member'],
+          includedSections: ['dialog', 'member'],
           updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
         });
 
@@ -1478,6 +1483,7 @@ const userDialogController = {
           actorType: 'user',
           data: eventUtils.composeEventData({
             context: memberContext,
+            dialog: dialogSection,
             member: memberSection
           })
         });

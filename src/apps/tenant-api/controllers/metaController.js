@@ -333,6 +333,16 @@ async function createDialogMemberUpdateEvent(tenantId, entityId, actorId) {
       return;
     }
 
+    // Получаем метаданные диалога для события
+    const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialog.dialogId);
+    const dialogSection = eventUtils.buildDialogSection({
+      dialogId: dialog.dialogId,
+      tenantId: dialog.tenantId,
+      createdBy: dialog.createdBy,
+      createdAt: dialog.createdAt,
+      meta: dialogMeta || {}
+    });
+
     const memberMeta = await metaUtils.getEntityMeta(tenantId, 'dialogMember', entityId);
 
     const memberSection = eventUtils.buildMemberSection({
@@ -350,7 +360,7 @@ async function createDialogMemberUpdateEvent(tenantId, entityId, actorId) {
       eventType: 'dialog.member.update',
       dialogId: dialog.dialogId,
       entityId: dialog.dialogId,
-      includedSections: ['member'],
+      includedSections: ['dialog', 'member'],
       updatedFields: ['member.meta']
     });
 
@@ -363,6 +373,7 @@ async function createDialogMemberUpdateEvent(tenantId, entityId, actorId) {
       actorType: 'api',
       data: eventUtils.composeEventData({
         context: memberContext,
+        dialog: dialogSection,
         member: memberSection
       })
     });
