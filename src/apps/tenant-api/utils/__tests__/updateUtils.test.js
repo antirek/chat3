@@ -84,22 +84,77 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
 
   // eventId в Update модели - это ObjectId, а не строка
   // Создаем Event объект, чтобы получить правильный ObjectId
-  async function createEventAndGetId(eventType = 'dialog.create') {
+  async function createEventAndGetId(eventType = 'dialog.create', eventData = {}) {
     const event = await Event.create({
       tenantId,
       eventType,
       entityType: 'dialog',
       entityId: generateDialogId(),
       actorId: 'user1',
-      data: {}
+      data: eventData
     });
     return event._id; // Возвращаем ObjectId
+  }
+
+  // Создает событие с правильной структурой данных, включая секцию dialog
+  async function createEventWithDialog(eventType, dialogId, additionalData = {}) {
+    const dialog = await Dialog.findOne({ dialogId, tenantId }).lean();
+    if (!dialog) {
+      throw new Error(`Dialog ${dialogId} not found`);
+    }
+    
+    const dialogMeta = await Meta.find({ tenantId, entityType: 'dialog', entityId: dialogId }).lean();
+    const dialogMetaObj = dialogMeta.reduce((acc, m) => {
+      acc[m.key] = m.value;
+      return acc;
+    }, {});
+
+    const baseEventData = {
+      context: {
+        version: 2,
+        eventType,
+        dialogId: dialog.dialogId,
+        entityId: dialog.dialogId,
+        includedSections: ['dialog'],
+        updatedFields: []
+      },
+      dialog: {
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        createdBy: dialog.createdBy,
+        createdAt: dialog.createdAt,
+        meta: dialogMetaObj
+      }
+    };
+
+    // Объединяем базовые данные с дополнительными, приоритет у additionalData
+    const eventData = {
+      ...baseEventData,
+      ...additionalData,
+      context: {
+        ...baseEventData.context,
+        ...(additionalData.context || {})
+      },
+      dialog: {
+        ...baseEventData.dialog,
+        ...(additionalData.dialog || {})
+      }
+    };
+
+    const event = await Event.create({
+      tenantId,
+      eventType,
+      entityType: 'dialog',
+      entityId: dialogId,
+      actorId: 'user1',
+      data: eventData
+    });
+    return { eventId: event._id, eventData };
   }
 
   describe('createDialogUpdate', () => {
     test('should create updates for all dialog members', async () => {
       const dialogId = generateDialogId();
-      const eventId = await createEventAndGetId('dialog.create');
 
       // Создаем диалог
       await Dialog.create({
@@ -127,7 +182,19 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         }
       ]);
 
-      await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.create');
+      const { eventId, eventData } = await createEventWithDialog('dialog.create', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'dialog.create',
+          dialogId,
+          entityId: dialogId,
+          messageId: null,
+          includedSections: ['dialog'],
+          updatedFields: ['dialog']
+        }
+      });
+
+      await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.create', eventData);
 
       // Проверяем, что updates созданы для каждого участника
       const updates = await Update.find({ tenantId, dialogId, eventId });
@@ -165,7 +232,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
 
     test('should include dialog meta in update data', async () => {
       const dialogId = generateDialogId();
-      const eventId = await createEventAndGetId('dialog.create');
 
       await Dialog.create({
         tenantId,
@@ -193,7 +259,19 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dataType: 'string'
       });
 
-      await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.create');
+      const { eventId, eventData } = await createEventWithDialog('dialog.create', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'dialog.create',
+          dialogId,
+          entityId: dialogId,
+          messageId: null,
+          includedSections: ['dialog'],
+          updatedFields: ['dialog']
+        }
+      });
+
+      await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.create', eventData);
 
       const update = await Update.findOne({ tenantId, dialogId, userId: 'user1' }).lean();
       expect(update).toBeDefined();
@@ -205,7 +283,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
 
     test('should create update for removed member in dialog.member.remove event', async () => {
       const dialogId = generateDialogId();
-      const eventId = await createEventAndGetId('dialog.member.remove');
 
       await Dialog.create({
         tenantId,
@@ -237,8 +314,16 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         { isActive: false }
       );
 
-      // Создаем eventData с информацией об удаляемом пользователе
-      const eventData = {
+      const { eventId, eventData } = await createEventWithDialog('dialog.member.remove', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'dialog.member.remove',
+          dialogId,
+          entityId: dialogId,
+          messageId: null,
+          includedSections: ['dialog', 'member'],
+          updatedFields: ['member']
+        },
         member: {
           userId: 'user2',
           state: {
@@ -248,7 +333,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
             isActive: false
           }
         }
-      };
+      });
 
       await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.member.remove', eventData);
 
@@ -271,7 +356,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
     test('should create update for specific member', async () => {
       const dialogId = generateDialogId();
       const userId = 'user1';
-      const eventId = await createEventAndGetId('dialog.member.update');
 
       await Dialog.create({
         tenantId,
@@ -288,13 +372,34 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         isActive: true
       });
 
+      const { eventId, eventData } = await createEventWithDialog('dialog.member.update', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'dialog.member.update',
+          dialogId,
+          entityId: dialogId,
+          messageId: null,
+          includedSections: ['dialog', 'member'],
+          updatedFields: ['member.state.unreadCount']
+        },
+        member: {
+          userId,
+          state: {
+            unreadCount: 3,
+            lastSeenAt: null,
+            lastMessageAt: null,
+            isActive: true
+          }
+        }
+      });
+
       await updateUtils.createDialogMemberUpdate(
         tenantId,
         dialogId,
         userId,
         eventId,
         'dialog.member.update',
-        { unreadCount: 3 }
+        eventData
       );
 
       const updates = await Update.find({
@@ -338,7 +443,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
     test('should create update for message', async () => {
       const dialogId = generateDialogId();
       const messageId = generateMessageId();
-      const eventId = await createEventAndGetId('message.create');
 
       await Dialog.create({
         tenantId,
@@ -373,12 +477,33 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         }
       ]);
 
+      const { eventId, eventData } = await createEventWithDialog('message.create', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'message.create',
+          dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message'],
+          updatedFields: ['message']
+        },
+        message: {
+          messageId,
+          dialogId,
+          senderId: 'user1',
+          type: 'internal.text',
+          content: 'Test message',
+          meta: {}
+        }
+      });
+
       await updateUtils.createMessageUpdate(
         tenantId,
         dialogId,
         messageId,
         eventId,
-        'message.create'
+        'message.create',
+        eventData
       );
 
       // Проверяем, что updates созданы для всех участников
@@ -389,7 +514,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
     test('should include message data in update', async () => {
       const dialogId = generateDialogId();
       const messageId = generateMessageId();
-      const eventId = await createEventAndGetId('message.create');
 
       await Dialog.create({
         tenantId,
@@ -429,12 +553,26 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         isActive: true
       });
 
+      const { eventId, eventData } = await createEventWithDialog('message.create', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'message.create',
+          dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message'],
+          updatedFields: ['message']
+        }
+        // Не передаем message, чтобы createMessageUpdate загрузил его из БД и добавил senderInfo
+      });
+
       await updateUtils.createMessageUpdate(
         tenantId,
         dialogId,
         messageId,
         eventId,
-        'message.create'
+        'message.create',
+        eventData
       );
 
       const update = await Update.findOne({ tenantId, entityId: messageId, userId: 'user1' }).lean();
@@ -442,7 +580,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(update.data).toBeDefined();
       expect(update.data.message).toBeDefined();
       expect(update.data.message.content).toBe('Test message');
-      expect(Array.isArray(update.data.message.statuses)).toBe(true);
       expect(update.data.message.meta || {}).toEqual({});
       expect(update.data.message.senderInfo).toEqual(
         expect.objectContaining({
@@ -455,7 +592,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
     test('should include status update in message data', async () => {
       const dialogId = generateDialogId();
       const messageId = generateMessageId();
-      const eventId = await createEventAndGetId('message.status.update');
 
       await Dialog.create({
         tenantId,
@@ -481,14 +617,31 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         isActive: true
       });
 
-      // Создаем событие с данными статуса
-      // createMessageUpdate ожидает eventData в формате:
-      // { userId, newStatus, oldStatus } для message.status.update
-      const eventData = {
-        userId: 'user2',
-        newStatus: 'read',
-        oldStatus: 'unread'
-      };
+      const { eventId, eventData } = await createEventWithDialog('message.status.update', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'message.status.update',
+          dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message'],
+          updatedFields: ['message.status']
+        },
+        message: {
+          messageId,
+          dialogId,
+          senderId: 'user1',
+          type: 'internal.text',
+          content: 'Test message',
+          statusUpdate: {
+            userId: 'user2',
+            status: 'read',
+            oldStatus: 'unread'
+          },
+          statusMessageMatrix: [],
+          meta: {}
+        }
+      });
 
       await updateUtils.createMessageUpdate(
         tenantId,
@@ -529,7 +682,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
     test('should include reaction update in message data', async () => {
       const dialogId = generateDialogId();
       const messageId = generateMessageId();
-      const eventId = await createEventAndGetId('message.reaction.update');
 
       await Dialog.create({
         tenantId,
@@ -555,11 +707,31 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         isActive: true
       });
 
-      const eventData = {
-        userId: 'user2',
-        reaction: '👍',
-        oldReaction: null
-      };
+      const { eventId, eventData } = await createEventWithDialog('message.reaction.update', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'message.reaction.update',
+          dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message'],
+          updatedFields: ['message.reaction']
+        },
+        message: {
+          messageId,
+          dialogId,
+          senderId: 'user1',
+          type: 'internal.text',
+          content: 'Test message',
+          reactionUpdate: {
+            userId: 'user2',
+            reaction: '👍',
+            oldReaction: null
+          },
+          reactionSet: null,
+          meta: {}
+        }
+      });
 
       await updateUtils.createMessageUpdate(
         tenantId,
@@ -622,13 +794,17 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         }
       ]);
 
-      const typingEvent = await Event.create({
-        tenantId,
-        eventType: 'dialog.typing',
-        entityType: 'dialog',
-        entityId: dialogId,
-        actorId: 'user1',
-        data: {
+      const { eventId, eventData } = await createEventWithDialog('dialog.typing', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'dialog.typing',
+          dialogId,
+          entityId: dialogId,
+          messageId: null,
+          includedSections: ['dialog', 'typing'],
+          updatedFields: ['typing']
+        },
+        typing: {
           dialogId,
           userId: 'user1',
           expiresInMs: 4000,
@@ -640,12 +816,12 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         tenantId,
         dialogId,
         'user1',
-        typingEvent._id,
+        eventId,
         'dialog.typing',
-        typingEvent.data
+        eventData
       );
 
-      const updates = await Update.find({ tenantId, dialogId, eventId: typingEvent._id });
+      const updates = await Update.find({ tenantId, dialogId, eventId });
       expect(updates.length).toBe(1);
       expect(updates[0].userId).toBe('user2');
       expect(updates[0].data.typing).toBeDefined();
@@ -672,13 +848,17 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         isActive: true
       });
 
-      const typingEvent = await Event.create({
-        tenantId,
-        eventType: 'dialog.typing',
-        entityType: 'dialog',
-        entityId: dialogId,
-        actorId: 'user1',
-        data: {
+      const { eventId, eventData } = await createEventWithDialog('dialog.typing', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'dialog.typing',
+          dialogId,
+          entityId: dialogId,
+          messageId: null,
+          includedSections: ['dialog', 'typing'],
+          updatedFields: ['typing']
+        },
+        typing: {
           dialogId,
           userId: 'user1'
         }
@@ -688,12 +868,12 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         tenantId,
         dialogId,
         'user1',
-        typingEvent._id,
+        eventId,
         'dialog.typing',
-        typingEvent.data
+        eventData
       );
 
-      const updates = await Update.find({ tenantId, dialogId, eventId: typingEvent._id });
+      const updates = await Update.find({ tenantId, dialogId, eventId });
       expect(updates.length).toBe(0);
     });
   });

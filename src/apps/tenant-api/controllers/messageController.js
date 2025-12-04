@@ -415,11 +415,10 @@ const messageController = {
         for (const [key, value] of Object.entries(metaPayload)) {
           const metaOptions = {
             createdBy: senderId,
-            scope: typeof value === 'object' && value !== null ? value.scope : undefined
           };
 
           if (typeof value === 'object' && value !== null && Object.prototype.hasOwnProperty.call(value, 'value')) {
-            // If value is an object with dataType/value/scope properties
+            // If value is an object with dataType/value properties
             await metaUtils.setEntityMeta(
               req.tenantId,
               'message',

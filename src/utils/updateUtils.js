@@ -51,34 +51,6 @@ function buildMemberSection(member, memberMeta = {}, overrides = {}) {
   };
 }
 
-function buildContextSection({
-  eventType,
-  dialogId,
-  entityId,
-  messageId = null,
-  reason = null,
-  includedSections = [],
-  updatedFields = []
-}) {
-  const context = {
-    eventType,
-    dialogId,
-    entityId,
-    includedSections,
-    updatedFields
-  };
-
-  if (messageId) {
-    context.messageId = messageId;
-  }
-
-  if (reason) {
-    context.reason = reason;
-  }
-
-  return context;
-}
-
 function cloneSection(section) {
   if (!section) {
     return null;

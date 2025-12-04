@@ -155,38 +155,6 @@ describe('metaController', () => {
         message: expect.stringContaining('Dialog')
       });
     });
-
-    test('prioritizes scoped meta values when scope provided', async () => {
-      await Meta.create([
-        {
-          tenantId,
-          entityType: 'dialog',
-          entityId: dialogId,
-          key: 'name',
-          value: 'Default Name',
-          dataType: 'string'
-        },
-        {
-          tenantId,
-          entityType: 'dialog',
-          entityId: dialogId,
-          key: 'name',
-          value: 'Personal Name',
-          dataType: 'string',
-          scope: 'user_alice'
-        }
-      ]);
-
-      const req = createMockReq({
-        params: { entityType: 'dialog', entityId: dialogId },
-        query: { scope: 'user_alice' }
-      });
-      const res = createMockRes();
-
-      await metaController.getMeta(req, res);
-
-      expect(res.body.data.name).toBe('Personal Name');
-    });
   });
 
   describe('setMeta', () => {
@@ -334,33 +302,6 @@ describe('metaController', () => {
       }
     });
 
-    test('stores scoped meta entry when scope provided', async () => {
-      const req = createMockReq({
-        params: {
-          entityType: 'dialog',
-          entityId: dialogId,
-          key: 'title'
-        },
-        body: {
-          value: 'Scoped Title',
-          scope: 'user_alice'
-        }
-      });
-      const res = createMockRes();
-
-      await metaController.setMeta(req, res);
-
-      const scopedMeta = await Meta.findOne({
-        tenantId,
-        entityType: 'dialog',
-        entityId: dialogId,
-        key: 'title',
-        scope: 'user_alice'
-      }).lean();
-
-      expect(scopedMeta).toBeTruthy();
-      expect(scopedMeta.value).toBe('Scoped Title');
-    });
   });
 
   describe('deleteMeta', () => {
@@ -417,57 +358,6 @@ describe('metaController', () => {
       });
     });
 
-    test('deletes only scoped meta when scope query provided', async () => {
-      await Meta.create([
-        {
-          tenantId,
-          entityType: 'dialog',
-          entityId: dialogId,
-          key: 'summary',
-          value: 'Default summary',
-          dataType: 'string'
-        },
-        {
-          tenantId,
-          entityType: 'dialog',
-          entityId: dialogId,
-          key: 'summary',
-          value: 'Personal summary',
-          dataType: 'string',
-          scope: 'user_alice'
-        }
-      ]);
-
-      const req = createMockReq({
-        params: {
-          entityType: 'dialog',
-          entityId: dialogId,
-          key: 'summary'
-        },
-        query: { scope: 'user_alice' }
-      });
-      const res = createMockRes();
-
-      await metaController.deleteMeta(req, res);
-
-      const defaultMeta = await Meta.findOne({
-        tenantId,
-        entityType: 'dialog',
-        entityId: dialogId,
-        key: 'summary',
-        scope: null
-      }).lean();
-      const scopedMeta = await Meta.findOne({
-        tenantId,
-        entityType: 'dialog',
-        entityId: dialogId,
-        key: 'summary',
-        scope: 'user_alice'
-      }).lean();
-
-      expect(defaultMeta).toBeTruthy();
-      expect(scopedMeta).toBeNull();
-    });
   });
 
   describe('getMeta - error handling', () => {
@@ -588,71 +478,6 @@ describe('metaController', () => {
       Meta.deleteOne = originalDeleteOne;
     });
 
-    test('handles scope parameter in query', async () => {
-      const dialog = await Dialog.create({
-        tenantId,
-        dialogId: generateId('dlg_'),
-        
-        createdBy: 'alice',
-        createdAt: Date.now(),
-      });
-
-      // Create meta with scope and without scope
-      await Meta.create([
-        {
-          tenantId,
-          entityType: 'dialog',
-          entityId: dialog.dialogId,
-          key: 'name',
-          value: 'Scoped Name',
-          dataType: 'string',
-          scope: 'user_alice'
-        },
-        {
-          tenantId,
-          entityType: 'dialog',
-          entityId: dialog.dialogId,
-          key: 'name',
-          value: 'Global Name',
-          dataType: 'string',
-          scope: null
-        }
-      ]);
-
-      const req = createMockReq({
-        params: { entityType: 'dialog', entityId: dialog.dialogId, key: 'name' },
-        query: { scope: 'user_alice' }
-      });
-      const res = createMockRes();
-
-      await metaController.deleteMeta(req, res);
-
-      expect(res.statusCode).toBeUndefined();
-      expect(res.body.message).toBe('Meta deleted successfully');
-
-      // Verify scoped meta is deleted
-      const scopedMeta = await Meta.findOne({
-        tenantId,
-        entityType: 'dialog',
-        entityId: dialog.dialogId,
-        key: 'name',
-        scope: 'user_alice'
-      }).lean();
-
-      expect(scopedMeta).toBeNull();
-
-      // Verify global meta still exists
-      const globalMeta = await Meta.findOne({
-        tenantId,
-        entityType: 'dialog',
-        entityId: dialog.dialogId,
-        key: 'name',
-        scope: null
-      }).lean();
-
-      expect(globalMeta).toBeTruthy();
-      expect(globalMeta.value).toBe('Global Name');
-    });
   });
 });
 

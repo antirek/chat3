@@ -1073,63 +1073,6 @@ describe('userDialogController', () => {
     });
   });
 
-  describe('getUserDialogs - scope handling', () => {
-    test('handles scope in meta filters', async () => {
-      const userId = 'carl';
-      const dialog = await Dialog.create({
-        tenantId,
-        dialogId: generateDialogId(),
-        
-        createdBy: userId,
-        createdAt: generateTimestamp(),
-      });
-
-      await DialogMember.create({
-        tenantId,
-        dialogId: dialog.dialogId,
-        userId: userId,
-        isActive: true,
-        unreadCount: 0,
-        lastSeenAt: generateTimestamp(),
-        lastMessageAt: generateTimestamp()
-      });
-
-      // Create meta with scope
-      await Meta.create([
-        {
-          tenantId,
-          entityType: 'dialog',
-          entityId: dialog.dialogId,
-          key: 'name',
-          value: 'Scoped Name',
-          dataType: 'string',
-          scope: userId
-        },
-        {
-          tenantId,
-          entityType: 'dialog',
-          entityId: dialog.dialogId,
-          key: 'name',
-          value: 'Global Name',
-          dataType: 'string',
-          scope: null
-        }
-      ]);
-
-      const req = createMockReq(
-        { userId },
-        { page: 1, limit: 10 }
-      );
-      const res = createMockRes();
-
-      await userDialogController.getUserDialogs(req, res);
-
-      expect(res.statusCode).toBeUndefined();
-      expect(res.body.data).toHaveLength(1);
-      // Should prioritize scoped value
-      expect(res.body.data[0].meta.name).toBe('Scoped Name');
-    });
-  });
 
   describe('getUserDialogs - unreadCount filters', () => {
     test('handles unreadCount filter with gte: prefix', async () => {

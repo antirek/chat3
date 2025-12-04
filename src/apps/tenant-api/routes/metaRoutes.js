@@ -54,13 +54,9 @@ const router = express.Router();
  *                 type: string
  *                 enum: [string, number, boolean, object, array]
  *                 default: string
- *               scope:
- *                 type: string
- *                 description: Необязательный контекст (например, userId). Без него значение становится глобальным.
  *             example:
  *               value: "Welcome to the chat!"
  *               dataType: "string"
- *               scope: "user_alice"
  *     responses:
  *       200:
  *         description: Meta set successfully
@@ -101,12 +97,6 @@ router.put('/:entityType/:entityId/:key',
  *         schema:
  *           type: string
  *         description: Meta key
- *       - in: query
- *         name: scope
- *         required: false
- *         schema:
- *           type: string
- *         description: Scope контекст. Если указан — удаляется только персонализированное значение, иначе глобальное.
  *     responses:
  *       200:
  *         description: Meta deleted successfully
@@ -141,12 +131,6 @@ router.delete('/:entityType/:entityId/:key',
  *         schema:
  *           type: string
  *         description: Entity ID
- *       - in: query
- *         name: scope
- *         required: false
- *         schema:
- *           type: string
- *         description: Опциональный scope. Если указан – вернётся персонализированное значение с fallback на глобальное.
  *     responses:
  *       200:
  *         description: Meta tags as key-value object

@@ -5,12 +5,12 @@ import { parseFilters, extractMetaFilters } from './queryParser.js';
 /**
  * Получение информации об отправителе сообщения
  */
-export async function getSenderInfo(tenantId, senderId, cache = new Map(), metaOptions) {
+export async function getSenderInfo(tenantId, senderId, cache = new Map()) {
   if (!senderId) {
     return null;
   }
 
-  const cacheKey = metaOptions?.scope ? `${senderId}:${metaOptions.scope}` : senderId;
+  const cacheKey = senderId;
 
   if (cache.has(cacheKey)) {
     return cache.get(cacheKey);
@@ -23,7 +23,7 @@ export async function getSenderInfo(tenantId, senderId, cache = new Map(), metaO
     .select('userId name lastActiveAt createdAt updatedAt')
     .lean();
 
-  const meta = await metaUtils.getEntityMeta(tenantId, 'user', senderId, metaOptions);
+  const meta = await metaUtils.getEntityMeta(tenantId, 'user', senderId);
 
   if (!user && (!meta || Object.keys(meta).length === 0)) {
     cache.set(cacheKey, null);
@@ -42,36 +42,17 @@ export async function getSenderInfo(tenantId, senderId, cache = new Map(), metaO
 }
 
 /**
- * Объединение meta записей для определенного scope
+ * Объединение meta записей в объект {key: value}
  */
-export function mergeMetaRecordsForScope(records = [], scope) {
+export function mergeMetaRecords(records = []) {
   if (!records.length) {
     return {};
   }
 
   const result = {};
-
-  if (scope) {
-    records
-      .filter(record => record.scope === scope)
-      .forEach((record) => {
-        result[record.key] = record.value;
-      });
-
-    records
-      .filter(record => record.scope === null || typeof record.scope === 'undefined')
-      .forEach((record) => {
-        if (!Object.prototype.hasOwnProperty.call(result, record.key)) {
-          result[record.key] = record.value;
-        }
-      });
-  } else {
-    records
-      .filter(record => record.scope === null || typeof record.scope === 'undefined')
-      .forEach((record) => {
-        result[record.key] = record.value;
-      });
-  }
+  records.forEach((record) => {
+    result[record.key] = record.value;
+  });
 
   return result;
 }

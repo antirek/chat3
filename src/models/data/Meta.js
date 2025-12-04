@@ -22,13 +22,6 @@ const metaSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  scope: {
-    type: String,
-    trim: true,
-    maxlength: 100,
-    default: null,
-    description: 'Дополнительный контекст (например, userId) для персонализации'
-  },
   value: {
     type: mongoose.Schema.Types.Mixed,
     required: true
@@ -60,13 +53,13 @@ metaSchema.pre('save', function(next) {
 });
 
 // Compound indexes for uniqueness and queries
-// Unique index: ensures one meta entry per tenant/entity/key/scope combination
-metaSchema.index({ tenantId: 1, entityType: 1, entityId: 1, key: 1, scope: 1 }, { unique: true });
-metaSchema.index({ entityType: 1, entityId: 1, scope: 1 });
-metaSchema.index({ key: 1, scope: 1 });
+// Unique index: ensures one meta entry per tenant/entity/key combination
+metaSchema.index({ tenantId: 1, entityType: 1, entityId: 1, key: 1 }, { unique: true });
+metaSchema.index({ entityType: 1, entityId: 1 });
+metaSchema.index({ key: 1 });
 // Unique index for participant records (ensures one participant entry per user per dialog)
 metaSchema.index(
-  { tenantId: 1, entityType: 1, entityId: 1, key: 1, scope: 1, 'value.userId': 1 },
+  { tenantId: 1, entityType: 1, entityId: 1, key: 1, 'value.userId': 1 },
   {
     unique: true,
     partialFilterExpression: { key: 'participant' }

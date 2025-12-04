@@ -1,60 +1,6 @@
 import { Meta } from '../../../models/index.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
 
-export function normalizeScope(rawScope) {
-  if (typeof rawScope !== 'string') {
-    return null;
-  }
-  const trimmed = rawScope.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function getScopeDetails(options = {}) {
-  const provided = Object.prototype.hasOwnProperty.call(options, 'scope');
-  const value = provided ? normalizeScope(options.scope) : null;
-  return {
-    provided,
-    value,
-    preferScoped: Boolean(provided && value)
-  };
-}
-
-function applyScopeCondition(query, scopeDetails, includeFallback = true) {
-  if (scopeDetails.preferScoped && includeFallback) {
-    query.scope = { $in: [scopeDetails.value, null] };
-  } else if (scopeDetails.preferScoped && !includeFallback) {
-    query.scope = scopeDetails.value;
-  } else {
-    query.scope = null;
-  }
-}
-
-function pickMetaByScope(records, scopeDetails) {
-  const result = {};
-  if (scopeDetails.preferScoped) {
-    records
-      .filter(record => record.scope === scopeDetails.value)
-      .forEach((record) => {
-        result[record.key] = record.value;
-      });
-
-    records
-      .filter(record => record.scope === null || typeof record.scope === 'undefined')
-      .forEach((record) => {
-        if (!Object.prototype.hasOwnProperty.call(result, record.key)) {
-          result[record.key] = record.value;
-        }
-      });
-  } else {
-    records
-      .filter(record => record.scope === null || typeof record.scope === 'undefined')
-      .forEach((record) => {
-        result[record.key] = record.value;
-      });
-  }
-  return result;
-}
-
 /**
  * Утилиты для работы с метаданными
  */
@@ -62,18 +8,20 @@ function pickMetaByScope(records, scopeDetails) {
 // Получить все метаданные для сущности в виде объекта {key: value}
 export async function getEntityMeta(tenantId, entityType, entityId, options = {}) {
   try {
-    const scopeDetails = getScopeDetails(options);
     const query = {
       tenantId,
       entityType,
       entityId
     };
-    applyScopeCondition(query, scopeDetails);
 
     const metaRecords = await Meta.find(query).lean();
 
     // Преобразуем в объект { key: value }
-    return pickMetaByScope(metaRecords, scopeDetails);
+    const result = {};
+    metaRecords.forEach((record) => {
+      result[record.key] = record.value;
+    });
+    return result;
   } catch (error) {
     throw new Error(`Failed to get entity meta: ${error.message}`);
   }
@@ -82,18 +30,11 @@ export async function getEntityMeta(tenantId, entityType, entityId, options = {}
 // Получить все метаданные для сущности в виде массива с полной информацией
 export async function getEntityMetaFull(tenantId, entityType, entityId, options = {}) {
   try {
-    const scopeDetails = getScopeDetails(options);
     const query = {
       tenantId,
       entityType,
       entityId
     };
-
-    if (scopeDetails.preferScoped) {
-      applyScopeCondition(query, scopeDetails);
-    } else if (scopeDetails.provided) {
-      query.scope = null;
-    }
 
     const metaRecords = await Meta.find(query)
       .select('-__v')
@@ -108,20 +49,17 @@ export async function getEntityMetaFull(tenantId, entityType, entityId, options 
 // Установить или обновить метаданные
 export async function setEntityMeta(tenantId, entityType, entityId, key, value, dataType = 'string', options = {}) {
   try {
-    const scopeValue = normalizeScope(options.scope) ?? null;
     const meta = await Meta.findOneAndUpdate(
       {
         tenantId,
         entityType,
         entityId,
-        key,
-        scope: scopeValue
+        key
       },
       {
         value,
         dataType,
-        createdBy: options.createdBy,
-        scope: scopeValue
+        createdBy: options.createdBy
       },
       {
         upsert: true,
@@ -139,13 +77,11 @@ export async function setEntityMeta(tenantId, entityType, entityId, key, value, 
 // Удалить метаданные
 export async function deleteEntityMeta(tenantId, entityType, entityId, key, options = {}) {
   try {
-    const scopeValue = normalizeScope(options.scope) ?? null;
     const result = await Meta.deleteOne({
       tenantId,
       entityType,
       entityId,
-      key,
-      scope: scopeValue
+      key
     });
 
     return result.deletedCount > 0;
@@ -157,26 +93,15 @@ export async function deleteEntityMeta(tenantId, entityType, entityId, key, opti
 // Получить конкретное значение метаданных
 export async function getEntityMetaValue(tenantId, entityType, entityId, key, defaultValue = null, options = {}) {
   try {
-    const scopeDetails = getScopeDetails(options);
     const query = {
       tenantId,
       entityType,
       entityId,
       key
     };
-    applyScopeCondition(query, scopeDetails);
 
-    const records = await Meta.find(query).lean();
-
-    if (scopeDetails.preferScoped) {
-      const scoped = records.find(record => record.scope === scopeDetails.value);
-      if (scoped) {
-        return scoped.value;
-      }
-    }
-
-    const fallback = records.find(record => record.scope === null || typeof record.scope === 'undefined');
-    return fallback ? fallback.value : defaultValue;
+    const record = await Meta.findOne(query).lean();
+    return record ? record.value : defaultValue;
   } catch (error) {
     throw new Error(`Failed to get entity meta value: ${error.message}`);
   }
@@ -191,8 +116,6 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters, options 
 
     console.log('buildMetaQuery called with:', { tenantId, entityType, metaFilters });
 
-    const scopeDetails = getScopeDetails(options);
-
     // Для каждого мета-фильтра находим соответствующие entityId
     const allEntityIds = new Set();
     
@@ -205,7 +128,6 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters, options 
         entityType,
         key
       };
-      applyScopeCondition(metaQuery, scopeDetails);
       
       // Если value - это объект с операторами MongoDB (например, { $ne: "armor" })
       if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
@@ -223,7 +145,6 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters, options 
             entityType,
             key
           };
-          applyScopeCondition(allWithKeyQuery, scopeDetails);
           const allWithKey = await Meta.find(allWithKeyQuery)
             .select('entityId')
             .lean();
@@ -235,7 +156,6 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters, options 
             key,
             value: value.$ne
           };
-          applyScopeCondition(excludeQuery, scopeDetails);
           
           const excludeRecords = await Meta.find(excludeQuery).select('entityId').lean();
           const excludeIds = new Set(excludeRecords.map(r => r.entityId.toString()));

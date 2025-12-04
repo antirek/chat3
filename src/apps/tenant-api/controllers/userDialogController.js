@@ -4,7 +4,6 @@ import {
   // MessageReaction, 
   User } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
-import { getMetaScopeOptions } from '../utils/metaScopeUtils.js';
 import { parseFilters, extractMetaFilters, parseSort } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { validateGetUserDialogMessagesResponse, validateGetUserDialogMessageResponse } from '../validators/schemas/responseSchemas.js';
@@ -13,7 +12,7 @@ import { generateTimestamp } from '../../../utils/timestampUtils.js';
 import * as unreadCountUtils from '../utils/unreadCountUtils.js';
 import {
   getSenderInfo,
-  mergeMetaRecordsForScope,
+  mergeMetaRecords,
   buildStatusMessageMatrix,
   buildReactionSet,
   getContextUserInfo
@@ -27,13 +26,10 @@ const userDialogController = {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
-      const metaScopeOptions = getMetaScopeOptions(req, userId);
-      const targetScope = metaScopeOptions?.scope ?? null;
       const fetchMeta = (entityType, entityId) => metaUtils.getEntityMeta(
         req.tenantId,
         entityType,
-        entityId,
-        metaScopeOptions
+        entityId
       );
 
       let dialogIds = null;
@@ -60,11 +56,6 @@ const userDialogController = {
               tenantId: req.tenantId, // tenantId теперь строка (tnt_*)
               entityType: 'dialog'
             };
-          if (targetScope) {
-            metaQuery.scope = { $in: [targetScope, null] };
-          } else {
-            metaQuery.scope = null;
-          }
 
             // Проходим по всем meta фильтрам
             for (const [key, condition] of Object.entries(metaFilters)) {
@@ -735,11 +726,6 @@ const userDialogController = {
         entityType: 'user',
         entityId: { $in: senderIds }
       };
-      if (targetScope) {
-        sendersMetaQuery.scope = { $in: [targetScope, null] };
-      } else {
-        sendersMetaQuery.scope = null;
-      }
 
       const sendersMetaRecords = await Meta.find(sendersMetaQuery).lean();
       const groupedSenderMeta = {};
@@ -751,7 +737,7 @@ const userDialogController = {
       });
       const metaBySender = {};
       Object.entries(groupedSenderMeta).forEach(([entityId, records]) => {
-        metaBySender[entityId] = mergeMetaRecordsForScope(records, targetScope);
+        metaBySender[entityId] = mergeMetaRecords(records);
       });
 
       // Создаем Map отправителей
@@ -844,12 +830,10 @@ const userDialogController = {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 50;
       const skip = (page - 1) * limit;
-      const metaScopeOptions = getMetaScopeOptions(req, userId);
       const fetchMeta = (entityType, entityId) => metaUtils.getEntityMeta(
         req.tenantId,
         entityType,
-        entityId,
-        metaScopeOptions
+        entityId
       );
 
       // 1. Проверяем, что пользователь является участником диалога
@@ -1016,7 +1000,7 @@ const userDialogController = {
             contextData.userInfo = contextUserInfo;
           }
 
-          const senderInfo = await getSenderInfo(req.tenantId, message.senderId, senderInfoCache, metaScopeOptions);
+          const senderInfo = await getSenderInfo(req.tenantId, message.senderId, senderInfoCache);
 
           // Исключаем reactionCounts из ответа
           const { reactionCounts, ...messageWithoutReactionCounts } = message;
@@ -1070,12 +1054,10 @@ const userDialogController = {
   async getUserDialogMessage(req, res) {
     try {
       const { userId, dialogId, messageId } = req.params;
-      const metaScopeOptions = getMetaScopeOptions(req, userId);
       const fetchMeta = (entityType, entityId) => metaUtils.getEntityMeta(
         req.tenantId,
         entityType,
-        entityId,
-        metaScopeOptions
+        entityId
       );
 
       // 1. Проверяем, что пользователь является участником диалога
@@ -1141,7 +1123,7 @@ const userDialogController = {
         contextData.userInfo = contextUserInfo;
       }
 
-      const senderInfo = await getSenderInfo(req.tenantId, message.senderId, undefined, metaScopeOptions);
+      const senderInfo = await getSenderInfo(req.tenantId, message.senderId, undefined);
 
       // Исключаем reactionCounts из ответа
       const { reactionCounts, ...messageWithoutReactionCounts } = message;

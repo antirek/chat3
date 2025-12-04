@@ -150,26 +150,6 @@ describe('metaUtils - Integration Tests with MongoDB', () => {
       expect(meta).not.toHaveProperty('whatsapp');
     });
 
-    test('should prioritize scoped meta values over defaults', async () => {
-      await setEntityMeta(tenantId, 'dialog', 'dlg_scoped', 'name', 'Default Name', 'string');
-      await setEntityMeta(
-        tenantId,
-        'dialog',
-        'dlg_scoped',
-        'name',
-        'Personal Name',
-        'string',
-        { scope: 'user_alice' }
-      );
-
-      const defaultMeta = await getEntityMeta(tenantId, 'dialog', 'dlg_scoped');
-      const scopedMeta = await getEntityMeta(tenantId, 'dialog', 'dlg_scoped', { scope: 'user_alice' });
-      const fallbackMeta = await getEntityMeta(tenantId, 'dialog', 'dlg_scoped', { scope: 'user_bob' });
-
-      expect(defaultMeta.name).toBe('Default Name');
-      expect(scopedMeta.name).toBe('Personal Name');
-      expect(fallbackMeta.name).toBe('Default Name');
-    });
   });
 
   describe('getEntityMetaFull', () => {
@@ -271,38 +251,6 @@ describe('metaUtils - Integration Tests with MongoDB', () => {
       expect(meta.priority).toBe(5);
     });
 
-    test('should delete only scoped meta entry when scope specified', async () => {
-      await setEntityMeta(tenantId, 'dialog', 'dlg_scope_delete', 'title', 'Default', 'string');
-      await setEntityMeta(
-        tenantId,
-        'dialog',
-        'dlg_scope_delete',
-        'title',
-        'For Alice',
-        'string',
-        { scope: 'user_alice' }
-      );
-
-      await deleteEntityMeta(tenantId, 'dialog', 'dlg_scope_delete', 'title', { scope: 'user_alice' });
-
-      const defaultMeta = await Meta.findOne({
-        tenantId,
-        entityType: 'dialog',
-        entityId: 'dlg_scope_delete',
-        key: 'title',
-        scope: null
-      }).lean();
-      const scopedMetaRecord = await Meta.findOne({
-        tenantId,
-        entityType: 'dialog',
-        entityId: 'dlg_scope_delete',
-        key: 'title',
-        scope: 'user_alice'
-      }).lean();
-
-      expect(defaultMeta.value).toBe('Default');
-      expect(scopedMetaRecord).toBeNull();
-    });
   });
 
   describe('buildMetaQuery', () => {
@@ -405,39 +353,6 @@ describe('metaUtils - Integration Tests with MongoDB', () => {
       expect(query).toBeDefined();
     });
 
-    test('should respect scope option when filtering', async () => {
-      const dialogIdScoped = 'dlg_scope';
-      const dialogIdDefault = 'dlg_default';
-
-      await setEntityMeta(tenantId, 'dialog', dialogIdScoped, 'name', 'Default Name', 'string');
-      await setEntityMeta(tenantId, 'dialog', dialogIdDefault, 'name', 'Default Name', 'string');
-      await setEntityMeta(
-        tenantId,
-        'dialog',
-        dialogIdScoped,
-        'name',
-        'Personal Name',
-        'string',
-        { scope: 'user_alice' }
-      );
-
-      const scopedQuery = await buildMetaQuery(
-        tenantId,
-        'dialog',
-        { name: 'Personal Name' },
-        { scope: 'user_alice' }
-      );
-
-      expect(scopedQuery.dialogId.$in).toContain(dialogIdScoped);
-
-      const defaultQuery = await buildMetaQuery(
-        tenantId,
-        'dialog',
-        { name: 'Personal Name' }
-      );
-
-      expect(defaultQuery.dialogId.$in).toEqual([]);
-    });
   });
 
   describe('error handling', () => {
