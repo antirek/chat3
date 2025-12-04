@@ -993,8 +993,8 @@ const userDialogController = {
           // Находим статусы для текущего пользователя (может быть несколько записей)
           // const myStatuses = messageStatuses.filter(s => s.userId === userId);
 
-          // Формируем матрицу статусов по userType и status (исключая статусы текущего пользователя)
-          const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, message.messageId, userId);
+          // Формируем матрицу статусов по userType и status (исключая статусы отправителя сообщения)
+          const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, message.messageId, message.senderId);
 
           // Формируем reactionSet
           const reactionSet = await buildReactionSet(req.tenantId, message.messageId, userId);
@@ -1026,7 +1026,7 @@ const userDialogController = {
             meta: messageMeta,
             // Контекстные данные для конкретного пользователя
             context: contextData,
-            // Матрица статусов (количество пар userType-status, исключая свои статусы)
+            // Матрица статусов (количество пар userType-status, исключая статусы отправителя)
             statusMessageMatrix: statusMessageMatrix,
             // statuses: messageStatuses, // Закомментировано: заменено на statusMessageMatrix
             reactionSet: reactionSet,
@@ -1115,8 +1115,8 @@ const userDialogController = {
       // 4. Фильтруем статусы для текущего пользователя
       // const myStatuses = allStatuses.filter(s => s.userId === userId);
 
-      // 4.5. Формируем матрицу статусов по userType и status (исключая статусы текущего пользователя)
-      const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, messageId, userId);
+      // 4.5. Формируем матрицу статусов по userType и status (исключая статусы отправителя сообщения)
+      const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, messageId, message.senderId);
 
       // 5. Формируем reactionSet
       const reactionSet = await buildReactionSet(req.tenantId, messageId, userId);
@@ -1151,7 +1151,7 @@ const userDialogController = {
         meta: messageMeta,
         // Контекстные данные для конкретного пользователя
         context: contextData,
-        // Матрица статусов (количество пар userId-status, исключая свои статусы)
+        // Матрица статусов (количество пар userType-status, исключая статусы отправителя)
         statusMessageMatrix: statusMessageMatrix,
         reactionSet: reactionSet,
         senderInfo: senderInfo || null

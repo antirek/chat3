@@ -115,7 +115,7 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *       **Важно**: 
  *       - `context.statuses` удалено из ответа
  *       - Для получения информации о статусах используйте `statusMessageMatrix` в корне каждого объекта сообщения
- *       - `statusMessageMatrix` содержит агрегированные данные о статусах других пользователей, исключая текущего
+ *       - `statusMessageMatrix` содержит агрегированные данные о статусах всех получателей, исключая отправителя сообщения
  *     tags: [UserDialogs]
  *     security:
  *       - ApiKeyAuth: []
@@ -203,7 +203,7 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *                         type: array
  *                         description: |
  *                           Матрица статусов сообщения, сгруппированная по userType и status.
- *                           Исключает статусы текущего пользователя (userId из пути запроса).
+ *                           Исключает статусы отправителя сообщения (senderId).
  *                           
  *                           **Важно:**
  *                           - Матрица содержит суммарные значения по всем статусам в истории
@@ -300,7 +300,7 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *       **Важно**: 
  *       - `context.statuses` удалено из ответа
  *       - Для получения информации о статусах используйте `statusMessageMatrix` в корне объекта сообщения
- *       - `statusMessageMatrix` содержит агрегированные данные о статусах других пользователей, исключая текущего
+ *       - `statusMessageMatrix` содержит агрегированные данные о статусах всех получателей, исключая отправителя сообщения
  *     tags: [UserDialogs]
  *     security:
  *       - ApiKeyAuth: []

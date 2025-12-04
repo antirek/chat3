@@ -77,7 +77,7 @@ export function mergeMetaRecordsForScope(records = [], scope) {
 }
 
 /**
- * Формирование матрицы статусов сообщения (исключая статусы текущего пользователя)
+ * Формирование матрицы статусов сообщения (исключая статусы отправителя сообщения)
  * 
  * ВАЖНО: Считает суммарные значения по всем статусам в истории для каждого userType и status.
  * Это означает, что если пользователь менял статус несколько раз (например: unread → delivered → read),
@@ -98,18 +98,23 @@ export function mergeMetaRecordsForScope(records = [], scope) {
  * 
  * Это позволяет видеть, сколько раз сообщение проходило через каждый статус.
  * 
+ * Исключение отправителя обеспечивает единообразие матрицы для всех участников:
+ * - Отправитель видит статусы всех получателей
+ * - Получатели видят статусы других получателей (но не отправителя)
+ * - Матрица одинакова для всех участников диалога
+ * 
  * @param {string} tenantId - ID тенанта
  * @param {string} messageId - ID сообщения
- * @param {string} excludeUserId - ID пользователя, статусы которого нужно исключить
+ * @param {string} senderId - ID отправителя сообщения, статусы которого нужно исключить
  * @returns {Promise<Array>} Массив объектов { userType, status, count }
  */
-export async function buildStatusMessageMatrix(tenantId, messageId, excludeUserId) {
+export async function buildStatusMessageMatrix(tenantId, messageId, senderId) {
   return await MessageStatus.aggregate([
     {
       $match: {
         tenantId: tenantId,
         messageId: messageId,
-        userId: { $ne: excludeUserId } // Исключаем статусы текущего пользователя
+        userId: { $ne: senderId } // Исключаем статусы отправителя сообщения
       }
     },
     // Группируем по userType и status, считая все записи в истории

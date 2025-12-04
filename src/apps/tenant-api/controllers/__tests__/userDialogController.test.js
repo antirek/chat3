@@ -1288,7 +1288,7 @@ describe('userDialogController', () => {
       }
     });
 
-    test('statusMessageMatrix should exclude current user statuses', async () => {
+    test('statusMessageMatrix should exclude sender statuses', async () => {
       const req = createMockReq(
         { userId, dialogId: dialog.dialogId },
         { page: 1, limit: 10 }
@@ -1301,8 +1301,8 @@ describe('userDialogController', () => {
       expect(res.body?.data).toHaveLength(1);
       const [message] = res.body.data;
       
-      // Проверяем, что statusMessageMatrix содержит только статусы других пользователей
-      // (статусы текущего пользователя должны быть исключены)
+      // Проверяем, что statusMessageMatrix содержит только статусы получателей
+      // (статусы отправителя сообщения должны быть исключены)
       // Матрица группируется по userType и status, поэтому проверяем наличие данных
       expect(message.statusMessageMatrix).toBeDefined();
       expect(Array.isArray(message.statusMessageMatrix)).toBe(true);
