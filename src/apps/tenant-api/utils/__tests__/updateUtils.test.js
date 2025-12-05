@@ -1129,6 +1129,169 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(updates[0].data.user.stats.unreadDialogsCount).toBe(1);
     });
 
+    test('should create UserStatsUpdate for all recipients when processing message.create event (multiple recipients)', async () => {
+      const dialogId = generateDialogId();
+      const senderId = 'sender';
+      const recipient1Id = 'recipient1';
+      const recipient2Id = 'recipient2';
+      const recipient3Id = 'recipient3';
+
+      await User.create([
+        {
+          tenantId,
+          userId: senderId,
+          type: 'user',
+          createdAt: generateTimestamp()
+        },
+        {
+          tenantId,
+          userId: recipient1Id,
+          type: 'user',
+          createdAt: generateTimestamp()
+        },
+        {
+          tenantId,
+          userId: recipient2Id,
+          type: 'user',
+          createdAt: generateTimestamp()
+        },
+        {
+          tenantId,
+          userId: recipient3Id,
+          type: 'user',
+          createdAt: generateTimestamp()
+        }
+      ]);
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        createdBy: senderId
+      });
+
+      // Создаем DialogMember для всех получателей с unreadCount = 0 (диалог прочитан)
+      await DialogMember.create([
+        {
+          tenantId,
+          dialogId,
+          userId: recipient1Id,
+          unreadCount: 0,
+          isActive: true
+        },
+        {
+          tenantId,
+          dialogId,
+          userId: recipient2Id,
+          unreadCount: 0,
+          isActive: true
+        },
+        {
+          tenantId,
+          dialogId,
+          userId: recipient3Id,
+          unreadCount: 0,
+          isActive: true
+        }
+      ]);
+
+      const messageId = generateMessageId();
+      const eventId = await createEventAndGetId('message.create', {
+        context: {
+          version: 2,
+          eventType: 'message.create',
+          dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message']
+        },
+        dialog: {
+          dialogId,
+          tenantId,
+          createdBy: senderId,
+          createdAt: generateTimestamp(),
+          meta: {}
+        },
+        message: {
+          messageId,
+          dialogId,
+          senderId,
+          type: 'internal.text',
+          content: 'Test message',
+          meta: {}
+        }
+      });
+
+      // Симулируем обработку события message.create в update-worker
+      // Сначала создаем сообщение
+      await Message.create({
+        tenantId,
+        dialogId,
+        messageId,
+        senderId,
+        type: 'internal.text',
+        content: 'Test message',
+        createdAt: generateTimestamp()
+      });
+
+      // Обновляем unreadCount для всех получателей (симулируем создание сообщения)
+      // recipient1 и recipient2: диалог стал непрочитанным (unreadCount = 1)
+      // recipient3: диалог остался прочитанным (unreadCount = 0, не обновляем)
+      await DialogMember.updateOne(
+        { tenantId, dialogId, userId: recipient1Id },
+        { $inc: { unreadCount: 1 } }
+      );
+      await DialogMember.updateOne(
+        { tenantId, dialogId, userId: recipient2Id },
+        { $inc: { unreadCount: 1 } }
+      );
+
+      // Симулируем логику из update-worker: получаем всех участников и создаем UserStatsUpdate для тех, у кого unreadCount = 1
+      const members = await DialogMember.find({
+        tenantId,
+        dialogId,
+        isActive: true
+      }).lean();
+
+      for (const member of members) {
+        if (member.userId !== senderId) {
+          const unreadCount = member.unreadCount ?? 0;
+          // Если unreadCount = 1 (только что созданное сообщение), значит диалог стал непрочитанным
+          if (unreadCount === 1) {
+            await updateUtils.createUserStatsUpdate(
+              tenantId,
+              member.userId,
+              eventId,
+              'message.create',
+              ['user.stats.unreadDialogsCount']
+            );
+          }
+        }
+      }
+
+      // Проверяем, что UserStatsUpdate создан только для recipient1 и recipient2
+      const updates1 = await Update.find({
+        tenantId,
+        userId: recipient1Id,
+        eventType: 'user.stats.update'
+      }).lean();
+      const updates2 = await Update.find({
+        tenantId,
+        userId: recipient2Id,
+        eventType: 'user.stats.update'
+      }).lean();
+      const updates3 = await Update.find({
+        tenantId,
+        userId: recipient3Id,
+        eventType: 'user.stats.update'
+      }).lean();
+
+      expect(updates1.length).toBe(1);
+      expect(updates1[0].data.user.stats.unreadDialogsCount).toBe(1);
+      expect(updates2.length).toBe(1);
+      expect(updates2[0].data.user.stats.unreadDialogsCount).toBe(1);
+      expect(updates3.length).toBe(0); // recipient3 не должен получить UserStatsUpdate, т.к. unreadCount = 0
+    });
+
     test('should create UserStatsUpdate when processing dialog.member.add event', async () => {
       const dialogId = generateDialogId();
       const userId = 'new_member';

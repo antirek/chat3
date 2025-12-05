@@ -21,7 +21,7 @@
 | `dialog.create` | Создан диалог | `dialogController.create` | `DialogUpdate` | Все участники |
 | `dialog.update` | Обновлен диалог | `metaController.setMeta/deleteMeta` (для диалогов) | `DialogUpdate` | Все участники |
 | `dialog.delete` | Удален диалог | `dialogController.delete` | `DialogUpdate` | Все участники |
-| `message.create` | Создано сообщение | `messageController.create` | `MessageUpdate` | Все участники |
+| `message.create` | Создано сообщение | `messageController.create` | `MessageUpdate`, `UserStatsUpdate` (для участников, у которых диалог стал непрочитанным) | Все участники + UserStatsUpdate для участников (кроме отправителя), у которых диалог стал непрочитанным |
 | `message.update` | Обновлено сообщение | `messageController.update`, `metaController.setMeta/deleteMeta` (для сообщений) | `MessageUpdate` | Все участники |
 | `dialog.member.add` | Добавлен участник | `dialogMemberController.addMember`, `dialogController.create` (при создании диалога с участниками) | `DialogUpdate`, `UserStatsUpdate` | Все участники + UserStatsUpdate для добавленного |
 | `dialog.member.remove` | Удален участник | `dialogMemberController.removeMember` | `DialogUpdate`, `UserStatsUpdate` | Все участники + удаляемый + UserStatsUpdate для удаленного |
@@ -186,7 +186,7 @@
 | **MessageUpdate** | `message.create`, `message.update`, `message.status.update`, `message.reaction.update` | Все активные участники диалога | Может содержать полное сообщение или только изменения (status/reaction) |
 | **TypingUpdate** | `dialog.typing` | Все участники кроме инициатора | Временное событие с expiresInMs |
 | **UserUpdate** | `user.add`, `user.update`, `user.remove` | Только этот пользователь | Обновления данных пользователя (type, meta) |
-| **UserStatsUpdate** | Создается в update-worker на основе `dialog.member.add`, `dialog.member.remove`, `dialog.member.update`, `message.create`, `message.status.update` | Только этот пользователь | Пересчитывает статистику (dialogCount, unreadDialogsCount) при изменении |
+| **UserStatsUpdate** | Создается в update-worker на основе `dialog.member.add`, `dialog.member.remove`, `dialog.member.update`, `message.create`, `message.status.update` | Только этот пользователь | Пересчитывает статистику (dialogCount, unreadDialogsCount) при изменении. При `message.create` создается для всех участников (кроме отправителя), у которых диалог стал непрочитанным |
 
 ---
 
@@ -286,9 +286,10 @@ USER_UPDATE_EVENTS = [
    - Создается `UserStatsUpdate` с `updatedFields: ['user.stats.unreadDialogsCount']`
 
 4. **При создании сообщения** (`message.create`):
+   - Для всех участников диалога (кроме отправителя) проверяется, стал ли диалог непрочитанным
    - Если диалог становится непрочитанным для пользователя (unreadCount был 0, стал 1)
-   - Увеличивается `unreadDialogsCount`
-   - Создается `UserStatsUpdate` с `updatedFields: ['user.stats.unreadDialogsCount']`
+   - Увеличивается `unreadDialogsCount` для каждого такого пользователя
+   - Создается `UserStatsUpdate` с `updatedFields: ['user.stats.unreadDialogsCount']` для каждого участника, у которого диалог стал непрочитанным
 
 5. **При обновлении статуса сообщения** (`message.status.update`):
    - Если диалог становится прочитанным для пользователя (unreadCount > 0 → 0)
