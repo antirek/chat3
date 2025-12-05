@@ -103,6 +103,22 @@ async function processEvent(eventData) {
             console.log(`✅ Created UserStatsUpdate for user ${userId} (dialogCount increased)`);
           }
         }
+        
+        // Для dialog.member.remove создаем UserStatsUpdate для удаленного пользователя
+        if (eventType === 'dialog.member.remove') {
+          const memberPayload = data.member || {};
+          const userId = memberPayload.userId;
+          if (userId) {
+            await updateUtils.createUserStatsUpdate(
+              tenantId,
+              userId,
+              eventId,
+              eventType,
+              ['user.stats.dialogCount']
+            );
+            console.log(`✅ Created UserStatsUpdate for user ${userId} (dialogCount decreased)`);
+          }
+        }
       } else {
         console.warn(`⚠️ No dialogId found for event ${eventId}`);
       }
@@ -167,6 +183,34 @@ async function processEvent(eventData) {
       if (dialogId && messageId) {
         await updateUtils.createMessageUpdate(tenantId, dialogId, messageId, eventId, eventType, data);
         console.log(`✅ Created MessageUpdate for event ${eventId}`);
+        
+        // Для message.status.update проверяем, стал ли диалог прочитанным для пользователя
+        if (eventType === 'message.status.update') {
+          const statusUpdate = messagePayload.statusUpdate || {};
+          const userId = statusUpdate.userId;
+          if (userId) {
+            // Получаем текущее значение unreadCount для этого пользователя
+            const currentMember = await DialogMember.findOne({
+              tenantId,
+              dialogId,
+              userId
+            }).lean();
+            const currentUnreadCount = currentMember?.unreadCount ?? 0;
+            
+            // Если unreadCount стал 0, значит диалог стал прочитанным
+            // (был непрочитанным, стал прочитанным)
+            if (currentUnreadCount === 0) {
+              await updateUtils.createUserStatsUpdate(
+                tenantId,
+                userId,
+                eventId,
+                eventType,
+                ['user.stats.unreadDialogsCount']
+              );
+              console.log(`✅ Created UserStatsUpdate for user ${userId} (dialog became read)`);
+            }
+          }
+        }
         
         // Для message.create проверяем, у каких пользователей диалог стал непрочитанным
         if (eventType === 'message.create') {

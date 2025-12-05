@@ -5,7 +5,7 @@ import {
   createMessageUpdate,
   createUserStatsUpdate
 } from '../../../../utils/updateUtils.js';
-import { Dialog, DialogMember, Meta, Message, User, Event, Update } from "../../../../models/index.js";
+import { Dialog, DialogMember, Meta, Message, MessageStatus, User, Event, Update } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
@@ -1197,6 +1197,212 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(updates.length).toBe(1);
       expect(updates[0].data.user.stats.dialogCount).toBe(1);
       expect(updates[0].data.context.updatedFields).toContain('user.stats.dialogCount');
+    });
+
+    test('should create UserStatsUpdate when processing dialog.member.remove event (dialogCount decreased)', async () => {
+      const dialogId = generateDialogId();
+      const userId = 'member_to_remove';
+
+      await User.create({
+        tenantId,
+        userId,
+        type: 'user',
+        createdAt: generateTimestamp()
+      });
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        createdBy: 'creator'
+      });
+
+      // Создаем два диалога для пользователя
+      await DialogMember.create([
+        {
+          tenantId,
+          dialogId,
+          userId,
+          unreadCount: 0,
+          isActive: true
+        },
+        {
+          tenantId,
+          dialogId: generateDialogId(),
+          userId,
+          unreadCount: 0,
+          isActive: true
+        }
+      ]);
+
+      const eventId = await createEventAndGetId('dialog.member.remove', {
+        context: {
+          version: 2,
+          eventType: 'dialog.member.remove',
+          dialogId,
+          entityId: dialogId,
+          includedSections: ['dialog', 'member']
+        },
+        dialog: {
+          dialogId,
+          tenantId,
+          createdBy: 'creator',
+          createdAt: generateTimestamp(),
+          meta: {}
+        },
+        member: {
+          userId,
+          state: {
+            unreadCount: 0,
+            isActive: false
+          }
+        }
+      });
+
+      // Удаляем DialogMember (симулируем удаление участника)
+      await DialogMember.deleteOne({
+        tenantId,
+        dialogId,
+        userId
+      });
+
+      // Создаем UserStatsUpdate (как это делает update-worker)
+      await updateUtils.createUserStatsUpdate(
+        tenantId,
+        userId,
+        eventId,
+        'dialog.member.remove',
+        ['user.stats.dialogCount']
+      );
+
+      const updates = await Update.find({
+        tenantId,
+        userId,
+        eventType: 'user.stats.update'
+      }).lean();
+
+      expect(updates.length).toBe(1);
+      expect(updates[0].data.user.stats.dialogCount).toBe(1); // Остался один диалог
+      expect(updates[0].data.context.updatedFields).toContain('user.stats.dialogCount');
+    });
+
+    test('should create UserStatsUpdate when processing message.status.update event (dialog becomes read)', async () => {
+      const dialogId = generateDialogId();
+      const userId = 'reader';
+      const senderId = 'sender';
+
+      await User.create([
+        {
+          tenantId,
+          userId,
+          type: 'user',
+          createdAt: generateTimestamp()
+        },
+        {
+          tenantId,
+          userId: senderId,
+          type: 'user',
+          createdAt: generateTimestamp()
+        }
+      ]);
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        createdBy: senderId
+      });
+
+      const messageId = generateMessageId();
+      await Message.create({
+        tenantId,
+        dialogId,
+        messageId,
+        senderId,
+        type: 'internal.text',
+        content: 'Test message',
+        createdAt: generateTimestamp()
+      });
+
+      // Создаем DialogMember с unreadCount = 1 (диалог непрочитан)
+      await DialogMember.create({
+        tenantId,
+        dialogId,
+        userId,
+        unreadCount: 1,
+        isActive: true
+      });
+
+      // Создаем MessageStatus с unread
+      await MessageStatus.create({
+        tenantId,
+        messageId,
+        userId,
+        status: 'unread',
+        createdAt: generateTimestamp()
+      });
+
+      const eventId = await createEventAndGetId('message.status.update', {
+        context: {
+          version: 2,
+          eventType: 'message.status.update',
+          dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message'],
+          updatedFields: ['message.status']
+        },
+        dialog: {
+          dialogId,
+          tenantId,
+          createdBy: senderId,
+          createdAt: generateTimestamp(),
+          meta: {}
+        },
+        message: {
+          messageId,
+          dialogId,
+          senderId,
+          type: 'internal.text',
+          content: 'Test message',
+          meta: {},
+          statusUpdate: {
+            userId,
+            status: 'read',
+            oldStatus: 'unread'
+          }
+        }
+      });
+
+      // Обновляем MessageStatus на read (симулируем чтение сообщения)
+      await MessageStatus.findOneAndUpdate(
+        { tenantId, messageId, userId },
+        { status: 'read' },
+        { new: true }
+      );
+
+      // Обновляем unreadCount до 0 (диалог стал прочитанным)
+      await DialogMember.updateOne(
+        { tenantId, dialogId, userId },
+        { $set: { unreadCount: 0 } }
+      );
+
+      // Создаем UserStatsUpdate (как это делает update-worker)
+      await updateUtils.createUserStatsUpdate(
+        tenantId,
+        userId,
+        eventId,
+        'message.status.update',
+        ['user.stats.unreadDialogsCount']
+      );
+
+      const updates = await Update.find({
+        tenantId,
+        userId,
+        eventType: 'user.stats.update'
+      }).lean();
+
+      expect(updates.length).toBe(1);
+      expect(updates[0].data.user.stats.unreadDialogsCount).toBe(0); // Диалог стал прочитанным
+      expect(updates[0].data.context.updatedFields).toContain('user.stats.unreadDialogsCount');
     });
   });
 });
