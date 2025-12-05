@@ -55,7 +55,6 @@ describe('responseUtils', () => {
       // Timestamp должен быть > 1000000000000 для форматирования
       const input = {
         createdAt: 1734567890123.123456,
-        updatedAt: 1734567890123.654321,
         name: 'Test'
       };
       
@@ -64,8 +63,6 @@ describe('responseUtils', () => {
       // Проверяем, что timestamp поля отформатированы как строки с 6 знаками
       expect(typeof result.createdAt).toBe('string');
       expect(result.createdAt).toMatch(/^\d+\.\d{6}$/);
-      expect(typeof result.updatedAt).toBe('string');
-      expect(result.updatedAt).toMatch(/^\d+\.\d{6}$/);
       expect(result.name).toBe('Test');
     });
 
@@ -74,7 +71,6 @@ describe('responseUtils', () => {
       const baseTimestamp = 1734567890123;
       const input = {
         createdAt: baseTimestamp + 0.1,
-        updatedAt: baseTimestamp + 0.2,
         lastSeenAt: baseTimestamp + 0.3,
         lastMessageAt: baseTimestamp + 0.4,
         publishedAt: baseTimestamp + 0.5,
@@ -84,7 +80,6 @@ describe('responseUtils', () => {
         expiresAt: baseTimestamp + 0.11,
         lastUsedAt: baseTimestamp + 0.12,
         lastInteractionAt: baseTimestamp + 0.13,
-        lastActiveAt: baseTimestamp + 0.14,
         statusTime: baseTimestamp + 0.8, // Не в TIMESTAMP_FIELDS, не должно форматироваться
         reactionTime: baseTimestamp + 0.9, // Не в TIMESTAMP_FIELDS, не должно форматироваться
         name: 'Test'
@@ -95,8 +90,6 @@ describe('responseUtils', () => {
       // Проверяем, что все timestamp поля отформатированы как строки
       expect(typeof result.createdAt).toBe('string');
       expect(result.createdAt).toMatch(/^\d+\.\d{6}$/);
-      expect(typeof result.updatedAt).toBe('string');
-      expect(result.updatedAt).toMatch(/^\d+\.\d{6}$/);
       expect(typeof result.lastSeenAt).toBe('string');
       expect(result.lastSeenAt).toMatch(/^\d+\.\d{6}$/);
       expect(typeof result.lastMessageAt).toBe('string');
@@ -115,8 +108,6 @@ describe('responseUtils', () => {
       expect(result.lastUsedAt).toMatch(/^\d+\.\d{6}$/);
       expect(typeof result.lastInteractionAt).toBe('string');
       expect(result.lastInteractionAt).toMatch(/^\d+\.\d{6}$/);
-      expect(typeof result.lastActiveAt).toBe('string');
-      expect(result.lastActiveAt).toMatch(/^\d+\.\d{6}$/);
       // statusTime и reactionTime не в TIMESTAMP_FIELDS, не должны форматироваться
       expect(typeof result.statusTime).toBe('number');
       expect(typeof result.reactionTime).toBe('number');
@@ -128,23 +119,19 @@ describe('responseUtils', () => {
       const baseTimestamp = 1734567890123;
       const input = {
         createdAt: baseTimestamp,
-        updatedAt: baseTimestamp + 0.123456
       };
       
       const result = sanitizeResponse(input);
       
       expect(typeof result.createdAt).toBe('string');
       expect(result.createdAt).toBe(`${baseTimestamp}.000000`);
-      expect(typeof result.updatedAt).toBe('string');
       // Проверяем формат, а не точное значение (может быть небольшое округление)
-      expect(result.updatedAt).toMatch(/^1734567890123\.\d{6}$/);
     });
 
     test('should not format timestamps less than threshold', () => {
       // Timestamp < 1000000000000 не должен форматироваться
       const input = {
         createdAt: 123456789012.123456, // меньше порога
-        updatedAt: 1734567890123.123456  // больше порога
       };
       
       const result = sanitizeResponse(input);
@@ -154,8 +141,6 @@ describe('responseUtils', () => {
       expect(result.createdAt).toBe(123456789012.123456);
       
       // updatedAt форматируется (больше порога)
-      expect(typeof result.updatedAt).toBe('string');
-      expect(result.updatedAt).toMatch(/^\d+\.\d{6}$/);
     });
 
     test('should handle nested timestamp fields', () => {
@@ -165,7 +150,6 @@ describe('responseUtils', () => {
         name: 'Test',
         metadata: {
           createdAt: baseTimestamp + 0.123456,
-          updatedAt: baseTimestamp + 0.654321
         }
       };
       
@@ -173,8 +157,6 @@ describe('responseUtils', () => {
       
       expect(typeof result.metadata.createdAt).toBe('string');
       expect(result.metadata.createdAt).toMatch(/^\d+\.\d{6}$/);
-      expect(typeof result.metadata.updatedAt).toBe('string');
-      expect(result.metadata.updatedAt).toMatch(/^\d+\.\d{6}$/);
     });
 
     test('should handle timestamp fields in arrays', () => {
@@ -321,15 +303,12 @@ describe('responseUtils', () => {
       const baseTimestamp = 1734567890123;
       const input = {
         createdAt: `${baseTimestamp}.123456`, // уже строка
-        updatedAt: baseTimestamp + 0.654321    // число
       };
       
       const result = sanitizeResponse(input);
       
       // Строковые timestamp не должны форматироваться (проверка только для чисел)
       expect(result.createdAt).toBe(`${baseTimestamp}.123456`);
-      expect(typeof result.updatedAt).toBe('string');
-      expect(result.updatedAt).toMatch(/^\d+\.\d{6}$/);
     });
 
     test('should handle very large timestamp values', () => {
@@ -384,7 +363,6 @@ describe('responseUtils', () => {
         dialogId: 'dlg_123',
         
         createdAt: baseTimestamp + 0.123456,
-        updatedAt: baseTimestamp + 0.654321,
         members: [
           {
             _id: 'member1',
@@ -419,8 +397,6 @@ describe('responseUtils', () => {
       // Проверяем форматирование timestamp полей как строк
       expect(typeof result.createdAt).toBe('string');
       expect(result.createdAt).toMatch(/^\d+\.\d{6}$/);
-      expect(typeof result.updatedAt).toBe('string');
-      expect(result.updatedAt).toMatch(/^\d+\.\d{6}$/);
       expect(typeof result.members[0].joinedAt).toBe('string');
       expect(result.members[0].joinedAt).toMatch(/^\d+\.\d{6}$/);
       expect(typeof result.members[0].lastSeenAt).toBe('string');

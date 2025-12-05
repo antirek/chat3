@@ -1222,7 +1222,7 @@ const userDialogController = {
         tenantId: req.tenantId,
         messageId: messageId
       })
-        .select('messageId userId userType tenantId status createdAt updatedAt')
+        .select('messageId userId userType tenantId status createdAt')
         .sort({ createdAt: -1 }) // Новые записи первыми
         .skip(skip)
         .limit(limit)

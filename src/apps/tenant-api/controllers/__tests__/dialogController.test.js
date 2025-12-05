@@ -60,7 +60,7 @@ beforeEach(async () => {
     users.map((userId) => ({
       tenantId,
       userId,
-      lastActiveAt: generateTimestamp(),
+      
       createdAt: generateTimestamp()
     }))
   );
@@ -349,7 +349,7 @@ describe('dialogController.getById', () => {
       users.map((userId) => ({
         tenantId,
         userId,
-        lastActiveAt: generateTimestamp(),
+        
         createdAt: generateTimestamp()
       }))
     );

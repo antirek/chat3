@@ -3,8 +3,7 @@ import {
   getUserById,
   createUser,
   updateUser,
-  deleteUser,
-  updateUserActivity
+  deleteUser
 } from '../userController.js';
 import { Tenant, User, Meta, DialogMember } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
@@ -59,19 +58,19 @@ describe('userController.getUsers', () => {
       {
         tenantId,
         userId: 'agent_carl',
-        lastActiveAt: generateTimestamp(),
+        
         createdAt: generateTimestamp(),
       },
       {
         tenantId,
         userId: 'manager_alice',
-        lastActiveAt: generateTimestamp(),
+        
         createdAt: generateTimestamp(),
       },
       {
         tenantId,
         userId: 'guest_zoe',
-        lastActiveAt: generateTimestamp(),
+        
         createdAt: generateTimestamp(),
       }
     ]);
@@ -291,7 +290,7 @@ describe('userController.getUserById', () => {
       tenantId,
       userId: 'agent_carl',
       name: 'Carl Johnson',
-      lastActiveAt: generateTimestamp(),
+      
       createdAt: generateTimestamp(),
     });
   });
@@ -418,7 +417,7 @@ describe('userController.createUser', () => {
       tenantId,
       userId: 'existing',
       name: 'Existing',
-      lastActiveAt: generateTimestamp(),
+      
       createdAt: generateTimestamp(),
     });
 
@@ -451,7 +450,7 @@ describe('userController.updateUser', () => {
     await User.create({
       tenantId,
       userId: 'agent_carl',
-      lastActiveAt: generateTimestamp(),
+      
       createdAt: generateTimestamp(),
     });
   });
@@ -554,7 +553,7 @@ describe('userController.deleteUser', () => {
       tenantId,
       userId: 'to_delete',
       name: 'Delete Me',
-      lastActiveAt: generateTimestamp(),
+      
       createdAt: generateTimestamp(),
     });
   });
@@ -588,54 +587,4 @@ describe('userController.deleteUser', () => {
   });
 });
 
-describe('userController.updateUserActivity', () => {
-  beforeEach(async () => {
-    await clearDatabase();
-
-    await Tenant.create({
-      tenantId,
-      name: 'Tenant',
-      domain: 'tenant.chat3.dev',
-      type: 'client',
-      isActive: true,
-      createdAt: generateTimestamp()
-    });
-
-    await User.create({
-      tenantId,
-      userId: 'active_user',
-      name: 'Active User',
-      lastActiveAt: 0,
-      createdAt: generateTimestamp(),
-      updatedAt: 0
-    });
-  });
-
-  test('updates lastActiveAt and updatedAt', async () => {
-    const req = {
-      tenantId,
-      params: { userId: 'active_user' }
-    };
-    const res = createMockRes();
-
-    await updateUserActivity(req, res);
-
-    expect(res.statusCode).toBeUndefined();
-    expect(res.body.data.userId).toBe('active_user');
-    expect(Number(res.body.data.lastActiveAt)).toBeGreaterThan(0);
-  });
-
-  test('returns 404 when user missing', async () => {
-    const req = {
-      tenantId,
-      params: { userId: 'ghost' }
-    };
-    const res = createMockRes();
-
-    await updateUserActivity(req, res);
-
-    expect(res.statusCode).toBe(404);
-    expect(res.body.error).toBe('Not Found');
-  });
-});
 

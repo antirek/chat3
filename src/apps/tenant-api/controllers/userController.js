@@ -212,7 +212,6 @@ export async function getUserById(req, res) {
           data: sanitizeResponse({
             userId: userId,
             tenantId: req.tenantId,
-            lastActiveAt: null,
             createdAt: null,
             meta: userMeta
           })
@@ -269,8 +268,7 @@ export async function createUser(req, res) {
     const user = await User.create({
       userId: userId,
       tenantId: req.tenantId,
-      type: type || 'user',
-      lastActiveAt: generateTimestamp()
+      type: type || 'user'
     });
 
     res.status(201).json({
@@ -391,41 +389,4 @@ export async function deleteUser(req, res) {
   }
 }
 
-/**
- * Обновить lastActiveAt для пользователя
- * POST /api/users/:userId/activity
- */
-export async function updateUserActivity(req, res) {
-  try {
-    const { userId } = req.params;
-
-    const user = await User.findOneAndUpdate(
-      {
-        userId: userId,
-        tenantId: req.tenantId
-      },
-      {
-        lastActiveAt: generateTimestamp()
-      },
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'User not found'
-      });
-    }
-
-    res.json({
-      data: sanitizeResponse(user.toObject())
-    });
-  } catch (error) {
-    console.error('Error in updateUserActivity:', error);
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message
-    });
-  }
-}
 

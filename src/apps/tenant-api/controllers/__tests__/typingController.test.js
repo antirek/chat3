@@ -70,7 +70,7 @@ describe('typingController.sendTyping', () => {
       tenantId,
       userId: 'alice',
       name: 'Alice',
-      lastActiveAt: generateTimestamp(),
+      
       createdAt: generateTimestamp(),
     });
 

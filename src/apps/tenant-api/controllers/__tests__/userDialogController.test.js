@@ -94,10 +94,10 @@ describe('userDialogController', () => {
       userId4 = 'marta';
 
       await User.create([
-        { userId: userId1, tenantId, name: 'Carl', lastActiveAt: generateTimestamp(), createdAt: generateTimestamp() },
-        { userId: userId2, tenantId, name: 'Alice', lastActiveAt: generateTimestamp(), createdAt: generateTimestamp() },
-        { userId: userId3, tenantId, name: 'Bob', lastActiveAt: generateTimestamp(), createdAt: generateTimestamp() },
-        { userId: userId4, tenantId, name: 'Marta', lastActiveAt: generateTimestamp(), createdAt: generateTimestamp() }
+        { userId: userId1, tenantId, name: 'Carl', createdAt: generateTimestamp() },
+        { userId: userId2, tenantId, name: 'Alice', createdAt: generateTimestamp() },
+        { userId: userId3, tenantId, name: 'Bob', createdAt: generateTimestamp() },
+        { userId: userId4, tenantId, name: 'Marta', createdAt: generateTimestamp() }
       ]);
 
       // Create test dialogs
@@ -300,7 +300,7 @@ describe('userDialogController', () => {
         userId: userId1,
         tenantId,
         name: 'Carl',
-        lastActiveAt: generateTimestamp(),
+        
         createdAt: generateTimestamp()
       });
 
@@ -410,7 +410,7 @@ describe('userDialogController', () => {
       await User.create({
         userId: userId1,
         tenantId,
-        lastActiveAt: generateTimestamp(),
+        
         createdAt: generateTimestamp()
       });
 
@@ -545,9 +545,9 @@ describe('userDialogController', () => {
       userId3 = 'bob';
 
       await User.create([
-        { userId: userId1, tenantId, name: 'Carl', lastActiveAt: generateTimestamp(), createdAt: generateTimestamp() },
-        { userId: userId2, tenantId, name: 'Alice', lastActiveAt: generateTimestamp(), createdAt: generateTimestamp() },
-        { userId: userId3, tenantId, name: 'Bob', lastActiveAt: generateTimestamp(), createdAt: generateTimestamp() }
+        { userId: userId1, tenantId, name: 'Carl', createdAt: generateTimestamp() },
+        { userId: userId2, tenantId, name: 'Alice', createdAt: generateTimestamp() },
+        { userId: userId3, tenantId, name: 'Bob', createdAt: generateTimestamp() }
       ]);
 
       dialog1 = await Dialog.create({
@@ -661,7 +661,7 @@ describe('userDialogController', () => {
         userId: userId1,
         tenantId,
         name: 'Carl',
-        lastActiveAt: generateTimestamp(),
+        
         createdAt: generateTimestamp()
       });
 
@@ -754,7 +754,7 @@ describe('userDialogController', () => {
         userId: 'carl',
         tenantId,
         name: 'Carl',
-        lastActiveAt: generateTimestamp(),
+        
         createdAt: generateTimestamp()
       });
 
@@ -799,8 +799,8 @@ describe('userDialogController', () => {
       const timestamp = generateTimestamp();
 
       await User.create([
-        { tenantId, userId: viewerId, lastActiveAt: timestamp, createdAt: timestamp },
-        { tenantId, userId: senderId, lastActiveAt: timestamp, createdAt: timestamp }
+        { tenantId, userId: viewerId, createdAt: timestamp },
+        { tenantId, userId: senderId, createdAt: timestamp }
       ]);
 
       await Meta.create([
@@ -1137,8 +1137,8 @@ describe('userDialogController', () => {
       const timestamp = generateTimestamp();
 
       await User.create([
-        { tenantId, userId, lastActiveAt: timestamp, createdAt: timestamp },
-        { tenantId, userId: otherUserId, lastActiveAt: timestamp, createdAt: timestamp }
+        { tenantId, userId, createdAt: timestamp },
+        { tenantId, userId: otherUserId, createdAt: timestamp }
       ]);
 
       dialog = await Dialog.create({
@@ -1261,8 +1261,8 @@ describe('userDialogController', () => {
       const timestamp = generateTimestamp();
 
       await User.create([
-        { tenantId, userId, lastActiveAt: timestamp, createdAt: timestamp },
-        { tenantId, userId: otherUserId, lastActiveAt: timestamp, createdAt: timestamp }
+        { tenantId, userId, createdAt: timestamp },
+        { tenantId, userId: otherUserId, createdAt: timestamp }
       ]);
 
       dialog = await Dialog.create({
@@ -1364,7 +1364,7 @@ describe('userDialogController', () => {
       await User.create({
         tenantId,
         userId,
-        lastActiveAt: timestamp,
+        
         createdAt: timestamp
       });
 

@@ -79,9 +79,6 @@ const router = express.Router();
  *                       type:
  *                         type: string
  *                         example: "user"
- *                       lastActiveAt:
- *                         type: string
- *                         example: "1730891234567.123456"
  *                       createdAt:
  *                         type: string
  *                         example: "1730891234567.123456"
@@ -143,9 +140,6 @@ router.get('/', apiAuth, userController.getUsers);
  *                     type:
  *                       type: string
  *                       example: "user"
- *                     lastActiveAt:
- *                       type: string
- *                       example: "1730891234567.123456"
  *                     createdAt:
  *                       type: string
  *                       example: "1730891234567.123456"
@@ -209,8 +203,6 @@ router.get('/:userId', apiAuth, validateUserId, userController.getUserById);
  *                     tenantId:
  *                       type: string
  *                     name:
- *                       type: string
- *                     lastActiveAt:
  *                       type: string
  *                     createdAt:
  *                       type: string
@@ -293,44 +285,5 @@ router.put('/:userId', apiAuth, validateUserId, validateBody(updateUserSchema), 
  */
 router.delete('/:userId', apiAuth, validateUserId, userController.deleteUser);
 
-/**
- * @swagger
- * /api/users/{userId}/activity:
- *   post:
- *     summary: Update user activity
- *     description: |
- *       Обновить timestamp последней активности пользователя.
- *       
- *       Устанавливает lastActiveAt в текущее время с микросекундной точностью.
- *     tags: [Users]
- *     security:
- *       - ApiKeyAuth: []
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     responses:
- *       200:
- *         description: Activity updated
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 data:
- *                   type: object
- *                   properties:
- *                     userId:
- *                       type: string
- *                     lastActiveAt:
- *                       type: string
- *                       description: Updated timestamp with microseconds
- *       404:
- *         description: User not found
- */
-router.post('/:userId/activity', apiAuth, validateUserId, userController.updateUserActivity);
 
 export default router;

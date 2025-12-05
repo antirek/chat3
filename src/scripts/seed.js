@@ -56,8 +56,7 @@ async function seed() {
         const user = await User.create({
           userId: userId,
           tenantId: tenant.tenantId,
-          type: userType,
-          lastActiveAt: generateTimestamp() - Math.random() * 7 * 24 * 60 * 60 * 1000
+          type: userType
         });
         tenantUsers.push(user);
         allUsers.push(user);

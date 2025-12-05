@@ -82,7 +82,6 @@ beforeEach(async () => {
     userId: 'alice',
     name: 'Alice',
     createdAt: generateTimestamp(),
-    lastActiveAt: generateTimestamp()
   });
 
   await User.create({
@@ -90,7 +89,6 @@ beforeEach(async () => {
     userId: 'bob',
     name: 'Bob',
     createdAt: generateTimestamp(),
-    lastActiveAt: generateTimestamp()
   });
 
   await Meta.create([

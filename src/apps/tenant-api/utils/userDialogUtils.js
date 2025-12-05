@@ -20,7 +20,7 @@ export async function getSenderInfo(tenantId, senderId, cache = new Map()) {
     userId: senderId,
     tenantId
   })
-    .select('userId name lastActiveAt createdAt updatedAt')
+    .select('userId name createdAt')
     .lean();
 
   const meta = await metaUtils.getEntityMeta(tenantId, 'user', senderId);
@@ -32,7 +32,6 @@ export async function getSenderInfo(tenantId, senderId, cache = new Map()) {
 
   const senderInfo = {
     userId: senderId,
-    lastActiveAt: user?.lastActiveAt ?? null,
     createdAt: user?.createdAt ?? null,
     meta
   };
@@ -162,13 +161,12 @@ export async function getContextUserInfo(tenantId, userId, fetchMeta) {
   const contextUser = await User.findOne({
     userId: userId,
     tenantId: tenantId
-  }).select('userId name lastActiveAt createdAt').lean();
+  }).select('userId name createdAt').lean();
 
   if (contextUser) {
     const contextUserMeta = await fetchMeta('user', userId);
     return {
       userId: contextUser.userId,
-      lastActiveAt: contextUser.lastActiveAt ?? null,
       createdAt: contextUser.createdAt ?? null,
       meta: contextUserMeta
     };
@@ -179,7 +177,6 @@ export async function getContextUserInfo(tenantId, userId, fetchMeta) {
       return {
         userId: userId,
         name: null,
-        lastActiveAt: null,
         createdAt: null,
         meta: contextUserMeta
       };

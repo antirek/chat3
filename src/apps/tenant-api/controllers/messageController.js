@@ -25,7 +25,7 @@ async function getSenderInfo(tenantId, senderId, cache = new Map()) {
     tenantId,
     userId: senderId
   })
-    .select('userId name lastActiveAt createdAt')
+    .select('userId name createdAt')
     .lean();
 
   if (!user) {
@@ -37,7 +37,6 @@ async function getSenderInfo(tenantId, senderId, cache = new Map()) {
 
   const senderInfo = {
     userId: user.userId,
-    lastActiveAt: user.lastActiveAt ?? null,
     createdAt: user.createdAt ?? null,
     meta: userMeta
   };

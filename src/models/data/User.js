@@ -20,10 +20,6 @@ const userSchema = new mongoose.Schema({
     default: 'user',
     description: 'Тип пользователя (user, bot, contact и т.д.)'
   },
-  lastActiveAt: {
-    type: Number,
-    description: 'Timestamp последней активности в миллисекундах с микросекундами'
-  },
   createdAt: {
     type: Number,
     default: generateTimestamp,

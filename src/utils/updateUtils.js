@@ -58,7 +58,7 @@ async function getSenderInfo(tenantId, senderId, cache = new Map()) {
     tenantId,
     userId: senderId
   })
-    .select('userId name lastActiveAt createdAt updatedAt')
+    .select('userId name createdAt')
     .lean();
 
   const userMeta = await metaUtils.getEntityMeta(tenantId, 'user', senderId);
@@ -70,7 +70,6 @@ async function getSenderInfo(tenantId, senderId, cache = new Map()) {
 
   const senderInfo = {
     userId: senderId,
-    lastActiveAt: user?.lastActiveAt ?? null,
     createdAt: user?.createdAt ?? null,
     meta: userMeta
   };
@@ -92,7 +91,7 @@ async function buildFullMessagePayload(tenantId, message, senderCache = new Map(
     tenantId,
     messageId: messageObj.messageId
   })
-    .select('userId status readAt deliveredAt createdAt updatedAt')
+    .select('userId status readAt deliveredAt createdAt')
     .sort({ createdAt: -1 })
     .lean();
 

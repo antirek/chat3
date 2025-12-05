@@ -7,11 +7,9 @@
 // Список полей, которые являются timestamps и должны быть форматированы с 6 знаками
 const TIMESTAMP_FIELDS = [
   'createdAt',
-  'updatedAt', 
   'lastSeenAt',
   'lastMessageAt',
   'lastInteractionAt',
-  'lastActiveAt',
   'publishedAt',
   'expiresAt',
   'lastUsedAt',
