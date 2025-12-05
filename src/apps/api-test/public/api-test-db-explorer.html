@@ -956,6 +956,7 @@
         }
 
         // Поля с датами, которые нужно форматировать
+        const dateFields = ['createdAt', 'lastSeenAt', 'lastMessageAt', 'lastInteractionAt', 'publishedAt', 'expiresAt', 'lastUsedAt', 'readAt', 'deliveredAt', 'joinedAt'];
 
         // Форматировать дату в читаемый формат
         function formatDate(value, originalValue) {
