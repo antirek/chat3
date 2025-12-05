@@ -709,6 +709,9 @@ export function getUpdateTypeFromEventType(eventType) {
   if (USER_UPDATE_EVENTS.includes(eventType)) {
     return 'UserUpdate';
   }
+  if (eventType === 'user.stats.update') {
+    return 'UserStatsUpdate';
+  }
   return null;
 }
 

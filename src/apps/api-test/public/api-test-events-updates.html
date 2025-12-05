@@ -1024,7 +1024,10 @@
         // Форматировать timestamp
         function formatTimestamp(ts) {
             if (!ts) return '-';
-            const date = new Date(ts / 1000);
+            // Timestamp уже в миллисекундах (с микросекундами как дробная часть)
+            // Преобразуем в число, если это строка, и берем целую часть для Date
+            const timestamp = typeof ts === 'string' ? parseFloat(ts) : ts;
+            const date = new Date(Math.floor(timestamp));
             return date.toLocaleString('ru-RU');
         }
 
