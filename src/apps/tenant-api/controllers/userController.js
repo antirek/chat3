@@ -1,5 +1,6 @@
 import { User, DialogMember, Meta } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
+import * as eventUtils from '../utils/eventUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
@@ -342,6 +343,35 @@ export async function createUser(req, res) {
       type: type || 'user'
     });
 
+    // Получаем мета-теги пользователя
+    const userMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+
+    // Создаем событие user.add
+    const userSection = eventUtils.buildUserSection({
+      userId: user.userId,
+      type: user.type,
+      meta: userMeta || {}
+    });
+
+    const userContext = eventUtils.buildEventContext({
+      eventType: 'user.add',
+      entityId: userId,
+      includedSections: ['user']
+    });
+
+    await eventUtils.createEvent({
+      tenantId: req.tenantId,
+      eventType: 'user.add',
+      entityType: 'user',
+      entityId: userId,
+      actorId: userId,
+      actorType: 'user',
+      data: eventUtils.composeEventData({
+        context: userContext,
+        user: userSection
+      })
+    });
+
     res.status(201).json({
       data: sanitizeResponse(user.toObject())
     });
@@ -418,6 +448,41 @@ export async function updateUser(req, res) {
       });
     }
 
+    // Получаем мета-теги пользователя
+    const userMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+
+    // Создаем событие user.update
+    const userSection = eventUtils.buildUserSection({
+      userId: updatedUser.userId,
+      type: updatedUser.type,
+      meta: userMeta || {}
+    });
+
+    const updatedFields = [];
+    if (type !== undefined && type !== user.type) {
+      updatedFields.push('user.type');
+    }
+
+    const userContext = eventUtils.buildEventContext({
+      eventType: 'user.update',
+      entityId: userId,
+      includedSections: ['user'],
+      updatedFields: updatedFields.length > 0 ? updatedFields : ['user']
+    });
+
+    await eventUtils.createEvent({
+      tenantId: req.tenantId,
+      eventType: 'user.update',
+      entityType: 'user',
+      entityId: userId,
+      actorId: userId,
+      actorType: 'user',
+      data: eventUtils.composeEventData({
+        context: userContext,
+        user: userSection
+      })
+    });
+
     res.json({
       data: sanitizeResponse(updatedUser)
     });
@@ -438,6 +503,9 @@ export async function deleteUser(req, res) {
   try {
     const { userId } = req.params;
 
+    // Получаем мета-теги пользователя перед удалением
+    const userMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
+
     const user = await User.findOneAndDelete({
       userId: userId,
       tenantId: req.tenantId
@@ -449,6 +517,32 @@ export async function deleteUser(req, res) {
         message: 'User not found'
       });
     }
+
+    // Создаем событие user.remove
+    const userSection = eventUtils.buildUserSection({
+      userId: user.userId,
+      type: user.type,
+      meta: userMeta || {}
+    });
+
+    const userContext = eventUtils.buildEventContext({
+      eventType: 'user.remove',
+      entityId: userId,
+      includedSections: ['user']
+    });
+
+    await eventUtils.createEvent({
+      tenantId: req.tenantId,
+      eventType: 'user.remove',
+      entityType: 'user',
+      entityId: userId,
+      actorId: userId,
+      actorType: 'user',
+      data: eventUtils.composeEventData({
+        context: userContext,
+        user: userSection
+      })
+    });
 
     res.status(204).send();
   } catch (error) {

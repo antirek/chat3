@@ -1,6 +1,7 @@
 import connectDB from '../../config/database.js';
 import * as updateUtils from '../../utils/updateUtils.js';
 import * as rabbitmqUtils from '../../utils/rabbitmqUtils.js';
+import { DialogMember } from '../../models/index.js';
 import amqp from 'amqplib';
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://rmuser:rmpassword@localhost:5672/';
@@ -86,6 +87,22 @@ async function processEvent(eventData) {
         // updateUtils.createDialogUpdate использует eventData.dialog напрямую из этого объекта
         await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, eventType, data);
         console.log(`✅ Created DialogUpdate for event ${eventId}`);
+        
+        // Для dialog.member.add создаем UserStatsUpdate для добавленного пользователя
+        if (eventType === 'dialog.member.add') {
+          const memberPayload = data.member || {};
+          const userId = memberPayload.userId;
+          if (userId) {
+            await updateUtils.createUserStatsUpdate(
+              tenantId,
+              userId,
+              eventId,
+              eventType,
+              ['user.stats.dialogCount']
+            );
+            console.log(`✅ Created UserStatsUpdate for user ${userId} (dialogCount increased)`);
+          }
+        }
       } else {
         console.warn(`⚠️ No dialogId found for event ${eventId}`);
       }
@@ -101,6 +118,35 @@ async function processEvent(eventData) {
         // updateUtils.createDialogMemberUpdate использует eventData.dialog и eventData.member напрямую из этого объекта
         await updateUtils.createDialogMemberUpdate(tenantId, dialogId, userId, eventId, eventType, data);
         console.log(`✅ Created DialogMemberUpdate for user ${userId} in event ${eventId}`);
+        
+        // Проверяем, изменился ли unreadCount (статус диалога)
+        // Если в updatedFields есть 'member.state.unreadCount', значит unreadCount изменился
+        const updatedFields = context.updatedFields || [];
+        if (updatedFields.includes('member.state.unreadCount')) {
+          // Получаем текущее значение unreadCount из БД
+          const currentMember = await DialogMember.findOne({
+            tenantId,
+            dialogId,
+            userId
+          }).lean();
+          const currentUnreadCount = currentMember?.unreadCount ?? 0;
+          const newUnreadCount = memberPayload.state?.unreadCount ?? currentUnreadCount;
+          
+          // Проверяем, изменился ли статус диалога (переход через 0)
+          // Если currentUnreadCount = 0 и newUnreadCount > 0, значит диалог стал непрочитанным
+          // Если currentUnreadCount > 0 и newUnreadCount = 0, значит диалог стал прочитанным
+          // Но мы не знаем старое значение точно, поэтому используем эвристику:
+          // Если unreadCount изменился (есть в updatedFields), создаем UserStatsUpdate
+          // Статистика будет пересчитана в createUserStatsUpdate
+          await updateUtils.createUserStatsUpdate(
+            tenantId,
+            userId,
+            eventId,
+            eventType,
+            ['user.stats.unreadDialogsCount']
+          );
+          console.log(`✅ Created UserStatsUpdate for user ${userId} (unreadCount changed)`);
+        }
       } else {
         console.warn(`⚠️ No dialogId or userId found for event ${eventId}`);
       }
@@ -121,6 +167,42 @@ async function processEvent(eventData) {
       if (dialogId && messageId) {
         await updateUtils.createMessageUpdate(tenantId, dialogId, messageId, eventId, eventType, data);
         console.log(`✅ Created MessageUpdate for event ${eventId}`);
+        
+        // Для message.create проверяем, у каких пользователей диалог стал непрочитанным
+        if (eventType === 'message.create') {
+          const senderId = messagePayload.senderId;
+          // Получаем всех участников диалога
+          const members = await DialogMember.find({
+            tenantId,
+            dialogId,
+            isActive: true
+          }).lean();
+          
+          // Для каждого участника (кроме отправителя) проверяем, стал ли диалог непрочитанным
+          for (const member of members) {
+            if (member.userId !== senderId) {
+              const unreadCount = member.unreadCount ?? 0;
+              // Если unreadCount был 0 и стал >0, диалог стал непрочитанным
+              // Но мы не знаем старое значение, поэтому проверяем текущее значение
+              // Если unreadCount > 0, значит диалог непрочитан
+              // Но нам нужно знать, был ли он прочитан до этого
+              // Для этого можно проверить, есть ли MessageStatus с read для этого сообщения
+              // Но проще - всегда создавать UserStatsUpdate для message.create, так как статистика могла измениться
+              // Но это избыточно. Лучше проверять по unreadCount
+              // Если unreadCount = 1 (только что созданное сообщение), значит диалог стал непрочитанным
+              if (unreadCount === 1) {
+                await updateUtils.createUserStatsUpdate(
+                  tenantId,
+                  member.userId,
+                  eventId,
+                  eventType,
+                  ['user.stats.unreadDialogsCount']
+                );
+                console.log(`✅ Created UserStatsUpdate for user ${member.userId} (dialog became unread)`);
+              }
+            }
+          }
+        }
       } else {
         console.warn(`⚠️ No dialogId or messageId found for event ${eventId}`);
       }

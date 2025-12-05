@@ -15,8 +15,7 @@ import {
   mergeMetaRecords,
   buildStatusMessageMatrix,
   buildReactionSet,
-  getContextUserInfo,
-  createUserStatsUpdateEvent
+  getContextUserInfo
 } from '../utils/userDialogUtils.js';
 
 const userDialogController = {
@@ -1341,6 +1340,15 @@ const userDialogController = {
 
       const oldStatus = lastStatus?.status || null;
 
+      // Получаем старое значение unreadCount ПЕРЕД созданием MessageStatus
+      // (pre-save hook обновит счетчик при создании)
+      const oldDialogMember = await DialogMember.findOne({
+        tenantId: req.tenantId,
+        userId: userId,
+        dialogId: dialogId
+      }).lean();
+      const oldUnreadCount = oldDialogMember?.unreadCount ?? 0;
+
       // Всегда создаем новую запись в истории статусов (не обновляем существующую)
       const newStatusData = {
         messageId: messageId,
@@ -1421,25 +1429,20 @@ const userDialogController = {
         })
       });
 
-      // Получаем старое значение unreadCount перед обновлением
-      const oldDialogMember = await DialogMember.findOne({
+      // Получаем обновленный DialogMember после создания MessageStatus
+      // (pre-save hook уже обновил счетчик)
+      const updatedMember = await DialogMember.findOne({
         tenantId: req.tenantId,
         userId: userId,
         dialogId: dialogId
       }).lean();
-      const oldUnreadCount = oldDialogMember?.unreadCount ?? 0;
 
-      // Обновляем счетчик непрочитанных сообщений при чтении
-      const updatedMember = await unreadCountUtils.updateCountersOnStatusChange(
-        req.tenantId,
-        messageId,
-        userId,
-        oldStatus,
-        status
-      );
+      // Проверяем, изменился ли счетчик (сравниваем oldUnreadCount с новым)
+      const newUnreadCount = updatedMember?.unreadCount ?? 0;
+      const unreadCountChanged = oldUnreadCount !== newUnreadCount;
 
-      // Если счетчик был обновлен, создаем событие dialog.member.update
-      if (updatedMember) {
+      // Если счетчик был обновлен (изменился), создаем событие dialog.member.update
+      if (updatedMember && unreadCountChanged) {
         // Используем уже полученную секцию dialog из события message.status.update
         const memberSection = eventUtils.buildMemberSection({
           userId,
@@ -1473,26 +1476,8 @@ const userDialogController = {
           })
         });
 
-        // Вычисляем статистику пользователя и создаем событие user.stats.update
-        // если изменилось количество непрочитанных диалогов
-        const newUnreadCount = updatedMember.unreadCount ?? 0;
-        
-        // Проверяем, изменился ли статус диалога (был непрочитан -> стал прочитан или наоборот)
-        // Статус диалога меняется, когда unreadCount переходит через 0:
-        // - был >0, стал 0 -> диалог стал прочитанным (уменьшается unreadDialogsCount)
-        // - был 0, стал >0 -> диалог стал непрочитанным (увеличивается unreadDialogsCount)
-        const wasUnread = oldUnreadCount > 0;
-        const isUnread = newUnreadCount > 0;
-        const unreadStatusChanged = wasUnread !== isUnread;
-
-        if (unreadStatusChanged) {
-          // Создаем событие user.stats.update при изменении количества непрочитанных диалогов
-          await createUserStatsUpdateEvent(req.tenantId, userId, ['user.stats.unreadDialogsCount']);
-        }
-      } else if (oldDialogMember && oldDialogMember.unreadCount > 0) {
-        // Если updatedMember === null, но oldDialogMember существовал и имел unreadCount > 0,
-        // это означает, что updateCountersOnStatusChange не обновил счетчик (возможно, unreadCount уже был 0)
-        // В этом случае событие не нужно, так как статус не изменился
+        // Логика создания user.stats.update перенесена в update-worker
+        // update-worker будет создавать UserUpdate на основе dialog.member.update событий
       }
 
       res.json({

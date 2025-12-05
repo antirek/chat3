@@ -154,19 +154,32 @@ export function buildActorSection({
 
 export function buildUserSection({
   userId,
+  type = null,
+  meta = {},
   stats = {}
 } = {}) {
   if (!userId) {
     return null;
   }
 
-  return {
+  // Убеждаемся, что meta всегда является объектом
+  const metaObject = meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : {};
+
+  const userSection = {
     userId,
-    stats: {
+    type,
+    meta: metaObject
+  };
+
+  // Добавляем stats только если они переданы
+  if (stats && (stats.dialogCount !== undefined || stats.unreadDialogsCount !== undefined)) {
+    userSection.stats = {
       dialogCount: stats.dialogCount ?? 0,
       unreadDialogsCount: stats.unreadDialogsCount ?? 0
-    }
-  };
+    };
+  }
+
+  return userSection;
 }
 
 export function composeEventData({

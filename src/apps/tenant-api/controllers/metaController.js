@@ -1,5 +1,5 @@
 import * as metaUtils from '../utils/metaUtils.js';
-import { Dialog, Message, DialogMember } from '../../../models/index.js';
+import { Dialog, Message, DialogMember, User } from '../../../models/index.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import * as updateUtils from '../../../utils/updateUtils.js';
@@ -94,6 +94,8 @@ const metaController = {
         await createMessageUpdateEvent(req.tenantId, entityId, actorId);
       } else if (entityType === 'dialogMember') {
         await createDialogMemberUpdateEvent(req.tenantId, entityId, actorId);
+      } else if (entityType === 'user') {
+        await createUserUpdateEvent(req.tenantId, entityId, actorId);
       }
 
       res.json({
@@ -297,6 +299,49 @@ async function createMessageUpdateEvent(tenantId, messageId, actorId) {
     });
   } catch (error) {
     console.error('Error creating message.update event:', error);
+    // Не прерываем выполнение, если не удалось создать событие
+  }
+}
+
+// Helper function to create user.update event
+async function createUserUpdateEvent(tenantId, userId, actorId) {
+  try {
+    const user = await User.findOne({ userId, tenantId });
+    if (!user) {
+      console.warn(`User ${userId} not found for update event`);
+      return;
+    }
+
+    // Получаем мета-теги пользователя
+    const userMeta = await metaUtils.getEntityMeta(tenantId, 'user', userId);
+
+    const userSection = eventUtils.buildUserSection({
+      userId: user.userId,
+      type: user.type,
+      meta: userMeta || {}
+    });
+
+    const userContext = eventUtils.buildEventContext({
+      eventType: 'user.update',
+      entityId: userId,
+      includedSections: ['user'],
+      updatedFields: ['user.meta']
+    });
+
+    await eventUtils.createEvent({
+      tenantId: tenantId,
+      eventType: 'user.update',
+      entityType: 'user',
+      entityId: userId,
+      actorId: actorId,
+      actorType: 'user',
+      data: eventUtils.composeEventData({
+        context: userContext,
+        user: userSection
+      })
+    });
+  } catch (error) {
+    console.error('Error creating user.update event:', error);
     // Не прерываем выполнение, если не удалось создать событие
   }
 }

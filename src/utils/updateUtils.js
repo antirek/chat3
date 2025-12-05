@@ -5,7 +5,8 @@ import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from '../apps/tenant-api/utils/responseUtils.js';
 import { generateTimestamp } from './timestampUtils.js';
 import { getUserType } from '../apps/tenant-api/utils/userTypeUtils.js';
-import { buildStatusMessageMatrix } from '../apps/tenant-api/utils/userDialogUtils.js';
+import { buildStatusMessageMatrix, getUserStats } from '../apps/tenant-api/utils/userDialogUtils.js';
+import * as eventUtils from '../apps/tenant-api/utils/eventUtils.js';
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 
@@ -33,8 +34,11 @@ const TYPING_EVENTS = [
 ];
 
 const USER_UPDATE_EVENTS = [
-  'user.stats.update'
+  'user.add',
+  'user.update',
+  'user.remove'
 ];
+
 
 
 function cloneSection(section) {
@@ -508,6 +512,73 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
     console.log(`Created ${savedUpdates.length} TypingUpdate for dialog ${dialogId}`);
   } catch (error) {
     console.error('Error creating TypingUpdate:', error);
+  }
+}
+
+/**
+ * Создает UserStatsUpdate - update со статистикой пользователя (dialogCount, unreadDialogsCount)
+ * @param {string} tenantId - ID тенанта
+ * @param {string} userId - ID пользователя
+ * @param {string} sourceEventId - ID исходного события (message.create, dialog.member.add, dialog.member.update)
+ * @param {string} sourceEventType - Тип исходного события
+ * @param {string[]} updatedFields - Поля, которые изменились (например, ['user.stats.unreadDialogsCount'])
+ */
+export async function createUserStatsUpdate(tenantId, userId, sourceEventId, sourceEventType, updatedFields = []) {
+  try {
+    // Получаем статистику пользователя
+    const stats = await getUserStats(tenantId, userId);
+
+    // Получаем данные пользователя
+    const user = await User.findOne({ userId, tenantId }).lean();
+    if (!user) {
+      console.warn(`User ${userId} not found for stats update`);
+      return;
+    }
+
+    // Получаем мета-теги пользователя
+    const userMeta = await metaUtils.getEntityMeta(tenantId, 'user', userId);
+
+    // Создаем секцию user со статистикой
+    const userSection = eventUtils.buildUserSection({
+      userId: user.userId,
+      type: user.type,
+      meta: userMeta || {},
+      stats: stats
+    });
+
+    // Создаем context для UserStatsUpdate
+    const context = eventUtils.buildEventContext({
+      eventType: 'user.stats.update',
+      entityId: userId,
+      includedSections: ['user'],
+      updatedFields: updatedFields.length > 0 ? updatedFields : ['user.stats.dialogCount', 'user.stats.unreadDialogsCount']
+    });
+
+    // Создаем update
+    const update = {
+      tenantId: tenantId,
+      userId: userId,
+      entityId: userId,
+      eventId: sourceEventId,
+      eventType: 'user.stats.update',
+      data: {
+        user: cloneSection(userSection),
+        context: cloneSection(context)
+      },
+      published: false
+    };
+
+    // Сохраняем update в БД
+    const savedUpdate = await Update.create(update);
+
+    // Публикуем update в RabbitMQ асинхронно
+    await publishUpdate(savedUpdate).catch(err => {
+      console.error(`Error publishing user stats update ${savedUpdate._id}:`, err);
+    });
+
+    console.log(`Created UserStatsUpdate for user ${userId} from event ${sourceEventId}`);
+  } catch (error) {
+    console.error('Error creating UserStatsUpdate:', error);
   }
 }
 

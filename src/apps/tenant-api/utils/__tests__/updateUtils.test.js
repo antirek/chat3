@@ -2,10 +2,12 @@ import * as fakeAmqp from '@onify/fake-amqplib';
 import {
   createDialogUpdate,
   createDialogMemberUpdate,
-  createMessageUpdate
+  createMessageUpdate,
+  createUserStatsUpdate
 } from '../../../../utils/updateUtils.js';
 import { Dialog, DialogMember, Meta, Message, User, Event, Update } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
+import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
 // Мокируем amqplib перед импортом updateUtils
 let updateUtils;
@@ -405,7 +407,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
 
       const updates = await Update.find({
         tenantId,
-        dialogId,
+        entityId: dialogId,
         userId,
         eventId
       });
@@ -876,6 +878,325 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
 
       const updates = await Update.find({ tenantId, entityId: dialogId, eventId });
       expect(updates.length).toBe(0);
+    });
+  });
+
+  describe('createUserStatsUpdate', () => {
+    test('should create UserStatsUpdate with correct stats', async () => {
+      const dialogId = generateDialogId();
+      const userId = 'user1';
+
+      await User.create({
+        tenantId,
+        userId,
+        type: 'user',
+        createdAt: generateTimestamp()
+      });
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        createdBy: userId
+      });
+
+      // Создаем два диалога для пользователя
+      await DialogMember.create([
+        {
+          tenantId,
+          dialogId,
+          userId,
+          unreadCount: 1, // Непрочитанный диалог
+          isActive: true
+        },
+        {
+          tenantId,
+          dialogId: generateDialogId(),
+          userId,
+          unreadCount: 0, // Прочитанный диалог
+          isActive: true
+        }
+      ]);
+
+      const eventId = await createEventAndGetId('message.create');
+
+      await updateUtils.createUserStatsUpdate(
+        tenantId,
+        userId,
+        eventId,
+        'message.create',
+        ['user.stats.unreadDialogsCount']
+      );
+
+      const updates = await Update.find({
+        tenantId,
+        userId,
+        eventType: 'user.stats.update'
+      }).lean();
+
+      expect(updates.length).toBe(1);
+      expect(updates[0].data.user).toBeDefined();
+      expect(updates[0].data.user.userId).toBe(userId);
+      expect(updates[0].data.user.stats).toBeDefined();
+      expect(updates[0].data.user.stats.dialogCount).toBe(2);
+      expect(updates[0].data.user.stats.unreadDialogsCount).toBe(1);
+      expect(updates[0].data.context.updatedFields).toContain('user.stats.unreadDialogsCount');
+    });
+
+    test('should create UserStatsUpdate with dialogCount when user is added to dialog', async () => {
+      const dialogId = generateDialogId();
+      const userId = 'user1';
+
+      await User.create({
+        tenantId,
+        userId,
+        type: 'user',
+        createdAt: generateTimestamp()
+      });
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        createdBy: 'other_user'
+      });
+
+      // Создаем один диалог для пользователя
+      await DialogMember.create({
+        tenantId,
+        dialogId,
+        userId,
+        unreadCount: 0,
+        isActive: true
+      });
+
+      const eventId = await createEventAndGetId('dialog.member.add');
+
+      await updateUtils.createUserStatsUpdate(
+        tenantId,
+        userId,
+        eventId,
+        'dialog.member.add',
+        ['user.stats.dialogCount']
+      );
+
+      const updates = await Update.find({
+        tenantId,
+        userId,
+        eventType: 'user.stats.update'
+      }).lean();
+
+      expect(updates.length).toBe(1);
+      expect(updates[0].data.user.stats.dialogCount).toBe(1);
+      expect(updates[0].data.context.updatedFields).toContain('user.stats.dialogCount');
+    });
+
+    test('should include user type and meta in UserStatsUpdate', async () => {
+      const userId = 'user1';
+
+      await User.create({
+        tenantId,
+        userId,
+        type: 'bot',
+        createdAt: generateTimestamp()
+      });
+
+      await Meta.create({
+        tenantId,
+        entityType: 'user',
+        entityId: userId,
+        key: 'name',
+        value: 'Test Bot',
+        dataType: 'string'
+      });
+
+      const eventId = await createEventAndGetId('message.create');
+
+      await updateUtils.createUserStatsUpdate(
+        tenantId,
+        userId,
+        eventId,
+        'message.create',
+        ['user.stats.unreadDialogsCount']
+      );
+
+      const updates = await Update.find({
+        tenantId,
+        userId,
+        eventType: 'user.stats.update'
+      }).lean();
+
+      expect(updates.length).toBe(1);
+      expect(updates[0].data.user.type).toBe('bot');
+      expect(updates[0].data.user.meta).toBeDefined();
+      expect(updates[0].data.user.meta.name).toBe('Test Bot');
+    });
+
+    test('should create UserStatsUpdate when processing message.create event (dialog becomes unread)', async () => {
+      const dialogId = generateDialogId();
+      const senderId = 'sender';
+      const recipientId = 'recipient';
+
+      await User.create([
+        {
+          tenantId,
+          userId: senderId,
+          type: 'user',
+          createdAt: generateTimestamp()
+        },
+        {
+          tenantId,
+          userId: recipientId,
+          type: 'user',
+          createdAt: generateTimestamp()
+        }
+      ]);
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        createdBy: senderId
+      });
+
+      // Создаем DialogMember для получателя с unreadCount = 0 (диалог прочитан)
+      await DialogMember.create({
+        tenantId,
+        dialogId,
+        userId: recipientId,
+        unreadCount: 0,
+        isActive: true
+      });
+
+      const messageId = generateMessageId();
+      const eventId = await createEventAndGetId('message.create', {
+        context: {
+          version: 2,
+          eventType: 'message.create',
+          dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message']
+        },
+        dialog: {
+          dialogId,
+          tenantId,
+          createdBy: senderId,
+          createdAt: generateTimestamp(),
+          meta: {}
+        },
+        message: {
+          messageId,
+          dialogId,
+          senderId,
+          type: 'internal.text',
+          content: 'Test message',
+          meta: {}
+        }
+      });
+
+      // Симулируем обработку события message.create в update-worker
+      // Сначала создаем сообщение и обновляем unreadCount
+      await Message.create({
+        tenantId,
+        dialogId,
+        messageId,
+        senderId,
+        type: 'internal.text',
+        content: 'Test message',
+        createdAt: generateTimestamp()
+      });
+
+      // Обновляем unreadCount для получателя (симулируем создание сообщения)
+      await DialogMember.updateOne(
+        { tenantId, dialogId, userId: recipientId },
+        { $inc: { unreadCount: 1 } }
+      );
+
+      // Создаем UserStatsUpdate (как это делает update-worker)
+      await updateUtils.createUserStatsUpdate(
+        tenantId,
+        recipientId,
+        eventId,
+        'message.create',
+        ['user.stats.unreadDialogsCount']
+      );
+
+      const updates = await Update.find({
+        tenantId,
+        userId: recipientId,
+        eventType: 'user.stats.update'
+      }).lean();
+
+      expect(updates.length).toBe(1);
+      expect(updates[0].data.user.stats.unreadDialogsCount).toBe(1);
+    });
+
+    test('should create UserStatsUpdate when processing dialog.member.add event', async () => {
+      const dialogId = generateDialogId();
+      const userId = 'new_member';
+
+      await User.create({
+        tenantId,
+        userId,
+        type: 'user',
+        createdAt: generateTimestamp()
+      });
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        createdBy: 'creator'
+      });
+
+      const eventId = await createEventAndGetId('dialog.member.add', {
+        context: {
+          version: 2,
+          eventType: 'dialog.member.add',
+          dialogId,
+          entityId: dialogId,
+          includedSections: ['dialog', 'member']
+        },
+        dialog: {
+          dialogId,
+          tenantId,
+          createdBy: 'creator',
+          createdAt: generateTimestamp(),
+          meta: {}
+        },
+        member: {
+          userId,
+          state: {
+            unreadCount: 0,
+            isActive: true
+          }
+        }
+      });
+
+      // Создаем DialogMember (симулируем добавление участника)
+      await DialogMember.create({
+        tenantId,
+        dialogId,
+        userId,
+        unreadCount: 0,
+        isActive: true
+      });
+
+      // Создаем UserStatsUpdate (как это делает update-worker)
+      await updateUtils.createUserStatsUpdate(
+        tenantId,
+        userId,
+        eventId,
+        'dialog.member.add',
+        ['user.stats.dialogCount']
+      );
+
+      const updates = await Update.find({
+        tenantId,
+        userId,
+        eventType: 'user.stats.update'
+      }).lean();
+
+      expect(updates.length).toBe(1);
+      expect(updates[0].data.user.stats.dialogCount).toBe(1);
+      expect(updates[0].data.context.updatedFields).toContain('user.stats.dialogCount');
     });
   });
 });

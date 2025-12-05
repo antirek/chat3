@@ -4,7 +4,7 @@ import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
-import { buildStatusMessageMatrix, buildReactionSet, createUserStatsUpdateEvent } from '../utils/userDialogUtils.js';
+import { buildStatusMessageMatrix, buildReactionSet } from '../utils/userDialogUtils.js';
 
 /**
  * Helper function to enrich messages with meta data and statuses
@@ -427,10 +427,8 @@ const messageController = {
           }
         }
         
-        // Создаем событие user.stats.update для пользователей, у которых изменился статус диалога
-        for (const userId of usersWithStatusChange) {
-          await createUserStatsUpdateEvent(req.tenantId, userId, ['user.stats.unreadDialogsCount']);
-        }
+        // Логика создания user.stats.update перенесена в update-worker
+        // update-worker будет создавать UserUpdate на основе dialog.member.update событий
       }
 
       // Add meta data if provided
