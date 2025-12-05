@@ -143,7 +143,6 @@ const messageReactionController = {
         const dialogSection = eventUtils.buildDialogSection({
           dialogId: dialog.dialogId,
           tenantId: dialog.tenantId,
-          createdBy: dialog.createdBy,
           createdAt: dialog.createdAt,
           meta: dialogMeta || {}
         });
@@ -230,7 +229,6 @@ const messageReactionController = {
         const dialogSection = eventUtils.buildDialogSection({
           dialogId: dialog.dialogId,
           tenantId: dialog.tenantId,
-          createdBy: dialog.createdBy,
           createdAt: dialog.createdAt,
           meta: dialogMeta || {}
         });

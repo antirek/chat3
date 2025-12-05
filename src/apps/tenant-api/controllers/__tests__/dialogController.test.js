@@ -76,32 +76,24 @@ describe('dialogController.getAll - filter combinations', () => {
     dialogA = await Dialog.create({
       dialogId: generateDialogId(),
       tenantId,
-      createdBy: 'carl',
-      name: 'Sales Daily',
       createdAt: generateTimestamp(),
     });
 
     dialogB = await Dialog.create({
       dialogId: generateDialogId(),
       tenantId,
-      createdBy: 'carl',
-      name: 'Sales Weekly',
       createdAt: generateTimestamp(),
     });
 
     dialogC = await Dialog.create({
       dialogId: generateDialogId(),
       tenantId,
-      createdBy: 'carl',
-      name: 'Engineering',
       createdAt: generateTimestamp(),
     });
 
     dialogD = await Dialog.create({
       dialogId: generateDialogId(),
       tenantId,
-      createdBy: 'carl',
-      name: 'Support',
       createdAt: generateTimestamp(),
     });
 
@@ -288,16 +280,12 @@ describe('dialogController.getAll - sorting modes', () => {
     dialogOne = await Dialog.create({
       dialogId: generateDialogId(),
       tenantId,
-      createdBy: 'carl',
-      name: 'First dialog',
       createdAt: generateTimestamp(),
     });
 
     dialogTwo = await Dialog.create({
       dialogId: generateDialogId(),
       tenantId,
-      createdBy: 'carl',
-      name: 'Second dialog',
       createdAt: generateTimestamp() + 1000
     });
 
@@ -357,8 +345,6 @@ describe('dialogController.getById', () => {
     dialog = await Dialog.create({
       dialogId: generateDialogId(),
       tenantId,
-      createdBy: 'carl',
-      name: 'Customer Support',
       createdAt: generateTimestamp(),
     });
 
@@ -645,15 +631,7 @@ describe('dialogController.create', () => {
     expect(members.map(m => m.userId)).toContain('bob');
   });
 
-  test('returns 400 when required fields missing', async () => {
-    const req = createMockReq(tenantId, {}, {}, {});
-    const res = createMockRes();
-
-    await dialogController.create(req, res);
-
-    expect(res.statusCode).toBe(400);
-    expect(res.body.message).toContain('Missing required field');
-  });
+  // Тест удален: createdBy больше не является обязательным полем
 });
 
 describe('dialogController.delete', () => {
@@ -674,8 +652,6 @@ describe('dialogController.delete', () => {
     dialog = await Dialog.create({
       dialogId: generateDialogId(),
       tenantId,
-      createdBy: 'carl',
-      name: 'To be deleted',
       createdAt: generateTimestamp(),
     });
 

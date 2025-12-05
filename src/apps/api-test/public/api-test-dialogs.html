@@ -341,6 +341,45 @@
             color: #6c757d;
         }
 
+        .member-checkbox {
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .member-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .member-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .member-item:last-child {
+            border-bottom: none;
+        }
+
+        .member-item:hover {
+            background: #f8f9fa;
+        }
+
+        .member-item input[type="checkbox"] {
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .member-item label {
+            flex: 1;
+            cursor: pointer;
+            margin: 0;
+        }
+
         .message-content {
             max-width: 100%;
             word-wrap: break-word;
@@ -614,7 +653,6 @@
             <div class="panel-header">
                 <div class="header-left">
                     <span>📝 Сообщения</span>
-                    <button onclick="showAddMessageModal()" class="url-button" title="Добавить сообщение" id="addMessageBtn" style="display: none;">➕ Добавить</button>
                 </div>
                 <div class="header-right">
                     <button onclick="showCurrentMessageUrl()" class="url-button" title="Показать URL запроса" id="messageUrlBtn" style="display: none;">🔗 URL</button>
@@ -1213,18 +1251,164 @@
             `);
         }
 
-        // Показать модальное окно добавления сообщения
-        function showAddMessageModal() {
-            if (!currentDialogId) {
-                alert('Выберите диалог');
-                return;
-            }
-            alert('Функция добавления сообщения будет реализована');
-        }
-
         // Показать модальное окно создания диалога
         function showAddDialogModal() {
-            alert('Функция создания диалога будет реализована');
+            document.getElementById('createDialogModal').style.display = 'block';
+            document.getElementById('dialogCreator').value = '';
+            document.getElementById('usersListForDialog').innerHTML = '';
+            document.getElementById('usersListForDialog').style.display = 'none';
+            document.getElementById('usersLoading').style.display = 'none';
+        }
+
+        // Закрыть модальное окно создания диалога
+        function closeCreateDialogModal() {
+            document.getElementById('createDialogModal').style.display = 'none';
+        }
+
+        // Загрузить пользователей для выбора участников
+        async function loadUsersForDialog() {
+            const usersListDiv = document.getElementById('usersListForDialog');
+            const loadingDiv = document.getElementById('usersLoading');
+            
+            if (!apiKey) {
+                alert('API ключ не задан');
+                return;
+            }
+
+            loadingDiv.style.display = 'block';
+            usersListDiv.style.display = 'none';
+
+            try {
+                const baseUrl = typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl
+                    ? CHAT3_CONFIG.getTenantApiUrl('')
+                    : window.location.origin.replace(':3001', ':3000');
+
+                const response = await fetch(`${baseUrl}/api/users?limit=100`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const users = data.data || data.users || [];
+
+                if (users.length === 0) {
+                    usersListDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #6c757d;">Пользователи не найдены</div>';
+                    usersListDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
+                    return;
+                }
+
+                let html = '';
+                users.forEach(user => {
+                    const userId = user.userId || user._id;
+                    const userName = user.meta?.name || userId;
+                    const userType = user.type || 'user';
+                    html += `
+                        <div class="member-item">
+                            <input type="checkbox" id="member_${userId}" value="${userId}" class="member-checkbox" />
+                            <label for="member_${userId}">
+                                <strong>${escapeHtml(userName)}</strong>
+                                <span style="color: #6c757d; font-size: 12px; margin-left: 5px;">(${escapeHtml(userId)})</span>
+                                <span style="color: #6c757d; font-size: 11px; margin-left: 5px;">[${escapeHtml(userType)}]</span>
+                            </label>
+                        </div>
+                    `;
+                });
+
+                usersListDiv.innerHTML = html;
+                usersListDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+            } catch (error) {
+                console.error('Error loading users:', error);
+                usersListDiv.innerHTML = `<div style="padding: 20px; text-align: center; color: #dc3545;">Ошибка загрузки пользователей: ${escapeHtml(error.message)}</div>`;
+                usersListDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        // Создать диалог
+        async function createDialog() {
+            const creator = document.getElementById('dialogCreator').value.trim();
+            
+            if (!creator) {
+                alert('Укажите создателя диалога');
+                return;
+            }
+
+            if (!apiKey) {
+                alert('API ключ не задан');
+                return;
+            }
+
+            // Получаем выбранных участников
+            const selectedMembers = [];
+            const checkboxes = document.querySelectorAll('#usersListForDialog input[type="checkbox"]:checked');
+            checkboxes.forEach(checkbox => {
+                selectedMembers.push({
+                    userId: checkbox.value
+                });
+            });
+
+            // Добавляем создателя в участники, если он не выбран
+            const creatorSelected = Array.from(checkboxes).some(cb => cb.value === creator);
+            if (!creatorSelected) {
+                selectedMembers.push({
+                    userId: creator
+                });
+            }
+
+            try {
+                const baseUrl = typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl
+                    ? CHAT3_CONFIG.getTenantApiUrl('')
+                    : window.location.origin.replace(':3001', ':3000');
+
+                const requestBody = {
+                    createdBy: creator,
+                    members: selectedMembers
+                };
+
+                const response = await fetch(`${baseUrl}/api/dialogs`, {
+                    method: 'POST',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const dialog = result.data || result;
+
+                alert(`Диалог успешно создан!\nDialog ID: ${dialog.dialogId || dialog._id}`);
+                
+                // Закрываем модальное окно
+                closeCreateDialogModal();
+                
+                // Обновляем список диалогов
+                loadDialogsWithFilter(currentFilter || '');
+            } catch (error) {
+                console.error('Error creating dialog:', error);
+                alert(`Ошибка создания диалога: ${error.message}`);
+            }
+        }
+
+        // Функция для экранирования HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // Получить индикатор сортировки сообщений
@@ -1420,11 +1604,23 @@
 
         // Закрыть модальное окно при клике вне его
         window.onclick = function(event) {
-            const modal = document.getElementById('infoModal');
-            if (event.target === modal) {
+            const infoModal = document.getElementById('infoModal');
+            const createDialogModal = document.getElementById('createDialogModal');
+            if (event.target === infoModal) {
                 closeModal();
             }
+            if (event.target === createDialogModal) {
+                closeCreateDialogModal();
+            }
         }
+
+        // Закрыть модальное окно при нажатии Escape
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+                closeCreateDialogModal();
+            }
+        });
 
         // Закрыть модальное окно по клавише Esc
         document.addEventListener('keydown', function(event) {
@@ -1530,6 +1726,36 @@
             </div>
             <div class="modal-body" id="modalBody">
                 <!-- Содержимое будет добавлено динамически -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для создания диалога -->
+    <div id="createDialogModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Создать диалог</h2>
+                <span class="close" onclick="closeCreateDialogModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-section">
+                    <label>👤 Создатель диалога:</label>
+                    <input type="text" id="dialogCreator" placeholder="Введите userId создателя" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; margin-top: 5px;" />
+                </div>
+                <div class="form-section" style="margin-top: 15px;">
+                    <label>👥 Участники диалога:</label>
+                    <div style="margin-top: 5px;">
+                        <button type="button" class="url-button" onclick="loadUsersForDialog()" style="margin-bottom: 10px;">🔄 Загрузить пользователей</button>
+                        <div id="usersLoading" style="display: none; color: #6c757d; font-size: 12px;">Загрузка...</div>
+                        <div id="usersListForDialog" class="member-list" style="display: none;">
+                            <!-- Список пользователей будет добавлен динамически -->
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button type="button" class="btn-primary" onclick="createDialog()">✅ Создать диалог</button>
+                    <button type="button" class="url-button" onclick="closeCreateDialogModal()" style="margin-left: 10px;">Отмена</button>
+                </div>
             </div>
         </div>
     </div>

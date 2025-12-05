@@ -25,11 +25,6 @@ const dialogSchema = new mongoose.Schema({
     type: String,
     required: true, 
   },
-  createdBy: {
-    type: String,
-    required: true,
-    description: 'ID создателя диалога (строка)'
-  },
   createdAt: {
     type: Number,
     default: generateTimestamp,

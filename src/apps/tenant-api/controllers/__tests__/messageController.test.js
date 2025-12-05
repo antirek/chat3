@@ -786,7 +786,6 @@ describe('messageController.createMessage - validation', () => {
     expect(event.data.dialog).toBeDefined();
     expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
     expect(event.data.dialog.tenantId).toBe(tenantId);
-    expect(event.data.dialog.createdBy).toBe(dialog.createdBy);
     expect(event.data.dialog.createdAt).toBe(dialog.createdAt);
     // meta всегда должен быть объектом (может быть пустым)
     if (!event.data.dialog.meta) {

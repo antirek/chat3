@@ -60,7 +60,6 @@ const memberSchema = Joi.object({
  * Схема валидации создания диалога
  */
 export const createDialogSchema = Joi.object({
-  createdBy: Joi.string().trim().min(1).max(100).required(),
   members: Joi.array().items(memberSchema).optional(),
   meta: OPTIONAL_META_SCHEMA
 });

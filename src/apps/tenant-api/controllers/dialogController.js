@@ -192,7 +192,6 @@ export const dialogController = {
           .sort({ createdAt: sortDirection })
           .select('-__v')
           .populate('tenantId', 'name domain')
-          .populate('createdBy', 'username email');
       } else if (isMemberSpecificSort) {
         // Используем агрегацию для сортировки по полям конкретного участника
         const { userId, field, direction } = memberSortInfo;
@@ -209,7 +208,6 @@ export const dialogController = {
         // Получаем диалоги с участниками
         const dialogsWithMembers = await Dialog.find(baseQuery)
           .populate('tenantId', 'name domain')
-          .populate('createdBy', 'username email')
           .lean();
         
         // Получаем участников для каждого диалога
@@ -280,14 +278,6 @@ export const dialogController = {
             }
           },
           {
-            $lookup: {
-              from: 'users',
-              localField: 'createdBy',
-              foreignField: '_id',
-              as: 'createdBy'
-            }
-          },
-          {
             $project: {
               __v: 0,
               'members._id': 0,
@@ -308,7 +298,6 @@ export const dialogController = {
           .limit(limit)
           .select('-__v')
           .populate('tenantId', 'name domain')
-          .populate('createdBy', 'username email');
       }
 
       // Добавляем метаданные для каждого диалога
@@ -425,8 +414,7 @@ export const dialogController = {
         tenantId: req.tenantId
       })
         .select('-__v')
-        .populate('tenantId', 'name domain')
-        .populate('createdBy', 'username email');
+        .populate('tenantId', 'name domain');
 
       if (!dialog) {
         return res.status(404).json({
@@ -492,55 +480,23 @@ export const dialogController = {
   // Create new dialog
   async create(req, res) {
     try {
-      const { createdBy, members, meta: metaPayload } = req.body;
+      const { members, meta: metaPayload } = req.body;
 
-      // Basic validation
-      if (!createdBy) {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: 'Missing required field: createdBy'
-        });
+      // Определяем actorId для событий (из API ключа или первого участника)
+      let actorId = req.apiKey?.name || 'system';
+      if (Array.isArray(members) && members.length > 0 && members[0].userId) {
+        actorId = members[0].userId;
       }
 
       const dialog = await Dialog.create({
-        tenantId: req.tenantId,
-        createdBy
+        tenantId: req.tenantId
       });
 
-      // Обрабатываем участников, если они предоставлены
-      if (Array.isArray(members) && members.length > 0) {
-        for (const memberData of members) {
-          // Проверяем, существует ли участник уже в диалоге
-          const existingMember = await DialogMember.findOne({
-            tenantId: req.tenantId,
-            dialogId: dialog.dialogId,
-            userId: memberData.userId
-          }).lean();
-
-          if (existingMember) {
-            // Участник уже существует - пропускаем
-            continue;
-          }
-
-          // Проверяем и создаем пользователя, если его нет
-          await userUtils.ensureUserExists(req.tenantId, memberData.userId, {
-            type: memberData.type
-          });
-
-          // Добавляем участника в диалог
-          await unreadCountUtils.addDialogMember(
-            req.tenantId,
-            memberData.userId,
-            dialog.dialogId
-          );
-        }
-      }
-
-      // Add meta data if provided
+      // Add meta data if provided (делаем это до обработки участников, чтобы метаданные были доступны)
       if (metaPayload && typeof metaPayload === 'object') {
         for (const [key, value] of Object.entries(metaPayload)) {
           const metaOptions = {
-            createdBy,
+            createdBy: actorId,
           };
 
           if (typeof value === 'object' && value !== null && Object.prototype.hasOwnProperty.call(value, 'value')) {
@@ -571,15 +527,76 @@ export const dialogController = {
         }
       }
 
-      // Получаем метаданные диалога для события
+      // Получаем метаданные диалога один раз для всех событий
       const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
       const dialogSection = eventUtils.buildDialogSection({
         dialogId: dialog.dialogId,
         tenantId: dialog.tenantId,
-        createdBy,
         createdAt: dialog.createdAt,
         meta: dialogMeta || {}
       });
+
+      // Обрабатываем участников, если они предоставлены
+      if (Array.isArray(members) && members.length > 0) {
+        for (const memberData of members) {
+          // Проверяем, существует ли участник уже в диалоге
+          const existingMember = await DialogMember.findOne({
+            tenantId: req.tenantId,
+            dialogId: dialog.dialogId,
+            userId: memberData.userId
+          }).lean();
+
+          if (existingMember) {
+            // Участник уже существует - пропускаем
+            continue;
+          }
+
+          // Проверяем и создаем пользователя, если его нет
+          await userUtils.ensureUserExists(req.tenantId, memberData.userId, {
+            type: memberData.type
+          });
+
+          // Добавляем участника в диалог
+          const member = await unreadCountUtils.addDialogMember(
+            req.tenantId,
+            memberData.userId,
+            dialog.dialogId
+          );
+
+          // Создаем событие dialog.member.add для каждого участника
+          const memberSection = eventUtils.buildMemberSection({
+            userId: member.userId,
+            state: {
+              unreadCount: member.unreadCount,
+              lastSeenAt: member.lastSeenAt,
+              lastMessageAt: member.lastMessageAt,
+              isActive: member.isActive
+            }
+          });
+
+          const memberEventContext = eventUtils.buildEventContext({
+            eventType: 'dialog.member.add',
+            dialogId: dialog.dialogId,
+            entityId: dialog.dialogId,
+            includedSections: ['dialog', 'member'],
+            updatedFields: ['member']
+          });
+
+          await eventUtils.createEvent({
+            tenantId: req.tenantId,
+            eventType: 'dialog.member.add',
+            entityType: 'dialogMember',
+            entityId: dialog.dialogId,
+            actorId: actorId,
+            actorType: 'user',
+            data: eventUtils.composeEventData({
+              context: memberEventContext,
+              dialog: dialogSection,
+              member: memberSection
+            })
+          });
+        }
+      }
 
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.create',
@@ -594,7 +611,7 @@ export const dialogController = {
         eventType: 'dialog.create',
         entityType: 'dialog',
         entityId: dialog.dialogId,
-        actorId: createdBy,
+        actorId: actorId,
         actorType: 'user',
         data: eventUtils.composeEventData({
           context: eventContext,
@@ -602,12 +619,8 @@ export const dialogController = {
         })
       });
 
-      // Получаем метаданные диалога (если есть)
-      const meta = await metaUtils.getEntityMeta(
-        req.tenantId,
-        'dialog',
-        dialog.dialogId
-      );
+      // Используем уже полученные метаданные
+      const meta = dialogMeta;
 
       const dialogObj = dialog.toObject();
 
@@ -653,7 +666,6 @@ export const dialogController = {
       const dialogSection = eventUtils.buildDialogSection({
         dialogId: dialog.dialogId,
         tenantId: dialog.tenantId,
-        createdBy: dialog.createdBy,
         createdAt: dialog.createdAt,
         meta: dialogMeta || {}
       });

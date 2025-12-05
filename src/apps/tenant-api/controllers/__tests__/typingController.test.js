@@ -121,7 +121,6 @@ describe('typingController.sendTyping', () => {
     expect(event.data.dialog).toBeDefined();
     expect(event.data.dialog.dialogId).toBe(dialog.dialogId);
     expect(event.data.dialog.tenantId).toBe(tenantId);
-    expect(event.data.dialog.createdBy).toBe(dialog.createdBy);
     expect(event.data.dialog.createdAt).toBe(dialog.createdAt);
     // meta всегда должен быть объектом (может быть пустым)
     // Если meta отсутствует (MongoDB может не сохранять пустые объекты), устанавливаем его

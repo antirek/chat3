@@ -260,7 +260,6 @@ async function createMessageUpdateEvent(tenantId, messageId, actorId) {
       dialogSection = eventUtils.buildDialogSection({
         dialogId: dialog.dialogId,
         tenantId: dialog.tenantId,
-        createdBy: dialog.createdBy,
         createdAt: dialog.createdAt,
         meta: dialogMeta || {}
       });
