@@ -1,6 +1,5 @@
 import { MessageReaction, Message, Dialog } from '../../../models/index.js';
 import * as eventUtils from '../utils/eventUtils.js';
-import * as reactionUtils from '../utils/reactionUtils.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { buildReactionSet } from '../utils/userDialogUtils.js';
@@ -46,13 +45,9 @@ const messageReactionController = {
         .select('-__v')
         .sort({ createdAt: -1 });
 
-      // Получаем агрегированные счетчики из Message
-      const reactionCounts = message.reactionCounts || {};
-
       res.json({
         data: sanitizeResponse({
-          reactions: reactions,
-          counts: reactionCounts
+          reactions: reactions
         }),
         message: 'Message reactions retrieved successfully'
       });
@@ -131,12 +126,6 @@ const messageReactionController = {
         });
         await reactionDoc.save();
 
-        // Пересчитываем все счетчики реакций для гарантии корректности
-        await reactionUtils.updateReactionCounts(req.tenantId, messageId);
-
-        // Получаем обновленное сообщение
-        const updatedMessage = await Message.findOne({ messageId: messageId });
-
         // Получаем диалог и его метаданные для события
         const dialog = await Dialog.findOne({
           dialogId: message.dialogId,
@@ -201,8 +190,7 @@ const messageReactionController = {
 
         res.status(201).json({
           data: sanitizeResponse({
-            reaction: reactionDoc,
-            counts: updatedMessage.reactionCounts
+            reaction: reactionDoc
           }),
           message: 'Reaction set successfully'
         });
@@ -224,12 +212,6 @@ const messageReactionController = {
 
         // Удаляем реакцию
         await MessageReaction.deleteOne({ _id: reactionToDelete._id });
-
-        // Пересчитываем все счетчики реакций для гарантии корректности
-        await reactionUtils.updateReactionCounts(req.tenantId, messageId);
-
-        // Получаем обновленное сообщение
-        const updatedMessage = await Message.findOne({ messageId: messageId });
 
         // Получаем диалог и его метаданные для события
         const dialog = await Dialog.findOne({
@@ -294,9 +276,7 @@ const messageReactionController = {
         });
 
         res.json({
-          data: sanitizeResponse({
-            counts: updatedMessage.reactionCounts
-          }),
+          data: sanitizeResponse({}),
           message: 'Reaction unset successfully'
         });
       }

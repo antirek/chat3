@@ -77,7 +77,6 @@ export function buildMessageSection({
   type = null,
   content = null,
   meta = {},
-  reactionCounts = {},
   quotedMessage = null,
   statusUpdate = null,
   reactionUpdate = null,
@@ -95,11 +94,6 @@ export function buildMessageSection({
     content,
     meta: meta || {}
   };
-
-  // Добавляем reactionCounts только если он передан и не пустой
-  if (reactionCounts && typeof reactionCounts === 'object' && Object.keys(reactionCounts).length > 0) {
-    result.reactionCounts = reactionCounts;
-  }
 
   // Добавляем quotedMessage только если он передан
   if (quotedMessage !== null && quotedMessage !== undefined) {

@@ -1,7 +1,6 @@
 import connectDB from '../config/database.js';
 import { Tenant, User, Dialog, Message, Meta, DialogMember, 
   MessageStatus, Event, MessageReaction, Update } from '../models/index.js';
-import * as reactionUtils from '../apps/tenant-api/utils/reactionUtils.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
 
 async function seed() {
@@ -679,19 +678,7 @@ async function seed() {
         console.log(`     - ${reaction}: ${count}`);
       });
 
-    // Обновляем счетчики реакций в Message.reactionCounts
-    console.log('\n🔄 Updating reaction counts in messages...');
-    const messagesWithReactions = [...new Set(allReactions.map(r => ({ messageId: r.messageId, tenantId: r.tenantId })))];
-    let updatedCount = 0;
-    
-    for (const { messageId, tenantId } of messagesWithReactions) {
-      try {
-        await reactionUtils.updateReactionCounts(tenantId, messageId);
-        updatedCount++;
-      } catch (error) {
-        console.error(`Error updating reaction counts for message ${messageId}:`, error.message);
-      }
-    }
+    // reactionCounts больше не используется в модели Message
 
     console.log(`✅ Updated reaction counts for ${updatedCount} messages`);
 

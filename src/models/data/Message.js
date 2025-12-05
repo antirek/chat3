@@ -48,11 +48,6 @@ const messageSchema = new mongoose.Schema({
     type: String,
     default: 'internal.text'
   },
-  reactionCounts: {
-    type: mongoose.Schema.Types.Mixed,
-    default: {},
-    description: 'Агрегированные счетчики реакций: { "👍": 5, "❤️": 3 }'
-  },
   quotedMessage: {
     type: mongoose.Schema.Types.Mixed,
     default: null,

@@ -1002,11 +1002,8 @@ const userDialogController = {
 
           const senderInfo = await getSenderInfo(req.tenantId, message.senderId, senderInfoCache);
 
-          // Исключаем reactionCounts из ответа
-          const { reactionCounts, ...messageWithoutReactionCounts } = message;
-
           return {
-            ...messageWithoutReactionCounts,
+            ...message,
             meta: messageMeta,
             // Контекстные данные для конкретного пользователя
             context: contextData,
@@ -1125,11 +1122,8 @@ const userDialogController = {
 
       const senderInfo = await getSenderInfo(req.tenantId, message.senderId, undefined);
 
-      // Исключаем reactionCounts из ответа
-      const { reactionCounts, ...messageWithoutReactionCounts } = message;
-
       const enrichedMessage = {
-        ...messageWithoutReactionCounts,
+        ...message,
         meta: messageMeta,
         // Контекстные данные для конкретного пользователя
         context: contextData,

@@ -93,7 +93,6 @@ describe('messageReactionController', () => {
       senderId: 'alice',
       content: 'Hello!',
       type: 'internal.text',
-      reactionCounts: {},
       createdAt: generateTimestamp(),
     });
   });
@@ -115,9 +114,6 @@ describe('messageReactionController', () => {
         createdAt: generateTimestamp(),
       });
 
-      message.reactionCounts = { '👍': 1, '❤️': 1 };
-      await message.save();
-
       const req = createMockReq({ params: { messageId: message.messageId } });
       const res = createMockRes();
 
@@ -125,7 +121,7 @@ describe('messageReactionController', () => {
 
       expect(res.statusCode).toBeUndefined();
       expect(res.body?.data?.reactions).toHaveLength(2);
-      expect(res.body?.data?.counts).toEqual({ '👍': 1, '❤️': 1 });
+      expect(res.body?.data?.counts).toBeUndefined();
     });
 
     test('returns 404 when message not found', async () => {
@@ -150,14 +146,11 @@ describe('messageReactionController', () => {
       await messageReactionController.setOrUnsetReaction(req, res);
 
       expect(res.statusCode).toBe(201);
-      expect(res.body?.data?.counts).toEqual({ '🔥': 1 });
+      expect(res.body?.data?.counts).toBeUndefined();
 
       const reactionDoc = await MessageReaction.findOne({ tenantId, messageId: message.messageId, userId: 'bob', reaction: '🔥' }).lean();
       expect(reactionDoc).toBeTruthy();
       expect(reactionDoc.reaction).toBe('🔥');
-
-      const updatedMessage = await Message.findOne({ messageId: message.messageId }).lean();
-      expect(updatedMessage.reactionCounts).toEqual({ '🔥': 1 });
 
       const event = await Event.findOne({ tenantId, eventType: 'message.reaction.update' }).lean();
       expect(event).toBeTruthy();
@@ -215,8 +208,6 @@ describe('messageReactionController', () => {
         reaction: '👍',
         createdAt: generateTimestamp(),
       });
-      message.reactionCounts = { '👍': 1 };
-      await message.save();
 
       const req = createMockReq({
         params: { messageId: message.messageId, action: 'set', userId: 'bob' },
@@ -271,8 +262,6 @@ describe('messageReactionController', () => {
         reaction: '🔥',
         createdAt: generateTimestamp(),
       });
-      message.reactionCounts = { '🔥': 1 };
-      await message.save();
 
       const req = createMockReq({
         params: { messageId: message.messageId, action: 'unset', userId: 'bob' },
@@ -283,13 +272,10 @@ describe('messageReactionController', () => {
       await messageReactionController.setOrUnsetReaction(req, res);
 
       expect(res.statusCode).toBeUndefined();
-      expect(res.body?.data?.counts || {}).toEqual({});
+      expect(res.body?.data?.counts).toBeUndefined();
 
       const reactionDoc = await MessageReaction.findOne({ tenantId, messageId: message.messageId, userId: 'bob', reaction: '🔥' }).lean();
       expect(reactionDoc).toBeNull();
-
-      const updatedMessage = await Message.findOne({ messageId: message.messageId }).lean();
-      expect(updatedMessage.reactionCounts).toEqual({});
 
       const event = await Event.findOne({ tenantId, eventType: 'message.reaction.update' }).lean();
       expect(event).toBeTruthy();
@@ -325,8 +311,6 @@ describe('messageReactionController', () => {
         reaction: '❤️',
         createdAt: generateTimestamp(),
       });
-      message.reactionCounts = { '👍': 1, '❤️': 1 };
-      await message.save();
 
       const req = createMockReq({
         params: { messageId: message.messageId, action: 'unset', userId: 'bob' },
