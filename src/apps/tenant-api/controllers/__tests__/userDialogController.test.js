@@ -1503,6 +1503,80 @@ describe('userDialogController', () => {
         expect(Array.isArray(memberEvent.data.dialog.meta)).toBe(false);
       }
     });
+
+    test('should create user.stats.update event when dialog becomes read (unreadCount >0 -> 0)', async () => {
+      // Устанавливаем unreadCount = 1 (диалог непрочитан)
+      await DialogMember.findOneAndUpdate(
+        { tenantId, dialogId: dialog.dialogId, userId },
+        { $set: { unreadCount: 1, isActive: true } },
+        { upsert: true, new: true }
+      );
+
+      const beforeTimestamp = generateTimestamp();
+
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId, messageId: message.messageId, status: 'read' },
+        {}
+      );
+      const res = createMockRes();
+
+      await userDialogController.updateMessageStatus(req, res);
+
+      expect(res.statusCode).toBe(200);
+
+      // Проверяем, что unreadCount уменьшился до 0
+      const member = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId }).lean();
+      expect(member?.unreadCount).toBe(0);
+
+      // Проверяем, что создалось событие user.stats.update
+      const userStatsEvent = await Event.findOne({
+        tenantId,
+        eventType: 'user.stats.update',
+        entityId: userId,
+        createdAt: { $gte: beforeTimestamp }
+      }).sort({ createdAt: -1 }).lean();
+
+      expect(userStatsEvent).toBeDefined();
+      if (userStatsEvent) {
+        expect(userStatsEvent.data.user.userId).toBe(userId);
+        expect(userStatsEvent.data.user.stats.unreadDialogsCount).toBe(0);
+      }
+    });
+
+    test('should not create user.stats.update event when dialog was already read (unreadCount >1 -> >0)', async () => {
+      // Устанавливаем unreadCount = 2 (диалог непрочитан, но останется непрочитанным после чтения одного сообщения)
+      await DialogMember.findOneAndUpdate(
+        { tenantId, dialogId: dialog.dialogId, userId },
+        { $set: { unreadCount: 2, isActive: true } },
+        { upsert: true, new: true }
+      );
+
+      const beforeTimestamp = generateTimestamp();
+
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId, messageId: message.messageId, status: 'read' },
+        {}
+      );
+      const res = createMockRes();
+
+      await userDialogController.updateMessageStatus(req, res);
+
+      expect(res.statusCode).toBe(200);
+
+      // Проверяем, что unreadCount уменьшился, но не до 0
+      const member = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId }).lean();
+      expect(member?.unreadCount).toBe(1);
+
+      // Проверяем, что событие user.stats.update НЕ создалось (статус не изменился - диалог остался непрочитанным)
+      const userStatsEvent = await Event.findOne({
+        tenantId,
+        eventType: 'user.stats.update',
+        entityId: userId,
+        createdAt: { $gte: beforeTimestamp }
+      }).lean();
+
+      expect(userStatsEvent).toBeUndefined();
+    });
   });
 });
 

@@ -39,10 +39,11 @@ export async function incrementUnreadCount(tenantId, userId, dialogId, messageId
 
     if (!result && !createIfNotExists) {
       console.warn(`⚠️  User ${userId} is not a member of dialog ${dialogId}, skipping unread count increment`);
-      return;
+      return null;
     }
 
     console.log(`✅ Incremented unread count for user ${userId} in dialog ${dialogId}`);
+    return result; // Возвращаем обновленный DialogMember
   } catch (error) {
     console.error('Error incrementing unread count:', error);
     throw error;

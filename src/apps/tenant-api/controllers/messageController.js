@@ -407,12 +407,20 @@ const messageController = {
               });
               
               // Update DialogMember counter (только для существующих участников)
-              await incrementUnreadCount(req.tenantId, userId, dialog.dialogId, message.messageId);
+              const updatedMember = await incrementUnreadCount(req.tenantId, userId, dialog.dialogId, message.messageId);
               
               // Проверяем, изменился ли статус диалога (был 0 -> стал >0)
-              if (oldUnreadCount === 0) {
-                usersWithStatusChange.add(userId);
+              if (updatedMember) {
+                const newUnreadCount = updatedMember.unreadCount ?? 0;
+                const wasUnread = oldUnreadCount > 0;
+                const isUnread = newUnreadCount > 0;
+                // Если диалог стал непрочитанным (был 0, стал >0)
+                if (!wasUnread && isUnread) {
+                  usersWithStatusChange.add(userId);
+                }
               }
+              // Если updatedMember === null, значит участник не существовал, и incrementUnreadCount не создал его
+              // В этом случае событие не нужно, так как участник не был активным
             } catch (error) {
               console.error(`Error creating MessageStatus for user ${userId}:`, error);
             }

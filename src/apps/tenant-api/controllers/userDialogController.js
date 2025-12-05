@@ -1478,6 +1478,9 @@ const userDialogController = {
         const newUnreadCount = updatedMember.unreadCount ?? 0;
         
         // Проверяем, изменился ли статус диалога (был непрочитан -> стал прочитан или наоборот)
+        // Статус диалога меняется, когда unreadCount переходит через 0:
+        // - был >0, стал 0 -> диалог стал прочитанным (уменьшается unreadDialogsCount)
+        // - был 0, стал >0 -> диалог стал непрочитанным (увеличивается unreadDialogsCount)
         const wasUnread = oldUnreadCount > 0;
         const isUnread = newUnreadCount > 0;
         const unreadStatusChanged = wasUnread !== isUnread;
@@ -1486,6 +1489,10 @@ const userDialogController = {
           // Создаем событие user.stats.update при изменении количества непрочитанных диалогов
           await createUserStatsUpdateEvent(req.tenantId, userId, ['user.stats.unreadDialogsCount']);
         }
+      } else if (oldDialogMember && oldDialogMember.unreadCount > 0) {
+        // Если updatedMember === null, но oldDialogMember существовал и имел unreadCount > 0,
+        // это означает, что updateCountersOnStatusChange не обновил счетчик (возможно, unreadCount уже был 0)
+        // В этом случае событие не нужно, так как статус не изменился
       }
 
       res.json({
