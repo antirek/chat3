@@ -886,6 +886,8 @@
                             <th onclick="toggleSort('userId')" style="cursor: pointer;">User ID<span class="sort-indicator" id="sort-userId">${getSortIndicator('userId')}</span></th>
                             <th onclick="toggleSort('type')" style="cursor: pointer;">Тип<span class="sort-indicator" id="sort-type">${getSortIndicator('type')}</span></th>
                             <th onclick="toggleSort('createdAt')" style="cursor: pointer;">Создан<span class="sort-indicator" id="sort-createdAt">${getSortIndicator('createdAt')}</span></th>
+                            <th style="text-align: center; width: 80px;" title="Общее количество диалогов">💬 Диалоги</th>
+                            <th style="text-align: center; width: 80px;" title="Диалоги с непрочитанными сообщениями">🔔 Непрочитано</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -895,6 +897,16 @@
                                 <td><strong>${user.userId}</strong></td>
                                 <td><span style="background: #e3f2fd; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">${user.type || 'user'}</span></td>
                                 <td>${formatTimestamp(user.createdAt)}</td>
+                                <td style="text-align: center;">
+                                    <span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #495057;">
+                                        ${user.dialogCount !== undefined ? user.dialogCount : '-'}
+                                    </span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <span style="background: ${(user.unreadDialogsCount || 0) > 0 ? '#fff3cd' : '#f0f0f0'}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: ${(user.unreadDialogsCount || 0) > 0 ? '#856404' : '#495057'};">
+                                        ${user.unreadDialogsCount !== undefined ? user.unreadDialogsCount : '-'}
+                                    </span>
+                                </td>
                                 <td>
                                     <button class="btn-primary btn-small" onclick="showUserInfoModal('${user.userId}')">ℹ️ Инфо</button>
                                     <button class="btn-success btn-small" onclick="showMetaModal('${user.userId}')">🏷️ Мета</button>

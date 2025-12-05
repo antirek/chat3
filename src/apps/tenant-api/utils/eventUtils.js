@@ -152,11 +152,29 @@ export function buildActorSection({
   };
 }
 
+export function buildUserSection({
+  userId,
+  stats = {}
+} = {}) {
+  if (!userId) {
+    return null;
+  }
+
+  return {
+    userId,
+    stats: {
+      dialogCount: stats.dialogCount ?? 0,
+      unreadDialogsCount: stats.unreadDialogsCount ?? 0
+    }
+  };
+}
+
 export function composeEventData({
   context,
   dialog = null,
   member = null,
   message = null,
+  user = null,
   typing = null,
   actor = null,
   extra = {}
@@ -187,6 +205,10 @@ export function composeEventData({
 
   if (typing) {
     payload.typing = typing;
+  }
+
+  if (user) {
+    payload.user = user;
   }
 
   if (actor) {

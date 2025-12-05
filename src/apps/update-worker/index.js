@@ -138,7 +138,20 @@ async function processEvent(eventData) {
       }
     }
 
-    if (!shouldUpdate.dialog && !shouldUpdate.dialogMember && !shouldUpdate.message && !shouldUpdate.typing) {
+    if (shouldUpdate.user) {
+      // Для событий user.* создаем update только для конкретного пользователя
+      const userPayload = data.user || {};
+      const userId = userPayload.userId || eventData.actorId || entityId;
+
+      if (userId) {
+        await updateUtils.createUserUpdate(tenantId, userId, eventId, eventType, data);
+        console.log(`✅ Created UserUpdate for user ${userId} from event ${eventId}`);
+      } else {
+        console.warn(`⚠️ No userId found for user event ${eventId}`);
+      }
+    }
+
+    if (!shouldUpdate.dialog && !shouldUpdate.dialogMember && !shouldUpdate.message && !shouldUpdate.typing && !shouldUpdate.user) {
       console.log(`ℹ️ Event ${eventType} does not require update creation`);
     }
 

@@ -15,11 +15,17 @@ const updateSchema = new mongoose.Schema({
   },
   dialogId: {
     type: String,
-    required: true,
+    required: false, // Опционально для UserUpdate (события user.*)
     trim: true,
     lowercase: true,
-    match: /^dlg_[a-z0-9]{20}$/,
-    description: 'ID диалога (строка в формате dlg_XXXXXXXXXXXXXXXXXXXX)',
+    validate: {
+      validator: function(v) {
+        // Валидация применяется только если значение не null/undefined
+        return !v || /^dlg_[a-z0-9]{20}$/.test(v);
+      },
+      message: 'dialogId must be in format dlg_XXXXXXXXXXXXXXXXXXXX or null'
+    },
+    description: 'ID диалога (строка в формате dlg_XXXXXXXXXXXXXXXXXXXX). Опционально для событий user.*',
     index: true
   },
   entityId: {

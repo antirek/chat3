@@ -1890,7 +1890,6 @@
             try {
                 const params = new URLSearchParams({
                     limit: String(currentUserLimit),
-                    includeDialogCount: 'true',
                     page: String(currentUserPage)
                 });
 
@@ -2044,6 +2043,8 @@
                     <thead>
                         <tr>
                             <th>User ID</th>
+                            <th style="text-align: center; width: 80px;" title="Общее количество диалогов">💬 Диалоги</th>
+                            <th style="text-align: center; width: 80px;" title="Диалоги с непрочитанными сообщениями">🔔 Непрочитано</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -2057,6 +2058,7 @@
         function renderUserListItem(user) {
             const displayName = user.displayName || user.userId;
             const dialogCount = Number.isFinite(user.dialogCount) ? user.dialogCount : 0;
+            const unreadDialogsCount = Number.isFinite(user.unreadDialogsCount) ? user.unreadDialogsCount : 0;
             const safeNameAttr = escapeJsString(displayName);
             const safeUserIdAttr = escapeJsString(user.userId);
             const nameText = escapeHtml(displayName);
@@ -2064,8 +2066,18 @@
             const isSelected = currentUserId === user.userId ? 'user-row-selected' : '';
 
             return `
-                <tr class="user-row ${isSelected}" data-user-id="${safeUserIdAttr}" onclick="selectUser('${safeUserIdAttr}', '${safeNameAttr}')" title="Диалогов: ${dialogCount}" style="cursor: pointer;">
+                <tr class="user-row ${isSelected}" data-user-id="${safeUserIdAttr}" onclick="selectUser('${safeUserIdAttr}', '${safeNameAttr}')" title="Диалогов: ${dialogCount}, Непрочитано: ${unreadDialogsCount}" style="cursor: pointer;">
                     <td>${userIdText}</td>
+                    <td style="text-align: center;" onclick="event.stopPropagation();">
+                        <span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #495057;">
+                            ${user.dialogCount !== undefined ? user.dialogCount : '-'}
+                        </span>
+                    </td>
+                    <td style="text-align: center;" onclick="event.stopPropagation();">
+                        <span style="background: ${unreadDialogsCount > 0 ? '#fff3cd' : '#f0f0f0'}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: ${unreadDialogsCount > 0 ? '#856404' : '#495057'};">
+                            ${user.unreadDialogsCount !== undefined ? user.unreadDialogsCount : '-'}
+                        </span>
+                    </td>
                     <td class="actions-column" onclick="event.stopPropagation();">
                         <button class="info-button" onclick="showUserJsonModal('${safeUserIdAttr}')">ℹ️ Инфо</button>
                     </td>
@@ -3471,7 +3483,6 @@
             // Добавляем параметры пагинации
             params.append('page', String(currentUserPage));
             params.append('limit', String(currentUserLimit));
-            params.append('includeDialogCount', 'true');
             
             // Добавляем фильтр
             if (currentUserFilter) {
@@ -3491,7 +3502,6 @@
                     <div class="params-list">
                         <div><strong>page:</strong> ${currentUserPage}</div>
                         <div><strong>limit:</strong> ${currentUserLimit}</div>
-                        <div><strong>includeDialogCount:</strong> true</div>
                         ${currentUserFilter ? `<div><strong>filter:</strong> ${currentUserFilter}</div>` : ''}
                     </div>
                     
@@ -4277,7 +4287,7 @@
                     payload.meta = meta;
                 }
                 
-                const response = await fetch(`/api/users/${currentUserId}/dialogs/${currentDialogId}/messages`, {
+                const response = await fetch(`/api/dialogs/${currentDialogId}/messages`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

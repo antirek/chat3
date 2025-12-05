@@ -235,30 +235,32 @@ describe('userController.getUsers', () => {
       expect(types).not.toContain('agent');
     });
 
-    test('includes dialogCount when includeDialogCount=true', async () => {
+    test('always includes dialogCount and unreadDialogsCount', async () => {
     await DialogMember.create([
       {
         tenantId,
         dialogId: 'dlg_aa111111111111111111',
         userId: 'agent_carl',
-        isActive: true
+        isActive: true,
+        unreadCount: 3
       },
       {
         tenantId,
         dialogId: 'dlg_bb222222222222222222',
         userId: 'agent_carl',
-        isActive: true
+        isActive: true,
+        unreadCount: 0
       },
       {
         tenantId,
         dialogId: 'dlg_cc333333333333333333',
         userId: 'manager_alice',
-        isActive: false
+        isActive: false,
+        unreadCount: 5
       }
     ]);
 
     const req = createMockReq({
-      includeDialogCount: 'true',
       limit: '10',
       page: '1'
     });
@@ -268,8 +270,14 @@ describe('userController.getUsers', () => {
 
     const carl = res.body.data.find((user) => user.userId === 'agent_carl');
     const alice = res.body.data.find((user) => user.userId === 'manager_alice');
+    
+    // Проверяем, что dialogCount всегда присутствует
     expect(carl.dialogCount).toBe(2);
-    expect(alice.dialogCount).toBe(0);
+    expect(alice.dialogCount).toBe(0); // isActive: false не учитывается
+    
+    // Проверяем, что unreadDialogsCount всегда присутствует
+    expect(carl.unreadDialogsCount).toBe(1); // только один диалог с unreadCount > 0
+    expect(alice.unreadDialogsCount).toBe(0); // isActive: false не учитывается
   });
 });
 
@@ -317,6 +325,11 @@ describe('userController.getUserById', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data.userId).toBe('agent_carl');
     expect(res.body.data.meta).toEqual({ role: 'support' });
+    // Проверяем, что dialogCount и unreadDialogsCount всегда присутствуют
+    expect(res.body.data.dialogCount).toBeDefined();
+    expect(res.body.data.unreadDialogsCount).toBeDefined();
+    expect(res.body.data.dialogCount).toBe(0);
+    expect(res.body.data.unreadDialogsCount).toBe(0);
   });
 
   test('returns fallback meta when user missing but meta exists', async () => {
@@ -341,6 +354,51 @@ describe('userController.getUserById', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data.userId).toBe('ghost_user');
     expect(res.body.data.meta).toEqual({ role: 'ghost' });
+    // Проверяем, что dialogCount и unreadDialogsCount всегда присутствуют даже в fallback случае
+    expect(res.body.data.dialogCount).toBeDefined();
+    expect(res.body.data.unreadDialogsCount).toBeDefined();
+    expect(res.body.data.dialogCount).toBe(0);
+    expect(res.body.data.unreadDialogsCount).toBe(0);
+  });
+
+  test('includes dialogCount and unreadDialogsCount with actual dialog data', async () => {
+    // Создаем диалоги для пользователя
+    await DialogMember.create([
+      {
+        tenantId,
+        dialogId: 'dlg_aa111111111111111111',
+        userId: 'agent_carl',
+        isActive: true,
+        unreadCount: 3
+      },
+      {
+        tenantId,
+        dialogId: 'dlg_bb222222222222222222',
+        userId: 'agent_carl',
+        isActive: true,
+        unreadCount: 0
+      },
+      {
+        tenantId,
+        dialogId: 'dlg_cc333333333333333333',
+        userId: 'agent_carl',
+        isActive: false,
+        unreadCount: 5
+      }
+    ]);
+
+    const req = {
+      tenantId,
+      params: { userId: 'agent_carl' }
+    };
+    const res = createMockRes();
+
+    await getUserById(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data.userId).toBe('agent_carl');
+    expect(res.body.data.dialogCount).toBe(2); // только активные диалоги
+    expect(res.body.data.unreadDialogsCount).toBe(1); // только один активный диалог с unreadCount > 0
   });
 
   test('returns 404 when neither user nor meta found', async () => {

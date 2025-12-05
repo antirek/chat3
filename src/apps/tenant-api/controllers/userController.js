@@ -140,11 +140,11 @@ export async function getUsers(req, res) {
       .limit(limit)
       .lean();
 
-    const includeDialogCount = String(req.query.includeDialogCount).toLowerCase() === 'true';
-    let dialogCountsByUser = null;
-
-    if (includeDialogCount && users.length > 0) {
+    // Всегда вычисляем количество диалогов для каждого пользователя
+    if (users.length > 0) {
       const userIds = users.map(user => user.userId);
+      
+      // Вычисляем общее количество активных диалогов и диалогов с непрочитанными сообщениями
       const aggregationResults = await DialogMember.aggregate([
         {
           $match: {
@@ -156,18 +156,33 @@ export async function getUsers(req, res) {
         {
           $group: {
             _id: '$userId',
-            dialogCount: { $sum: 1 }
+            dialogCount: { $sum: 1 },
+            unreadDialogsCount: {
+              $sum: {
+                $cond: [{ $gt: ['$unreadCount', 0] }, 1, 0]
+              }
+            }
           }
         }
       ]);
 
-      dialogCountsByUser = new Map(
-        aggregationResults.map(({ _id, dialogCount }) => [_id, dialogCount])
+      const dialogCountsByUser = new Map(
+        aggregationResults.map(({ _id, dialogCount, unreadDialogsCount }) => [
+          _id,
+          { dialogCount, unreadDialogsCount }
+        ])
       );
 
       users.forEach((user) => {
-        const count = dialogCountsByUser.get(user.userId) || 0;
-        user.dialogCount = count;
+        const counts = dialogCountsByUser.get(user.userId) || { dialogCount: 0, unreadDialogsCount: 0 };
+        user.dialogCount = counts.dialogCount;
+        user.unreadDialogsCount = counts.unreadDialogsCount;
+      });
+    } else {
+      // Если пользователей нет, устанавливаем нулевые значения
+      users.forEach((user) => {
+        user.dialogCount = 0;
+        user.unreadDialogsCount = 0;
       });
     }
 
@@ -208,12 +223,40 @@ export async function getUserById(req, res) {
     if (!user) {
       // Fallback: если пользователя нет в User модели, но есть meta теги, возвращаем их
       if (userMeta && Object.keys(userMeta).length > 0) {
+        // Вычисляем количество диалогов даже для fallback случая
+        const aggregationResults = await DialogMember.aggregate([
+          {
+            $match: {
+              tenantId: req.tenantId,
+              isActive: true,
+              userId: userId
+            }
+          },
+          {
+            $group: {
+              _id: '$userId',
+              dialogCount: { $sum: 1 },
+              unreadDialogsCount: {
+                $sum: {
+                  $cond: [{ $gt: ['$unreadCount', 0] }, 1, 0]
+                }
+              }
+            }
+          }
+        ]);
+
+        const counts = aggregationResults.length > 0 
+          ? { dialogCount: aggregationResults[0].dialogCount, unreadDialogsCount: aggregationResults[0].unreadDialogsCount }
+          : { dialogCount: 0, unreadDialogsCount: 0 };
+
         return res.json({
           data: sanitizeResponse({
             userId: userId,
             tenantId: req.tenantId,
             createdAt: null,
-            meta: userMeta
+            meta: userMeta,
+            dialogCount: counts.dialogCount,
+            unreadDialogsCount: counts.unreadDialogsCount
           })
         });
       }
@@ -225,10 +268,38 @@ export async function getUserById(req, res) {
       });
     }
 
-    // Пользователь существует, обогащаем мета-тегами
+    // Вычисляем количество диалогов для пользователя
+    const aggregationResults = await DialogMember.aggregate([
+      {
+        $match: {
+          tenantId: req.tenantId,
+          isActive: true,
+          userId: userId
+        }
+      },
+      {
+        $group: {
+          _id: '$userId',
+          dialogCount: { $sum: 1 },
+          unreadDialogsCount: {
+            $sum: {
+              $cond: [{ $gt: ['$unreadCount', 0] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    const counts = aggregationResults.length > 0 
+      ? { dialogCount: aggregationResults[0].dialogCount, unreadDialogsCount: aggregationResults[0].unreadDialogsCount }
+      : { dialogCount: 0, unreadDialogsCount: 0 };
+
+    // Пользователь существует, обогащаем мета-тегами и данными о диалогах
     const enrichedUser = {
       ...user,
-      meta: userMeta
+      meta: userMeta,
+      dialogCount: counts.dialogCount,
+      unreadDialogsCount: counts.unreadDialogsCount
     };
 
     res.json({

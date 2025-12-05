@@ -1,6 +1,7 @@
 import { DialogMember, Dialog, Message, Meta, MessageStatus, MessageReaction, User } from '../../../models/index.js';
 import * as metaUtils from './metaUtils.js';
 import { parseFilters, extractMetaFilters } from './queryParser.js';
+import * as eventUtils from './eventUtils.js';
 
 /**
  * Получение информации об отправителе сообщения
@@ -183,5 +184,71 @@ export async function getContextUserInfo(tenantId, userId, fetchMeta) {
     }
   }
   return null;
+}
+
+/**
+ * Вычисляет статистику пользователя и создает событие user.stats.update
+ * @param {string} tenantId - ID тенанта
+ * @param {string} userId - ID пользователя
+ * @param {string[]} updatedFields - Поля, которые изменились (например, ['user.stats.dialogCount', 'user.stats.unreadDialogsCount'])
+ */
+export async function createUserStatsUpdateEvent(tenantId, userId, updatedFields = []) {
+  try {
+    // Пересчитываем статистику пользователя
+    const statsAggregation = await DialogMember.aggregate([
+      {
+        $match: {
+          tenantId: tenantId,
+          isActive: true,
+          userId: userId
+        }
+      },
+      {
+        $group: {
+          _id: '$userId',
+          dialogCount: { $sum: 1 },
+          unreadDialogsCount: {
+            $sum: {
+              $cond: [{ $gt: ['$unreadCount', 0] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    const userStats = statsAggregation.length > 0 
+      ? {
+          dialogCount: statsAggregation[0].dialogCount,
+          unreadDialogsCount: statsAggregation[0].unreadDialogsCount
+        }
+      : { dialogCount: 0, unreadDialogsCount: 0 };
+
+    const userSection = eventUtils.buildUserSection({
+      userId,
+      stats: userStats
+    });
+
+    const userContext = eventUtils.buildEventContext({
+      eventType: 'user.stats.update',
+      entityId: userId,
+      includedSections: ['user'],
+      updatedFields: updatedFields.length > 0 ? updatedFields : ['user.stats.dialogCount', 'user.stats.unreadDialogsCount']
+    });
+
+    await eventUtils.createEvent({
+      tenantId: tenantId,
+      eventType: 'user.stats.update',
+      entityType: 'user',
+      entityId: userId,
+      actorId: userId,
+      actorType: 'user',
+      data: eventUtils.composeEventData({
+        context: userContext,
+        user: userSection
+      })
+    });
+  } catch (error) {
+    console.error(`Error creating user.stats.update event for user ${userId}:`, error);
+  }
 }
 

@@ -7,6 +7,7 @@ import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
 import { scheduleDialogReadTask } from '../utils/dialogReadTaskUtils.js';
 import * as userUtils from '../utils/userUtils.js';
+import { createUserStatsUpdateEvent } from '../utils/userDialogUtils.js';
 
 const dialogMemberController = {
   // Add member to dialog
@@ -102,6 +103,9 @@ const dialogMemberController = {
           member: memberSection
         })
       });
+
+      // Создаем событие user.stats.update при добавлении участника (изменяется общее количество диалогов)
+      await createUserStatsUpdateEvent(req.tenantId, userId, ['user.stats.dialogCount']);
 
       res.status(201).json({
         data: sanitizeResponse({
@@ -349,6 +353,9 @@ const dialogMemberController = {
             member: memberSection
           })
         });
+
+        // Создаем событие user.stats.update при удалении участника (изменяется общее количество диалогов)
+        await createUserStatsUpdateEvent(req.tenantId, member.userId, ['user.stats.dialogCount']);
       }
 
       res.json({

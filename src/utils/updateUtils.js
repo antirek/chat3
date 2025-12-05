@@ -32,6 +32,10 @@ const TYPING_EVENTS = [
   'dialog.typing'
 ];
 
+const USER_UPDATE_EVENTS = [
+  'user.stats.update'
+];
+
 
 function cloneSection(section) {
   if (!section) {
@@ -512,6 +516,59 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
 }
 
 /**
+ * Создает UserUpdate для события user.*
+ * @param {string} tenantId - ID тенанта
+ * @param {string} userId - ID пользователя
+ * @param {string} eventId - ID события
+ * @param {string} eventType - Тип события
+ * @param {object} eventData - Данные события (содержит context, user)
+ */
+export async function createUserUpdate(tenantId, userId, eventId, eventType, eventData) {
+  try {
+    const eventContext = eventData.context || {};
+    const eventUser = eventData.user || {};
+
+    if (!eventUser.userId) {
+      console.error(`No user data in event ${eventId}`);
+      return;
+    }
+
+    // Используем context из event.data, если есть, иначе создаем минимальный
+    const context = eventContext.eventType ? cloneSection(eventContext) : {
+      eventType,
+      entityId: userId,
+      includedSections: ['user']
+    };
+
+    const update = {
+      tenantId: tenantId,
+      userId: userId,
+      dialogId: null, // User updates не привязаны к диалогу
+      entityId: userId,
+      eventId: eventId,
+      eventType: eventType,
+      data: {
+        user: cloneSection(eventUser),
+        context: cloneSection(context)
+      },
+      published: false
+    };
+
+    // Сохраняем update в БД
+    const savedUpdate = await Update.create(update);
+
+    // Публикуем update в RabbitMQ асинхронно
+    await publishUpdate(savedUpdate).catch(err => {
+      console.error(`Error publishing user update ${savedUpdate._id}:`, err);
+    });
+
+    console.log(`Created UserUpdate for user ${userId} from event ${eventId}`);
+  } catch (error) {
+    console.error('Error creating UserUpdate:', error);
+  }
+}
+
+/**
  * Публикует update в RabbitMQ
  */
 async function publishUpdate(update) {
@@ -534,8 +591,12 @@ async function publishUpdate(update) {
     // Получаем тип пользователя из модели User или используем fallback
     const userType = await getUserType(sanitizedUpdate.tenantId, sanitizedUpdate.userId);
     
-    // Публикуем в exchange chat3_updates с routing key user.{type}.{userId}.{updateType}
-    const routingKey = `user.${userType}.${sanitizedUpdate.userId}.${updateType.toLowerCase()}`;
+    // Определяем категорию update (dialog или user)
+    const dialogUpdates = ['DialogUpdate', 'DialogMemberUpdate', 'MessageUpdate', 'TypingUpdate'];
+    const category = dialogUpdates.includes(updateType) ? 'dialog' : 'user';
+    
+    // Публикуем в exchange chat3_updates с routing key update.{category}.{type}.{userId}.{updateType}
+    const routingKey = `update.${category}.${userType}.${sanitizedUpdate.userId}.${updateType.toLowerCase()}`;
     
     const published = await rabbitmqUtils.publishUpdate(sanitizedUpdate, routingKey);
     
@@ -577,7 +638,10 @@ export function getUpdateTypeFromEventType(eventType) {
     return 'MessageUpdate';
   }
   if (TYPING_EVENTS.includes(eventType)) {
-    return 'Typing';
+    return 'TypingUpdate';
+  }
+  if (USER_UPDATE_EVENTS.includes(eventType)) {
+    return 'UserUpdate';
   }
   return null;
 }
@@ -590,7 +654,8 @@ export function shouldCreateUpdate(eventType) {
     dialog: DIALOG_UPDATE_EVENTS.includes(eventType),
     dialogMember: DIALOG_MEMBER_UPDATE_EVENTS.includes(eventType),
     message: MESSAGE_UPDATE_EVENTS.includes(eventType),
-    typing: TYPING_EVENTS.includes(eventType)
+    typing: TYPING_EVENTS.includes(eventType),
+    user: USER_UPDATE_EVENTS.includes(eventType)
   };
 }
 

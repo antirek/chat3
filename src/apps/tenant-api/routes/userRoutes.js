@@ -85,6 +85,14 @@ const router = express.Router();
  *                       meta:
  *                         type: object
  *                         example: {"theme": "dark", "email": "carl@example.com"}
+ *                       dialogCount:
+ *                         type: integer
+ *                         description: Общее количество активных диалогов пользователя
+ *                         example: 5
+ *                       unreadDialogsCount:
+ *                         type: integer
+ *                         description: Количество диалогов с непрочитанными сообщениями
+ *                         example: 2
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -146,6 +154,14 @@ router.get('/', apiAuth, userController.getUsers);
  *                     meta:
  *                       type: object
  *                       example: {"theme": "dark", "email": "alice@example.com", "department": "Engineering"}
+ *                     dialogCount:
+ *                       type: integer
+ *                       description: Общее количество активных диалогов пользователя
+ *                       example: 5
+ *                     unreadDialogsCount:
+ *                       type: integer
+ *                       description: Количество диалогов с непрочитанными сообщениями
+ *                       example: 2
  *       404:
  *         description: User not found
  *       401:

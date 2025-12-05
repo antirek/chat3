@@ -15,7 +15,8 @@ import {
   mergeMetaRecords,
   buildStatusMessageMatrix,
   buildReactionSet,
-  getContextUserInfo
+  getContextUserInfo,
+  createUserStatsUpdateEvent
 } from '../utils/userDialogUtils.js';
 
 const userDialogController = {
@@ -1420,6 +1421,14 @@ const userDialogController = {
         })
       });
 
+      // Получаем старое значение unreadCount перед обновлением
+      const oldDialogMember = await DialogMember.findOne({
+        tenantId: req.tenantId,
+        userId: userId,
+        dialogId: dialogId
+      }).lean();
+      const oldUnreadCount = oldDialogMember?.unreadCount ?? 0;
+
       // Обновляем счетчик непрочитанных сообщений при чтении
       const updatedMember = await unreadCountUtils.updateCountersOnStatusChange(
         req.tenantId,
@@ -1463,6 +1472,20 @@ const userDialogController = {
             member: memberSection
           })
         });
+
+        // Вычисляем статистику пользователя и создаем событие user.stats.update
+        // если изменилось количество непрочитанных диалогов
+        const newUnreadCount = updatedMember.unreadCount ?? 0;
+        
+        // Проверяем, изменился ли статус диалога (был непрочитан -> стал прочитан или наоборот)
+        const wasUnread = oldUnreadCount > 0;
+        const isUnread = newUnreadCount > 0;
+        const unreadStatusChanged = wasUnread !== isUnread;
+
+        if (unreadStatusChanged) {
+          // Создаем событие user.stats.update при изменении количества непрочитанных диалогов
+          await createUserStatsUpdateEvent(req.tenantId, userId, ['user.stats.unreadDialogsCount']);
+        }
       }
 
       res.json({
