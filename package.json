@@ -1,6 +1,6 @@
 {
   "name": "chat3",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "Node.js project",
   "main": "src/apps/tenant-api/index.js",
   "scripts": {
