@@ -1785,6 +1785,31 @@
         </div>
     </div>
 
+    <!-- Модальное окно для мета-тегов сообщения -->
+    <div id="messageMetaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🏷️ Meta теги сообщения</h2>
+                <span class="close" onclick="closeMessageMetaModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="metaMessageId">
+                <div class="meta-list" id="messageMetaList"></div>
+                <div class="meta-section">
+                    <h3>Добавить Meta тег</h3>
+                    <div class="meta-tag-row">
+                        <input type="text" id="newMessageMetaKey" placeholder="key (например: channelType)">
+                        <input type="text" id="newMessageMetaValue" placeholder="value (например: whatsapp)">
+                        <button class="btn-success btn-small" onclick="addMessageMetaTag()">➕ Добавить</button>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeMessageMetaModal()">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Глобальные переменные
         let apiKey = '';
@@ -2477,6 +2502,7 @@
                                         </td>
                                         <td class="actions-column">
                                             <button class="info-button" onclick="showMessageInfo('${message.messageId}')">ℹ️ Инфо</button>
+                                            <button class="btn-success btn-small" onclick="showMessageMetaModal('${message.messageId}')">🏷️ Мета</button>
                                             <button class="action-button reactions-button" onclick="showReactionModal('${message.messageId}')">😊 Реакции</button>
                                             <button class="action-button events-button" onclick="showEventsModal('${message.messageId}')">📋 События</button>
                                             <button class="action-button status-matrix-button" onclick="showStatusMatrixModal('${message.messageId}')">📊 Матрица статусов</button>
@@ -3603,11 +3629,148 @@
             return '<div class="json-content">' + JSON.stringify(message, null, 2) + '</div>';
         }
 
+        // Показать модальное окно мета-тегов сообщения
+        async function showMessageMetaModal(messageId) {
+            document.getElementById('metaMessageId').value = messageId;
+            document.getElementById('messageMetaModal').style.display = 'block';
+            await loadMessageMetaTags(messageId);
+        }
+
+        // Закрыть модальное окно мета-тегов сообщения
+        function closeMessageMetaModal() {
+            document.getElementById('messageMetaModal').style.display = 'none';
+        }
+
+        // Загрузить мета-теги сообщения
+        async function loadMessageMetaTags(messageId) {
+            if (!currentUserId || !currentDialogId) {
+                document.getElementById('messageMetaList').innerHTML = '<div class="error">Сначала выберите пользователя и диалог</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/users/${currentUserId}/dialogs/${currentDialogId}/messages/${messageId}`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load message meta');
+                }
+
+                const { data: message } = await response.json();
+                const meta = message.meta || {};
+
+                let html = '<h3 style="margin-bottom: 15px; font-size: 14px;">Текущие Meta теги:</h3>';
+                
+                const metaKeys = Object.keys(meta);
+                if (metaKeys.length === 0) {
+                    html += '<div class="no-data" style="padding: 20px;">Meta теги отсутствуют</div>';
+                } else {
+                    html += '<table><thead><tr><th>Key</th><th>Value</th><th>Действия</th></tr></thead><tbody>';
+                    for (const key of metaKeys) {
+                        html += `
+                            <tr>
+                                <td><strong>${escapeHtml(key)}</strong></td>
+                                <td>${escapeHtml(JSON.stringify(meta[key]))}</td>
+                                <td><button class="btn-danger btn-small" onclick="deleteMessageMetaTag('${escapeJsString(messageId)}', '${escapeJsString(key)}')">🗑️ Удалить</button></td>
+                            </tr>
+                        `;
+                    }
+                    html += '</tbody></table>';
+                }
+
+                document.getElementById('messageMetaList').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading message meta tags:', error);
+                document.getElementById('messageMetaList').innerHTML = `<div class="error">Ошибка загрузки meta тегов: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        // Добавить мета-тег сообщения
+        async function addMessageMetaTag() {
+            const messageId = document.getElementById('metaMessageId').value;
+            const key = document.getElementById('newMessageMetaKey').value.trim();
+            const valueStr = document.getElementById('newMessageMetaValue').value.trim();
+
+            if (!key || !valueStr) {
+                alert('Заполните ключ и значение');
+                return;
+            }
+
+            // Пытаемся распарсить значение как JSON, если не получается - оставляем строкой
+            let value;
+            try {
+                value = JSON.parse(valueStr);
+            } catch (e) {
+                value = valueStr;
+            }
+
+            try {
+                const response = await fetch(`/api/meta/message/${messageId}/${encodeURIComponent(key)}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    },
+                    body: JSON.stringify({ value })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to set meta tag');
+                }
+
+                document.getElementById('newMessageMetaKey').value = '';
+                document.getElementById('newMessageMetaValue').value = '';
+                await loadMessageMetaTags(messageId);
+                alert('Meta тег успешно добавлен!');
+            } catch (error) {
+                console.error('Error adding message meta tag:', error);
+                alert('Ошибка добавления meta тега: ' + error.message);
+            }
+        }
+
+        // Удалить мета-тег сообщения
+        async function deleteMessageMetaTag(messageId, key) {
+            if (!confirm(`Удалить meta тег "${key}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/meta/message/${messageId}/${encodeURIComponent(key)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to delete meta tag');
+                }
+
+                await loadMessageMetaTags(messageId);
+                alert('Meta тег успешно удален!');
+            } catch (error) {
+                console.error('Error deleting message meta tag:', error);
+                alert('Ошибка удаления meta тега: ' + error.message);
+            }
+        }
+
         // Закрыть модальное окно при клике вне его
         window.onclick = function(event) {
             const modal = document.getElementById('infoModal');
             if (event.target === modal) {
                 closeModal();
+            }
+            const messageMetaModal = document.getElementById('messageMetaModal');
+            if (event.target === messageMetaModal) {
+                closeMessageMetaModal();
             }
         }
 
@@ -3617,6 +3780,10 @@
                 const modal = document.getElementById('infoModal');
                 if (modal.style.display === 'block') {
                     closeModal();
+                }
+                const messageMetaModal = document.getElementById('messageMetaModal');
+                if (messageMetaModal.style.display === 'block') {
+                    closeMessageMetaModal();
                 }
             }
         });
