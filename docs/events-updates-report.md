@@ -26,7 +26,7 @@
 | `dialog.member.add` | Добавлен участник | `dialogMemberController.addMember`, `dialogController.create` (при создании диалога с участниками) | `DialogUpdate`, `UserStatsUpdate` | Все участники + UserStatsUpdate для добавленного |
 | `dialog.member.remove` | Удален участник | `dialogMemberController.removeMember` | `DialogUpdate`, `UserStatsUpdate` | Все участники + удаляемый + UserStatsUpdate для удаленного |
 | `dialog.member.update` | Обновлен участник | `userDialogController.updateMessageStatus`, `dialogMemberController.updateMember`, `metaController.setMeta/deleteMeta` (для участников) | `DialogMemberUpdate`, `UserStatsUpdate` (если изменился unreadCount) | Только этот участник | Изменение unreadCount, lastSeenAt или мета-тегов |
-| `message.status.update` | Обновлен статус | `userDialogController.updateMessageStatus` | `MessageUpdate`, `UserStatsUpdate` (если диалог стал прочитанным) | Все участники + UserStatsUpdate для пользователя, если диалог стал прочитанным |
+| `message.status.update` | Обновлен статус | `userDialogController.updateMessageStatus` | `MessageUpdate` | Все участники |
 | `message.reaction.update` | Обновлена реакция | `messageReactionController.setOrUnsetReaction` | `MessageUpdate` | Все участники |
 | `dialog.typing` | Пользователь печатает | `typingController.setTyping` | `TypingUpdate` | Все участники (кроме инициатора) |
 | `user.add` | Добавлен пользователь | `userController.createUser` | `UserUpdate` | Только этот пользователь |
@@ -292,8 +292,7 @@ USER_UPDATE_EVENTS = [
    - Создается `UserStatsUpdate` с `updatedFields: ['user.stats.unreadDialogsCount']` для каждого участника, у которого диалог стал непрочитанным
 
 5. **При обновлении статуса сообщения** (`message.status.update`):
-   - Если диалог становится прочитанным для пользователя (unreadCount > 0 → 0)
-   - Уменьшается `unreadDialogsCount`
-   - Создается `UserStatsUpdate` с `updatedFields: ['user.stats.unreadDialogsCount']`
+   - `UserStatsUpdate` не создается напрямую из этого события
+   - Вместо этого, при изменении `unreadCount` создается событие `dialog.member.update`, которое обрабатывается отдельно (см. пункт 3)
 
 **Важно:** `UserStatsUpdate` не создается в контроллерах, а только в `update-worker` для обеспечения консистентности статистики.
