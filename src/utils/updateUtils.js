@@ -181,7 +181,6 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
       return {
         tenantId: tenantId,
         userId: userId,
-        dialogId: eventDialog.dialogId,
         entityId: eventDialog.dialogId,
         eventId: eventId,
         eventType: eventType,
@@ -247,7 +246,6 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
     const updateData = {
       tenantId: tenantId,
       userId: userId,
-      dialogId: eventDialog.dialogId,
       entityId: eventDialog.dialogId,
       eventId: eventId,
       eventType: eventType,
@@ -389,7 +387,6 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       return {
         tenantId: tenantId,
         userId: member.userId,
-        dialogId: eventDialog.dialogId,
         entityId: eventMessage.messageId,
         eventId: eventId,
         eventType: eventType,
@@ -487,7 +484,6 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
         return {
           tenantId,
           userId: member.userId,
-          dialogId: eventDialog.dialogId,
           entityId: eventDialog.dialogId,
           eventId,
           eventType,
@@ -543,7 +539,6 @@ export async function createUserUpdate(tenantId, userId, eventId, eventType, eve
     const update = {
       tenantId: tenantId,
       userId: userId,
-      dialogId: null, // User updates не привязаны к диалогу
       entityId: userId,
       eventId: eventId,
       eventType: eventType,

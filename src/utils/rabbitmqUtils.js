@@ -303,8 +303,7 @@ export async function publishUpdate(update, routingKey) {
     // Exchange сам роутит сообщение в нужную user queue по routing key
     // НЕ создаем очереди здесь - они должны быть созданы заранее!
     
-    // Преобразуем ObjectId в строки для headers (dialogId и entityId могут быть ObjectId)
-    const dialogIdStr = update.dialogId?.toString?.() || update.dialogId;
+    // Преобразуем ObjectId в строки для headers (entityId может быть ObjectId)
     const entityIdStr = update.entityId?.toString?.() || update.entityId;
     
     const message = JSON.stringify(update);

@@ -539,7 +539,7 @@
                     <div class="filter-examples">
                         <span class="filter-example" onclick="setFilterExample('updates', 'eventType', 'message.create')">eventType: message.create</span>
                         <span class="filter-example" onclick="setFilterExample('updates', 'userId', '')">userId: </span>
-                        <span class="filter-example" onclick="setFilterExample('updates', 'dialogId', '')">dialogId: </span>
+                        <span class="filter-example" onclick="setFilterExample('updates', 'entityId', '')">entityId: </span>
                     </div>
                     <div class="filter-row">
                         <div class="filter-input-group">
@@ -775,7 +775,7 @@
 
             let html = '<table><thead><tr>';
             html += '<th onclick="sortUpdates(\'userId\')">userId <span class="sort-indicator">↕</span></th>';
-            html += '<th onclick="sortUpdates(\'dialogId\')">dialogId <span class="sort-indicator">↕</span></th>';
+            html += '<th onclick="sortUpdates(\'entityId\')">entityId <span class="sort-indicator">↕</span></th>';
             html += '<th onclick="sortUpdates(\'eventType\')">eventType <span class="sort-indicator">↕</span></th>';
             html += '<th onclick="sortUpdates(\'createdAt\')">createdAt <span class="sort-indicator">↕</span></th>';
             html += '<th onclick="sortUpdates(\'published\')">published <span class="sort-indicator">↕</span></th>';
@@ -785,7 +785,7 @@
             updates.forEach(update => {
                 html += '<tr>';
                 html += `<td>${update.userId || '-'}</td>`;
-                html += `<td>${update.dialogId || '-'}</td>`;
+                html += `<td>${update.entityId || '-'}</td>`;
                 html += `<td>${update.eventType || '-'}</td>`;
                 html += `<td>${formatTimestamp(update.createdAt)}</td>`;
                 html += `<td>${update.published ? 'Да' : 'Нет'}</td>`;

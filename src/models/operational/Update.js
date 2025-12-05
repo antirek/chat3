@@ -13,21 +13,6 @@ const updateSchema = new mongoose.Schema({
     description: 'ID пользователя-получателя update',
     index: true
   },
-  dialogId: {
-    type: String,
-    required: false, // Опционально для UserUpdate (события user.*)
-    trim: true,
-    lowercase: true,
-    validate: {
-      validator: function(v) {
-        // Валидация применяется только если значение не null/undefined
-        return !v || /^dlg_[a-z0-9]{20}$/.test(v);
-      },
-      message: 'dialogId must be in format dlg_XXXXXXXXXXXXXXXXXXXX or null'
-    },
-    description: 'ID диалога (строка в формате dlg_XXXXXXXXXXXXXXXXXXXX). Опционально для событий user.*',
-    index: true
-  },
   entityId: {
     type: String,
     required: true,
@@ -74,7 +59,6 @@ const updateSchema = new mongoose.Schema({
 // Составные индексы для частых запросов
 updateSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
 updateSchema.index({ tenantId: 1, userId: 1, eventType: 1, createdAt: -1 });
-updateSchema.index({ tenantId: 1, dialogId: 1, createdAt: -1 });
 updateSchema.index({ tenantId: 1, eventId: 1 });
 updateSchema.index({ tenantId: 1, published: 1, createdAt: -1 });
 

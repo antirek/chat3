@@ -197,7 +197,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.create', eventData);
 
       // Проверяем, что updates созданы для каждого участника
-      const updates = await Update.find({ tenantId, dialogId, eventId });
+      const updates = await Update.find({ tenantId, entityId: dialogId, eventId });
       expect(updates.length).toBe(2);
       expect(updates.map(u => u.userId)).toContain('user1');
       expect(updates.map(u => u.userId)).toContain('user2');
@@ -209,7 +209,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
 
       await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.create');
 
-      const updates = await Update.find({ tenantId, dialogId });
+      const updates = await Update.find({ tenantId, entityId: dialogId });
       expect(updates.length).toBe(0);
     });
 
@@ -226,7 +226,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
 
       await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.create');
 
-      const updates = await Update.find({ tenantId, dialogId });
+      const updates = await Update.find({ tenantId, entityId: dialogId });
       expect(updates.length).toBe(0);
     });
 
@@ -273,7 +273,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
 
       await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.create', eventData);
 
-      const update = await Update.findOne({ tenantId, dialogId, userId: 'user1' }).lean();
+      const update = await Update.findOne({ tenantId, entityId: dialogId, userId: 'user1' }).lean();
       expect(update).toBeDefined();
       expect(update.data.dialog).toBeDefined();
       expect(update.data.dialog.meta).toHaveProperty('channel');
@@ -339,7 +339,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, 'dialog.member.remove', eventData);
 
       // Проверяем, что updates созданы для всех участников, включая удаляемого
-      const updates = await Update.find({ tenantId, dialogId, eventId });
+      const updates = await Update.find({ tenantId, entityId: dialogId, eventId });
       expect(updates.length).toBe(2); // user1 (активный) + user2 (удаляемый)
       
       const userIds = updates.map(u => u.userId);
@@ -435,7 +435,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         'dialog.member.update'
       );
 
-      const updates = await Update.find({ tenantId, dialogId, userId });
+      const updates = await Update.find({ tenantId, entityId: dialogId, userId });
       expect(updates.length).toBe(0);
     });
   });
@@ -822,7 +822,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         eventData
       );
 
-      const updates = await Update.find({ tenantId, dialogId, eventId });
+      const updates = await Update.find({ tenantId, entityId: dialogId, eventId });
       expect(updates.length).toBe(1);
       expect(updates[0].userId).toBe('user2');
       expect(updates[0].data.typing).toBeDefined();
@@ -874,7 +874,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         eventData
       );
 
-      const updates = await Update.find({ tenantId, dialogId, eventId });
+      const updates = await Update.find({ tenantId, entityId: dialogId, eventId });
       expect(updates.length).toBe(0);
     });
   });

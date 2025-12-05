@@ -4,7 +4,7 @@ import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
-import { buildStatusMessageMatrix, buildReactionSet } from '../utils/userDialogUtils.js';
+import { buildStatusMessageMatrix, buildReactionSet, createUserStatsUpdateEvent } from '../utils/userDialogUtils.js';
 
 /**
  * Helper function to enrich messages with meta data and statuses
@@ -377,12 +377,18 @@ const messageController = {
         const dialogMembers = await DialogMember.find({
           tenantId: req.tenantId,
           dialogId: dialog.dialogId // Используем строковый dialogId
-        }).select('userId').lean();
+        }).select('userId unreadCount').lean();
+        
+        // Собираем пользователей, для которых изменился статус диалога (был 0 -> стал >0)
+        const usersWithStatusChange = new Set();
         
         for (const member of dialogMembers) {
           const userId = member.userId;
           if (userId !== senderId) { // Don't create status for sender
             try {
+              // Получаем старое значение unreadCount перед увеличением
+              const oldUnreadCount = member.unreadCount ?? 0;
+              
               // Получаем тип пользователя
               const user = await User.findOne({
                 tenantId: req.tenantId,
@@ -402,10 +408,20 @@ const messageController = {
               
               // Update DialogMember counter (только для существующих участников)
               await incrementUnreadCount(req.tenantId, userId, dialog.dialogId, message.messageId);
+              
+              // Проверяем, изменился ли статус диалога (был 0 -> стал >0)
+              if (oldUnreadCount === 0) {
+                usersWithStatusChange.add(userId);
+              }
             } catch (error) {
               console.error(`Error creating MessageStatus for user ${userId}:`, error);
             }
           }
+        }
+        
+        // Создаем событие user.stats.update для пользователей, у которых изменился статус диалога
+        for (const userId of usersWithStatusChange) {
+          await createUserStatsUpdateEvent(req.tenantId, userId, ['user.stats.unreadDialogsCount']);
         }
       }
 
