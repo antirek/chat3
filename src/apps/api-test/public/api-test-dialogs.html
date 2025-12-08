@@ -902,7 +902,7 @@
                             <thead>
                                 <tr>
                                     <th>Dialog ID</th>
-                                    <th onclick="toggleSort('createdAt')">Создан <span class="sort-indicator">◄</span></th>
+                                    <th onclick="toggleSort('createdAt')" style="cursor: pointer;">Создан <span class="sort-indicator" id="sort-dialog-createdAt">◄</span></th>
                                     <th>Пользователи</th>
                                     <th>Инфо</th>
                                 </tr>
@@ -923,6 +923,8 @@
                             </tbody>
                         </table>
                     `;
+                    // Обновляем индикатор сортировки после рендеринга таблицы
+                    updateDialogSortIndicator();
                 } else {
                     document.getElementById('dialogsPagination').style.display = 'none';
                     dialogsList.innerHTML = '<div class="no-data">Диалоги не найдены</div>';
@@ -1118,8 +1120,63 @@
 
         // Переключение сортировки диалогов
         function toggleSort(field) {
-            // Простая реализация - можно расширить
-            console.log('Toggle sort for field:', field);
+            let newSort = null;
+            const indicator = document.getElementById(`sort-dialog-${field}`);
+            
+            if (!currentSort || !currentSort.includes(field)) {
+                newSort = `(${field},asc)`;
+                if (indicator) {
+                    indicator.textContent = '▲';
+                    indicator.classList.add('active');
+                }
+            } else if (currentSort.includes('asc')) {
+                newSort = `(${field},desc)`;
+                if (indicator) {
+                    indicator.textContent = '▼';
+                    indicator.classList.add('active');
+                }
+            } else {
+                newSort = null;
+                if (indicator) {
+                    indicator.textContent = '◄';
+                    indicator.classList.remove('active');
+                }
+            }
+            
+            // Сбрасываем другие индикаторы
+            document.querySelectorAll('.sort-indicator').forEach(ind => {
+                if (ind.id && ind.id.startsWith('sort-dialog-') && ind.id !== `sort-dialog-${field}`) {
+                    ind.textContent = '◄';
+                    ind.classList.remove('active');
+                }
+            });
+            
+            currentSort = newSort;
+            currentPage = 1;
+            const filterValue = document.getElementById('filterValue').value.trim();
+            loadDialogsWithFilter(filterValue || '', 1);
+        }
+
+        function getDialogSortIndicator(field) {
+            if (!currentSort || !currentSort.includes(field)) {
+                return '◄';
+            } else if (currentSort.includes('asc')) {
+                return '▲';
+            } else {
+                return '▼';
+            }
+        }
+
+        function updateDialogSortIndicator() {
+            const indicator = document.getElementById('sort-dialog-createdAt');
+            if (indicator) {
+                indicator.textContent = getDialogSortIndicator('createdAt');
+                if (currentSort && currentSort.includes('createdAt')) {
+                    indicator.classList.add('active');
+                } else {
+                    indicator.classList.remove('active');
+                }
+            }
         }
 
         // Переключение сортировки сообщений
@@ -1254,7 +1311,6 @@
         // Показать модальное окно создания диалога
         function showAddDialogModal() {
             document.getElementById('createDialogModal').style.display = 'block';
-            document.getElementById('dialogCreator').value = '';
             document.getElementById('usersListForDialog').innerHTML = '';
             document.getElementById('usersListForDialog').style.display = 'none';
             document.getElementById('usersLoading').style.display = 'none';
@@ -1334,13 +1390,6 @@
 
         // Создать диалог
         async function createDialog() {
-            const creator = document.getElementById('dialogCreator').value.trim();
-            
-            if (!creator) {
-                alert('Укажите создателя диалога');
-                return;
-            }
-
             if (!apiKey) {
                 alert('API ключ не задан');
                 return;
@@ -1355,21 +1404,12 @@
                 });
             });
 
-            // Добавляем создателя в участники, если он не выбран
-            const creatorSelected = Array.from(checkboxes).some(cb => cb.value === creator);
-            if (!creatorSelected) {
-                selectedMembers.push({
-                    userId: creator
-                });
-            }
-
             try {
                 const baseUrl = typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl
                     ? CHAT3_CONFIG.getTenantApiUrl('')
                     : window.location.origin.replace(':3001', ':3000');
 
                 const requestBody = {
-                    createdBy: creator,
                     members: selectedMembers
                 };
 
@@ -1739,10 +1779,6 @@
             </div>
             <div class="modal-body">
                 <div class="form-section">
-                    <label>👤 Создатель диалога:</label>
-                    <input type="text" id="dialogCreator" placeholder="Введите userId создателя" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; margin-top: 5px;" />
-                </div>
-                <div class="form-section" style="margin-top: 15px;">
                     <label>👥 Участники диалога:</label>
                     <div style="margin-top: 5px;">
                         <button type="button" class="url-button" onclick="loadUsersForDialog()" style="margin-bottom: 10px;">🔄 Загрузить пользователей</button>
