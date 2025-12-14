@@ -4,6 +4,7 @@ import { getUserType } from '../apps/tenant-api/utils/userTypeUtils.js';
 let connection = null;
 let channel = null;
 let isConnected = false;
+let isReconnecting = false;
 
 // Переменные окружения для RabbitMQ
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://rmuser:rmpassword@localhost:5672/';
@@ -28,6 +29,20 @@ export async function initRabbitMQ() {
       console.log('🐰 Connecting to RabbitMQ:', safeUrl);
     }
     
+    // Закрываем старые соединения, если они есть
+    if (channel) {
+      try {
+        await channel.close().catch(() => {});
+      } catch (e) {}
+      channel = null;
+    }
+    if (connection) {
+      try {
+        await connection.close().catch(() => {});
+      } catch (e) {}
+      connection = null;
+    }
+    
     connection = await amqp.connect(RABBITMQ_URL);
     channel = await connection.createChannel();
     
@@ -45,6 +60,7 @@ export async function initRabbitMQ() {
     // Очереди создаются Workers и Consumers
     
     isConnected = true;
+    isReconnecting = false; // Сбрасываем флаг переподключения при успешном подключении
     if (process.env.NODE_ENV !== 'test') {
       console.log('✅ RabbitMQ connected successfully');
       console.log(`   Events Exchange: ${EXCHANGE_NAME} (${EXCHANGE_TYPE})`);
@@ -56,6 +72,7 @@ export async function initRabbitMQ() {
     connection.on('error', (err) => {
       console.error('❌ RabbitMQ connection error:', err.message);
       isConnected = false;
+      handleDisconnect();
     });
     
     connection.on('close', () => {
@@ -63,24 +80,25 @@ export async function initRabbitMQ() {
         console.warn('⚠️  RabbitMQ connection closed');
       }
       isConnected = false;
-      if (process.env.NODE_ENV !== 'test') {
-        // Попытка переподключения через 5 секунд
-        setTimeout(() => {
-          console.log('🔄 Attempting to reconnect to RabbitMQ...');
-          initRabbitMQ();
-        }, 5000);
-      }
+      handleDisconnect();
     });
     
     channel.on('error', (err) => {
       if (process.env.NODE_ENV !== 'test') {
         console.error('❌ RabbitMQ channel error:', err.message);
       }
+      // Ошибка канала обычно означает, что соединение тоже закрыто
+      isConnected = false;
     });
     
     channel.on('close', () => {
       if (process.env.NODE_ENV !== 'test') {
         console.warn('⚠️  RabbitMQ channel closed');
+      }
+      // Закрытие канала может означать закрытие соединения
+      if (!connection || connection.connection === null) {
+        isConnected = false;
+        handleDisconnect();
       }
     });
     
@@ -94,9 +112,62 @@ export async function initRabbitMQ() {
 }
 
 /**
+ * Обработка разрыва соединения и переподключение
+ */
+async function handleDisconnect() {
+  if (isReconnecting) {
+    return; // Уже переподключаемся
+  }
+  
+  if (process.env.NODE_ENV === 'test') {
+    return; // Не переподключаемся в тестах
+  }
+  
+  isReconnecting = true;
+  
+  // Закрываем текущие соединения
+  try {
+    if (channel) {
+      await channel.close().catch(() => {});
+      channel = null;
+    }
+    if (connection) {
+      await connection.close().catch(() => {});
+      connection = null;
+    }
+  } catch (error) {
+    // Игнорируем ошибки при закрытии
+  }
+  
+  console.log('🔄 Attempting to reconnect to RabbitMQ...');
+  
+  // Попытка переподключения с экспоненциальной задержкой
+  let retryDelay = 1000; // Начинаем с 1 секунды
+  const maxDelay = 30000; // Максимум 30 секунд
+  let attempts = 0;
+  
+  while (true) {
+    attempts++;
+    await new Promise(resolve => setTimeout(resolve, retryDelay));
+    
+    const connected = await initRabbitMQ();
+    if (connected) {
+      console.log('✅ Successfully reconnected to RabbitMQ');
+      isReconnecting = false;
+      return;
+    }
+    
+    // Увеличиваем задержку экспоненциально, но не больше maxDelay
+    retryDelay = Math.min(retryDelay * 2, maxDelay);
+    console.log(`⚠️  Reconnection attempt ${attempts} failed, retrying in ${retryDelay}ms...`);
+  }
+}
+
+/**
  * Закрытие подключения к RabbitMQ
  */
 export async function closeRabbitMQ() {
+  isReconnecting = false; // Останавливаем переподключение
   try {
     if (channel) {
       await channel.close();

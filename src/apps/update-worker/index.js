@@ -10,6 +10,8 @@ const WORKER_QUEUE = 'update_worker_queue';
 
 let connection = null;
 let channel = null;
+let isReconnecting = false;
+let consumerTag = null;
 
 /**
  * Подключение к RabbitMQ
@@ -35,6 +37,25 @@ async function connectRabbitMQ() {
     // Привязываем очередь к exchange со всеми routing keys
     await channel.bindQueue(WORKER_QUEUE, EXCHANGE_NAME, '#');
 
+    // Обработчики ошибок и закрытия соединения
+    connection.on('error', (err) => {
+      console.error('❌ RabbitMQ connection error:', err.message);
+      handleDisconnect();
+    });
+    
+    connection.on('close', () => {
+      console.warn('⚠️  RabbitMQ connection closed');
+      handleDisconnect();
+    });
+    
+    channel.on('error', (err) => {
+      console.error('❌ RabbitMQ channel error:', err.message);
+    });
+    
+    channel.on('close', () => {
+      console.warn('⚠️  RabbitMQ channel closed');
+    });
+
     console.log('✅ RabbitMQ connected successfully');
     console.log(`   Exchange: ${EXCHANGE_NAME} (topic)`);
     console.log(`   Worker Queue: ${WORKER_QUEUE}`);
@@ -44,6 +65,94 @@ async function connectRabbitMQ() {
   } catch (error) {
     console.error('❌ Failed to connect to RabbitMQ:', error.message);
     return false;
+  }
+}
+
+/**
+ * Обработка разрыва соединения и переподключение
+ */
+async function handleDisconnect() {
+  if (isReconnecting) {
+    return; // Уже переподключаемся
+  }
+  
+  isReconnecting = true;
+  consumerTag = null;
+  
+  // Закрываем текущие соединения
+  try {
+    if (channel) {
+      await channel.close().catch(() => {});
+      channel = null;
+    }
+    if (connection) {
+      await connection.close().catch(() => {});
+      connection = null;
+    }
+  } catch (error) {
+    // Игнорируем ошибки при закрытии
+  }
+  
+  console.log('🔄 Attempting to reconnect to RabbitMQ...');
+  
+  // Попытка переподключения с экспоненциальной задержкой
+  let retryDelay = 1000; // Начинаем с 1 секунды
+  const maxDelay = 30000; // Максимум 30 секунд
+  let attempts = 0;
+  
+  while (true) {
+    attempts++;
+    await new Promise(resolve => setTimeout(resolve, retryDelay));
+    
+    const connected = await connectRabbitMQ();
+    if (connected) {
+      console.log('✅ Successfully reconnected to RabbitMQ');
+      isReconnecting = false;
+      
+      // Перезапускаем consumer после переподключения
+      await restartConsumer();
+      return;
+    }
+    
+    // Увеличиваем задержку экспоненциально, но не больше maxDelay
+    retryDelay = Math.min(retryDelay * 2, maxDelay);
+    console.log(`⚠️  Reconnection attempt ${attempts} failed, retrying in ${retryDelay}ms...`);
+  }
+}
+
+/**
+ * Перезапуск consumer после переподключения
+ */
+async function restartConsumer() {
+  if (!channel) {
+    console.warn('⚠️  Cannot restart consumer: channel is not available');
+    return;
+  }
+  
+  try {
+    await channel.prefetch(1);
+    
+    const result = await channel.consume(WORKER_QUEUE, async (msg) => {
+      if (!msg) return;
+
+      try {
+        const eventData = JSON.parse(msg.content.toString());
+        await processEvent(eventData);
+        
+        // Подтверждаем обработку сообщения
+        channel.ack(msg);
+      } catch (error) {
+        console.error('❌ Failed to process message:', error);
+        
+        // Отклоняем сообщение и возвращаем в очередь для повторной обработки
+        channel.nack(msg, false, true);
+      }
+    });
+    
+    consumerTag = result.consumerTag;
+    console.log('✅ Consumer restarted successfully');
+  } catch (error) {
+    console.error('❌ Failed to restart consumer:', error.message);
   }
 }
 
@@ -289,25 +398,7 @@ async function startWorker() {
     console.log('\n👂 Waiting for events...\n');
 
     // Настраиваем обработку сообщений
-    await channel.prefetch(1); // Обрабатываем по одному событию за раз
-
-    channel.consume(WORKER_QUEUE, async (msg) => {
-      if (!msg) return;
-
-      try {
-        const eventData = JSON.parse(msg.content.toString());
-        await processEvent(eventData);
-        
-        // Подтверждаем обработку сообщения
-        channel.ack(msg);
-      } catch (error) {
-        console.error('❌ Failed to process message:', error);
-        
-        // Отклоняем сообщение и возвращаем в очередь для повторной обработки
-        // После нескольких попыток сообщение попадет в DLQ (если настроено)
-        channel.nack(msg, false, true);
-      }
-    });
+    await restartConsumer();
 
     console.log('✅ Update Worker is running');
     console.log('   Press Ctrl+C to stop\n');
@@ -324,14 +415,22 @@ async function startWorker() {
 async function shutdown() {
   console.log('\n\n🛑 Shutting down worker...');
   
+  isReconnecting = false; // Останавливаем переподключение
+  
   try {
+    // Отменяем consumer
+    if (channel && consumerTag) {
+      await channel.cancel(consumerTag).catch(() => {});
+      console.log('✅ Consumer cancelled');
+    }
+    
     // Закрываем Worker's own RabbitMQ connection
     if (channel) {
-      await channel.close();
+      await channel.close().catch(() => {});
       console.log('✅ Worker RabbitMQ channel closed');
     }
     if (connection) {
-      await connection.close();
+      await connection.close().catch(() => {});
       console.log('✅ Worker RabbitMQ connection closed');
     }
     
