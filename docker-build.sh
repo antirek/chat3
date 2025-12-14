@@ -14,12 +14,12 @@ if [ ! -f "Dockerfile" ]; then
     exit 1
 fi
 
-IMAGE=antirek/mms3:0.0.15
+IMAGE=antirek/mms3:0.0.16
 
 
 echo "📦 Building..."
-docker build -t ${IMAGE} .
+sudo docker build -t ${IMAGE} .
 
 
 echo "pushing..."
-docker push ${IMAGE}
+sudo docker push ${IMAGE}
