@@ -119,6 +119,7 @@ export async function closeRabbitMQ() {
 export async function publishEvent(event) {
   // Если RabbitMQ недоступен, просто возвращаем false (событие все равно сохранится в MongoDB)
   if (!isConnected || !channel) {
+    console.warn(`⚠️  Cannot publish event ${event?.eventType || 'unknown'}: RabbitMQ not connected (isConnected: ${isConnected}, channel: ${channel ? 'exists' : 'null'})`);
     return false;
   }
   
@@ -143,14 +144,20 @@ export async function publishEvent(event) {
     );
     
     if (published) {
-      console.log(`📨 Event published to RabbitMQ: ${routingKey}`);
+      console.log(`📨 Event published to RabbitMQ: ${routingKey} (${event.eventType})`);
       return true;
     } else {
-      console.warn('⚠️  Failed to publish event to RabbitMQ (buffer full)');
+      console.warn(`⚠️  Failed to publish event to RabbitMQ (buffer full): ${routingKey} (${event.eventType})`);
       return false;
     }
   } catch (error) {
-    console.error('Error publishing event to RabbitMQ:', error.message);
+    console.error(`❌ Error publishing event to RabbitMQ (${event?.eventType || 'unknown'}):`, error.message);
+    console.error('Event details:', {
+      eventType: event?.eventType,
+      entityType: event?.entityType,
+      entityId: event?.entityId,
+      tenantId: event?.tenantId
+    });
     return false;
   }
 }

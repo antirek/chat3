@@ -277,8 +277,10 @@ export async function createEvent({
     // Отправляем событие в RabbitMQ (асинхронно, не ждем результата)
     // Если RabbitMQ недоступен, событие все равно сохранится в MongoDB
     // Update Worker подпишется на события и создаст updates
-    rabbitmqUtils.publishEvent(event.toObject()).catch(err => {
-      console.error('Failed to publish event to RabbitMQ:', err.message);
+    const eventObject = event.toObject();
+    rabbitmqUtils.publishEvent(eventObject).catch(err => {
+      console.error(`❌ Failed to publish event ${event.eventType} to RabbitMQ:`, err.message);
+      console.error('Error stack:', err.stack);
     });
 
     return event;

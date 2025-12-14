@@ -5,8 +5,8 @@
 
 # Установка переменных окружения для RabbitMQ
 export RABBITMQ_URL="${RABBITMQ_URL:-amqp://rmuser:rmpassword@localhost:5672/}"
-export RABBITMQ_EVENTS_EXCHANGE="${RABBITMQ_EVENTS_EXCHANGE:-chat3_events}"
-export RABBITMQ_UPDATES_EXCHANGE="${RABBITMQ_UPDATES_EXCHANGE:-chat3_updates}"
+export RABBITMQ_EVENTS_EXCHANGE=mms3_events
+export RABBITMQ_UPDATES_EXCHANGE=mms3_updates
 export RABBITMQ_MANAGEMENT_URL=http://localhost:15672
 
 # MongoDB переменные окружения
