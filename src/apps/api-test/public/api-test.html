@@ -53,6 +53,22 @@
             align-items: flex-start;
         }
 
+        .header-meta {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            font-size: 14px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .header-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         .header-links {
             display: flex;
             gap: 15px;
@@ -376,6 +392,10 @@
         <div class="header-left">
             <h1>🧪 Chat3 API Test Suite</h1>
             <p>Интерактивные интерфейсы для тестирования REST API</p>
+            <div class="header-meta">
+                <span id="headerProjectName">Проект: chat3</span>
+                <span id="headerAppVersion">Версия: —</span>
+            </div>
         </div>
         <div class="header-right">
             <div class="header-links">
@@ -552,10 +572,24 @@
                 if (rabbitmqLink && CHAT3_CONFIG.RABBITMQ_MANAGEMENT_URL) {
                     rabbitmqLink.href = CHAT3_CONFIG.RABBITMQ_MANAGEMENT_URL;
                 }
+                renderHeaderMeta();
             } else {
                 // Повторная попытка, если config.js еще не загрузился
                 setTimeout(updateHeaderLinks, 100);
             }
+        }
+
+        function renderHeaderMeta() {
+            const projectLabel = document.getElementById('headerProjectName');
+            const versionLabel = document.getElementById('headerAppVersion');
+            if (!projectLabel || !versionLabel || !window.CHAT3_CONFIG) {
+                return;
+            }
+
+            const projectName = CHAT3_CONFIG.PROJECT_NAME || 'chat3';
+            const appVersion = CHAT3_CONFIG.APP_VERSION || '—';
+            projectLabel.textContent = `Проект: ${projectName}`;
+            versionLabel.textContent = `Версия: ${appVersion}`;
         }
 
         // Сохранение API Key и Tenant ID в localStorage
