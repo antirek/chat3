@@ -277,8 +277,8 @@ async function shutdown() {
     }
     
     // Закрываем RabbitMQ connection (закроет все consumer'ы)
+    // closeRabbitMQ() уже выводит сообщение о закрытии
     await rabbitmqUtils.closeRabbitMQ();
-    console.log('✅ RabbitMQ connection closed');
   } catch (error) {
     console.error('❌ Error during shutdown:', error);
   }

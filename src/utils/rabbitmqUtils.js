@@ -5,6 +5,7 @@ let connection = null;
 let channel = null;
 let isConnected = false;
 let isReconnecting = false;
+let isClosing = false; // Флаг для предотвращения переподключения при явном закрытии
 
 // Хранилище активных consumer'ов для перезапуска после переподключения
 const activeConsumers = new Map();
@@ -64,6 +65,7 @@ export async function initRabbitMQ() {
     
     isConnected = true;
     isReconnecting = false; // Сбрасываем флаг переподключения при успешном подключении
+    isClosing = false; // Сбрасываем флаг закрытия при новом подключении
     if (process.env.NODE_ENV !== 'test') {
       console.log('✅ RabbitMQ connected successfully');
       console.log(`   Events Exchange: ${EXCHANGE_NAME} (${EXCHANGE_TYPE})`);
@@ -73,6 +75,7 @@ export async function initRabbitMQ() {
     
     // Обработчики ошибок и закрытия соединения
     connection.on('error', (err) => {
+      if (isClosing) return; // Игнорируем ошибки при явном закрытии
       console.error('❌ RabbitMQ connection error:', err.message);
       isConnected = false;
       if (!isReconnecting) {
@@ -83,6 +86,7 @@ export async function initRabbitMQ() {
     });
     
     connection.on('close', () => {
+      if (isClosing) return; // Игнорируем при явном закрытии
       if (process.env.NODE_ENV !== 'test') {
         console.warn('⚠️  RabbitMQ connection closed');
       }
@@ -95,6 +99,7 @@ export async function initRabbitMQ() {
     });
     
     channel.on('error', (err) => {
+      if (isClosing) return; // Игнорируем ошибки при явном закрытии
       if (process.env.NODE_ENV !== 'test') {
         console.error('❌ RabbitMQ channel error:', err.message);
       }
@@ -108,6 +113,7 @@ export async function initRabbitMQ() {
     });
     
     channel.on('close', () => {
+      if (isClosing) return; // Игнорируем при явном закрытии
       if (process.env.NODE_ENV !== 'test') {
         console.warn('⚠️  RabbitMQ channel closed');
       }
@@ -193,6 +199,13 @@ async function handleDisconnect() {
  * Закрытие подключения к RabbitMQ
  */
 export async function closeRabbitMQ() {
+  // Защита от повторных вызовов
+  if (isClosing) {
+    return; // Уже закрываемся
+  }
+  
+  // Устанавливаем флаг закрытия, чтобы обработчики событий не запускали переподключение
+  isClosing = true;
   isReconnecting = false; // Останавливаем переподключение
   
   // Отменяем все активные consumer'ы
@@ -210,16 +223,35 @@ export async function closeRabbitMQ() {
   }
   
   try {
+    // Удаляем обработчики событий перед закрытием, чтобы они не срабатывали
+    if (connection) {
+      connection.removeAllListeners('error');
+      connection.removeAllListeners('close');
+    }
     if (channel) {
-      await channel.close();
+      channel.removeAllListeners('error');
+      channel.removeAllListeners('close');
+    }
+    
+    // Закрываем channel и connection
+    if (channel) {
+      await channel.close().catch(() => {}); // Игнорируем ошибки, если уже закрыт
     }
     if (connection) {
-      await connection.close();
+      await connection.close().catch(() => {}); // Игнорируем ошибки, если уже закрыт
     }
+    
     isConnected = false;
-    console.log('✅ RabbitMQ connection closed');
+    if (process.env.NODE_ENV !== 'test') {
+      console.log('✅ RabbitMQ connection closed');
+    }
   } catch (error) {
     console.error('Error closing RabbitMQ connection:', error.message);
+  } finally {
+    // Сбрасываем флаг после закрытия
+    isClosing = false;
+    channel = null;
+    connection = null;
   }
 }
 
