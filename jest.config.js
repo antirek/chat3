@@ -13,6 +13,8 @@ export default {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'text-summary', 'lcov', 'html'],
   testTimeout: 60000, // Увеличено для MongoDB Memory Server (загрузка может быть долгой)
+  // maxWorkers удален - используем дефолтное значение (количество CPU cores)
+  // Тесты изолированы в отдельных файлах, можно запускать параллельно
   // globalSetup и globalTeardown для MongoDB Memory Server
   // Отключены по умолчанию, т.к. нужны только для интеграционных тестов
   // Можно включить, раскомментировав следующие строки:

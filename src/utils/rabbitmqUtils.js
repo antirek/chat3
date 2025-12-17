@@ -6,6 +6,9 @@ let channel = null;
 let isConnected = false;
 let isReconnecting = false;
 
+// Хранилище активных consumer'ов для перезапуска после переподключения
+const activeConsumers = new Map();
+
 // Переменные окружения для RabbitMQ
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://rmuser:rmpassword@localhost:5672/';
 
@@ -72,7 +75,11 @@ export async function initRabbitMQ() {
     connection.on('error', (err) => {
       console.error('❌ RabbitMQ connection error:', err.message);
       isConnected = false;
-      handleDisconnect();
+      if (!isReconnecting) {
+        handleDisconnect().catch(err => {
+          console.error('Error during reconnection after connection error:', err.message);
+        });
+      }
     });
     
     connection.on('close', () => {
@@ -80,7 +87,11 @@ export async function initRabbitMQ() {
         console.warn('⚠️  RabbitMQ connection closed');
       }
       isConnected = false;
-      handleDisconnect();
+      if (!isReconnecting) {
+        handleDisconnect().catch(err => {
+          console.error('Error during reconnection after connection close:', err.message);
+        });
+      }
     });
     
     channel.on('error', (err) => {
@@ -89,6 +100,11 @@ export async function initRabbitMQ() {
       }
       // Ошибка канала обычно означает, что соединение тоже закрыто
       isConnected = false;
+      if (!isReconnecting) {
+        handleDisconnect().catch(err => {
+          console.error('Error during reconnection after channel error:', err.message);
+        });
+      }
     });
     
     channel.on('close', () => {
@@ -96,9 +112,11 @@ export async function initRabbitMQ() {
         console.warn('⚠️  RabbitMQ channel closed');
       }
       // Закрытие канала может означать закрытие соединения
-      if (!connection || connection.connection === null) {
-        isConnected = false;
-        handleDisconnect();
+      isConnected = false;
+      if (!isReconnecting) {
+        handleDisconnect().catch(err => {
+          console.error('Error during reconnection after channel close:', err.message);
+        });
       }
     });
     
@@ -150,11 +168,19 @@ async function handleDisconnect() {
     attempts++;
     await new Promise(resolve => setTimeout(resolve, retryDelay));
     
+    try {
     const connected = await initRabbitMQ();
     if (connected) {
       console.log('✅ Successfully reconnected to RabbitMQ');
       isReconnecting = false;
+      
+      // Перезапускаем все активные consumer'ы
+      await restartAllConsumers();
+      
       return;
+    }
+    } catch (error) {
+      console.error('Error during reconnection attempt:', error.message);
     }
     
     // Увеличиваем задержку экспоненциально, но не больше maxDelay
@@ -168,6 +194,21 @@ async function handleDisconnect() {
  */
 export async function closeRabbitMQ() {
   isReconnecting = false; // Останавливаем переподключение
+  
+  // Отменяем все активные consumer'ы
+  const consumersToCancel = Array.from(activeConsumers.entries());
+  activeConsumers.clear(); // Очищаем сразу, чтобы избежать повторных попыток
+  
+  for (const [queueName, consumerInfo] of consumersToCancel) {
+    if (channel && consumerInfo.consumerTag) {
+      try {
+        await channel.cancel(consumerInfo.consumerTag).catch(() => {});
+      } catch (e) {
+        // Игнорируем ошибки при отмене (channel может быть уже закрыт)
+      }
+    }
+  }
+  
   try {
     if (channel) {
       await channel.close();
@@ -183,13 +224,58 @@ export async function closeRabbitMQ() {
 }
 
 /**
+ * Проверка и восстановление соединения перед операцией
+ * @returns {Promise<boolean>} - true если соединение активно или восстановлено
+ */
+async function ensureConnection() {
+  // Проверяем, что соединение действительно активно
+  if (isConnected && channel && connection) {
+    try {
+      // Проверяем, что соединение не закрыто
+      // connection.connection - это внутренний объект amqplib
+      if (connection && !connection.connection) {
+        // Соединение закрыто
+        isConnected = false;
+      } else {
+        // Соединение выглядит активным
+        return true;
+      }
+    } catch (e) {
+      // Ошибка при проверке - считаем соединение потерянным
+      isConnected = false;
+    }
+  }
+  
+  // Если соединение потеряно и мы не в процессе переподключения, запускаем его
+  if (!isReconnecting) {
+    // Запускаем переподключение асинхронно (не блокируем)
+    handleDisconnect().catch(err => {
+      console.error('Error during reconnection:', err.message);
+    });
+  }
+  
+  // Ждем переподключения (максимум 3 секунды)
+  const maxWait = 3000;
+  const startTime = Date.now();
+  while (isReconnecting && (Date.now() - startTime) < maxWait) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    if (isConnected && channel) {
+      return true;
+    }
+  }
+  
+  return isConnected && channel !== null;
+}
+
+/**
  * Публикация события в RabbitMQ
  * @param {Object} event - Событие для публикации
  * @returns {Promise<boolean>} - true если успешно опубликовано
  */
 export async function publishEvent(event) {
-  // Если RabbitMQ недоступен, просто возвращаем false (событие все равно сохранится в MongoDB)
-  if (!isConnected || !channel) {
+  // Пытаемся восстановить соединение, если оно потеряно
+  const connected = await ensureConnection();
+  if (!connected) {
     console.warn(`⚠️  Cannot publish event ${event?.eventType || 'unknown'}: RabbitMQ not connected (isConnected: ${isConnected}, channel: ${channel ? 'exists' : 'null'})`);
     return false;
   }
@@ -229,6 +315,16 @@ export async function publishEvent(event) {
       entityId: event?.entityId,
       tenantId: event?.tenantId
     });
+    
+    // При ошибке проверяем, не разорвалось ли соединение
+    isConnected = false;
+    if (!isReconnecting) {
+      // Запускаем переподключение в фоне (не блокируем текущий запрос)
+      handleDisconnect().catch(err => {
+        console.error('Error during reconnection:', err.message);
+      });
+    }
+    
     return false;
   }
 }
@@ -371,8 +467,10 @@ export async function ensureUserUpdatesQueue(userId, tenantId = null) {
  * @returns {Promise<boolean>} - true если успешно опубликовано
  */
 export async function publishUpdate(update, routingKey) {
-  // Если RabbitMQ недоступен, просто возвращаем false
-  if (!isConnected || !channel) {
+  // Пытаемся восстановить соединение, если оно потеряно
+  const connected = await ensureConnection();
+  if (!connected) {
+    console.warn(`⚠️  Cannot publish update ${routingKey}: RabbitMQ not connected`);
     return false;
   }
 
@@ -411,17 +509,191 @@ export async function publishUpdate(update, routingKey) {
     }
   } catch (error) {
     console.error('Error publishing update to RabbitMQ:', error.message);
+    
+    // При ошибке проверяем, не разорвалось ли соединение
+    isConnected = false;
+    if (!isReconnecting) {
+      // Запускаем переподключение в фоне (не блокируем текущий запрос)
+      handleDisconnect().catch(err => {
+        console.error('Error during reconnection:', err.message);
+      });
+    }
+    
     return false;
   }
 }
 
-export default {
-  initRabbitMQ,
-  closeRabbitMQ,
-  publishEvent,
-  publishUpdate,
-  createQueue,
-  ensureUserUpdatesQueue,
-  isRabbitMQConnected,
-  getRabbitMQInfo
-};
+/**
+ * Создание consumer с автоматическим переподключением
+ * @param {string} queueName - Имя очереди
+ * @param {Array<string>} routingKeys - Routing keys для привязки к exchange
+ * @param {Object} options - Опции consumer'а
+ * @param {number} options.prefetch - Количество неподтвержденных сообщений (по умолчанию 1)
+ * @param {number} options.queueTTL - TTL для очереди в миллисекундах (опционально)
+ * @param {boolean} options.durable - Очередь переживет перезапуск RabbitMQ (по умолчанию true)
+ * @param {string} options.exchange - Имя exchange (по умолчанию EXCHANGE_NAME)
+ * @param {Function} messageHandler - Асинхронная функция обработки сообщений (msg) => Promise
+ * @returns {Promise<Object>} - Объект с методами { cancel(), restart(), consumerTag }
+ */
+export async function createConsumer(queueName, routingKeys, options = {}, messageHandler) {
+  if (!messageHandler || typeof messageHandler !== 'function') {
+    throw new Error('messageHandler is required and must be a function');
+  }
+
+  // Пытаемся восстановить соединение, если оно потеряно
+  const connected = await ensureConnection();
+  if (!connected) {
+    throw new Error('RabbitMQ is not connected');
+  }
+
+  const {
+    prefetch = 1,
+    queueTTL,
+    durable = true,
+    exchange = EXCHANGE_NAME
+  } = options;
+
+  let consumerTag = null;
+
+  const startConsumer = async () => {
+    if (!channel || !isConnected) {
+      throw new Error('RabbitMQ channel is not available');
+    }
+
+    try {
+      // Убеждаемся, что exchange существует (создаем, если нужно)
+      await channel.assertExchange(exchange, 'topic', { durable: true });
+
+      // Настраиваем prefetch
+      await channel.prefetch(prefetch);
+
+      // Создаем очередь
+      const queueOptions = { durable };
+      if (queueTTL) {
+        queueOptions.arguments = { 'x-message-ttl': queueTTL };
+      }
+
+      await channel.assertQueue(queueName, queueOptions);
+
+      // Привязываем очередь к exchange с routing keys
+      for (const routingKey of routingKeys) {
+        await channel.bindQueue(queueName, exchange, routingKey);
+        if (process.env.NODE_ENV !== 'test') {
+          console.log(`✅ Queue "${queueName}" bound to pattern: ${routingKey}`);
+        }
+      }
+
+      // Устанавливаем обработчик сообщений
+      const result = await channel.consume(queueName, async (msg) => {
+        if (!msg) return;
+
+        try {
+          // Парсим сообщение
+          const eventData = JSON.parse(msg.content.toString());
+          
+          // Вызываем обработчик с eventData
+          // Если обработчику нужен msg, он может быть передан вторым параметром
+          await messageHandler(eventData, msg);
+          
+          // Подтверждаем обработку сообщения
+          channel.ack(msg);
+        } catch (error) {
+          console.error('❌ Error processing message:', error);
+          
+          // Отклоняем сообщение и возвращаем в очередь для повторной обработки
+          channel.nack(msg, false, true);
+        }
+      });
+
+      consumerTag = result.consumerTag;
+      
+      if (process.env.NODE_ENV !== 'test') {
+        console.log(`👂 Consumer started on queue: ${queueName} (tag: ${consumerTag})`);
+      }
+
+      return consumerTag;
+    } catch (error) {
+      console.error(`❌ Error creating consumer for queue ${queueName}:`, error.message);
+      throw error;
+    }
+  };
+
+  // Запускаем consumer
+  const initialConsumerTag = await startConsumer();
+  consumerTag = initialConsumerTag;
+
+  // Сохраняем информацию о consumer для перезапуска после переподключения
+  const consumerInfo = {
+    queueName,
+    routingKeys,
+    options,
+    messageHandler,
+    consumerTag: initialConsumerTag,
+    startConsumer
+  };
+  activeConsumers.set(queueName, consumerInfo);
+
+  // Возвращаем объект с методами управления
+  const consumerObject = {
+    get consumerTag() {
+      return consumerTag;
+    },
+    async cancel() {
+      if (channel && consumerTag) {
+        try {
+          await channel.cancel(consumerTag);
+          activeConsumers.delete(queueName);
+          if (process.env.NODE_ENV !== 'test') {
+            console.log(`✅ Consumer cancelled: ${queueName}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error cancelling consumer ${queueName}:`, error.message);
+        }
+      }
+    },
+    async restart() {
+      if (!channel || !isConnected) {
+        throw new Error('RabbitMQ channel is not available');
+      }
+      
+      // Отменяем старый consumer
+      if (consumerTag) {
+        try {
+          await channel.cancel(consumerTag).catch(() => {});
+        } catch (e) {}
+      }
+      
+      // Запускаем заново
+      const newConsumerTag = await startConsumer();
+      consumerTag = newConsumerTag;
+      consumerInfo.consumerTag = newConsumerTag;
+    }
+  };
+  
+  return consumerObject;
+}
+
+/**
+ * Перезапуск всех активных consumer'ов после переподключения
+ */
+async function restartAllConsumers() {
+  if (activeConsumers.size === 0) {
+    return;
+  }
+
+  if (process.env.NODE_ENV !== 'test') {
+    console.log(`🔄 Restarting ${activeConsumers.size} consumer(s)...`);
+  }
+
+  for (const [queueName, consumerInfo] of activeConsumers.entries()) {
+    try {
+      const newConsumerTag = await consumerInfo.startConsumer();
+      consumerInfo.consumerTag = newConsumerTag;
+      if (process.env.NODE_ENV !== 'test') {
+        console.log(`✅ Consumer restarted: ${queueName}`);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to restart consumer ${queueName}:`, error.message);
+    }
+  }
+}
