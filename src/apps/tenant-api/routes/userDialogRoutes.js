@@ -462,12 +462,7 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePer
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
- *       - in: header
- *         name: X-TENANT-ID
- *         schema:
- *           type: string
- *         description: ID организации (tenant). Если не указан, используется дефолтный 'tnt_default'
- *         example: bch_j7m79gh
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: userId
  *         required: true
