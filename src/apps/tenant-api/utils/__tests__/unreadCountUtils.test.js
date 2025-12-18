@@ -61,7 +61,6 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       expect(member.userId).toBe(userId);
       expect(member.dialogId).toBe(dialogId);
       expect(member.unreadCount).toBe(0);
-      expect(member.isActive).toBe(true);
     });
 
     test('should create member with correct timestamps', async () => {
@@ -541,16 +540,10 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       await addDialogMember(tenantId, 'user1', dialogId);
       await addDialogMember(tenantId, 'user2', dialogId);
 
-      // Деактивируем одного участника
-      await DialogMember.updateOne(
-        { tenantId, userId: 'user2', dialogId },
-        { isActive: false }
-      );
-
       const members = await getDialogMembers(tenantId, dialogId);
 
-      expect(members).toHaveLength(1);
-      expect(members[0].userId).toBe('user1');
+      expect(members).toHaveLength(2);
+      expect(members.map(m => m.userId).sort()).toEqual(['user1', 'user2']);
     });
   });
 });

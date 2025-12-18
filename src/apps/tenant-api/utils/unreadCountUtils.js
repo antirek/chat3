@@ -262,7 +262,6 @@ export async function addDialogMember(tenantId, userId, dialogId) {
       dialogId,
       unreadCount: 0,
       lastSeenAt: generateTimestamp(),
-      isActive: true
     });
 
     console.log(`✅ Added member ${userId} to dialog ${dialogId}`);
@@ -332,7 +331,6 @@ export async function getDialogMembers(tenantId, dialogId) {
     const members = await DialogMember.find({
       tenantId,
       dialogId,
-      isActive: true
     }).populate('dialogId', 'name').select('-__v');
 
     return members;

@@ -391,7 +391,6 @@ async function createDialogMemberUpdateEvent(tenantId, entityId, actorId) {
         unreadCount: dialogMember.unreadCount,
         lastSeenAt: dialogMember.lastSeenAt,
         lastMessageAt: dialogMember.lastMessageAt,
-        isActive: dialogMember.isActive
       }
     });
 

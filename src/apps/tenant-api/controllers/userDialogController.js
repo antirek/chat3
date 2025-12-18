@@ -591,7 +591,6 @@ const userDialogController = {
       const allMembers = await DialogMember.find({
         dialogId: { $in: uniqueDialogIds },
         tenantId: req.tenantId,
-        isActive: true
       }).select('dialogId').lean();
 
       // Подсчитываем количество участников по dialogId
@@ -1182,14 +1181,24 @@ const userDialogController = {
       const limit = parseInt(req.query.limit, 10) || 50;
       const skip = (page - 1) * limit;
 
+      // Нормализуем dialogId (в нижний регистр, как в модели)
+      const normalizedDialogId = dialogId.toLowerCase().trim();
+
       // 1. Проверяем, что пользователь является участником диалога
       const member = await DialogMember.findOne({
         tenantId: req.tenantId,
-        dialogId: dialogId,
+        dialogId: normalizedDialogId,
         userId: userId
       });
 
       if (!member) {
+        console.log('getMessageStatuses: User not found in dialog', {
+          tenantId: req.tenantId,
+          dialogId: normalizedDialogId,
+          userId,
+          originalDialogId: dialogId
+        });
+        
         return res.status(403).json({
           error: 'Forbidden',
           message: 'User is not a member of this dialog'
@@ -1199,7 +1208,7 @@ const userDialogController = {
       // 2. Проверяем, что сообщение существует
       const message = await Message.findOne({
         tenantId: req.tenantId,
-        dialogId: dialogId,
+        dialogId: normalizedDialogId,
         messageId: messageId
       }).lean();
 

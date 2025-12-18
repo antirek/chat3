@@ -199,7 +199,6 @@ export async function getUserStats(tenantId, userId) {
       {
         $match: {
           tenantId: tenantId,
-          isActive: true,
           userId: userId
         }
       },

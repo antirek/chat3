@@ -64,8 +64,7 @@ export function buildMemberSection({
     state: {
       unreadCount: state.unreadCount ?? null,
       lastSeenAt: state.lastSeenAt ?? null,
-      lastMessageAt: state.lastMessageAt ?? null,
-      isActive: state.isActive ?? null
+      lastMessageAt: state.lastMessageAt ?? null
     }
   };
 }

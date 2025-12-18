@@ -156,7 +156,7 @@ describe('typingController.sendTyping', () => {
     await typingController.sendTyping(req, res);
 
     expect(res.statusCode).toBe(404);
-    expect(res.body?.message).toBe('User is not an active member of this dialog');
+    expect(res.body?.message).toBe('User is not a member of this dialog');
   });
 });
 

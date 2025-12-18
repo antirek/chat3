@@ -241,21 +241,18 @@ describe('userController.getUsers', () => {
         tenantId,
         dialogId: 'dlg_aa111111111111111111',
         userId: 'agent_carl',
-        isActive: true,
         unreadCount: 3
       },
       {
         tenantId,
         dialogId: 'dlg_bb222222222222222222',
         userId: 'agent_carl',
-        isActive: true,
         unreadCount: 0
       },
       {
         tenantId,
         dialogId: 'dlg_cc333333333333333333',
         userId: 'manager_alice',
-        isActive: false,
         unreadCount: 5
       }
     ]);
@@ -273,11 +270,11 @@ describe('userController.getUsers', () => {
     
     // Проверяем, что dialogCount всегда присутствует
     expect(carl.dialogCount).toBe(2);
-    expect(alice.dialogCount).toBe(0); // isActive: false не учитывается
+    expect(alice.dialogCount).toBe(1); // все участники учитываются
     
     // Проверяем, что unreadDialogsCount всегда присутствует
     expect(carl.unreadDialogsCount).toBe(1); // только один диалог с unreadCount > 0
-    expect(alice.unreadDialogsCount).toBe(0); // isActive: false не учитывается
+    expect(alice.unreadDialogsCount).toBe(1); // диалог с unreadCount > 0
   });
 });
 
@@ -368,21 +365,18 @@ describe('userController.getUserById', () => {
         tenantId,
         dialogId: 'dlg_aa111111111111111111',
         userId: 'agent_carl',
-        isActive: true,
         unreadCount: 3
       },
       {
         tenantId,
         dialogId: 'dlg_bb222222222222222222',
         userId: 'agent_carl',
-        isActive: true,
         unreadCount: 0
       },
       {
         tenantId,
         dialogId: 'dlg_cc333333333333333333',
         userId: 'agent_carl',
-        isActive: false,
         unreadCount: 5
       }
     ]);
@@ -397,8 +391,8 @@ describe('userController.getUserById', () => {
 
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data.userId).toBe('agent_carl');
-    expect(res.body.data.dialogCount).toBe(2); // только активные диалоги
-    expect(res.body.data.unreadDialogsCount).toBe(1); // только один активный диалог с unreadCount > 0
+    expect(res.body.data.dialogCount).toBe(3); // все диалоги учитываются
+    expect(res.body.data.unreadDialogsCount).toBe(2); // два диалога с unreadCount > 0
   });
 
   test('returns 404 when neither user nor meta found', async () => {

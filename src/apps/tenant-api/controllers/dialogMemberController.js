@@ -75,8 +75,7 @@ const dialogMemberController = {
         state: {
           unreadCount: member.unreadCount,
           lastSeenAt: member.lastSeenAt,
-          lastMessageAt: member.lastMessageAt,
-          isActive: member.isActive
+          lastMessageAt: member.lastMessageAt
         }
       });
 
@@ -153,7 +152,7 @@ const dialogMemberController = {
       }
 
       const { metaFilters, regularFilters } = extractMetaFilters(parsedFilters);
-      const allowedFilterFields = new Set(['userId', 'role', 'isActive', 'unreadCount', 'lastSeenAt', 'lastMessageAt', 'joinedAt']);
+      const allowedFilterFields = new Set(['userId', 'role', 'unreadCount', 'lastSeenAt', 'lastMessageAt', 'joinedAt']);
 
       const memberQuery = {
         tenantId: req.tenantId,
@@ -324,8 +323,7 @@ const dialogMemberController = {
           state: {
             unreadCount: member.unreadCount,
             lastSeenAt: member.lastSeenAt,
-            lastMessageAt: member.lastMessageAt,
-            isActive: false
+            lastMessageAt: member.lastMessageAt
           }
         });
 
@@ -432,7 +430,6 @@ const dialogMemberController = {
           unreadCount: updatedMember.unreadCount,
           lastSeenAt: updatedMember.lastSeenAt,
           lastMessageAt: updatedMember.lastMessageAt,
-          isActive: updatedMember.isActive
         }
       });
 

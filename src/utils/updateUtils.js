@@ -141,8 +141,7 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
     // Получаем всех участников диалога (единственное, что нужно загрузить из БД)
     const dialogMembers = await DialogMember.find({
       tenantId: tenantId,
-      dialogId: eventDialog.dialogId,
-      isActive: true
+      dialogId: eventDialog.dialogId
     }).lean();
 
     // Для события dialog.member.remove нужно также создать update для удаляемого пользователя
@@ -356,8 +355,7 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
     // Получаем всех участников диалога (единственное, что нужно загрузить из БД)
     const dialogMembers = await DialogMember.find({
       tenantId: tenantId,
-      dialogId: eventDialog.dialogId,
-      isActive: true
+      dialogId: eventDialog.dialogId
     }).select('userId').lean();
 
     if (dialogMembers.length === 0) {
@@ -444,12 +442,11 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
     // Получаем всех участников диалога (единственное, что нужно загрузить из БД)
     const dialogMembers = await DialogMember.find({
       tenantId,
-      dialogId: eventDialog.dialogId,
-      isActive: true
+      dialogId: eventDialog.dialogId
     }).lean();
 
     if (dialogMembers.length === 0) {
-      console.log(`No active members found for typing update in dialog ${dialogId}`);
+      console.log(`No members found for typing update in dialog ${dialogId}`);
       return;
     }
 

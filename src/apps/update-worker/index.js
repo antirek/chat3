@@ -151,8 +151,7 @@ async function processEvent(eventData) {
           // Получаем всех участников диалога
           const members = await DialogMember.find({
             tenantId,
-            dialogId,
-            isActive: true
+            dialogId
           }).lean();
           
           // Для каждого участника (кроме отправителя) проверяем, стал ли диалог непрочитанным

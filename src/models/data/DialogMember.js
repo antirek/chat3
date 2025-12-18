@@ -38,11 +38,6 @@ const dialogMemberSchema = new mongoose.Schema({
     default: generateTimestamp,
     description: 'Timestamp последнего сообщения в диалоге (микросекунды)'
   },
-  isActive: {
-    type: Boolean,
-    default: true,
-    description: 'Активен ли участник в диалоге'
-  },
   createdAt: {
     type: Number,
     default: generateTimestamp,

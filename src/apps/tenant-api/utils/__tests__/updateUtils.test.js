@@ -173,14 +173,12 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
           dialogId,
           userId: 'user1',
           unreadCount: 0,
-          isActive: true
         },
         {
           tenantId,
           dialogId,
           userId: 'user2',
           unreadCount: 0,
-          isActive: true
         }
       ]);
 
@@ -247,7 +245,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId: 'user1',
         unreadCount: 0,
-        isActive: true
       });
 
       // Добавляем мета-теги диалогу (через Meta модель)
@@ -300,7 +297,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId: 'user1',
         unreadCount: 5,
-        isActive: true
       });
 
       const member2 = await DialogMember.create({
@@ -308,13 +304,11 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId: 'user2',
         unreadCount: 3,
-        isActive: true
       });
 
-      // Удаляем user2 из диалога (устанавливаем isActive: false)
-      await DialogMember.updateOne(
-        { tenantId, dialogId, userId: 'user2' },
-        { isActive: false }
+      // Удаляем user2 из диалога
+      await DialogMember.deleteOne(
+        { tenantId, dialogId, userId: 'user2' }
       );
 
       const { eventId, eventData } = await createEventWithDialog('dialog.member.remove', dialogId, {
@@ -332,8 +326,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
           state: {
             unreadCount: 3,
             lastSeenAt: member2.lastSeenAt,
-            lastMessageAt: member2.lastMessageAt,
-            isActive: false
+            lastMessageAt: member2.lastMessageAt
           }
         }
       });
@@ -348,10 +341,9 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(userIds).toContain('user1');
       expect(userIds).toContain('user2');
 
-      // Проверяем, что для удаляемого пользователя isActive: false
+      // Проверяем, что для удаляемого пользователя создан update
       const removedUserUpdate = updates.find(u => u.userId === 'user2');
       expect(removedUserUpdate).toBeDefined();
-      expect(removedUserUpdate.data.member.state.isActive).toBe(false);
     });
   });
 
@@ -372,7 +364,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId,
         unreadCount: 5,
-        isActive: true
       });
 
       const { eventId, eventData } = await createEventWithDialog('dialog.member.update', dialogId, {
@@ -391,7 +382,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
             unreadCount: 3,
             lastSeenAt: null,
             lastMessageAt: null,
-            isActive: true
           }
         }
       });
@@ -469,14 +459,12 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
           dialogId,
           userId: 'user1',
           unreadCount: 0,
-          isActive: true
         },
         {
           tenantId,
           dialogId,
           userId: 'user2',
           unreadCount: 0,
-          isActive: true
         }
       ]);
 
@@ -553,7 +541,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId: 'user1',
         unreadCount: 0,
-        isActive: true
       });
 
       const { eventId, eventData } = await createEventWithDialog('message.create', dialogId, {
@@ -617,7 +604,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId: 'user1',
         unreadCount: 0,
-        isActive: true
       });
 
       const { eventId, eventData } = await createEventWithDialog('message.status.update', dialogId, {
@@ -707,7 +693,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId: 'user1',
         unreadCount: 0,
-        isActive: true
       });
 
       const { eventId, eventData } = await createEventWithDialog('message.reaction.update', dialogId, {
@@ -786,14 +771,12 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
           dialogId,
           userId: 'user1',
           unreadCount: 0,
-          isActive: true
         },
         {
           tenantId,
           dialogId,
           userId: 'user2',
           unreadCount: 0,
-          isActive: true
         }
       ]);
 
@@ -848,7 +831,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId: 'user1',
         unreadCount: 0,
-        isActive: true
       });
 
       const { eventId, eventData } = await createEventWithDialog('dialog.typing', dialogId, {
@@ -906,14 +888,12 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
           dialogId,
           userId,
           unreadCount: 1, // Непрочитанный диалог
-          isActive: true
         },
         {
           tenantId,
           dialogId: generateDialogId(),
           userId,
           unreadCount: 0, // Прочитанный диалог
-          isActive: true
         }
       ]);
 
@@ -965,7 +945,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId,
         unreadCount: 0,
-        isActive: true
       });
 
       const eventId = await createEventAndGetId('dialog.member.add');
@@ -1062,7 +1041,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId: recipientId,
         unreadCount: 0,
-        isActive: true
       });
 
       const messageId = generateMessageId();
@@ -1176,21 +1154,18 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
           dialogId,
           userId: recipient1Id,
           unreadCount: 0,
-          isActive: true
         },
         {
           tenantId,
           dialogId,
           userId: recipient2Id,
           unreadCount: 0,
-          isActive: true
         },
         {
           tenantId,
           dialogId,
           userId: recipient3Id,
           unreadCount: 0,
-          isActive: true
         }
       ]);
 
@@ -1249,7 +1224,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       const members = await DialogMember.find({
         tenantId,
         dialogId,
-        isActive: true
       }).lean();
 
       for (const member of members) {
@@ -1328,7 +1302,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
           userId,
           state: {
             unreadCount: 0,
-            isActive: true
           }
         }
       });
@@ -1339,7 +1312,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId,
         unreadCount: 0,
-        isActive: true
       });
 
       // Создаем UserStatsUpdate (как это делает update-worker)
@@ -1386,14 +1358,12 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
           dialogId,
           userId,
           unreadCount: 0,
-          isActive: true
         },
         {
           tenantId,
           dialogId: generateDialogId(),
           userId,
           unreadCount: 0,
-          isActive: true
         }
       ]);
 
@@ -1415,8 +1385,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         member: {
           userId,
           state: {
-            unreadCount: 0,
-            isActive: false
+            unreadCount: 0
           }
         }
       });

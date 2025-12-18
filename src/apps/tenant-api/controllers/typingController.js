@@ -25,14 +25,13 @@ export async function sendTyping(req, res) {
     const member = await DialogMember.findOne({
       dialogId,
       tenantId,
-      userId,
-      isActive: true
+      userId
     }).select('userId').lean();
 
     if (!member) {
       return res.status(404).json({
         error: 'Not Found',
-        message: 'User is not an active member of this dialog'
+        message: 'User is not a member of this dialog'
       });
     }
 

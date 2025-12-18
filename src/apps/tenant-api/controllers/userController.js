@@ -150,7 +150,6 @@ export async function getUsers(req, res) {
         {
           $match: {
             tenantId: req.tenantId,
-            isActive: true,
             userId: { $in: userIds }
           }
         },
@@ -229,7 +228,6 @@ export async function getUserById(req, res) {
           {
             $match: {
               tenantId: req.tenantId,
-              isActive: true,
               userId: userId
             }
           },
@@ -274,7 +272,6 @@ export async function getUserById(req, res) {
       {
         $match: {
           tenantId: req.tenantId,
-          isActive: true,
           userId: userId
         }
       },

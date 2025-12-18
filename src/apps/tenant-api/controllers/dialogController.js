@@ -570,7 +570,6 @@ export const dialogController = {
               unreadCount: member.unreadCount,
               lastSeenAt: member.lastSeenAt,
               lastMessageAt: member.lastMessageAt,
-              isActive: member.isActive
             }
           });
 
