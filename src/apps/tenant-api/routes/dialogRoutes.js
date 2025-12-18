@@ -47,6 +47,7 @@ const router = express.Router();
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: query
  *         name: page
  *         schema:
@@ -137,6 +138,7 @@ router.get('/', apiAuth, requirePermission('read'), validateQuery(queryWithFilte
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: dialogId
  *         required: true
@@ -191,6 +193,7 @@ router.get(
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: id
  *         required: true
@@ -280,6 +283,7 @@ router.post('/', apiAuth, requirePermission('write'), validateBody(createDialogS
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: dialogId
  *         required: true
@@ -310,6 +314,7 @@ router.post('/:dialogId/member/:userId/typing', apiAuth, requirePermission('writ
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: id
  *         required: true

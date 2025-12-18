@@ -19,6 +19,7 @@ const router = express.Router();
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: dialogId
  *         required: true
@@ -88,6 +89,7 @@ router.post('/:dialogId/members/add', apiAuth, requirePermission('write'), valid
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: dialogId
  *         required: true
@@ -127,6 +129,7 @@ router.post('/:dialogId/members/:userId/remove', apiAuth, requirePermission('wri
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: dialogId
  *         required: true

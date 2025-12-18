@@ -17,6 +17,7 @@ const router = express.Router();
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: userId
  *         required: true
@@ -120,6 +121,7 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: userId
  *         required: true
@@ -305,6 +307,7 @@ router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('re
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: userId
  *         required: true
@@ -459,6 +462,12 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId', apiAuth, requirePer
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - in: header
+ *         name: X-TENANT-ID
+ *         schema:
+ *           type: string
+ *         description: ID организации (tenant). Если не указан, используется дефолтный 'tnt_default'
+ *         example: bch_j7m79gh
  *       - in: path
  *         name: userId
  *         required: true
@@ -566,6 +575,7 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId/statuses', apiAuth, r
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: userId
  *         required: true
@@ -627,6 +637,7 @@ router.get('/:userId/dialogs/:dialogId/messages/:messageId/reactions',
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: userId
  *         required: true
@@ -712,6 +723,7 @@ router.post('/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action',
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: userId
  *         required: true

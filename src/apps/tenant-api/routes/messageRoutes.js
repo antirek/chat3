@@ -16,6 +16,7 @@ const router = express.Router();
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: dialogId
  *         required: true
@@ -143,6 +144,7 @@ router.get('/:dialogId/messages', apiAuth, requirePermission('read'), validateDi
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: dialogId
  *         required: true

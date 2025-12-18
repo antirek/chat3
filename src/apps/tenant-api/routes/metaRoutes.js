@@ -20,6 +20,7 @@ const router = express.Router();
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: entityType
  *         required: true
@@ -78,6 +79,7 @@ router.put('/:entityType/:entityId/:key',
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: entityType
  *         required: true
@@ -118,6 +120,7 @@ router.delete('/:entityType/:entityId/:key',
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: entityType
  *         required: true

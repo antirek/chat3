@@ -20,6 +20,7 @@ const router = express.Router();
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: query
  *         name: page
  *         schema:
@@ -119,6 +120,7 @@ router.get('/', apiAuth, userController.getUsers);
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: userId
  *         required: true
@@ -242,6 +244,7 @@ router.post('/', apiAuth, validateBody(createUserSchema), userController.createU
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: userId
  *         required: true
@@ -287,6 +290,7 @@ router.put('/:userId', apiAuth, validateUserId, validateBody(updateUserSchema), 
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: userId
  *         required: true

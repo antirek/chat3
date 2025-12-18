@@ -16,6 +16,7 @@ const router = express.Router();
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: query
  *         name: page
  *         schema:
@@ -131,6 +132,7 @@ router.get('/', apiAuth, requirePermission('read'), validateQuery(messagesQueryS
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: messageId
  *         schema:
@@ -199,6 +201,7 @@ router.get('/:messageId', apiAuth, requirePermission('read'), validateMessageId,
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
  *       - in: path
  *         name: messageId
  *         schema:

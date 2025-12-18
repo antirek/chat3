@@ -39,6 +39,17 @@ const options = {
           description: 'API ключ для аутентификации. Формат: chat3_<hex_string>'
         }
       },
+      parameters: {
+        TenantIdHeader: {
+          in: 'header',
+          name: 'X-TENANT-ID',
+          schema: {
+            type: 'string'
+          },
+          description: 'ID организации (tenant). Если не указан, используется дефолтный \'tnt_default\'',
+          example: 'bch_j7m79gh'
+        }
+      },
       schemas: {
         Tenant: {
           type: 'object',
