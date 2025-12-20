@@ -54,14 +54,19 @@ async function processEvent(eventData) {
           const memberPayload = data.member || {};
           const userId = memberPayload.userId;
           if (userId) {
-            await updateUtils.createUserStatsUpdate(
-              tenantId,
-              userId,
-              eventId,
-              eventType,
-              ['user.stats.dialogCount']
-            );
-            console.log(`✅ Created UserStatsUpdate for user ${userId} (dialogCount increased)`);
+            try {
+              await updateUtils.createUserStatsUpdate(
+                tenantId,
+                userId,
+                eventId,
+                eventType,
+                ['user.stats.dialogCount']
+              );
+              console.log(`✅ Created UserStatsUpdate for user ${userId} (dialogCount increased)`);
+            } catch (error) {
+              // Если пользователь не найден или другая ошибка - логируем, но не прерываем обработку
+              console.warn(`⚠️  Failed to create UserStatsUpdate for user ${userId}:`, error.message);
+            }
           }
         }
         
@@ -70,14 +75,19 @@ async function processEvent(eventData) {
           const memberPayload = data.member || {};
           const userId = memberPayload.userId;
           if (userId) {
-            await updateUtils.createUserStatsUpdate(
-              tenantId,
-              userId,
-              eventId,
-              eventType,
-              ['user.stats.dialogCount']
-            );
-            console.log(`✅ Created UserStatsUpdate for user ${userId} (dialogCount decreased)`);
+            try {
+              await updateUtils.createUserStatsUpdate(
+                tenantId,
+                userId,
+                eventId,
+                eventType,
+                ['user.stats.dialogCount']
+              );
+              console.log(`✅ Created UserStatsUpdate for user ${userId} (dialogCount decreased)`);
+            } catch (error) {
+              // Если пользователь не найден или другая ошибка - логируем, но не прерываем обработку
+              console.warn(`⚠️  Failed to create UserStatsUpdate for user ${userId}:`, error.message);
+            }
           }
         }
       } else {
@@ -215,7 +225,10 @@ async function processEvent(eventData) {
 
   } catch (error) {
     console.error('❌ Error processing event:', error);
-    throw error; // Requeue message
+    console.error('   Event data:', JSON.stringify(eventData, null, 2));
+    // Не выбрасываем ошибку, чтобы не завершать процесс
+    // Сообщение будет обработано как успешное (ack), чтобы избежать бесконечных повторов
+    // Если нужно повторить обработку, это должно быть реализовано через retry механизм
   }
 }
 
@@ -292,10 +305,15 @@ process.on('SIGTERM', shutdown);
 // Обработка необработанных ошибок
 process.on('unhandledRejection', (error) => {
   console.error('❌ Unhandled promise rejection:', error);
+  // Не завершаем процесс, только логируем ошибку
+  // Это позволяет воркеру продолжать работу даже при ошибках в отдельных событиях
 });
 
 process.on('uncaughtException', (error) => {
   console.error('❌ Uncaught exception:', error);
+  // Для критических ошибок все еще завершаем процесс
+  // Но это должно происходить только в крайних случаях
+  console.error('⚠️  Critical error detected, shutting down...');
   shutdown();
 });
 

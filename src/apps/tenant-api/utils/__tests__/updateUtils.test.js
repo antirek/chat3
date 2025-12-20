@@ -1,10 +1,4 @@
 import * as fakeAmqp from '@onify/fake-amqplib';
-import {
-  createDialogUpdate,
-  createDialogMemberUpdate,
-  createMessageUpdate,
-  createUserStatsUpdate
-} from '../../../../utils/updateUtils.js';
 import { Dialog, DialogMember, Meta, Message, MessageStatus, User, Event, Update } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
@@ -1415,6 +1409,99 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(updates.length).toBe(1);
       expect(updates[0].data.user.stats.dialogCount).toBe(1); // Остался один диалог
       expect(updates[0].data.context.updatedFields).toContain('user.stats.dialogCount');
+    });
+
+    test('should handle missing user gracefully without throwing error', async () => {
+      const dialogId = generateDialogId();
+      const nonExistentUserId = 'non_existent_user';
+
+      // Создаем диалог и участника, но НЕ создаем пользователя
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        createdBy: 'creator'
+      });
+
+      await DialogMember.create({
+        tenantId,
+        dialogId,
+        userId: nonExistentUserId,
+        unreadCount: 0
+      });
+
+      const eventId = await createEventAndGetId('dialog.member.add', {
+        context: {
+          version: 2,
+          eventType: 'dialog.member.add',
+          dialogId,
+          entityId: dialogId,
+          includedSections: ['dialog', 'member']
+        },
+        dialog: {
+          dialogId,
+          tenantId,
+          createdAt: generateTimestamp(),
+          meta: {}
+        },
+        member: {
+          userId: nonExistentUserId,
+          state: {
+            unreadCount: 0
+          }
+        }
+      });
+
+      // Вызываем createUserStatsUpdate для несуществующего пользователя
+      // Должно вернуться без ошибки (не должно выбрасывать исключение)
+      await expect(
+        updateUtils.createUserStatsUpdate(
+          tenantId,
+          nonExistentUserId,
+          eventId,
+          'dialog.member.add',
+          ['user.stats.dialogCount']
+        )
+      ).resolves.not.toThrow();
+
+      // Проверяем, что update НЕ создан (пользователь не найден)
+      const updates = await Update.find({
+        tenantId,
+        userId: nonExistentUserId,
+        eventType: 'user.stats.update'
+      }).lean();
+
+      expect(updates.length).toBe(0); // Update не должен быть создан
+    });
+
+    test('should not throw error when createUserStatsUpdate called for non-existent user in dialog.member.add', async () => {
+      const dialogId = generateDialogId();
+      const nonExistentUserId = 'non_existent_user';
+
+      // Создаем событие dialog.member.add с несуществующим пользователем
+      const eventId = await createEventAndGetId('dialog.member.add');
+
+      // Вызываем createUserStatsUpdate для несуществующего пользователя
+      // Это имитирует ситуацию в update-worker, когда обрабатывается dialog.member.add
+      // для пользователя, который еще не создан в системе
+      // Должно вернуться без ошибки (не должно выбрасывать исключение)
+      await expect(
+        updateUtils.createUserStatsUpdate(
+          tenantId,
+          nonExistentUserId,
+          eventId,
+          'dialog.member.add',
+          ['user.stats.dialogCount']
+        )
+      ).resolves.not.toThrow();
+
+      // Проверяем, что update НЕ создан (пользователь не найден)
+      const updates = await Update.find({
+        tenantId,
+        userId: nonExistentUserId,
+        eventType: 'user.stats.update'
+      }).lean();
+
+      expect(updates.length).toBe(0); // Update не должен быть создан
     });
   });
 });
