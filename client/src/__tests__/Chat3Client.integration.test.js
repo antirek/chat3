@@ -1,43 +1,75 @@
 /**
  * Интеграционные тесты для Chat3Client
- * Требуют запущенный tenant-api на http://localhost:3000
+ * Использует тестовый сервер с mongodb-memory-server и fake-amqplib
  * 
- * Для запуска:
- * 1. Запустите tenant-api: npm run start:tenant-api
- * 2. Сгенерируйте API ключ: npm run generate-key
- * 3. Установите переменные окружения:
+ * Для запуска с реальным API (если нужно):
+ * 1. Установите переменные окружения:
  *    - CHAT3_API_KEY=your-api-key
- *    - CHAT3_BASE_URL=http://localhost:3000 (опционально, без /api)
- * 4. Запустите тесты: npm test -- Chat3Client.integration.test.js
- * 
- * Примечание: baseURL должен быть без /api, так как префикс добавляется автоматически
+ *    - CHAT3_BASE_URL=http://localhost:3000
+ *    - USE_REAL_API=true
+ * 2. Запустите тесты: npm test -- Chat3Client.integration.test.js
  */
 
 const { Chat3Client } = require('../Chat3Client.js');
 
-// Переменные окружения для интеграционных тестов
+// Использовать реальный API или тестовый сервер
+const USE_REAL_API = process.env.USE_REAL_API === 'true';
+
+// Переменные окружения для интеграционных тестов с реальным API
 const API_KEY = process.env.CHAT3_API_KEY || 'chat3_91b81eff6a450427e9e8f7e9bcd8431e02982871623301321890736ab97d55d7';
 const BASE_URL = process.env.CHAT3_BASE_URL || 'http://localhost:3000';
 const TENANT_ID = process.env.CHAT3_TENANT_ID || 'tnt_default';
 
-// Пропускаем тесты если не указан API ключ или если явно отключены
-const SKIP_INTEGRATION = process.env.SKIP_INTEGRATION_TESTS === 'true' || !API_KEY;
+// Пропускаем тесты если не указан API ключ и не используем тестовый сервер
+const SKIP_INTEGRATION = process.env.SKIP_INTEGRATION_TESTS === 'true' || (USE_REAL_API && !API_KEY);
 
 describe('Chat3Client Integration Tests', () => {
   let client;
+  let testServer;
+  let serverUrl;
+  let serverApiKey;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     if (SKIP_INTEGRATION) {
-      console.log('⚠️  Интеграционные тесты пропущены. Установите CHAT3_API_KEY для запуска.');
+      console.log('⚠️  Интеграционные тесты пропущены.');
       return;
     }
 
-    client = new Chat3Client({
-      baseURL: BASE_URL,
-      apiKey: API_KEY,
-      tenantId: TENANT_ID,
-      debug: false
-    });
+    if (USE_REAL_API) {
+      // Используем реальный API
+      client = new Chat3Client({
+        baseURL: BASE_URL,
+        apiKey: API_KEY,
+        tenantId: TENANT_ID,
+        debug: false
+      });
+    } else {
+      // Используем тестовый сервер
+      try {
+        const testServerModule = require('./testServer.js');
+        const serverInfo = await testServerModule.startTestServer();
+        serverUrl = serverInfo.url;
+        serverApiKey = serverInfo.apiKey;
+        
+        client = new Chat3Client({
+          baseURL: serverUrl,
+          apiKey: serverApiKey,
+          tenantId: TENANT_ID,
+          debug: false
+        });
+        
+        testServer = { stop: () => testServerModule.stopTestServer() };
+      } catch (error) {
+        console.error('❌ Failed to start test server:', error);
+        throw error;
+      }
+    }
+  });
+
+  afterAll(async () => {
+    if (testServer && testServer.stop) {
+      await testServer.stop();
+    }
   });
 
   describe('setMeta - реальный API', () => {

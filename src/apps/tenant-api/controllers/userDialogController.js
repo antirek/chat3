@@ -1451,7 +1451,7 @@ const userDialogController = {
 
       // Проверяем, изменился ли счетчик (сравниваем oldUnreadCount с новым)
       const _newUnreadCount = updatedMember?.unreadCount ?? 0; // Используется в сравнении ниже
-      const unreadCountChanged = oldUnreadCount !== newUnreadCount;
+      const unreadCountChanged = oldUnreadCount !== _newUnreadCount;
 
       // Если счетчик был обновлен (изменился), создаем событие dialog.member.update
       if (updatedMember && unreadCountChanged) {
