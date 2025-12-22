@@ -216,6 +216,7 @@ chat3/
 │   │   ├── gateway/           # Gateway сервер с Control API и тестами (порт 3001)
 │   │   ├── control-api/       # Control API (инициализация, события)
 │   │   ├── api-test/          # API Test Suite интерфейсы
+│   │   │   └── tests/         # E2E тесты для API Test Suite
 │   │   ├── update-worker/     # Worker для обработки событий и создания Updates
 │   │   └── dialog-read-worker/# Worker для массового чтения диалогов
 │   ├── models/
@@ -230,7 +231,6 @@ chat3/
 │   │   └── timestampUtils.js  # Утилиты для работы с timestamps
 │   └── scripts/               # Скрипты (seed, generate-key и т.д.)
 ├── docs/                      # Документация
-├── tests/                     # E2E тесты
 ├── docker-compose.yml         # Конфигурация Docker для MongoDB и RabbitMQ
 ├── package.json
 └── README.md

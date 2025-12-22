@@ -25,8 +25,8 @@
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:members": "playwright test tests/user-dialogs-members-modal.spec.js",
-    "test:e2e:add-member": "playwright test tests/add-member-modal.spec.js"
+    "test:e2e:members": "playwright test src/apps/api-test/tests/user-dialogs-members-modal.spec.js",
+    "test:e2e:add-member": "playwright test src/apps/api-test/tests/add-member-modal.spec.js"
   },
   "keywords": [],
   "author": "",
