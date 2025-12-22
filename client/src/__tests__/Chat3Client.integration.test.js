@@ -7,15 +7,17 @@
  * 2. Сгенерируйте API ключ: npm run generate-key
  * 3. Установите переменные окружения:
  *    - CHAT3_API_KEY=your-api-key
- *    - CHAT3_BASE_URL=http://localhost:3000/api (опционально)
+ *    - CHAT3_BASE_URL=http://localhost:3000 (опционально, без /api)
  * 4. Запустите тесты: npm test -- Chat3Client.integration.test.js
+ * 
+ * Примечание: baseURL должен быть без /api, так как префикс добавляется автоматически
  */
 
 const { Chat3Client } = require('../Chat3Client.js');
 
 // Переменные окружения для интеграционных тестов
 const API_KEY = process.env.CHAT3_API_KEY || 'chat3_91b81eff6a450427e9e8f7e9bcd8431e02982871623301321890736ab97d55d7';
-const BASE_URL = process.env.CHAT3_BASE_URL || 'http://localhost:3000/api';
+const BASE_URL = process.env.CHAT3_BASE_URL || 'http://localhost:3000';
 const TENANT_ID = process.env.CHAT3_TENANT_ID || 'tnt_default';
 
 // Пропускаем тесты если не указан API ключ или если явно отключены

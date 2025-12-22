@@ -50,7 +50,7 @@ const message = await client.createMessage(dialogId, {
 
 ```javascript
 const client = new Chat3Client({
-  baseURL: 'http://localhost:3000/api',  // Базовый URL API
+  baseURL: 'http://localhost:3000',  // Без /api, префикс добавляется автоматически
   apiKey: 'your-api-key-here',            // API ключ для аутентификации
   tenantId: 'tnt_default',                // ID тенанта (опционально)
   debug: false                             // Включить логирование (опционально)
@@ -174,7 +174,7 @@ npm test
 Или с переменными окружения:
 ```bash
 CHAT3_API_KEY=your-key \
-CHAT3_BASE_URL=http://localhost:3000/api \
+CHAT3_BASE_URL=http://localhost:3000 \
 CHAT3_TENANT_ID=tnt_default \
 node test-integration.js
 ```

@@ -160,7 +160,7 @@ fi
 # Запускаем тесты
 echo "   Запуск интеграционных тестов..."
 CHAT3_API_KEY="$API_KEY" \
-CHAT3_BASE_URL="http://localhost:3000/api" \
+CHAT3_BASE_URL="http://localhost:3000" \
 CHAT3_TENANT_ID="tnt_default" \
 node test-integration.js
 

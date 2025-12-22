@@ -35,7 +35,7 @@ describe('Chat3Client.setMeta', () => {
     
     // Создаем новый клиент для каждого теста
     client = new Chat3Client({
-      baseURL: 'http://localhost:3000/api',
+      baseURL: 'http://localhost:3000',  // Без /api, префикс добавляется автоматически
       apiKey: 'test-api-key',
       tenantId: 'tnt_test',
       debug: false

@@ -1,6 +1,6 @@
 const {Chat3Client} = require('../src/Chat3Client');
 
-const baseURL = 'https://tubo-mms3-tenant-api.services.mobilon.ru/api'
+const baseURL = 'https://tubo-mms3-tenant-api.services.mobilon.ru'  // Без /api, префикс добавляется автоматически
 const apiKey = 'chat3_de2b79b6159abaf8cb1145ec95b8136146483d1d34770236014932e13a327f33';
 
 const main = async () => {
