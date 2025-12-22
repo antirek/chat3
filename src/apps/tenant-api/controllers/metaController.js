@@ -473,9 +473,11 @@ async function verifyEntityExists(entityType, entityId, tenantId) {
         throw error;
       }
       break;
+    }
     // Для user, tenant, system не проверяем существование, так как они могут быть строками
-    default:
+    default: {
       break;
+    }
   }
 }
 

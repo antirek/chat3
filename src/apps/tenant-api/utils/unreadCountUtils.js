@@ -197,10 +197,10 @@ export async function syncUnreadCount(tenantId, userId, dialogId) {
 export async function updateCountersOnStatusChange(tenantId, _messageId, userId, oldStatus, newStatus) {
   try {
     // Получаем информацию о сообщении
-    const message = await Message.findOne({ messageId: messageId, tenantId: tenantId });
+    const message = await Message.findOne({ messageId: _messageId, tenantId: tenantId });
     
     if (!message) {
-      console.warn(`⚠️  Message ${messageId} not found, skipping counter update`);
+      console.warn(`⚠️  Message ${_messageId} not found, skipping counter update`);
       return null;
     }
 
@@ -208,7 +208,7 @@ export async function updateCountersOnStatusChange(tenantId, _messageId, userId,
 
     // Проверяем, что пользователь читает НЕ свое сообщение
     if (message.senderId === userId) {
-      console.log(`ℹ️ User ${userId} is the sender of message ${messageId}, skipping counter update`);
+      console.log(`ℹ️ User ${userId} is the sender of message ${_messageId}, skipping counter update`);
       return null;
     }
 

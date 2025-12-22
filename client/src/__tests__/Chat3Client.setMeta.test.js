@@ -63,7 +63,7 @@ describe('Chat3Client.setMeta', () => {
       const result = await client.setMeta('message', 'msg_123', 'state', 'verified');
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/message/msg_123/state',
+        '/api/meta/message/msg_123/state',
         {
           value: 'verified'
         }
@@ -92,7 +92,7 @@ describe('Chat3Client.setMeta', () => {
       const result = await client.setMeta('user', 'carl', 'score', 100, { dataType: 'number' });
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/user/carl/score',
+        '/api/meta/user/carl/score',
         {
           value: 100,
           dataType: 'number'
@@ -123,7 +123,7 @@ describe('Chat3Client.setMeta', () => {
       const result = await client.setMeta('dialog', 'dlg_123', 'settings', metaValue, { dataType: 'object' });
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/dialog/dlg_123/settings',
+        '/api/meta/dialog/dlg_123/settings',
         {
           value: metaValue,
           dataType: 'object'
@@ -154,7 +154,7 @@ describe('Chat3Client.setMeta', () => {
       const result = await client.setMeta('message', 'msg_123', 'tags', metaValue, { dataType: 'array' });
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/message/msg_123/tags',
+        '/api/meta/message/msg_123/tags',
         {
           value: metaValue,
           dataType: 'array'
@@ -184,7 +184,7 @@ describe('Chat3Client.setMeta', () => {
       const result = await client.setMeta('user', 'carl', 'isVerified', true, { dataType: 'boolean' });
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/user/carl/isVerified',
+        '/api/meta/user/carl/isVerified',
         {
           value: true,
           dataType: 'boolean'
@@ -216,7 +216,7 @@ describe('Chat3Client.setMeta', () => {
       const result = await client.setMeta('message', 'msg_123', 'state', { value: 'verified', dataType: 'string' });
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/message/msg_123/state',
+        '/api/meta/message/msg_123/state',
         {
           value: 'verified',
           dataType: 'string'
@@ -246,7 +246,7 @@ describe('Chat3Client.setMeta', () => {
       const result = await client.setMeta('user', 'carl', 'score', { value: 100 }, { dataType: 'number' });
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/user/carl/score',
+        '/api/meta/user/carl/score',
         {
           value: 100,
           dataType: 'number'
@@ -278,7 +278,7 @@ describe('Chat3Client.setMeta', () => {
       const result = await client.setMeta('dialogMember', 'dlg_123:carl', 'role', 'admin');
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/dialogMember/dlg_123:carl/role',
+        '/api/meta/dialogMember/dlg_123:carl/role',
         {
           value: 'admin'
         }
@@ -308,7 +308,7 @@ describe('Chat3Client.setMeta', () => {
       ).rejects.toEqual(error);
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/message/msg_nonexistent/state',
+        '/api/meta/message/msg_nonexistent/state',
         {
           value: 'verified'
         }
@@ -352,7 +352,7 @@ describe('Chat3Client.setMeta', () => {
       await client.setMeta('user', 'carl', 'theme', 'dark');
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/user/carl/theme',
+        '/api/meta/user/carl/theme',
         { value: 'dark' }
       );
     });
@@ -364,7 +364,7 @@ describe('Chat3Client.setMeta', () => {
       await client.setMeta('dialog', 'dlg_123', 'channelType', 'whatsapp');
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/dialog/dlg_123/channelType',
+        '/api/meta/dialog/dlg_123/channelType',
         { value: 'whatsapp' }
       );
     });
@@ -376,7 +376,7 @@ describe('Chat3Client.setMeta', () => {
       await client.setMeta('message', 'msg_123', 'state', 'verified');
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/message/msg_123/state',
+        '/api/meta/message/msg_123/state',
         { value: 'verified' }
       );
     });
@@ -388,7 +388,7 @@ describe('Chat3Client.setMeta', () => {
       await client.setMeta('tenant', 'tnt_test', 'plan', 'premium');
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/tenant/tnt_test/plan',
+        '/api/meta/tenant/tnt_test/plan',
         { value: 'premium' }
       );
     });
@@ -400,7 +400,7 @@ describe('Chat3Client.setMeta', () => {
       await client.setMeta('system', 'config', 'maintenance', false);
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/system/config/maintenance',
+        '/api/meta/system/config/maintenance',
         { value: false }
       );
     });
@@ -414,7 +414,7 @@ describe('Chat3Client.setMeta', () => {
       await client.setMeta('message', 'msg_123', 'state', 'verified');
 
       expect(mockAxiosInstance.put).toHaveBeenCalledWith(
-        '/meta/message/msg_123/state',
+        '/api/meta/message/msg_123/state',
         { value: 'verified' }
       );
     });
