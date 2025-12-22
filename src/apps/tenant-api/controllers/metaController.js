@@ -248,7 +248,7 @@ async function createMessageUpdateEvent(tenantId, messageId, actorId) {
     const messageMeta = await metaUtils.getEntityMeta(tenantId, 'message', messageId);
 
     // Получаем диалог и его метаданные для события
-    const { Dialog } = await import('../../models/index.js');
+    const { Dialog } = await import('../../../models/index.js');
     const dialog = await Dialog.findOne({
       dialogId: message.dialogId,
       tenantId

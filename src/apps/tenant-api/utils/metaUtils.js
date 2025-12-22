@@ -173,7 +173,7 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters, options 
           // Также нужно добавить entityId, которые вообще не имеют этого ключа
           // Для этого нам нужно получить все entityId данного типа и исключить те, что имеют этот ключ
           if (entityType === 'message') {
-            const { Message } = await import('../models/index.js');
+            const { Message } = await import('../../../models/index.js');
             const allMessages = await Message.find({ tenantId }).select('messageId').lean();
             const allMessageIds = new Set(allMessages.map(m => m.messageId));
             
