@@ -430,16 +430,35 @@ class Chat3Client {
 
   /**
    * Set meta for entity
+   * PUT /api/meta/{entityType}/{entityId}/{key}
+   * @param {string} entityType - Entity type (user, dialog, message, tenant, system, dialogMember)
+   * @param {string} entityId - Entity ID (for dialogMember use format: dialogId:userId)
+   * @param {string} key - Meta key
+   * @param {any} value - Meta value (string, number, boolean, object, array)
+   * @param {object} options - Optional: dataType
+   * @param {string} options.dataType - Data type: 'string', 'number', 'boolean', 'object', 'array' (default: 'string')
    */
-  async setMeta(entityType, entityId, key, data = {}, options = {}) {
+  async setMeta(entityType, entityId, key, value, options = {}) {
     // Use entityId as-is - Axios will handle URL encoding automatically
     // For dialogMember, entityId should be in format: dialogId:userId
-    const payload = {
-      ...data,
-    };
-
-    if (options.scope) {
-      payload.scope = options.scope;
+    
+    // Если value - это объект и содержит поле value, значит передали старый формат
+    // Поддерживаем обратную совместимость
+    let payload;
+    if (typeof value === 'object' && value !== null && !Array.isArray(value) && 'value' in value) {
+      // Старый формат: setMeta(type, id, key, { value: ..., dataType: ... })
+      payload = {
+        value: value.value,
+        dataType: value.dataType || options.dataType || 'string'
+      };
+    } else {
+      // Новый формат: setMeta(type, id, key, value, { dataType: ... })
+      payload = {
+        value: value
+      };
+      if (options.dataType) {
+        payload.dataType = options.dataType;
+      }
     }
 
     const response = await this.client.put(

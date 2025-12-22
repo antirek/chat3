@@ -112,11 +112,72 @@ const client = new Chat3Client({
 
 ### Meta
 - `getMeta(entityType, entityId, key, params)` - Получить мета-тег
-- `setMeta(entityType, entityId, key, data, options)` - Установить мета-тег
+- `setMeta(entityType, entityId, key, value, options)` - Установить мета-тег
+  - `value` - значение мета-тега (string, number, boolean, object, array)
+  - `options.dataType` - тип данных: 'string', 'number', 'boolean', 'object', 'array' (по умолчанию 'string')
 - `deleteMeta(entityType, entityId, key, params)` - Удалить мета-тег
 
 ### Typing
 - `sendTypingSignal(dialogId, userId)` - Отправить индикатор печати
+
+## Тестирование
+
+### Unit тесты
+
+```bash
+npm test
+```
+
+Тесты используют моки и не требуют запуска реального API.
+
+### Интеграционные тесты
+
+#### Автоматический запуск (рекомендуется)
+
+Скрипт автоматически запустит API, сгенерирует ключ и протестирует клиент:
+
+```bash
+# В директории client
+./test-with-api.sh
+```
+
+Скрипт выполнит:
+1. ✅ Проверку зависимостей и сервисов (MongoDB, RabbitMQ)
+2. ✅ Генерацию API ключа
+3. ✅ Запуск tenant-api в фоне
+4. ✅ Ожидание готовности API
+5. ✅ Запуск интеграционных тестов
+6. ✅ Автоматическую очистку при завершении
+
+#### Ручной запуск
+
+Для ручной проверки:
+
+1. Запустите tenant-api:
+   ```bash
+   # В корне проекта
+   npm run start:tenant-api
+   ```
+
+2. Сгенерируйте API ключ:
+   ```bash
+   # В корне проекта
+   npm run generate-key
+   ```
+
+3. Запустите тестовый скрипт:
+   ```bash
+   # В директории client
+   CHAT3_API_KEY=your-api-key node test-integration.js
+   ```
+
+Или с переменными окружения:
+```bash
+CHAT3_API_KEY=your-key \
+CHAT3_BASE_URL=http://localhost:3000/api \
+CHAT3_TENANT_ID=tnt_default \
+node test-integration.js
+```
 
 ## Лицензия
 
