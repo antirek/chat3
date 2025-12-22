@@ -42,6 +42,7 @@ const MODEL_CATEGORIES = {
 };
 
 // Список доступных моделей
+// eslint-disable-next-line no-unused-vars
 const AVAILABLE_MODELS = Object.keys(MODELS_MAP);
 
 /**
@@ -107,6 +108,7 @@ export async function getModelData(req, res) {
       try {
         const parsedFilter = JSON.parse(filter);
         query = { ...query, ...parsedFilter };
+      // eslint-disable-next-line no-unused-vars
       } catch (e) {
         // Игнорируем ошибки парсинга фильтра
       }
@@ -177,6 +179,7 @@ export async function getModelItem(req, res) {
       // Пытаемся найти по _id только если это валидный ObjectId
       try {
         item = await Model.findById(id).lean();
+      // eslint-disable-next-line no-unused-vars
       } catch (error) {
         // Игнорируем ошибки при поиске по _id
       }
@@ -192,6 +195,7 @@ export async function getModelItem(req, res) {
           try {
             item = await Model.findOne({ [field]: id }).lean();
             if (item) break;
+          // eslint-disable-next-line no-unused-vars
           } catch (error) {
             // Продолжаем поиск по следующему полю
             continue;
@@ -282,6 +286,7 @@ export async function updateModelItem(req, res) {
           { $set: data },
           { new: true, runValidators: true }
         ).lean();
+      // eslint-disable-next-line no-unused-vars
       } catch (error) {
         // Игнорируем ошибки при поиске по _id
       }
@@ -301,6 +306,7 @@ export async function updateModelItem(req, res) {
               { new: true, runValidators: true }
             ).lean();
             if (item) break;
+          // eslint-disable-next-line no-unused-vars
           } catch (error) {
             // Продолжаем поиск по следующему полю
             continue;
@@ -355,6 +361,7 @@ export async function deleteModelItem(req, res) {
       // Пытаемся удалить по _id только если это валидный ObjectId
       try {
         item = await Model.findByIdAndDelete(id).lean();
+      // eslint-disable-next-line no-unused-vars
       } catch (error) {
         // Игнорируем ошибки при поиске по _id
       }
@@ -370,6 +377,7 @@ export async function deleteModelItem(req, res) {
           try {
             item = await Model.findOneAndDelete({ [field]: id }).lean();
             if (item) break;
+          // eslint-disable-next-line no-unused-vars
           } catch (error) {
             // Продолжаем поиск по следующему полю
             continue;

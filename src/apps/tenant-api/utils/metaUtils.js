@@ -1,4 +1,5 @@
-import { Meta } from '../../../models/index.js';
+import { Meta, Message } from '../../../models/index.js';
+// eslint-disable-next-line no-unused-vars
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
@@ -6,7 +7,7 @@ import { generateTimestamp } from '../../../utils/timestampUtils.js';
  */
 
 // Получить все метаданные для сущности в виде объекта {key: value}
-export async function getEntityMeta(tenantId, entityType, entityId, options = {}) {
+export async function getEntityMeta(tenantId, entityType, entityId, _options = {}) {
   try {
     const query = {
       tenantId,
@@ -28,6 +29,7 @@ export async function getEntityMeta(tenantId, entityType, entityId, options = {}
 }
 
 // Получить все метаданные для сущности в виде массива с полной информацией
+// eslint-disable-next-line no-unused-vars
 export async function getEntityMetaFull(tenantId, entityType, entityId, options = {}) {
   try {
     const query = {
@@ -75,6 +77,7 @@ export async function setEntityMeta(tenantId, entityType, entityId, key, value, 
 }
 
 // Удалить метаданные
+// eslint-disable-next-line no-unused-vars
 export async function deleteEntityMeta(tenantId, entityType, entityId, key, options = {}) {
   try {
     const result = await Meta.deleteOne({
@@ -91,6 +94,7 @@ export async function deleteEntityMeta(tenantId, entityType, entityId, key, opti
 }
 
 // Получить конкретное значение метаданных
+// eslint-disable-next-line no-unused-vars
 export async function getEntityMetaValue(tenantId, entityType, entityId, key, defaultValue = null, options = {}) {
   try {
     const query = {
@@ -108,6 +112,7 @@ export async function getEntityMetaValue(tenantId, entityType, entityId, key, de
 }
 
 // Построить MongoDB query для фильтрации по метаданным
+// eslint-disable-next-line no-unused-vars
 export async function buildMetaQuery(tenantId, entityType, metaFilters, options = {}) {
   try {
     if (!metaFilters || Object.keys(metaFilters).length === 0) {
@@ -173,7 +178,7 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters, options 
           // Также нужно добавить entityId, которые вообще не имеют этого ключа
           // Для этого нам нужно получить все entityId данного типа и исключить те, что имеют этот ключ
           if (entityType === 'message') {
-            const { Message } = await import('../../../models/index.js');
+            // Message уже импортирован в начале файла
             const allMessages = await Message.find({ tenantId }).select('messageId').lean();
             const allMessageIds = new Set(allMessages.map(m => m.messageId));
             
@@ -188,6 +193,7 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters, options 
           } else {
             // Для других типов (dialog, user и т.д.) entityId уже строки в Meta коллекции
             // Просто добавляем все entityId из Meta, которые не имеют этого ключа
+            // eslint-disable-next-line no-unused-vars
             const withKeyIds = new Set(allWithKey.map(r => r.entityId.toString()));
             // Для других типов просто не добавляем пустые значения
             // Эта логика может быть расширена при необходимости

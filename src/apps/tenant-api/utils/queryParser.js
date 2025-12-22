@@ -38,7 +38,8 @@ export function parseFilter(filterString) {
   if (filterString.startsWith('{')) {
     try {
       return JSON.parse(filterString);
-    } catch (e) {
+     
+    } catch (_e) {
       throw new Error('Invalid JSON filter format');
     }
   }
@@ -161,6 +162,7 @@ function dateToTimestamp(dateStr) {
     }
     // Возвращаем timestamp в миллисекундах (без дробной части, т.к. не знаем микросекунды)
     return date.getTime();
+    // eslint-disable-next-line no-unused-vars
   } catch (e) {
     return null;
   }
@@ -256,7 +258,8 @@ export function parseFilters(filterString) {
   if (filterString.trim().startsWith('{')) {
     try {
       return JSON.parse(filterString);
-    } catch (e) {
+     
+    } catch (_e) {
       throw new Error('Invalid JSON filter format');
     }
   }

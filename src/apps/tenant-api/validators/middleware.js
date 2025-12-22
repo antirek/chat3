@@ -1,7 +1,8 @@
 /**
  * Middleware для валидации запросов с использованием Joi
  */
-import Joi from 'joi';
+ 
+import _Joi from 'joi';
 
 /**
  * Валидация запроса по схеме Joi

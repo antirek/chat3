@@ -37,13 +37,13 @@ export async function initRabbitMQ() {
     if (channel) {
       try {
         await channel.close().catch(() => {});
-      } catch (e) {}
+      } catch (_e) {}
       channel = null;
     }
     if (connection) {
       try {
         await connection.close().catch(() => {});
-      } catch (e) {}
+      } catch (_e) {}
       connection = null;
     }
     
@@ -159,7 +159,7 @@ async function handleDisconnect() {
       await connection.close().catch(() => {});
       connection = null;
     }
-  } catch (error) {
+  } catch (_error) {
     // Игнорируем ошибки при закрытии
   }
   
@@ -212,11 +212,11 @@ export async function closeRabbitMQ() {
   const consumersToCancel = Array.from(activeConsumers.entries());
   activeConsumers.clear(); // Очищаем сразу, чтобы избежать повторных попыток
   
-  for (const [queueName, consumerInfo] of consumersToCancel) {
+  for (const [_queueName, consumerInfo] of consumersToCancel) {
     if (channel && consumerInfo.consumerTag) {
       try {
         await channel.cancel(consumerInfo.consumerTag).catch(() => {});
-      } catch (e) {
+      } catch (_e) {
         // Игнорируем ошибки при отмене (channel может быть уже закрыт)
       }
     }
@@ -272,7 +272,7 @@ async function ensureConnection() {
         // Соединение выглядит активным
         return true;
       }
-    } catch (e) {
+    } catch (_e) {
       // Ошибка при проверке - считаем соединение потерянным
       isConnected = false;
     }
@@ -441,7 +441,7 @@ export function getRabbitMQInfo() {
   try {
     const url = new URL(RABBITMQ_URL);
     user = url.username || 'unknown';
-  } catch (e) {
+  } catch (_e) {
     // Если не удалось распарсить URL, оставляем unknown
   }
   
@@ -692,7 +692,7 @@ export async function createConsumer(queueName, routingKeys, options = {}, messa
       if (consumerTag) {
         try {
           await channel.cancel(consumerTag).catch(() => {});
-        } catch (e) {}
+        } catch (_e) {}
       }
       
       // Запускаем заново

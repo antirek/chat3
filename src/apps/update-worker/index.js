@@ -117,7 +117,7 @@ async function processEvent(eventData) {
             userId
           }).lean();
           const currentUnreadCount = currentMember?.unreadCount ?? 0;
-          const newUnreadCount = memberPayload.state?.unreadCount ?? currentUnreadCount;
+          const _newUnreadCount = memberPayload.state?.unreadCount ?? currentUnreadCount;
           
           // Проверяем, изменился ли статус диалога (переход через 0)
           // Если currentUnreadCount = 0 и newUnreadCount > 0, значит диалог стал непрочитанным

@@ -1,10 +1,12 @@
-import { Message, Dialog, MessageStatus, User, Event, Update } from '../../../models/index.js';
+// eslint-disable-next-line no-unused-vars
+import { Message, Dialog, MessageStatus, User, Event, Update, DialogMember } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
 import { buildStatusMessageMatrix, buildReactionSet } from '../utils/userDialogUtils.js';
+import { incrementUnreadCount } from '../utils/unreadCountUtils.js';
 
 /**
  * Helper function to enrich messages with meta data and statuses
@@ -245,6 +247,7 @@ const messageController = {
               query = { ...query, ...metaQuery };
             }
           }
+        // eslint-disable-next-line no-unused-vars
         } catch (error) {
           return res.status(400).json({
             error: 'Bad Request',
@@ -370,10 +373,7 @@ const messageController = {
 
       // Create MessageStatus records and update DialogMember counters for all dialog participants
       if (!isSystemMessage) {
-        // Получаем реальных участников диалога из DialogMember
-        const { DialogMember } = await import('../../../models/index.js');
-        const { incrementUnreadCount } = await import('../utils/unreadCountUtils.js');
-        
+        // DialogMember и incrementUnreadCount уже импортированы в начале файла
         const dialogMembers = await DialogMember.find({
           tenantId: req.tenantId,
           dialogId: dialog.dialogId // Используем строковый dialogId

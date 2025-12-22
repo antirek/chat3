@@ -21,6 +21,7 @@ async function addMediaMessages() {
     const allMediaMessages = [];
 
     // Создаем медиа-сообщения для каждого диалога
+    // eslint-disable-next-line no-unused-vars
     dialogs.forEach((dialog, dialogIndex) => {
       // Добавляем 2-5 медиа-сообщений в каждый диалог
       const mediaCount = Math.floor(Math.random() * 4) + 2; // 2-5 сообщений
@@ -35,26 +36,30 @@ async function addMediaMessages() {
         // Создаем контент в зависимости от типа
         let content, fileName;
         switch (randomMediaType) {
-          case 'file':
+          case 'file': {
             const fileTypes = ['document.pdf', 'spreadsheet.xlsx', 'presentation.pptx', 'archive.zip'];
             fileName = fileTypes[Math.floor(Math.random() * fileTypes.length)];
             content = `📄 Файл: ${fileName}`;
             break;
-          case 'video':
+          }
+          case 'video': {
             const videoTypes = ['meeting_recording.mp4', 'tutorial.mp4', 'demo.mp4', 'presentation.mp4'];
             fileName = videoTypes[Math.floor(Math.random() * videoTypes.length)];
             content = `🎥 Видео: ${fileName}`;
             break;
-          case 'audio':
+          }
+          case 'audio': {
             const audioTypes = ['voice_message.mp3', 'meeting_audio.mp3', 'podcast.mp3', 'music.mp3'];
             fileName = audioTypes[Math.floor(Math.random() * audioTypes.length)];
             content = `🎵 Аудио: ${fileName}`;
             break;
-          case 'image':
+          }
+          case 'image': {
             const imageTypes = ['screenshot.png', 'photo.jpg', 'diagram.png', 'chart.png'];
             fileName = imageTypes[Math.floor(Math.random() * imageTypes.length)];
             content = `🖼️ Изображение: ${fileName}`;
             break;
+          }
         }
 
         // Создаем случайную дату в последние 7 дней

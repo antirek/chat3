@@ -52,6 +52,7 @@ export const eventsController = {
               ...event,
               updatesCount
             };
+          // eslint-disable-next-line no-unused-vars
           } catch (err) {
             return {
               ...event,
@@ -192,6 +193,7 @@ export const eventsController = {
               ...event,
               updatesCount
             };
+          // eslint-disable-next-line no-unused-vars
           } catch (err) {
             return {
               ...event,
@@ -321,6 +323,7 @@ export const eventsController = {
               ...event,
               updatesCount
             };
+          // eslint-disable-next-line no-unused-vars
           } catch (err) {
             return {
               ...event,

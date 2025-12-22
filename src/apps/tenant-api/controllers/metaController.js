@@ -2,7 +2,6 @@ import * as metaUtils from '../utils/metaUtils.js';
 import { Dialog, Message, DialogMember, User } from '../../../models/index.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
-import * as updateUtils from '../../../utils/updateUtils.js';
 
 const metaController = {
   // Get all meta for an entity
@@ -248,7 +247,7 @@ async function createMessageUpdateEvent(tenantId, messageId, actorId) {
     const messageMeta = await metaUtils.getEntityMeta(tenantId, 'message', messageId);
 
     // Получаем диалог и его метаданные для события
-    const { Dialog } = await import('../../../models/index.js');
+    // Dialog уже импортирован в начале файла
     const dialog = await Dialog.findOne({
       dialogId: message.dialogId,
       tenantId
@@ -424,7 +423,7 @@ async function createDialogMemberUpdateEvent(tenantId, entityId, actorId) {
 // Helper function to verify entity exists
 async function verifyEntityExists(entityType, entityId, tenantId) {
   switch (entityType) {
-    case 'dialog':
+    case 'dialog': {
       const dialog = await Dialog.findOne({ dialogId: entityId, tenantId });
       if (!dialog) {
         const error = new Error(`Dialog ${entityId} not found`);
@@ -432,7 +431,8 @@ async function verifyEntityExists(entityType, entityId, tenantId) {
         throw error;
       }
       break;
-    case 'message':
+    }
+    case 'message': {
       const message = await Message.findOne({ messageId: entityId, tenantId });
       if (!message) {
         const error = new Error('Message not found');
@@ -440,7 +440,8 @@ async function verifyEntityExists(entityType, entityId, tenantId) {
         throw error;
       }
       break;
-    case 'dialogMember':
+    }
+    case 'dialogMember': {
       // entityId для DialogMember - это составной ключ dialogId:userId
       // Формат: "dlg_abc123...:carl"
       console.log('verifyEntityExists: dialogMember, entityId:', entityId, 'tenantId:', tenantId);

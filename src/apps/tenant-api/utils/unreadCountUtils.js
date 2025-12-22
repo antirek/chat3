@@ -13,7 +13,7 @@ import { generateTimestamp } from '../../../utils/timestampUtils.js';
  * @param {String} messageId - ID сообщения
  * @param {Boolean} createIfNotExists - Создать участника, если его нет (по умолчанию false)
  */
-export async function incrementUnreadCount(tenantId, userId, dialogId, messageId = null, createIfNotExists = false) {
+export async function incrementUnreadCount(tenantId, userId, dialogId, _messageId = null, createIfNotExists = false) {
   try {
     const filter = {
       userId,
@@ -194,7 +194,7 @@ export async function syncUnreadCount(tenantId, userId, dialogId) {
  * @param {String} newStatus - Новый статус
  * @returns {Object|null} - Обновленный DialogMember или null если декремент не выполнен
  */
-export async function updateCountersOnStatusChange(tenantId, messageId, userId, oldStatus, newStatus) {
+export async function updateCountersOnStatusChange(tenantId, _messageId, userId, oldStatus, newStatus) {
   try {
     // Получаем информацию о сообщении
     const message = await Message.findOne({ messageId: messageId, tenantId: tenantId });

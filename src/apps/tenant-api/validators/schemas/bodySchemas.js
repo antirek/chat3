@@ -156,6 +156,7 @@ export const createTenantSchema = Joi.object({
   // Если указан как пустая строка - преобразуется в undefined для автогенерации
   tenantId: Joi.string().trim().max(20).allow('').optional(),
   meta: Joi.object().pattern(Joi.string(), Joi.any()).optional()
+// eslint-disable-next-line no-unused-vars
 }).custom((value, helpers) => {
   // Преобразуем пустую строку tenantId в undefined для автогенерации
   if (value.tenantId === '') {

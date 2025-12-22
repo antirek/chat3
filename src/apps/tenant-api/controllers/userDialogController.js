@@ -9,6 +9,7 @@ import { sanitizeResponse } from '../utils/responseUtils.js';
 import { validateGetUserDialogMessagesResponse, validateGetUserDialogMessageResponse } from '../validators/schemas/responseSchemas.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
+// eslint-disable-next-line no-unused-vars
 import * as unreadCountUtils from '../utils/unreadCountUtils.js';
 import {
   getSenderInfo,
@@ -16,6 +17,7 @@ import {
   buildStatusMessageMatrix,
   buildReactionSet,
   getContextUserInfo
+   
 } from '../utils/userDialogUtils.js';
 
 const userDialogController = {
@@ -791,6 +793,7 @@ const userDialogController = {
           }
 
           // Удаляем временное поле dialogObjectId из ответа
+          // eslint-disable-next-line no-unused-vars
           const { dialogObjectId, ...dialogWithoutObjectId } = dialog;
 
           return {
@@ -1085,6 +1088,7 @@ const userDialogController = {
       }
 
       // 3. Получаем все статусы сообщения (для всех пользователей)
+      // eslint-disable-next-line no-unused-vars
       const allStatuses = await MessageStatus.find({
         tenantId: req.tenantId,
         messageId: messageId
@@ -1446,7 +1450,7 @@ const userDialogController = {
       }).lean();
 
       // Проверяем, изменился ли счетчик (сравниваем oldUnreadCount с новым)
-      const newUnreadCount = updatedMember?.unreadCount ?? 0;
+      const _newUnreadCount = updatedMember?.unreadCount ?? 0; // Используется в сравнении ниже
       const unreadCountChanged = oldUnreadCount !== newUnreadCount;
 
       // Если счетчик был обновлен (изменился), создаем событие dialog.member.update

@@ -367,6 +367,7 @@ const dialogMemberController = {
   async setUnreadCount(req, res) {
     try {
       const { dialogId, userId } = req.params;
+      // eslint-disable-next-line no-unused-vars
       const { unreadCount, lastSeenAt, reason } = req.body;
 
       const dialog = await Dialog.findOne({ dialogId, tenantId: req.tenantId }).select('dialogId');

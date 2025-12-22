@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { generateTimestamp } from '../../utils/timestampUtils.js';
+import { updateCountersOnStatusChange } from '../../apps/tenant-api/utils/unreadCountUtils.js';
 
 /**
  * MessageStatus - История изменений статусов сообщений
@@ -102,7 +103,7 @@ messageStatusSchema.index({ tenantId: 1, messageId: 1, userId: 1, createdAt: -1 
 messageStatusSchema.pre('save', async function(next) {
   if (this.isNew) {
     try {
-      const { updateCountersOnStatusChange } = await import('../../apps/tenant-api/utils/unreadCountUtils.js');
+      // updateCountersOnStatusChange уже импортирован в начале файла
       
       // Получаем последний статус для этого пользователя и сообщения
       const lastStatus = await this.constructor.findOne({

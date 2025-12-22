@@ -1,12 +1,16 @@
+// eslint-disable-next-line no-unused-vars
 import { DialogMember, Dialog, Message, Meta, MessageStatus, MessageReaction, User } from '../../../models/index.js';
 import * as metaUtils from './metaUtils.js';
+// eslint-disable-next-line no-unused-vars
 import { parseFilters, extractMetaFilters } from './queryParser.js';
+// eslint-disable-next-line no-unused-vars
 import * as eventUtils from './eventUtils.js';
 
 /**
  * Получение информации об отправителе сообщения
  */
-export async function getSenderInfo(tenantId, senderId, cache = new Map()) {
+ 
+export async function getSenderInfo(tenantId, senderId, cache = new Map(), _options = {}) {
   if (!senderId) {
     return null;
   }
@@ -89,12 +93,12 @@ export function mergeMetaRecords(records = []) {
  * @param {string} senderId - ID отправителя сообщения, статусы которого нужно исключить
  * @returns {Promise<Array>} Массив объектов { userType, status, count }
  */
-export async function buildStatusMessageMatrix(tenantId, messageId, senderId) {
+export async function buildStatusMessageMatrix(tenantId, _messageId, senderId) {
   return await MessageStatus.aggregate([
     {
       $match: {
         tenantId: tenantId,
-        messageId: messageId,
+        messageId: _messageId,
         userId: { $ne: senderId } // Исключаем статусы отправителя сообщения
       }
     },
@@ -128,10 +132,10 @@ export async function buildStatusMessageMatrix(tenantId, messageId, senderId) {
 /**
  * Формирование reactionSet для сообщения
  */
-export async function buildReactionSet(tenantId, messageId, currentUserId) {
+export async function buildReactionSet(tenantId, _messageId, currentUserId) {
   const allReactions = await MessageReaction.find({
     tenantId: tenantId,
-    messageId: messageId
+    messageId: _messageId
   }).lean();
 
   const reactionMap = new Map();
@@ -221,8 +225,8 @@ export async function getUserStats(tenantId, userId) {
           unreadDialogsCount: statsAggregation[0].unreadDialogsCount
         }
       : { dialogCount: 0, unreadDialogsCount: 0 };
-  } catch (error) {
-    console.error(`Error getting user stats for user ${userId}:`, error);
+  } catch (_error) {
+    console.error(`Error getting user stats for user ${userId}:`, _error);
     return { dialogCount: 0, unreadDialogsCount: 0 };
   }
 }

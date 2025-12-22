@@ -122,12 +122,13 @@ export function formatTimestamp(timestamp, format = 'full', locale = 'ru-RU') {
       // Дата и время без микросекунд
       return date.toLocaleString(locale);
       
-    case 'iso':
+    case 'iso': {
       // ISO 8601 с микросекундами
       const isoString = date.toISOString();
       const [datePart, timePart] = isoString.split('T');
       const [time, _] = timePart.split('.');
       return `${datePart}T${time}.${microsecondsStr}Z`;
+    }
       
     case 'relative':
       // Относительное время (назад)

@@ -4,6 +4,7 @@ import * as metaUtils from '../utils/metaUtils.js';
 // Хелпер для форматирования тенанта без _id и с мета-тегами
 const formatTenantResponse = (tenant, meta = null) => {
   const tenantObj = tenant.toObject ? tenant.toObject() : tenant;
+   
   const { _id, __v, ...rest } = tenantObj;
   
   // Форматируем createdAt в строку с 6 знаками после точки

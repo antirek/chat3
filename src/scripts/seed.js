@@ -169,9 +169,10 @@ async function seed() {
     // Create meta tags for DialogMembers
     console.log('\n🏷️  Creating DialogMember meta tags...');
     const dialogMemberMetaEntries = [];
+    // eslint-disable-next-line no-unused-vars
     const roles = ['admin', 'member', 'moderator'];
     
-    savedDialogMembers.forEach((member, index) => {
+    savedDialogMembers.forEach((member, _index) => {
       // entityId для DialogMember meta = dialogId:userId (составной ключ)
       const memberId = `${member.dialogId}:${member.userId}`;
       
@@ -338,7 +339,7 @@ async function seed() {
     // Create Message Statuses
     console.log('\n📊 Creating message statuses...');
     const messageStatuses = [];
-    const statusTypes = ['sent', 'delivered', 'read', 'unread'];
+    const _statusTypes = ['sent', 'delivered', 'read', 'unread'];
 
     // Создаем карту пользователей по tenantId для быстрого доступа
     const userTypeMap = new Map();
@@ -363,7 +364,7 @@ async function seed() {
         .sort(() => Math.random() - 0.5)
         .slice(0, Math.min(statusCount, dialogParticipants.length));
 
-      selectedUsers.forEach((userId, userIndex) => {
+      selectedUsers.forEach((userId, _userIndex) => {
         // Время создания статуса - от времени сообщения до текущего времени
         const messageTime = message.createdAt;
         const now = generateTimestamp();
@@ -496,6 +497,7 @@ async function seed() {
     });
 
     // Add meta for each dialog
+    // eslint-disable-next-line no-unused-vars
     allDialogs.forEach((dialog, index) => {
       // Meta type (internal/external)
       metaEntries.push({
@@ -626,7 +628,7 @@ async function seed() {
         .sort(() => Math.random() - 0.5)
         .slice(0, Math.min(reactionCount, dialogParticipants.length));
 
-      selectedUsers.forEach((userId, userIndex) => {
+      selectedUsers.forEach((userId, _userIndex) => {
         // Время реакции - от времени сообщения до текущего времени
         const messageTime = message.createdAt; // Уже Number с микросекундами
         const now = generateTimestamp();
@@ -662,10 +664,12 @@ async function seed() {
       reactionsByType[r.reaction] = (reactionsByType[r.reaction] || 0) + 1;
     });
 
+    // eslint-disable-next-line no-unused-vars
     console.log(`   - Messages with reactions: ${messages.filter((m, i) => {
       const messageReactions = allReactions.filter(r => r.messageId.toString() === m._id.toString());
       return messageReactions.length > 0;
     }).length} out of ${messages.length}`);
+    // eslint-disable-next-line no-unused-vars
     console.log(`   - Average reactions per message: ${allReactions.length > 0 ? Math.round(allReactions.length / messages.filter((m, i) => {
       const messageReactions = allReactions.filter(r => r.messageId.toString() === m._id.toString());
       return messageReactions.length > 0;
