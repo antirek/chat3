@@ -5,11 +5,11 @@ const axiosLogger = require('axios-logger');
 class Chat3Client {
   constructor({baseURL, apiKey, tenantId, debug}) {
     this.client = axios.create({
-      baseURL,
-      timeout: 10000,
+      baseURL: baseURL,
+      timeout: 10_000,
       headers: {
         'Content-Type': 'application/json',
-        'X-Tenant-ID': tenantId ? tenantId : '',
+        'X-Tenant-ID': tenantId ? tenantId : 'tnt_default',
       },
     });
 
@@ -38,7 +38,7 @@ class Chat3Client {
    * Get all dialogs with filtering
    */
   async getDialogs(params = {}) {
-    const response = await this.client.get('/dialogs', {params});
+    const response = await this.client.get('/api/dialogs', {params});
     return response.data;
   }
 
@@ -46,7 +46,7 @@ class Chat3Client {
    * Create new dialog
    */
   async createDialog(data) {
-    const response = await this.client.post('/dialogs', data);
+    const response = await this.client.post('/api/dialogs', data);
     return response.data;
   }
 
@@ -54,7 +54,7 @@ class Chat3Client {
    * Get dialog by ID
    */
   async getDialog(dialogId, params = {}) {
-    const response = await this.client.get(`/dialogs/${dialogId}`, {params});
+    const response = await this.client.get(`/api/dialogs/${dialogId}`, {params});
     return response.data;
   }
 
@@ -62,7 +62,7 @@ class Chat3Client {
    * Get dialog members list
    */
   async getDialogMembers(dialogId, params = {}) {
-    const response = await this.client.get(`/dialogs/${dialogId}/members`, {params});
+    const response = await this.client.get(`/api/dialogs/${dialogId}/members`, {params});
     return response.data;
   }
 
@@ -70,7 +70,7 @@ class Chat3Client {
    * Delete dialog
    */
   async deleteDialog(dialogId) {
-    const response = await this.client.delete(`/dialogs/${dialogId}`);
+    const response = await this.client.delete(`/api/dialogs/${dialogId}`);
     return response.data;
   }
 
@@ -78,7 +78,7 @@ class Chat3Client {
    * Get user's dialogs with pagination
    */
   async getUserDialogs(userId, params = {}) {
-    const response = await this.client.get(`/users/${userId}/dialogs`, {params});
+    const response = await this.client.get(`/api/users/${userId}/dialogs`, {params});
     return response.data;
   }
 
@@ -88,7 +88,7 @@ class Chat3Client {
    * Get messages for a dialog
    */
   async getDialogMessages(dialogId, params = {}) {
-    const response = await this.client.get(`/dialogs/${dialogId}/messages`, {params});
+    const response = await this.client.get(`/api/dialogs/${dialogId}/messages`, {params});
     return response.data;
   }
 
@@ -98,7 +98,7 @@ class Chat3Client {
    * Note: Messages include statuses array with all participants' statuses
    */
   async getUserDialogMessages(userId, dialogId, params = {}) {
-    const response = await this.client.get(`/users/${userId}/dialogs/${dialogId}/messages`, {params});
+    const response = await this.client.get(`/api/users/${userId}/dialogs/${dialogId}/messages`, {params});
     return response.data;
   }
 
@@ -106,7 +106,7 @@ class Chat3Client {
    * Create new message in dialog
    */
   async createMessage(dialogId, data) {
-    const response = await this.client.post(`/dialogs/${dialogId}/messages`, data);
+    const response = await this.client.post(`/api/dialogs/${dialogId}/messages`, data);
     return response.data;
   }
 
@@ -114,7 +114,7 @@ class Chat3Client {
    * Get message by ID
    */
   async getMessage(messageId) {
-    const response = await this.client.get(`/messages/${messageId}`);
+    const response = await this.client.get(`/api/messages/${messageId}`);
     return response.data;
   }
 
@@ -123,7 +123,7 @@ class Chat3Client {
    * GET /api/users/{userId}/dialogs/{dialogId}/messages/{messageId}
    */
   async getUserMessage(userId, dialogId, messageId) {
-    const response = await this.client.get(`/users/${userId}/dialogs/${dialogId}/messages/${messageId}`);
+    const response = await this.client.get(`/api/users/${userId}/dialogs/${dialogId}/messages/${messageId}`);
     return response.data;
   }
 
@@ -132,7 +132,7 @@ class Chat3Client {
    * PUT /api/messages/{messageId}
    */
   async updateMessage(messageId, data) {
-    const response = await this.client.put(`/messages/${messageId}`, data);
+    const response = await this.client.put(`/api/messages/${messageId}`, data);
     return response.data;
   }
 
@@ -140,7 +140,7 @@ class Chat3Client {
    * Get all messages with filtering
    */
   async getMessages(params = {}) {
-    const response = await this.client.get('/messages', {params});
+    const response = await this.client.get('/api/messages', {params});
     return response.data;
   }
 
@@ -158,7 +158,7 @@ class Chat3Client {
       ...(options.type && {type: options.type}),
       ...(options.name && {name: options.name}),
     };
-    const response = await this.client.post(`/dialogs/${dialogId}/members/add`, payload);
+    const response = await this.client.post(`/api/dialogs/${dialogId}/members/add`, payload);
     return response.data;
   }
 
@@ -166,7 +166,7 @@ class Chat3Client {
    * Remove member from dialog
    */
   async removeDialogMember(dialogId, userId) {
-    const response = await this.client.post(`/dialogs/${dialogId}/members/${userId}/remove`);
+    const response = await this.client.post(`/api/dialogs/${dialogId}/members/${userId}/remove`);
     return response.data;
   }
 
@@ -175,7 +175,7 @@ class Chat3Client {
    */
   async updateDialogMemberUnread(dialogId, userId, data = {}) {
     const response = await this.client.patch(
-        `/dialogs/${dialogId}/members/${userId}/unread`,
+        `/api/dialogs/${dialogId}/members/${userId}/unread`,
         data,
     );
     return response.data;
@@ -189,7 +189,7 @@ class Chat3Client {
    * @deprecated Use updateMessageStatusInContext instead
    */
   async updateMessageStatus(messageId, userId, status) {
-    const response = await this.client.post(`/messages/${messageId}/status/${userId}/${status}`);
+    const response = await this.client.post(`/api/messages/${messageId}/status/${userId}/${status}`);
     return response.data;
   }
 
@@ -199,7 +199,7 @@ class Chat3Client {
    */
   async updateMessageStatusInContext(userId, dialogId, messageId, status) {
     const response = await this.client.post(
-        `/users/${userId}/dialogs/${dialogId}/messages/${messageId}/status/${status}`,
+        `/api/users/${userId}/dialogs/${dialogId}/messages/${messageId}/status/${status}`,
     );
     return response.data;
   }
@@ -210,7 +210,7 @@ class Chat3Client {
    */
   async getMessageStatuses(userId, dialogId, messageId, params = {}) {
     const response = await this.client.get(
-        `/users/${userId}/dialogs/${dialogId}/messages/${messageId}/statuses`,
+        `/api/users/${userId}/dialogs/${dialogId}/messages/${messageId}/statuses`,
         {params},
     );
     return response.data;
@@ -224,7 +224,7 @@ class Chat3Client {
    * @deprecated Use getMessageReactionsInContext instead
    */
   async getMessageReactions(messageId) {
-    const response = await this.client.get(`/messages/${messageId}/reactions`);
+    const response = await this.client.get(`/api/messages/${messageId}/reactions`);
     return response.data;
   }
 
@@ -234,7 +234,7 @@ class Chat3Client {
    */
   async getMessageReactionsInContext(userId, dialogId, messageId) {
     const response = await this.client.get(
-        `/users/${userId}/dialogs/${dialogId}/messages/${messageId}/reactions`,
+        `/api/users/${userId}/dialogs/${dialogId}/messages/${messageId}/reactions`,
     );
     return response.data;
   }
@@ -245,7 +245,7 @@ class Chat3Client {
    * @deprecated Use setReaction instead
    */
   async addReaction(messageId, data) {
-    const response = await this.client.post(`/messages/${messageId}/reactions`, data);
+    const response = await this.client.post(`/api/messages/${messageId}/reactions`, data);
     return response.data;
   }
 
@@ -260,7 +260,7 @@ class Chat3Client {
    */
   async setReaction(userId, dialogId, messageId, action, reaction) {
     const response = await this.client.post(
-        `/users/${userId}/dialogs/${dialogId}/messages/${messageId}/reactions/${action}`,
+        `/api/users/${userId}/dialogs/${dialogId}/messages/${messageId}/reactions/${action}`,
         { reaction }
     );
     return response.data;
@@ -270,7 +270,7 @@ class Chat3Client {
    * Send typing indicator for user in dialog
    */
   async sendTypingSignal(dialogId, userId) {
-    const response = await this.client.post(`/dialogs/${dialogId}/member/${userId}/typing`);
+    const response = await this.client.post(`/api/dialogs/${dialogId}/member/${userId}/typing`);
     return {
       status: response.status,
       data: response.data,
@@ -283,7 +283,7 @@ class Chat3Client {
    * @deprecated Use setReaction to toggle reaction off
    */
   async removeReaction(messageId, reaction) {
-    const response = await this.client.delete(`/messages/${messageId}/reactions/${reaction}`);
+    const response = await this.client.delete(`/api/messages/${messageId}/reactions/${reaction}`);
     return response.data;
   }
 
@@ -294,7 +294,7 @@ class Chat3Client {
    * GET /api/users
    */
   async getUsers(params = {}) {
-    const response = await this.client.get('/users', {params});
+    const response = await this.client.get('/api/users', {params});
     return response.data;
   }
 
@@ -302,7 +302,7 @@ class Chat3Client {
    * Create user in Chat3
    */
   async createUser(userId, data) {
-    const response = await this.client.post(`/users`, {
+    const response = await this.client.post(`/api/users`, {
       userId,
       ...data,
     });
@@ -313,7 +313,7 @@ class Chat3Client {
    * Get user by ID
    */
   async getUser(userId) {
-    const response = await this.client.get(`/users/${userId}`);
+    const response = await this.client.get(`/api/users/${userId}`);
     return response.data;
   }
 
@@ -321,7 +321,7 @@ class Chat3Client {
    * Update user
    */
   async updateUser(userId, data) {
-    const response = await this.client.put(`/users/${userId}`, data);
+    const response = await this.client.put(`/api/users/${userId}`, data);
     return response.data;
   }
 
@@ -330,16 +330,8 @@ class Chat3Client {
    * DELETE /api/users/{userId}
    */
   async deleteUser(userId) {
-    const response = await this.client.delete(`/users/${userId}`);
+    const response = await this.client.delete(`/api/users/${userId}`);
     return response.data;
-  }
-
-  /**
-   * Update user activity
-   * @deprecated This endpoint does not exist in the API. Use updateUser() or setMeta() instead.
-   */
-  async updateUserActivity(userId, data = {}) {
-    throw new Error('updateUserActivity: This endpoint does not exist in the API. Use updateUser() or setMeta() instead.');
   }
 
   /**
@@ -348,7 +340,7 @@ class Chat3Client {
    * @deprecated Use setMeta('user', userId, key, data) instead
    */
   async setUserMeta(userId, key, data) {
-    const response = await this.client.put(`/users/${userId}/meta/${key}`, data);
+    const response = await this.client.put(`/api/users/${userId}/meta/${key}`, data);
     return response.data;
   }
 
@@ -357,7 +349,7 @@ class Chat3Client {
    * @deprecated Use deleteMeta('user', userId, key) instead
    */
   async deleteUserMeta(userId, key) {
-    const response = await this.client.delete(`/users/${userId}/meta/${key}`);
+    const response = await this.client.delete(`/api/users/${userId}/meta/${key}`);
     return response.data;
   }
 
@@ -368,7 +360,7 @@ class Chat3Client {
    * GET /api/tenants
    */
   async getTenants(params = {}) {
-    const response = await this.client.get('/tenants', {params});
+    const response = await this.client.get('/api/tenants', {params});
     return response.data;
   }
 
@@ -377,7 +369,7 @@ class Chat3Client {
    * GET /api/tenants/{tenantId}
    */
   async getTenant(tenantId) {
-    const response = await this.client.get(`/tenants/${tenantId}`);
+    const response = await this.client.get(`/api/tenants/${tenantId}`);
     return response.data;
   }
 
@@ -386,7 +378,7 @@ class Chat3Client {
    * POST /api/tenants
    */
   async createTenant(data = {}) {
-    const response = await this.client.post('/tenants', data);
+    const response = await this.client.post('/api/tenants', data);
     return response.data;
   }
 
@@ -395,7 +387,7 @@ class Chat3Client {
    * DELETE /api/tenants/{tenantId}
    */
   async deleteTenant(tenantId) {
-    const response = await this.client.delete(`/tenants/${tenantId}`);
+    const response = await this.client.delete(`/api/tenants/${tenantId}`);
     return response.data;
   }
 
@@ -413,7 +405,7 @@ class Chat3Client {
   async getMeta(entityType, entityId, key = null, params = {}) {
     // API only supports GET /meta/{entityType}/{entityId} to get all meta tags
     // If key is provided, it's ignored - client should filter the result
-    const path = `/meta/${entityType}/${entityId}`;
+    const path = `/api/meta/${entityType}/${entityId}`;
     const response = await this.client.get(path, {params});
     
     // If key is specified, return only that key's value
@@ -462,7 +454,7 @@ class Chat3Client {
     }
 
     const response = await this.client.put(
-        `/meta/${entityType}/${entityId}/${key}`,
+        `/api/meta/${entityType}/${entityId}/${key}`,
         payload,
     );
     return response.data;
@@ -475,7 +467,7 @@ class Chat3Client {
     // Use entityId as-is - Axios will handle URL encoding automatically
     // For dialogMember, entityId should be in format: dialogId:userId
     const response = await this.client.delete(
-        `/meta/${entityType}/${entityId}/${key}`,
+        `/api/meta/${entityType}/${entityId}/${key}`,
         {params},
     );
     return response.data;

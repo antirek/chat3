@@ -79,16 +79,29 @@ async function testClient() {
     // Устанавливаем мета-тег
     const metaResult = await client.setMeta('user', testUserId, 'testTheme', 'dark');
     console.log(`   ✅ Мета-тег установлен: testTheme = dark`);
+    console.log(`   ⚠️  Ответ setMeta: ${JSON.stringify(metaResult)}`);
+    
+    // Небольшая задержка для гарантии сохранения в БД
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     // Получаем мета-тег
     const meta = await client.getMeta('user', testUserId);
     console.log(`   ✅ Мета-тег получен: ${JSON.stringify(meta.data?.testTheme || 'не найден')}`);
+    console.log(`   ⚠️  Все мета-теги: ${JSON.stringify(meta.data)}`);
+    console.log(`   ⚠️  Полная структура getMeta: ${JSON.stringify(meta)}`);
     
-    if (meta.data?.testTheme === 'dark') {
-      console.log(`   ✅ Значение корректно!`);
-      results.passed++;
+    // Проверяем структуру ответа
+    // getMeta возвращает { data: { key1: value1, key2: value2, ... } }
+    if (meta && meta.data && typeof meta.data === 'object') {
+      if (meta.data.testTheme === 'dark') {
+        console.log(`   ✅ Значение корректно!`);
+        results.passed++;
+      } else {
+        const availableKeys = Object.keys(meta.data).length > 0 ? Object.keys(meta.data).join(', ') : 'нет ключей';
+        throw new Error(`Мета-тег testTheme не найден. Доступные ключи: ${availableKeys}. Полный ответ: ${JSON.stringify(meta)}`);
+      }
     } else {
-      throw new Error('Мета-тег не найден или значение неверно');
+      throw new Error(`Неверная структура ответа getMeta: ${JSON.stringify(meta)}`);
     }
   } catch (error) {
     console.log(`   ❌ Ошибка: ${error.message}`);
@@ -109,13 +122,27 @@ async function testClient() {
     const metaResult = await client.setMeta('user', testUserId, 'testScore', 100, { dataType: 'number' });
     
     console.log(`   ✅ Мета-тег установлен с dataType=number`);
-    console.log(`   ✅ Результат: ${JSON.stringify(metaResult.data)}`);
+    console.log(`   ⚠️  Полная структура ответа setMeta: ${JSON.stringify(metaResult, null, 2)}`);
     
-    if (metaResult.data?.dataType === 'number' && metaResult.data?.value === 100) {
-      console.log(`   ✅ Значение и тип корректны!`);
-      results.passed++;
+    // Проверяем структуру ответа от API
+    // API возвращает { data: { entityId, entityType, key, value, dataType, ... }, message: '...' }
+    // sanitizeResponse удаляет _id, но оставляет остальные поля
+    if (metaResult) {
+      // Проверяем что есть data в ответе
+      if (metaResult.data) {
+        const metaData = metaResult.data;
+        // Проверяем что dataType и value установлены правильно
+        if (metaData.dataType === 'number' && metaData.value === 100) {
+          console.log(`   ✅ Значение и тип корректны!`);
+          results.passed++;
+        } else {
+          throw new Error(`dataType или value неверны. Получено: dataType=${metaData.dataType}, value=${metaData.value}. Полный ответ: ${JSON.stringify(metaResult)}`);
+        }
+      } else {
+        throw new Error(`Ответ setMeta не содержит data. Полный ответ: ${JSON.stringify(metaResult)}`);
+      }
     } else {
-      throw new Error('dataType или value неверны');
+      throw new Error(`setMeta вернул undefined или null`);
     }
   } catch (error) {
     console.log(`   ❌ Ошибка: ${error.message}`);

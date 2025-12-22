@@ -15,7 +15,7 @@ const { Chat3Client } = require('@chat3/client');
 
 // Инициализация клиента
 const client = new Chat3Client({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: 'http://localhost:3000',  // Без /api, префикс добавляется автоматически
   apiKey: 'your-api-key-here',
   tenantId: 'tnt_default', // Опционально, по умолчанию tnt_default
   debug: false // Опционально, включает логирование запросов
@@ -58,7 +58,7 @@ const client = new Chat3Client({
 ```
 
 **Параметры:**
-- `baseURL` (обязательно) - Базовый URL Tenant API (например, `http://localhost:3000/api`)
+- `baseURL` (обязательно) - Базовый URL Tenant API (например, `http://localhost:3000`). Все endpoints автоматически получают префикс `/api`.
 - `apiKey` (обязательно) - API ключ для аутентификации
 - `tenantId` (опционально) - ID тенанта, по умолчанию `tnt_default`
 - `debug` (опционально) - Включить логирование HTTP запросов через `axios-logger`

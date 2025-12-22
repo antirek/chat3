@@ -1,6 +1,6 @@
 {
   "name": "chat3-client",
-  "version": "0.0.20",
+  "version": "0.0.22",
   "description": "JavaScript client library for Chat3 Tenant API",
   "main": "src/Chat3Client.js",
   "type": "commonjs",
