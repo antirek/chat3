@@ -51,6 +51,37 @@ async function connectToChat3() {
 }
 ```
 
+### Формат Routing Keys для Updates
+
+Updates публикуются в exchange `chat3_updates` с routing key в формате:
+
+```
+update.{category}.{userType}.{userId}.{updateType}
+```
+
+Где:
+- `category` - категория обновления:
+  - `dialog` - для DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate
+  - `user` - для UserUpdate, UserStatsUpdate
+- `userType` - тип пользователя из модели User (user, bot, contact и т.д.)
+- `userId` - ID пользователя-получателя
+- `updateType` - тип обновления в нижнем регистре:
+  - `dialogupdate` - DialogUpdate
+  - `dialogmemberupdate` - DialogMemberUpdate
+  - `messageupdate` - MessageUpdate
+  - `typingupdate` - TypingUpdate
+  - `userupdate` - UserUpdate
+  - `userstatsupdate` - UserStatsUpdate
+
+**Примеры routing keys:**
+- `update.dialog.user.carl.dialogupdate` - обновление диалога для пользователя carl
+- `update.dialog.user.carl.messageupdate` - обновление сообщения для пользователя carl
+- `update.user.user.carl.userstatsupdate` - обновление статистики для пользователя carl
+
+Для подписки используйте wildcards:
+- `update.*.user.carl.*` - все обновления для пользователя carl
+- `update.dialog.user.carl.*` - все обновления диалогов для пользователя carl
+
 ## Подписка на обновления пользователя
 
 ### Шаг 1: Получить тип пользователя
@@ -67,7 +98,7 @@ GET /api/users/:userId
 
 ```javascript
 async function subscribeToUserUpdates(channel, userId, userType = 'user') {
-  const queueName = `user.${userType}.${userId}`;
+  const queueName = `user_${userId}_updates`;
   
   // Создаем очередь с TTL 1 час
   await channel.assertQueue(queueName, {
@@ -78,12 +109,14 @@ async function subscribeToUserUpdates(channel, userId, userType = 'user') {
   });
   
   // Привязываем к exchange с routing key
-  const routingKey = `user.${userType}.${userId}.*`;
+  // Формат: update.{category}.{userType}.{userId}.*
+  // category: dialog (DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate) или user (UserUpdate, UserStatsUpdate)
+  const routingKey = `update.*.${userType}.${userId}.*`;
   await channel.bindQueue(queueName, 'chat3_updates', routingKey);
   
   console.log(`✅ Subscribed to updates for user ${userId} (type: ${userType})`);
   console.log(`   Queue: ${queueName}`);
-  console.log(`   Routing key: ${routingKey}`);
+  console.log(`   Routing key pattern: ${routingKey}`);
   
   return queueName;
 }
@@ -120,6 +153,8 @@ async function consumeUserUpdates(channel, queueName, userId) {
 ## Обработка различных типов обновлений
 
 ### Dialog Updates
+
+Создаются для событий: `dialog.create`, `dialog.update`, `dialog.delete`, `dialog.member.add`, `dialog.member.remove`
 
 ```javascript
 async function handleDialogUpdate(update) {
@@ -161,7 +196,25 @@ async function handleDialogUpdate(update) {
 }
 ```
 
+### Dialog Member Updates
+
+Создаются для событий: `dialog.member.update`
+
+```javascript
+async function handleDialogMemberUpdate(update) {
+  const { eventType, data } = update;
+  const { dialog, member, context } = data;
+  
+  // Обновлено состояние участника (unreadCount, lastSeenAt и т.д.)
+  await updateMemberStateInDialog(dialog.dialogId, member);
+}
+```
+
 ### Message Updates
+
+Создаются для событий: `message.create`, `message.update`, `message.reaction.update`, `message.status.update`
+
+**Примечание:** События `message.delete`, `message.reaction.add`, `message.reaction.remove` не создают MessageUpdate, но могут быть получены через Events.
 
 ```javascript
 async function handleMessageUpdate(update) {
@@ -179,20 +232,12 @@ async function handleMessageUpdate(update) {
       await updateMessageInDialog(dialog.dialogId, message);
       break;
       
-    case 'message.delete':
-      // Сообщение удалено
-      await removeMessageFromDialog(dialog.dialogId, message.messageId);
-      break;
-      
-    case 'message.status.create':
     case 'message.status.update':
-      // Статус сообщения изменился
+      // Статус сообщения изменился (прочитано, доставлено)
       await updateMessageStatus(dialog.dialogId, message);
       break;
       
-    case 'message.reaction.add':
     case 'message.reaction.update':
-    case 'message.reaction.remove':
       // Реакция изменилась
       await updateMessageReactions(dialog.dialogId, message);
       break;
@@ -200,9 +245,73 @@ async function handleMessageUpdate(update) {
 }
 ```
 
+### Typing Updates
+
+Создаются для событий: `dialog.typing`
+
+```javascript
+async function handleTypingUpdate(update) {
+  const { eventType, data } = update;
+  const { dialog, typing, context } = data;
+  
+  // Пользователь печатает в диалоге
+  await showTypingIndicator(dialog.dialogId, typing.userId, typing.expiresInMs);
+}
+```
+
+### User Updates
+
+Создаются для событий: `user.add`, `user.update`, `user.remove`
+
+```javascript
+async function handleUserUpdate(update) {
+  const { eventType, data } = update;
+  const { user, context } = data;
+  
+  switch (eventType) {
+    case 'user.add':
+      await addUserToLocalState(user);
+      break;
+      
+    case 'user.update':
+      await updateUserInLocalState(user);
+      break;
+      
+    case 'user.remove':
+      await removeUserFromLocalState(user.userId);
+      break;
+  }
+}
+```
+
+### User Stats Updates
+
+Создаются автоматически для событий: `user.stats.update`
+
+**Примечание:** Этот тип update создается автоматически при изменении статистики пользователя (количество диалогов, непрочитанных диалогов).
+
+```javascript
+async function handleUserStatsUpdate(update) {
+  const { eventType, data } = update;
+  const { user, context } = data;
+  
+  // Обновлена статистика пользователя
+  // user.stats.dialogCount - количество диалогов
+  // user.stats.unreadDialogsCount - количество непрочитанных диалогов
+  await updateUserStats(user.userId, user.stats);
+}
+```
+
 ## Подписка на события (опционально)
 
 Если нужны события напрямую (без обработки через Updates):
+
+**Важно:** Некоторые события не создают Updates, но доступны через Events:
+- `message.delete` - удаление сообщения
+- `message.reaction.add` - добавление реакции
+- `message.reaction.remove` - удаление реакции
+
+Для получения этих событий подпишитесь на exchange `chat3_events`:
 
 ```javascript
 async function subscribeToEvents(channel) {
@@ -226,6 +335,15 @@ async function subscribeToEvents(channel) {
   });
 }
 ```
+
+**Формат routing key для событий:** `{entityType}.{action}.{tenantId}`
+
+Примеры:
+- `dialog.create.tnt_default` - создание диалога
+- `message.delete.tnt_default` - удаление сообщения
+- `dialog.member.add.tnt_default` - добавление участника
+
+Для подписки на все события используйте wildcard: `#` (все события) или `*.create.*` (все события создания).
 
 ## Полный пример интеграции
 
@@ -253,14 +371,16 @@ class Chat3Integration {
   }
   
   async subscribe() {
-    const queueName = `user.${this.userType}.${this.userId}`;
+    const queueName = `user_${this.userId}_updates`;
     
     await this.channel.assertQueue(queueName, {
       durable: true,
       arguments: { 'x-message-ttl': 3600000 }
     });
     
-    const routingKey = `user.${this.userType}.${this.userId}.*`;
+    // Подписываемся на все updates для пользователя
+    // Формат routing key: update.{category}.{userType}.{userId}.{updateType}
+    const routingKey = `update.*.${this.userType}.${this.userId}.*`;
     await this.channel.bindQueue(queueName, UPDATES_EXCHANGE, routingKey);
     
     await this.channel.consume(queueName, async (msg) => {
@@ -286,6 +406,7 @@ class Chat3Integration {
     
     // Ваша логика обработки
     switch (eventType) {
+      // Dialog Updates
       case 'dialog.create':
       case 'dialog.update':
       case 'dialog.delete':
@@ -294,15 +415,34 @@ class Chat3Integration {
         await this.handleDialogUpdate(update);
         break;
         
+      // Dialog Member Updates
+      case 'dialog.member.update':
+        await this.handleDialogMemberUpdate(update);
+        break;
+        
+      // Message Updates
       case 'message.create':
       case 'message.update':
-      case 'message.delete':
-      case 'message.status.create':
       case 'message.status.update':
-      case 'message.reaction.add':
       case 'message.reaction.update':
-      case 'message.reaction.remove':
         await this.handleMessageUpdate(update);
+        break;
+        
+      // Typing Updates
+      case 'dialog.typing':
+        await this.handleTypingUpdate(update);
+        break;
+        
+      // User Updates
+      case 'user.add':
+      case 'user.update':
+      case 'user.remove':
+        await this.handleUserUpdate(update);
+        break;
+        
+      // User Stats Updates
+      case 'user.stats.update':
+        await this.handleUserStatsUpdate(update);
         break;
     }
   }
@@ -312,9 +452,29 @@ class Chat3Integration {
     console.log('Dialog update:', update.data.dialog);
   }
   
+  async handleDialogMemberUpdate(update) {
+    // Ваша реализация
+    console.log('Dialog member update:', update.data.member);
+  }
+  
   async handleMessageUpdate(update) {
     // Ваша реализация
     console.log('Message update:', update.data.message);
+  }
+  
+  async handleTypingUpdate(update) {
+    // Ваша реализация
+    console.log('Typing update:', update.data.typing);
+  }
+  
+  async handleUserUpdate(update) {
+    // Ваша реализация
+    console.log('User update:', update.data.user);
+  }
+  
+  async handleUserStatsUpdate(update) {
+    // Ваша реализация
+    console.log('User stats update:', update.data.user.stats);
   }
   
   async disconnect() {
@@ -430,6 +590,8 @@ curl -X POST http://localhost:3000/api/dialogs/{dialogId}/messages \
   }'
 ```
 
+**Примечание:** Замените `{dialogId}` на реальный ID диалога, полученный из ответа на шаге 2.
+
 ### 4. Проверить получение Updates
 
 Ваш consumer должен получить Update для `test_user` с типом `message.create`.
@@ -462,21 +624,50 @@ curl -X POST http://localhost:3000/api/dialogs/{dialogId}/messages \
 
 ## Примеры routing keys
 
+Формат routing key: `update.{category}.{userType}.{userId}.{updateType}`
+
+Где:
+- `category` - категория обновления: `dialog` (DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate) или `user` (UserUpdate, UserStatsUpdate)
+- `userType` - тип пользователя из модели User (user, bot, contact и т.д.)
+- `userId` - ID пользователя
+- `updateType` - тип обновления в нижнем регистре (dialogupdate, dialogmemberupdate, messageupdate, typingupdate, userupdate, userstatsupdate)
+
+**Примеры routing keys:**
+
 ```
 # Все обновления для пользователя carl типа user
-user.user.carl.*
+update.*.user.carl.*
 
 # Все обновления диалогов для пользователя carl
-user.user.carl.dialog
+update.dialog.user.carl.*
 
 # Все обновления сообщений для пользователя carl
-user.user.carl.message
+update.dialog.user.carl.messageupdate
 
 # Все обновления для всех пользователей типа bot
-user.bot.*.*
+update.*.bot.*.*
 
 # Все обновления диалогов для всех пользователей типа user
-user.user.*.dialog
+update.dialog.user.*.dialogupdate
+
+# Все обновления статистики пользователей
+update.user.*.*.userstatsupdate
+```
+
+**Примеры для подписки (wildcards):**
+
+```javascript
+// Все обновления для пользователя carl
+await channel.bindQueue(queueName, 'chat3_updates', 'update.*.user.carl.*');
+
+// Только обновления диалогов для пользователя carl
+await channel.bindQueue(queueName, 'chat3_updates', 'update.dialog.user.carl.*');
+
+// Все обновления для всех пользователей типа bot
+await channel.bindQueue(queueName, 'chat3_updates', 'update.*.bot.*.*');
+
+// Все обновления диалогов для всех пользователей типа user
+await channel.bindQueue(queueName, 'chat3_updates', 'update.dialog.user.*.*');
 ```
 
 ## Поддержка

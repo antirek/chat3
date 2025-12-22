@@ -8,17 +8,54 @@ Chat3 использует событийно-ориентированную а�
 
 ```javascript
 {
-  eventId: "evt_...",        // Уникальный ID события
+  _id: ObjectId("..."),      // MongoDB ObjectId
+  eventId: "evt_...",        // Уникальный ID события (evt_ + 32 hex символа)
   tenantId: "tnt_default",   // ID тенанта
   eventType: "dialog.create", // Тип события
   entityType: "dialog",      // Тип сущности
   entityId: "dlg_...",       // ID сущности
-  actorId: "carl",           // ID пользователя, инициировавшего событие
+  actorId: "carl",           // ID пользователя, инициировавшего событие (опционально)
   actorType: "api",          // Тип актора (user, system, bot, api)
-  data: { ... },             // Данные события
-  createdAt: 1763551369397.6482  // Timestamp создания
+  data: { ... },             // Данные события (context, dialog, message, member, typing, user, actor)
+  createdAt: 1763551369397.6482  // Timestamp создания (микросекунды)
 }
 ```
+
+**Поддерживаемые типы событий:**
+- `dialog.create`, `dialog.update`, `dialog.delete`
+- `message.create`, `message.update`
+- `dialog.member.add`, `dialog.member.remove`, `dialog.member.update`
+- `message.status.update`
+- `message.reaction.update`
+- `dialog.typing`
+- `user.add`, `user.update`, `user.remove`
+
+## Соответствие событий и обновлений
+
+| Событие (Event) | Entity Type | Routing Key (Events) | Создаваемый Update | Routing Key (Updates) | Получатели | Дополнительные Updates |
+|-----------------|-------------|---------------------|-------------------|---------------------|-----------|----------------------|
+| `dialog.create` | `dialog` | `dialog.create.{tenantId}` | `DialogUpdate` | `update.dialog.{userType}.{userId}.dialogupdate` | Все участники диалога | - |
+| `dialog.update` | `dialog` | `dialog.update.{tenantId}` | `DialogUpdate` | `update.dialog.{userType}.{userId}.dialogupdate` | Все участники диалога | - |
+| `dialog.delete` | `dialog` | `dialog.delete.{tenantId}` | `DialogUpdate` | `update.dialog.{userType}.{userId}.dialogupdate` | Все участники диалога | - |
+| `dialog.member.add` | `dialogMember` | `dialogMember.add.{tenantId}` | `DialogUpdate` | `update.dialog.{userType}.{userId}.dialogupdate` | Все участники диалога | `UserStatsUpdate` для добавленного пользователя (`dialogCount`) |
+| `dialog.member.remove` | `dialogMember` | `dialogMember.remove.{tenantId}` | `DialogUpdate` | `update.dialog.{userType}.{userId}.dialogupdate` | Все участники + удаляемый пользователь | `UserStatsUpdate` для удаленного пользователя (`dialogCount`) |
+| `dialog.member.update` | `dialogMember` | `dialogMember.update.{tenantId}` | `DialogMemberUpdate` | `update.dialog.{userType}.{userId}.dialogmemberupdate` | Конкретный участник | `UserStatsUpdate` (если изменился `unreadCount`) |
+| `message.create` | `message` | `message.create.{tenantId}` | `MessageUpdate` | `update.dialog.{userType}.{userId}.messageupdate` | Все участники диалога | `UserStatsUpdate` для участников (если диалог стал непрочитанным) |
+| `message.update` | `message` | `message.update.{tenantId}` | `MessageUpdate` | `update.dialog.{userType}.{userId}.messageupdate` | Все участники диалога | - |
+| `message.status.update` | `messageStatus` | `messageStatus.update.{tenantId}` | `MessageUpdate` | `update.dialog.{userType}.{userId}.messageupdate` | Все участники диалога | - |
+| `message.reaction.update` | `messageReaction` | `messageReaction.update.{tenantId}` | `MessageUpdate` | `update.dialog.{userType}.{userId}.messageupdate` | Все участники диалога | - |
+| `dialog.typing` | `dialog` | `dialog.typing.{tenantId}` | `TypingUpdate` | `update.dialog.{userType}.{userId}.typingupdate` | Все участники (кроме инициатора) | - |
+| `user.add` | `user` | `user.add.{tenantId}` | `UserUpdate` | `update.user.{userType}.{userId}.userupdate` | Конкретный пользователь | - |
+| `user.update` | `user` | `user.update.{tenantId}` | `UserUpdate` | `update.user.{userType}.{userId}.userupdate` | Конкретный пользователь | - |
+| `user.remove` | `user` | `user.remove.{tenantId}` | `UserUpdate` | `update.user.{userType}.{userId}.userupdate` | Конкретный пользователь | - |
+
+**Примечания:**
+- `{userType}` - тип пользователя из модели User (user, bot, contact и т.д.)
+- `{userId}` - ID пользователя-получателя update
+- `{tenantId}` - ID тенанта (например, tnt_default)
+- Routing keys для Updates имеют формат: `update.{category}.{userType}.{userId}.{updateType}`
+- Routing keys для Events имеют формат: `{entityType}.{action}.{tenantId}`
+- `UserStatsUpdate` создается автоматически при изменении статистики пользователя (не является прямым результатом события)
 
 ## Типы событий
 
@@ -27,7 +64,7 @@ Chat3 использует событийно-ориентированную а�
 #### dialog.create
 Создание диалога
 
-**Routing Key:** `dialog.dialog.create`
+**Routing Key:** `dialog.create.{tenantId}` (например, `dialog.create.tnt_default`)
 
 **Data:**
 ```json
@@ -57,19 +94,19 @@ Chat3 использует событийно-ориентированную а�
 #### dialog.update
 Обновление диалога
 
-**Routing Key:** `dialog.dialog.update`
+**Routing Key:** `dialog.update.{tenantId}`
 
 #### dialog.delete
 Удаление диалога
 
-**Routing Key:** `dialog.dialog.delete`
+**Routing Key:** `dialog.delete.{tenantId}`
 
 ### Dialog Member Events
 
 #### dialog.member.add
 Добавление участника в диалог
 
-**Routing Key:** `dialogMember.dialog.member.add`
+**Routing Key:** `dialogMember.add.{tenantId}` (например, `dialogMember.add.tnt_default`)
 
 **Data:**
 ```json
@@ -98,19 +135,19 @@ Chat3 использует событийно-ориентированную а�
 #### dialog.member.remove
 Удаление участника из диалога
 
-**Routing Key:** `dialogMember.dialog.member.remove`
+**Routing Key:** `dialogMember.remove.{tenantId}`
 
 #### dialog.member.update
 Обновление участника диалога
 
-**Routing Key:** `dialogMember.dialog.member.update`
+**Routing Key:** `dialogMember.update.{tenantId}`
 
 ### Message Events
 
 #### message.create
 Создание сообщения
 
-**Routing Key:** `message.message.create`
+**Routing Key:** `message.create.{tenantId}` (например, `message.create.tnt_default`)
 
 **Data:**
 ```json
@@ -140,27 +177,22 @@ Chat3 использует событийно-ориентированную а�
 #### message.update
 Обновление сообщения
 
-**Routing Key:** `message.message.update`
+**Routing Key:** `message.update.{tenantId}`
 
-**Примечание:** Создается при обновлении содержимого сообщения через `PUT /api/messages/:messageId/content`
-
-#### message.delete
-Удаление сообщения
-
-**Routing Key:** `message.message.delete`
+**Примечание:** Создается при обновлении содержимого сообщения через `PUT /api/messages/:messageId`
 
 ### Message Status Events
 
-#### message.status.create
-Создание статуса сообщения
+#### message.status.update
+Обновление статуса сообщения
 
-**Routing Key:** `messageStatus.message.status.create`
+**Routing Key:** `messageStatus.update.{tenantId}` (например, `messageStatus.update.tnt_default`)
 
 **Data:**
 ```json
 {
   "context": {
-    "eventType": "message.status.create",
+    "eventType": "message.status.update",
     "dialogId": "dlg_...",
     "entityId": "msg_...",
     "messageId": "msg_...",
@@ -178,23 +210,20 @@ Chat3 использует событийно-ориентированную а�
 }
 ```
 
-#### message.status.update
-Обновление статуса сообщения
-
-**Routing Key:** `messageStatus.message.status.update`
+**Примечание:** Создается при изменении статуса сообщения через `POST /api/users/:userId/dialogs/:dialogId/messages/:messageId/status/:status`
 
 ### Message Reaction Events
 
-#### message.reaction.add
-Добавление реакции на сообщение
+#### message.reaction.update
+Обновление реакции на сообщение
 
-**Routing Key:** `messageReaction.message.reaction.add`
+**Routing Key:** `messageReaction.update.{tenantId}` (например, `messageReaction.update.tnt_default`)
 
 **Data:**
 ```json
 {
   "context": {
-    "eventType": "message.reaction.add",
+    "eventType": "message.reaction.update",
     "dialogId": "dlg_...",
     "entityId": "msg_...",
     "messageId": "msg_...",
@@ -211,22 +240,14 @@ Chat3 использует событийно-ориентированную а�
 }
 ```
 
-#### message.reaction.update
-Обновление реакции
-
-**Routing Key:** `messageReaction.message.reaction.update`
-
-#### message.reaction.remove
-Удаление реакции
-
-**Routing Key:** `messageReaction.message.reaction.remove`
+**Примечание:** Создается при добавлении или удалении реакции через `POST /api/users/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action` (action: `set` или `unset`)
 
 ### Typing Events
 
 #### dialog.typing
 Индикатор печати
 
-**Routing Key:** `dialog.dialog.typing`
+**Routing Key:** `dialog.typing.{tenantId}` (например, `dialog.typing.tnt_default`)
 
 **Data:**
 ```json
@@ -240,8 +261,9 @@ Chat3 использует событийно-ориентированную а�
   "dialog": { ... },
   "typing": {
     "userId": "carl",
-    "isTyping": true,
-    "expiresAt": 1763551369402.6482
+    "expiresInMs": 5000,
+    "timestamp": 1763551369397.6482,
+    "userInfo": null
   },
   "actor": { ... }
 }
@@ -249,22 +271,74 @@ Chat3 использует событийно-ориентированную а�
 
 **Примечание:** Typing события не создают Updates, они публикуются напрямую в RabbitMQ
 
+### User Events
+
+#### user.add
+Создание пользователя
+
+**Routing Key:** `user.add.{tenantId}` (например, `user.add.tnt_default`)
+
+**Data:**
+```json
+{
+  "context": {
+    "eventType": "user.add",
+    "entityId": "carl",
+    "includedSections": ["user", "actor"]
+  },
+  "user": {
+    "userId": "carl",
+    "type": "user",
+    "meta": {}
+  },
+  "actor": { ... }
+}
+```
+
+#### user.update
+Обновление пользователя
+
+**Routing Key:** `user.update.{tenantId}`
+
+**Data:**
+```json
+{
+  "context": {
+    "eventType": "user.update",
+    "entityId": "carl",
+    "includedSections": ["user", "actor"],
+    "updatedFields": ["name", "type"]
+  },
+  "user": {
+    "userId": "carl",
+    "type": "bot",
+    "meta": {}
+  },
+  "actor": { ... }
+}
+```
+
+#### user.remove
+Удаление пользователя
+
+**Routing Key:** `user.remove.{tenantId}`
+
 ### Tenant Events
 
 #### tenant.create
 Создание тенанта
 
-**Routing Key:** `tenant.tenant.create`
+**Routing Key:** `tenant.create.{tenantId}`
 
 #### tenant.update
 Обновление тенанта
 
-**Routing Key:** `tenant.tenant.update`
+**Routing Key:** `tenant.update.{tenantId}`
 
 #### tenant.delete
 Удаление тенанта
 
-**Routing Key:** `tenant.tenant.delete`
+**Routing Key:** `tenant.delete.{tenantId}`
 
 ## RabbitMQ Exchange
 
@@ -275,29 +349,41 @@ Chat3 использует событийно-ориентированную а�
 
 ### Routing Keys
 
-Формат: `{entityType}.{eventType}`
+Формат: `{entityType}.{action}.{tenantId}`
+
+Где:
+- `entityType` - тип сущности (dialog, message, dialogMember, messageStatus, messageReaction, user, tenant)
+- `action` - действие (последняя часть eventType: create, update, delete, add, remove, typing)
+- `tenantId` - ID тенанта (например, tnt_default)
 
 **Примеры:**
-- `dialog.dialog.create`
-- `message.message.create`
-- `dialogMember.dialog.member.add`
-- `messageStatus.message.status.create`
-- `messageReaction.message.reaction.add`
-- `dialog.dialog.typing`
+- `dialog.create.tnt_default` - создание диалога
+- `message.create.tnt_default` - создание сообщения
+- `dialogMember.add.tnt_default` - добавление участника
+- `messageStatus.update.tnt_default` - обновление статуса сообщения
+- `messageReaction.update.tnt_default` - обновление реакции
+- `dialog.typing.tnt_default` - индикатор печати
+- `user.add.tnt_default` - создание пользователя
 
 ### Подписка на события
 
 ```javascript
-// Подписка на все события диалогов
-channel.bindQueue(queueName, 'chat3_events', 'dialog.*');
+// Подписка на все события диалогов для конкретного тенанта
+channel.bindQueue(queueName, 'chat3_events', 'dialog.*.tnt_default');
 
-// Подписка на все события сообщений
-channel.bindQueue(queueName, 'chat3_events', 'message.*');
+// Подписка на все события создания диалогов для всех тенантов
+channel.bindQueue(queueName, 'chat3_events', 'dialog.create.*');
 
-// Подписка на конкретное событие
-channel.bindQueue(queueName, 'chat3_events', 'dialog.dialog.create');
+// Подписка на все события сообщений для конкретного тенанта
+channel.bindQueue(queueName, 'chat3_events', 'message.*.tnt_default');
 
-// Подписка на все события
+// Подписка на конкретное событие для конкретного тенанта
+channel.bindQueue(queueName, 'chat3_events', 'dialog.create.tnt_default');
+
+// Подписка на все события для конкретного тенанта
+channel.bindQueue(queueName, 'chat3_events', '*.*.tnt_default');
+
+// Подписка на все события всех тенантов
 channel.bindQueue(queueName, 'chat3_events', '#');
 ```
 

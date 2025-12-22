@@ -8,8 +8,14 @@ Chat3 - это система управления чатами с поддер�
 
 ```mermaid
 graph TB
-    subgraph "API Server"
-        API[Express API Server]
+    subgraph "Gateway Server"
+        Gateway[Gateway Server]
+        ControlAPI[Control API]
+        APITest[API Test Suite]
+    end
+    
+    subgraph "Tenant API Server"
+        TenantAPI[Tenant API Server]
         Routes[API Routes]
         Controllers[Controllers]
         Validators[Validators]
@@ -37,7 +43,11 @@ graph TB
         Consumers[External Consumers]
     end
     
-    API --> Routes
+    Gateway --> ControlAPI
+    Gateway --> APITest
+    Gateway --> TenantAPI
+    
+    TenantAPI --> Routes
     Routes --> Controllers
     Controllers --> Validators
     Controllers --> Models
@@ -52,7 +62,46 @@ graph TB
     
     Controllers --> MetaUtils[Meta Utils]
     MetaUtils --> MongoDB
+    
+    DialogReadWorker --> MongoDB
+    DialogReadWorker --> Operational
 ```
+
+## Структура приложений
+
+### Gateway Server (`src/apps/gateway/`)
+
+Главный сервер, объединяющий:
+- **Control API** - API для управления системой (инициализация, события, обновления)
+- **API Test Suite** - Тестовые интерфейсы для разработки и отладки
+- Порт по умолчанию: 3001
+
+### Tenant API Server (`src/apps/tenant-api/`)
+
+Основной API сервер для работы с данными:
+- **Routes** - Маршруты API (`/api/tenants`, `/api/users`, `/api/dialogs`, `/api/messages`, `/api/meta`)
+- **Controllers** - Контроллеры для обработки запросов
+- **Validators** - Валидация запросов (Joi схемы)
+- **Utils** - Утилиты (eventUtils, metaUtils, updateUtils, userDialogUtils и др.)
+- Порт по умолчанию: 3000
+
+### Control API (`src/apps/control-api/`)
+
+API для управления системой:
+- Инициализация системы
+- Просмотр событий и обновлений
+- DB Explorer для отладки
+
+### Workers
+
+1. **Update Worker** (`src/apps/update-worker/`)
+   - Обрабатывает события из RabbitMQ
+   - Создает персонализированные обновления для пользователей
+   - Публикует updates в RabbitMQ
+
+2. **Dialog Read Worker** (`src/apps/dialog-read-worker/`)
+   - Обрабатывает задачи массового чтения диалогов
+   - Обновляет unreadCount для участников диалогов
 
 ## Структура данных
 
@@ -131,7 +180,7 @@ sequenceDiagram
     participant RabbitMQ
     participant MongoDB
     
-    Consumer->>RabbitMQ: Подписка на user.{type}.{userId}.*
+    Consumer->>RabbitMQ: Подписка на update.*.{type}.{userId}.*
     RabbitMQ->>Consumer: Update получен
     Consumer->>MongoDB: Проверить Update (опционально)
     Consumer->>User: Отправить обновление
@@ -143,18 +192,28 @@ sequenceDiagram
 
 1. **chat3_events** (topic)
    - Публикуются все события системы
-   - Routing key: `{entityType}.{eventType}`
-   - Примеры: `dialog.create`, `message.create`, `dialog.member.add`
+   - Routing key: `{entityType}.{action}.{tenantId}`
+   - Примеры: 
+     - `dialog.create.tnt_default` - создание диалога
+     - `message.create.tnt_default` - создание сообщения
+     - `dialog.member.add.tnt_default` - добавление участника
+   - Формат: последняя часть `eventType` (action) + `tenantId`
 
 2. **chat3_updates** (topic)
    - Публикуются обновления для пользователей
-   - Routing key: `user.{type}.{userId}.{updateType}`
-   - Примеры: `user.user.carl.dialog`, `user.bot.bot_123.message`
+   - Routing key: `update.{category}.{userType}.{userId}.{updateType}`
+   - Примеры:
+     - `update.dialog.user.carl.dialogupdate` - обновление диалога
+     - `update.dialog.user.carl.messageupdate` - обновление сообщения
+     - `update.user.user.carl.userstatsupdate` - обновление статистики
+   - Категории:
+     - `dialog` - DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate
+     - `user` - UserUpdate, UserStatsUpdate
 
 ### Очереди
 
-- **update_worker_queue** - очередь для Update Worker
-- **user.{type}.{userId}** - персональные очереди пользователей (создаются динамически)
+- **update_worker_queue** - очередь для Update Worker (подписывается на все события: `#`)
+- **user_{userId}_updates** - персональные очереди пользователей (создаются динамически с TTL 1 час)
 
 ## Мультитенантность
 
@@ -188,14 +247,14 @@ sequenceDiagram
 
 ## Типы пользователей
 
-Пользователи имеют поле `type`:
+Пользователи имеют поле `type` (строка, по умолчанию `user`):
 - `user` - обычный пользователь (по умолчанию)
 - `bot` - бот
 - `contact` - контакт
 - `agent` - агент поддержки
-- и другие
+- и другие (система поддерживает любые типы)
 
-Тип используется в RabbitMQ routing keys для обновлений.
+**Важно:** Тип используется в RabbitMQ routing keys для обновлений, поэтому важно правильно устанавливать тип пользователя при создании.
 
 ## Timestamps
 
@@ -211,4 +270,17 @@ sequenceDiagram
 - Поиск по tenantId + userId
 - Сортировка по createdAt
 - Составные индексы для частых запросов
+
+## Запуск системы
+
+Для полноценной работы системы необходимо запустить:
+
+1. **MongoDB** - база данных
+2. **RabbitMQ** - очередь сообщений
+3. **Tenant API Server** - основной API сервер (порт 3000)
+4. **Gateway Server** - шлюз с Control API и тестовыми интерфейсами (порт 3001)
+5. **Update Worker** - обработка событий и создание обновлений
+6. **Dialog Read Worker** (опционально) - обработка задач массового чтения
+
+**Примечание:** Gateway Server и Tenant API Server могут работать на разных портах и хостах. Gateway Server использует переменную окружения `TENANT_API_URL` для подключения к Tenant API.
 
