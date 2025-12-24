@@ -10,7 +10,7 @@ import {
   updateLastSeen,
   getDialogMembers
 } from '../unreadCountUtils.js';
-import { DialogMember, Dialog, Message, MessageStatus } from "../../../../models/index.js";
+import { DialogMember, Dialog, Message, MessageStatus, UserDialogStats } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 
 // Setup MongoDB перед всеми тестами в этом файле
@@ -60,7 +60,9 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       expect(member.tenantId).toBe(tenantId);
       expect(member.userId).toBe(userId);
       expect(member.dialogId).toBe(dialogId);
-      expect(member.unreadCount).toBe(0);
+      // Проверяем unreadCount в UserDialogStats
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      expect(stats?.unreadCount || 0).toBe(0);
     });
 
     test('should create member with correct timestamps', async () => {
@@ -86,8 +88,8 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       // Увеличиваем счетчик
       await incrementUnreadCount(tenantId, userId, dialogId, messageId);
 
-      const member = await DialogMember.findOne({ tenantId, userId, dialogId });
-      expect(member.unreadCount).toBe(1);
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      expect(stats?.unreadCount || 0).toBe(1);
     });
 
     test('should create member if createIfNotExists is true', async () => {
@@ -99,7 +101,8 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
 
       const member = await DialogMember.findOne({ tenantId, userId, dialogId });
       expect(member).toBeDefined();
-      expect(member.unreadCount).toBe(1);
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      expect(stats?.unreadCount || 0).toBe(1);
     });
 
     test('should not create member if createIfNotExists is false', async () => {
@@ -139,8 +142,8 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
 
       await decrementUnreadCount(tenantId, userId, dialogId, 1);
 
-      const member = await DialogMember.findOne({ tenantId, userId, dialogId });
-      expect(member.unreadCount).toBe(1);
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      expect(stats?.unreadCount || 0).toBe(1);
     });
 
     test('should not allow negative unread count', async () => {
@@ -152,8 +155,8 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       // Пытаемся уменьшить счетчик, который равен 0
       await decrementUnreadCount(tenantId, userId, dialogId, 5);
 
-      const member = await DialogMember.findOne({ tenantId, userId, dialogId });
-      expect(member.unreadCount).toBe(0);
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      expect(stats?.unreadCount || 0).toBe(0);
     });
 
     test('should update lastSeenAt when decrementing', async () => {
@@ -181,8 +184,8 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
 
       await decrementUnreadCount(tenantId, userId, dialogId, 2);
 
-      const member = await DialogMember.findOne({ tenantId, userId, dialogId });
-      expect(member.unreadCount).toBe(1);
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      expect(stats?.unreadCount || 0).toBe(1);
     });
   });
 
@@ -197,8 +200,8 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
 
       await resetUnreadCount(tenantId, userId, dialogId);
 
-      const member = await DialogMember.findOne({ tenantId, userId, dialogId });
-      expect(member.unreadCount).toBe(0);
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      expect(stats?.unreadCount || 0).toBe(0);
     });
 
     test('should create member if not exists', async () => {
@@ -209,7 +212,8 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
 
       const member = await DialogMember.findOne({ tenantId, userId, dialogId });
       expect(member).toBeDefined();
-      expect(member.unreadCount).toBe(0);
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      expect(stats?.unreadCount || 0).toBe(0);
     });
 
     test('should update lastSeenAt when resetting', async () => {
@@ -320,7 +324,8 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       // Проверяем, что участник обновлен
       const member = await DialogMember.findOne({ tenantId, userId, dialogId });
       expect(member).toBeDefined();
-      expect(typeof member.unreadCount).toBe('number');
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      expect(typeof (stats?.unreadCount || 0)).toBe('number');
     });
 
     test('should handle case when no messages exist', async () => {
@@ -372,7 +377,9 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       );
 
       expect(updatedMember).toBeDefined();
-      expect(updatedMember.unreadCount).toBe(0);
+      // Проверяем unreadCount в UserDialogStats
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      expect(stats?.unreadCount || 0).toBe(0);
     });
 
     test('should not decrement if user is sender', async () => {
@@ -403,8 +410,8 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
 
       expect(result).toBeNull(); // Не должно обновлять счетчик
 
-      const member = await DialogMember.findOne({ tenantId, userId, dialogId });
-      expect(member.unreadCount).toBe(1); // Счетчик не изменился
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      expect(stats?.unreadCount || 0).toBe(1); // Счетчик не изменился
     });
 
     test('should not decrement if status was already read', async () => {

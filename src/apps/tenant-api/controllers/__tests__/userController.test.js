@@ -5,7 +5,7 @@ import {
   updateUser,
   deleteUser
 } from '../userController.js';
-import { Tenant, User, Meta, DialogMember } from "../../../../models/index.js";
+import { Tenant, User, Meta, DialogMember, UserStats, UserDialogStats } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
@@ -240,21 +240,31 @@ describe('userController.getUsers', () => {
       {
         tenantId,
         dialogId: 'dlg_aa111111111111111111',
-        userId: 'agent_carl',
-        unreadCount: 3
+        userId: 'agent_carl'
       },
       {
         tenantId,
         dialogId: 'dlg_bb222222222222222222',
-        userId: 'agent_carl',
-        unreadCount: 0
+        userId: 'agent_carl'
       },
       {
         tenantId,
         dialogId: 'dlg_cc333333333333333333',
-        userId: 'manager_alice',
-        unreadCount: 5
+        userId: 'manager_alice'
       }
+    ]);
+
+    // Создаем UserDialogStats
+    await UserDialogStats.create([
+      { tenantId, dialogId: 'dlg_aa111111111111111111', userId: 'agent_carl', unreadCount: 3 },
+      { tenantId, dialogId: 'dlg_bb222222222222222222', userId: 'agent_carl', unreadCount: 0 },
+      { tenantId, dialogId: 'dlg_cc333333333333333333', userId: 'manager_alice', unreadCount: 5 }
+    ]);
+
+    // Создаем UserStats
+    await UserStats.create([
+      { tenantId, userId: 'agent_carl', dialogCount: 2, unreadDialogsCount: 1, totalUnreadCount: 3 },
+      { tenantId, userId: 'manager_alice', dialogCount: 1, unreadDialogsCount: 1, totalUnreadCount: 5 }
     ]);
 
     const req = createMockReq({
@@ -364,22 +374,35 @@ describe('userController.getUserById', () => {
       {
         tenantId,
         dialogId: 'dlg_aa111111111111111111',
-        userId: 'agent_carl',
-        unreadCount: 3
+        userId: 'agent_carl'
       },
       {
         tenantId,
         dialogId: 'dlg_bb222222222222222222',
-        userId: 'agent_carl',
-        unreadCount: 0
+        userId: 'agent_carl'
       },
       {
         tenantId,
         dialogId: 'dlg_cc333333333333333333',
-        userId: 'agent_carl',
-        unreadCount: 5
+        userId: 'agent_carl'
       }
     ]);
+
+    // Создаем UserDialogStats
+    await UserDialogStats.create([
+      { tenantId, dialogId: 'dlg_aa111111111111111111', userId: 'agent_carl', unreadCount: 3 },
+      { tenantId, dialogId: 'dlg_bb222222222222222222', userId: 'agent_carl', unreadCount: 0 },
+      { tenantId, dialogId: 'dlg_cc333333333333333333', userId: 'agent_carl', unreadCount: 5 }
+    ]);
+
+    // Создаем UserStats
+    await UserStats.create({
+      tenantId,
+      userId: 'agent_carl',
+      dialogCount: 3,
+      unreadDialogsCount: 2, // два диалога с unreadCount > 0
+      totalUnreadCount: 8
+    });
 
     const req = {
       tenantId,

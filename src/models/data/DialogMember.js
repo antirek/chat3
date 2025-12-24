@@ -20,13 +20,6 @@ const dialogMemberSchema = new mongoose.Schema({
     match: /^dlg_[a-z0-9]{20}$/,
     description: 'ID диалога (строка в формате dlg_XXXXXXXXXXXXXXXXXXXX)'
   },
-  unreadCount: {
-    type: Number,
-    default: 0,
-    min: 0,
-    required: true,
-    description: 'Количество непрочитанных сообщений в диалоге'
-  },
   lastSeenAt: {
     type: Number,
     default: generateTimestamp,
@@ -59,7 +52,6 @@ dialogMemberSchema.pre('save', function(next) {
 dialogMemberSchema.index({ userId: 1, tenantId: 1, dialogId: 1 }, { unique: true });
 dialogMemberSchema.index({ dialogId: 1, tenantId: 1 });
 dialogMemberSchema.index({ userId: 1, tenantId: 1 });
-dialogMemberSchema.index({ tenantId: 1, unreadCount: 1 });
 dialogMemberSchema.index({ lastSeenAt: 1 });
 dialogMemberSchema.index({ lastMessageAt: 1 });
 

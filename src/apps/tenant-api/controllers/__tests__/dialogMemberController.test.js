@@ -373,10 +373,17 @@ describe('dialogMemberController', () => {
         userId: 'alice',
         role: 'agent',
         isActive: true,
-        unreadCount: 5,
         joinedAt: generateTimestamp(),
         lastSeenAt: generateTimestamp(),
         createdAt: generateTimestamp()
+      });
+
+      // Создаем UserDialogStats с unreadCount: 5
+      await UserDialogStats.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'alice',
+        unreadCount: 5
       });
     });
 
@@ -395,8 +402,8 @@ describe('dialogMemberController', () => {
       expect(res.body.data.unreadCount).toBe(0);
       expect(res.body.message).toBe('Unread count updated successfully');
 
-      const member = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'alice' }).lean();
-      expect(member.unreadCount).toBe(0);
+      const stats = await UserDialogStats.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'alice' }).lean();
+      expect(stats?.unreadCount || 0).toBe(0);
 
       const event = await Event.findOne({ tenantId, eventType: 'dialog.member.update' }).lean();
       expect(event).toBeTruthy();
@@ -754,9 +761,16 @@ describe('dialogMemberController', () => {
         userId: 'alice',
         role: 'member',
         isActive: true,
-        unreadCount: 5,
         lastSeenAt: generateTimestamp(),
         lastMessageAt: generateTimestamp()
+      });
+
+      // Создаем UserDialogStats с unreadCount: 5
+      await UserDialogStats.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'alice',
+        unreadCount: 5
       });
 
       const customLastSeenAt = generateTimestamp() + 1000;

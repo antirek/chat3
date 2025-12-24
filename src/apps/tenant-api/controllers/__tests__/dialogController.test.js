@@ -290,8 +290,15 @@ describe('dialogController.getAll - sorting modes', () => {
     });
 
     await DialogMember.create([
-      { tenantId, dialogId: dialogOne.dialogId, userId: 'alice', unreadCount: 2, isActive: true },
-      { tenantId, dialogId: dialogTwo.dialogId, userId: 'alice', unreadCount: 5, isActive: true }
+      { tenantId, dialogId: dialogOne.dialogId, userId: 'alice', isActive: true },
+      { tenantId, dialogId: dialogTwo.dialogId, userId: 'alice', isActive: true }
+    ]);
+
+    // Создаем UserDialogStats для сортировки по unreadCount
+    const { UserDialogStats } = await import('../../../../models/index.js');
+    await UserDialogStats.create([
+      { tenantId, dialogId: dialogOne.dialogId, userId: 'alice', unreadCount: 2 },
+      { tenantId, dialogId: dialogTwo.dialogId, userId: 'alice', unreadCount: 5 }
     ]);
   });
 

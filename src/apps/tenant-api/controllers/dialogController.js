@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-unused-vars
-import { Dialog, Meta, DialogMember, Event, Update } from '../../../models/index.js';
+import { Dialog, Meta, DialogMember, Event, Update, UserDialogStats } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort } from '../utils/queryParser.js';
@@ -219,6 +219,19 @@ export const dialogController = {
           tenantId: req.tenantId
         }).lean();
         
+        // Если сортировка по unreadCount, получаем данные из UserDialogStats
+        let statsMap = {};
+        if (field === 'unreadCount') {
+          const stats = await UserDialogStats.find({
+            dialogId: { $in: dialogIdsForMembers },
+            userId: userId,
+            tenantId: req.tenantId
+          }).lean();
+          stats.forEach(stat => {
+            statsMap[stat.dialogId] = stat;
+          });
+        }
+        
         // Создаем мапу участников по dialogId
         const membersMap = {};
         members.forEach(member => {
@@ -232,7 +245,13 @@ export const dialogController = {
             const member = membersMap[dialog.dialogId];
           if (member) {
             dialog.members = [member];
-            dialog.sortField = member[field] || 0;
+            // Для unreadCount используем UserDialogStats, для других полей - DialogMember
+            if (field === 'unreadCount') {
+              const stats = statsMap[dialog.dialogId];
+              dialog.sortField = stats?.unreadCount || 0;
+            } else {
+              dialog.sortField = member[field] || 0;
+            }
               return true;
           }
             return false;
@@ -251,20 +270,27 @@ export const dialogController = {
         // Используем агрегацию для сортировки по полям DialogMember (старый способ)
         const sortDirection = req.query.sortDirection === 'asc' ? 1 : -1;
         
+        // Для unreadCount используем UserDialogStats, для других полей - DialogMember
+        const lookupCollection = sortField === 'unreadCount' ? 'userdialogstats' : 'dialogmembers';
+        const lookupLocalField = sortField === 'unreadCount' ? 'dialogId' : '_id';
+        const lookupForeignField = sortField === 'unreadCount' ? 'dialogId' : 'dialogId';
+        const lookupAs = sortField === 'unreadCount' ? 'stats' : 'members';
+        const sortFieldPath = sortField === 'unreadCount' ? `$stats.${sortField}` : `$members.${sortField}`;
+        
         const pipeline = [
           { $match: query },
           {
             $lookup: {
-              from: 'dialogmembers',
-              localField: '_id',
-              foreignField: 'dialogId',
-              as: 'members'
+              from: lookupCollection,
+              localField: lookupLocalField,
+              foreignField: lookupForeignField,
+              as: lookupAs
             }
           },
-          { $unwind: '$members' },
+          { $unwind: `$${lookupAs}` },
           {
             $addFields: {
-              sortField: `$members.${sortField}`
+              sortField: sortFieldPath
             }
           },
           { $sort: { sortField: sortDirection } },
@@ -286,6 +312,11 @@ export const dialogController = {
               'members.dialogId': 0,
               'members.createdAt': 0,
               'members.updatedAt': 0,
+              'stats._id': 0,
+              'stats.tenantId': 0,
+              'stats.dialogId': 0,
+              'stats.createdAt': 0,
+              'stats.lastUpdatedAt': 0,
               sortField: 0
             }
           }

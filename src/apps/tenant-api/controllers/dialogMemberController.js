@@ -9,7 +9,8 @@ import { scheduleDialogReadTask } from '../utils/dialogReadTaskUtils.js';
 import * as userUtils from '../utils/userUtils.js';
 import { 
   updateUserStatsDialogCount,
-  finalizeCounterUpdateContext 
+  finalizeCounterUpdateContext,
+  updateUnreadCount
 } from '../utils/counterUtils.js';
 
 const dialogMemberController = {
@@ -454,7 +455,15 @@ const dialogMemberController = {
         });
       }
 
-      if (unreadCount > existingMember.unreadCount) {
+      // Получаем текущий unreadCount из UserDialogStats
+      const existingStats = await UserDialogStats.findOne({
+        tenantId: req.tenantId,
+        dialogId: dialog.dialogId,
+        userId
+      }).lean();
+      const currentUnreadCount = existingStats?.unreadCount || 0;
+
+      if (unreadCount > currentUnreadCount) {
         return res.status(400).json({
           error: 'Bad Request',
           message: 'Unread count cannot be greater than current unread count'
@@ -462,21 +471,61 @@ const dialogMemberController = {
       }
 
       const timestamp = generateTimestamp();
-      const updatePayload = {
-        unreadCount
-      };
+      const updatePayload = {};
 
       if (typeof lastSeenAt === 'number') {
         updatePayload.lastSeenAt = lastSeenAt;
-      } else if (unreadCount < existingMember.unreadCount) {
+      } else if (unreadCount < currentUnreadCount) {
         updatePayload.lastSeenAt = timestamp;
       }
 
+      // Обновляем lastSeenAt в DialogMember, если нужно
       const updatedMember = await DialogMember.findOneAndUpdate(
         memberFilter,
         updatePayload,
         { new: true, lean: true }
       );
+
+      // Обновляем unreadCount в UserDialogStats
+      const delta = unreadCount - currentUnreadCount;
+      if (delta !== 0) {
+        // Создаем событие для обновления счетчиков
+        const eventId = await eventUtils.createEvent({
+          tenantId: req.tenantId,
+          eventType: 'dialog.member.update',
+          entityType: 'dialogMember',
+          entityId: `${dialog.dialogId}:${userId}`,
+          actorId: req.apiKey?.name || 'unknown',
+          actorType: 'api',
+          data: {}
+        });
+        const sourceEventId = eventId?._id || null;
+
+        try {
+          await updateUnreadCount(
+            req.tenantId,
+            userId,
+            dialog.dialogId,
+            delta,
+            'dialog.member.update',
+            sourceEventId,
+            dialog.dialogId,
+            req.apiKey?.name || 'unknown',
+            'api'
+          );
+          await finalizeCounterUpdateContext(req.tenantId, userId, sourceEventId);
+        } catch (error) {
+          console.error(`Failed to update unread count:`, error);
+        }
+      }
+
+      // Получаем обновленный unreadCount из UserDialogStats
+      const updatedStats = await UserDialogStats.findOne({
+        tenantId: req.tenantId,
+        dialogId: dialog.dialogId,
+        userId
+      }).lean();
+      const finalUnreadCount = updatedStats?.unreadCount || 0;
 
       // Получаем метаданные диалога для события
       const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
@@ -490,7 +539,7 @@ const dialogMemberController = {
       const memberSection = eventUtils.buildMemberSection({
         userId,
         state: {
-          unreadCount: updatedMember.unreadCount,
+          unreadCount: finalUnreadCount,
           lastSeenAt: updatedMember.lastSeenAt,
           lastMessageAt: updatedMember.lastMessageAt,
         }
@@ -499,7 +548,7 @@ const dialogMemberController = {
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.member.update',
         dialogId: dialog.dialogId,
-        entityId: dialog.dialogId,
+        entityId: `${dialog.dialogId}:${userId}`,
         includedSections: ['dialog', 'member'],
         updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
       });
@@ -508,7 +557,7 @@ const dialogMemberController = {
         tenantId: req.tenantId,
         eventType: 'dialog.member.update',
         entityType: 'dialogMember',
-        entityId: dialog.dialogId,
+        entityId: `${dialog.dialogId}:${userId}`,
         actorId: req.apiKey?.name || 'unknown',
         actorType: 'api',
         data: eventUtils.composeEventData({
@@ -518,15 +567,15 @@ const dialogMemberController = {
           extra: {
             delta: {
               unreadCount: {
-                from: existingMember.unreadCount,
-                to: updatedMember.unreadCount
+                from: currentUnreadCount,
+                to: finalUnreadCount
               }
             }
           }
         })
       });
 
-      if (updatedMember.unreadCount === 0) {
+      if (finalUnreadCount === 0) {
         await scheduleDialogReadTask({
           tenantId: req.tenantId,
           dialogId: dialog.dialogId,
@@ -537,7 +586,10 @@ const dialogMemberController = {
       }
 
       return res.json({
-        data: sanitizeResponse(updatedMember),
+        data: sanitizeResponse({
+          ...updatedMember,
+          unreadCount: finalUnreadCount
+        }),
         message: 'Unread count updated successfully'
       });
     } catch (error) {

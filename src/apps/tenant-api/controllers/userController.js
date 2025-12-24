@@ -1,4 +1,4 @@
-import { User, DialogMember, Meta } from '../../../models/index.js';
+import { User, DialogMember, Meta, UserStats } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
@@ -146,31 +146,17 @@ export async function getUsers(req, res) {
     if (users.length > 0) {
       const userIds = users.map(user => user.userId);
       
-      // Вычисляем общее количество активных диалогов и диалогов с непрочитанными сообщениями
-      const aggregationResults = await DialogMember.aggregate([
-        {
-          $match: {
-            tenantId: req.tenantId,
-            userId: { $in: userIds }
-          }
-        },
-        {
-          $group: {
-            _id: '$userId',
-            dialogCount: { $sum: 1 },
-            unreadDialogsCount: {
-              $sum: {
-                $cond: [{ $gt: ['$unreadCount', 0] }, 1, 0]
-              }
-            }
-          }
-        }
-      ]);
+      // Получаем статистику из UserStats
+      const { UserStats } = await import('../../../models/index.js');
+      const userStatsList = await UserStats.find({
+        tenantId: req.tenantId,
+        userId: { $in: userIds }
+      }).lean();
 
       const dialogCountsByUser = new Map(
-        aggregationResults.map(({ _id, dialogCount, unreadDialogsCount }) => [
-          _id,
-          { dialogCount, unreadDialogsCount }
+        userStatsList.map((stats) => [
+          stats.userId,
+          { dialogCount: stats.dialogCount || 0, unreadDialogsCount: stats.unreadDialogsCount || 0 }
         ])
       );
 
@@ -224,29 +210,14 @@ export async function getUserById(req, res) {
     if (!user) {
       // Fallback: если пользователя нет в User модели, но есть meta теги, возвращаем их
       if (userMeta && Object.keys(userMeta).length > 0) {
-        // Вычисляем количество диалогов даже для fallback случая
-        const aggregationResults = await DialogMember.aggregate([
-          {
-            $match: {
-              tenantId: req.tenantId,
-              userId: userId
-            }
-          },
-          {
-            $group: {
-              _id: '$userId',
-              dialogCount: { $sum: 1 },
-              unreadDialogsCount: {
-                $sum: {
-                  $cond: [{ $gt: ['$unreadCount', 0] }, 1, 0]
-                }
-              }
-            }
-          }
-        ]);
+        // Получаем статистику из UserStats
+        const userStats = await UserStats.findOne({
+          tenantId: req.tenantId,
+          userId: userId
+        }).lean();
 
-        const counts = aggregationResults.length > 0 
-          ? { dialogCount: aggregationResults[0].dialogCount, unreadDialogsCount: aggregationResults[0].unreadDialogsCount }
+        const counts = userStats 
+          ? { dialogCount: userStats.dialogCount || 0, unreadDialogsCount: userStats.unreadDialogsCount || 0 }
           : { dialogCount: 0, unreadDialogsCount: 0 };
 
         return res.json({
@@ -268,29 +239,14 @@ export async function getUserById(req, res) {
       });
     }
 
-    // Вычисляем количество диалогов для пользователя
-    const aggregationResults = await DialogMember.aggregate([
-      {
-        $match: {
-          tenantId: req.tenantId,
-          userId: userId
-        }
-      },
-      {
-        $group: {
-          _id: '$userId',
-          dialogCount: { $sum: 1 },
-          unreadDialogsCount: {
-            $sum: {
-              $cond: [{ $gt: ['$unreadCount', 0] }, 1, 0]
-            }
-          }
-        }
-      }
-    ]);
+    // Получаем статистику из UserStats
+    const userStats = await UserStats.findOne({
+      tenantId: req.tenantId,
+      userId: userId
+    }).lean();
 
-    const counts = aggregationResults.length > 0 
-      ? { dialogCount: aggregationResults[0].dialogCount, unreadDialogsCount: aggregationResults[0].unreadDialogsCount }
+    const counts = userStats 
+      ? { dialogCount: userStats.dialogCount || 0, unreadDialogsCount: userStats.unreadDialogsCount || 0 }
       : { dialogCount: 0, unreadDialogsCount: 0 };
 
     // Пользователь существует, обогащаем мета-тегами и данными о диалогах

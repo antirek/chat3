@@ -1,4 +1,4 @@
-import { DialogMember, MessageStatus, Message } from '../../../models/index.js';
+import { DialogMember, MessageStatus, Message, UserDialogStats } from '../../../models/index.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
@@ -7,6 +7,7 @@ import { generateTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
  * Увеличить счетчик непрочитанных сообщений для участника диалога
+ * @deprecated Используйте counterUtils.updateUnreadCount вместо этой функции
  * @param {String} tenantId - ID организации
  * @param {String} userId - ID пользователя
  * @param {String} dialogId - ID диалога
@@ -15,6 +16,7 @@ import { generateTimestamp } from '../../../utils/timestampUtils.js';
  */
 export async function incrementUnreadCount(tenantId, userId, dialogId, _messageId = null, createIfNotExists = false) {
   try {
+    // Обновляем lastMessageAt в DialogMember
     const filter = {
       userId,
       tenantId,
@@ -22,7 +24,6 @@ export async function incrementUnreadCount(tenantId, userId, dialogId, _messageI
     };
 
     const updateData = {
-      $inc: { unreadCount: 1 },
       lastMessageAt: generateTimestamp()
     };
 
@@ -42,6 +43,13 @@ export async function incrementUnreadCount(tenantId, userId, dialogId, _messageI
       return null;
     }
 
+    // Обновляем unreadCount в UserDialogStats
+    await UserDialogStats.findOneAndUpdate(
+      { tenantId, userId, dialogId },
+      { $inc: { unreadCount: 1 } },
+      { upsert: true, new: true }
+    );
+
     console.log(`✅ Incremented unread count for user ${userId} in dialog ${dialogId}`);
     return result; // Возвращаем обновленный DialogMember
   } catch (error) {
@@ -52,6 +60,7 @@ export async function incrementUnreadCount(tenantId, userId, dialogId, _messageI
 
 /**
  * Уменьшить счетчик непрочитанных сообщений для участника диалога
+ * @deprecated Используйте counterUtils.updateUnreadCount вместо этой функции
  * @param {String} tenantId - ID организации
  * @param {String} userId - ID пользователя
  * @param {String} dialogId - ID диалога
@@ -59,29 +68,28 @@ export async function incrementUnreadCount(tenantId, userId, dialogId, _messageI
  */
 export async function decrementUnreadCount(tenantId, userId, dialogId, count = 1) {
   try {
-    const filter = {
-      userId,
-      tenantId,
-      dialogId
-    };
+    // Обновляем lastSeenAt в DialogMember
+    await DialogMember.findOneAndUpdate(
+      { userId, tenantId, dialogId },
+      { $set: { lastSeenAt: generateTimestamp() } }
+    );
 
-    // Убеждаемся, что счетчик не станет отрицательным
-    const result = await DialogMember.findOneAndUpdate(
-      filter,
+    // Обновляем unreadCount в UserDialogStats с защитой от отрицательных значений
+    const stats = await UserDialogStats.findOneAndUpdate(
+      { tenantId, userId, dialogId },
       [
         {
           $set: {
             unreadCount: {
               $max: [0, { $add: ['$unreadCount', -count] }]
-            },
-            lastSeenAt: generateTimestamp()
+            }
           }
         }
       ],
-      { new: true }
+      { upsert: true, new: true }
     );
 
-    if (result) {
+    if (stats) {
       console.log(`✅ Decremented unread count for user ${userId} in dialog ${dialogId}`);
     }
   } catch (error) {
@@ -92,24 +100,24 @@ export async function decrementUnreadCount(tenantId, userId, dialogId, count = 1
 
 /**
  * Сбросить счетчик непрочитанных сообщений для участника диалога
+ * @deprecated Используйте counterUtils.updateUnreadCount вместо этой функции
  * @param {String} tenantId - ID организации
  * @param {String} userId - ID пользователя
  * @param {String} dialogId - ID диалога
  */
 export async function resetUnreadCount(tenantId, userId, dialogId) {
   try {
-    const filter = {
-      userId,
-      tenantId,
-      dialogId
-    };
-
+    // Обновляем lastSeenAt в DialogMember
     await DialogMember.findOneAndUpdate(
-      filter,
-      {
-        unreadCount: 0,
-        lastSeenAt: generateTimestamp()
-      },
+      { userId, tenantId, dialogId },
+      { $set: { lastSeenAt: generateTimestamp() } },
+      { upsert: true, new: true }
+    );
+
+    // Сбрасываем unreadCount в UserDialogStats
+    await UserDialogStats.findOneAndUpdate(
+      { tenantId, userId, dialogId },
+      { $set: { unreadCount: 0 } },
       { upsert: true, new: true }
     );
 
@@ -135,8 +143,11 @@ export async function getUnreadCount(tenantId, userId, dialogId) {
       dialogId
     };
 
-    const result = await DialogMember.findOne(filter);
-    return result ? result.unreadCount : 0;
+    // unreadCount теперь хранится в UserDialogStats, не в DialogMember
+    // Эта функция устарела, используйте counterUtils.getUnreadCount или UserDialogStats напрямую
+    const { UserDialogStats } = await import('../../../models/index.js');
+    const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+    return stats ? stats.unreadCount : 0;
   } catch (error) {
     console.error('Error getting unread count:', error);
     return 0;
@@ -145,6 +156,7 @@ export async function getUnreadCount(tenantId, userId, dialogId) {
 
 /**
  * Синхронизировать счетчики с реальными данными MessageStatus
+ * @deprecated Используйте counterUtils.recalculateUserStats вместо этой функции
  * @param {String} tenantId - ID организации
  * @param {String} userId - ID пользователя
  * @param {String} dialogId - ID диалога
@@ -163,17 +175,17 @@ export async function syncUnreadCount(tenantId, userId, dialogId) {
       status: 'unread'
     });
 
-    // Обновляем счетчик
+    // Обновляем lastSeenAt в DialogMember
     await DialogMember.findOneAndUpdate(
-      {
-        userId,
-        tenantId,
-        dialogId
-      },
-      {
-        unreadCount: realCount,
-        lastSeenAt: generateTimestamp()
-      },
+      { userId, tenantId, dialogId },
+      { $set: { lastSeenAt: generateTimestamp() } },
+      { upsert: true, new: true }
+    );
+
+    // Обновляем счетчик в UserDialogStats
+    await UserDialogStats.findOneAndUpdate(
+      { tenantId, userId, dialogId },
+      { $set: { unreadCount: realCount } },
       { upsert: true, new: true }
     );
 
@@ -215,25 +227,22 @@ export async function updateCountersOnStatusChange(tenantId, _messageId, userId,
     // Декремент счетчика только при переходе в статус 'read' и если ранее не был 'read'
     if (oldStatus !== 'read' && newStatus === 'read') {
       // Сообщение было непрочитанным/доставленным, теперь прочитано
-      const filter = {
-        userId,
-        tenantId,
-        dialogId,
-        unreadCount: { $gt: 0 } // Декрементируем только если счетчик > 0
-      };
-
-      const updatedMember = await DialogMember.findOneAndUpdate(
-        filter,
-        {
-          $inc: { unreadCount: -1 },
-          lastSeenAt: generateTimestamp()
-        },
-        { new: true }
+      // Обновляем lastSeenAt в DialogMember
+      await DialogMember.findOneAndUpdate(
+        { userId, tenantId, dialogId },
+        { $set: { lastSeenAt: generateTimestamp() } }
       );
 
-      if (updatedMember) {
+      // Декрементируем unreadCount в UserDialogStats только если счетчик > 0
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
+      if (stats && stats.unreadCount > 0) {
+        await UserDialogStats.findOneAndUpdate(
+          { tenantId, userId, dialogId },
+          { $inc: { unreadCount: -1 } },
+          { new: true }
+        );
         console.log(`✅ Decremented unread count for user ${userId} in dialog ${dialogId}: ${oldStatus || 'null'} -> ${newStatus}`);
-        return updatedMember;
+        return { userId, dialogId }; // Возвращаем объект для совместимости
       } else {
         console.log(`ℹ️ No decrement for user ${userId} in dialog ${dialogId} (count is 0 or member not found)`);
         return null;
@@ -260,7 +269,6 @@ export async function addDialogMember(tenantId, userId, dialogId) {
       userId,
       tenantId,
       dialogId,
-      unreadCount: 0,
       lastSeenAt: generateTimestamp(),
     });
 
