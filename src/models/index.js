@@ -14,6 +14,7 @@ import DialogReadTask from './operational/DialogReadTask.js';
 import CounterHistory from './operational/CounterHistory.js';
 import UserStats from './stats/UserStats.js';
 import UserDialogStats from './stats/UserDialogStats.js';
+import UserDialogActivity from './stats/UserDialogActivity.js';
 import MessageReactionStats from './stats/MessageReactionStats.js';
 import MessageStatusStats from './stats/MessageStatusStats.js';
 
@@ -34,6 +35,7 @@ export {
   CounterHistory,
   UserStats,
   UserDialogStats,
+  UserDialogActivity,
   MessageReactionStats,
   MessageStatusStats
 };

@@ -1,4 +1,4 @@
-import { Dialog, DialogMember, Meta, UserDialogStats } from '../../../models/index.js';
+import { Dialog, DialogMember, Meta, UserDialogStats, UserDialogActivity } from '../../../models/index.js';
 import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
@@ -83,12 +83,19 @@ const dialogMemberController = {
         meta: dialogMeta || {}
       });
 
+      // Получаем активность из UserDialogActivity
+      const activity = await UserDialogActivity.findOne({
+        tenantId: req.tenantId,
+        userId: member.userId,
+        dialogId: dialog.dialogId
+      }).lean();
+
       const memberSection = eventUtils.buildMemberSection({
         userId: member.userId,
         state: {
           unreadCount: unreadCount, // Используем unreadCount из UserDialogStats
-          lastSeenAt: member.lastSeenAt,
-          lastMessageAt: member.lastMessageAt
+          lastSeenAt: activity?.lastSeenAt || 0,
+          lastMessageAt: activity?.lastMessageAt || 0
         }
       });
 
@@ -433,7 +440,7 @@ const dialogMemberController = {
       // eslint-disable-next-line no-unused-vars
       const { unreadCount, lastSeenAt, reason } = req.body;
 
-      const dialog = await Dialog.findOne({ dialogId, tenantId: req.tenantId }).select('dialogId');
+      const dialog = await Dialog.findOne({ dialogId, tenantId: req.tenantId });
       if (!dialog) {
         return res.status(404).json({
           error: 'Not Found',
@@ -471,20 +478,53 @@ const dialogMemberController = {
       }
 
       const timestamp = generateTimestamp();
-      const updatePayload = {};
+      let lastSeenAtValue = null;
 
       if (typeof lastSeenAt === 'number') {
-        updatePayload.lastSeenAt = lastSeenAt;
+        lastSeenAtValue = lastSeenAt;
       } else if (unreadCount < currentUnreadCount) {
-        updatePayload.lastSeenAt = timestamp;
+        lastSeenAtValue = timestamp;
       }
 
-      // Обновляем lastSeenAt в DialogMember, если нужно
-      const updatedMember = await DialogMember.findOneAndUpdate(
-        memberFilter,
-        updatePayload,
-        { new: true, lean: true }
-      );
+      // Обновляем lastSeenAt в UserDialogActivity, если нужно
+      if (lastSeenAtValue !== null) {
+        await UserDialogActivity.findOneAndUpdate(
+          {
+            tenantId: req.tenantId,
+            userId,
+            dialogId: dialog.dialogId
+          },
+          { lastSeenAt: lastSeenAtValue },
+          { upsert: true, new: true }
+        );
+      }
+
+      // Получаем или создаем активность
+      let updatedActivity = await UserDialogActivity.findOne({
+        tenantId: req.tenantId,
+        userId,
+        dialogId: dialog.dialogId
+      }).lean();
+      
+      // Если активности нет, создаем её с дефолтными значениями
+      if (!updatedActivity) {
+        const defaultTimestamp = generateTimestamp();
+        updatedActivity = await UserDialogActivity.findOneAndUpdate(
+          {
+            tenantId: req.tenantId,
+            userId,
+            dialogId: dialog.dialogId
+          },
+          {
+            tenantId: req.tenantId,
+            userId,
+            dialogId: dialog.dialogId,
+            lastSeenAt: defaultTimestamp,
+            lastMessageAt: defaultTimestamp
+          },
+          { upsert: true, new: true }
+        ).lean();
+      }
 
       // Обновляем unreadCount в UserDialogStats
       const delta = unreadCount - currentUnreadCount;
@@ -540,8 +580,8 @@ const dialogMemberController = {
         userId,
         state: {
           unreadCount: finalUnreadCount,
-          lastSeenAt: updatedMember.lastSeenAt,
-          lastMessageAt: updatedMember.lastMessageAt,
+          lastSeenAt: updatedActivity?.lastSeenAt || 0,
+          lastMessageAt: updatedActivity?.lastMessageAt || 0,
         }
       });
 
@@ -580,15 +620,19 @@ const dialogMemberController = {
           tenantId: req.tenantId,
           dialogId: dialog.dialogId,
           userId,
-          readUntil: updatedMember.lastSeenAt,
+          readUntil: updatedActivity?.lastSeenAt || 0,
           source: 'api.setUnreadCount'
         });
       }
 
       return res.json({
         data: sanitizeResponse({
-          ...updatedMember,
-          unreadCount: finalUnreadCount
+          userId: existingMember.userId,
+          dialogId: existingMember.dialogId,
+          tenantId: existingMember.tenantId,
+          unreadCount: finalUnreadCount,
+          lastSeenAt: updatedActivity?.lastSeenAt || 0,
+          lastMessageAt: updatedActivity?.lastMessageAt || 0
         }),
         message: 'Unread count updated successfully'
       });

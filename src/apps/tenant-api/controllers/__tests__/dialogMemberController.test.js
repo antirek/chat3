@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import dialogMemberController from '../dialogMemberController.js';
-import { Tenant, Dialog, DialogMember, Meta, User, DialogReadTask, Event, UserDialogStats } from "../../../../models/index.js";
+import { Tenant, Dialog, DialogMember, Meta, User, DialogReadTask, Event, UserDialogStats, UserDialogActivity } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
@@ -73,35 +73,65 @@ describe('dialogMemberController', () => {
         {
           tenantId,
           dialogId: dialog.dialogId,
+          userId: 'alice'
+        },
+        {
+          tenantId,
+          dialogId: dialog.dialogId,
+          userId: 'bob'
+        },
+        {
+          tenantId,
+          dialogId: dialog.dialogId,
+          userId: 'carol'
+        }
+      ]);
+
+      // Создаем UserDialogStats
+      await UserDialogStats.create([
+        {
+          tenantId,
+          dialogId: dialog.dialogId,
           userId: 'alice',
-          role: 'agent',
-          isActive: true,
-          unreadCount: 3,
-          joinedAt: generateTimestamp(),
-          lastSeenAt: generateTimestamp(),
-          lastMessageAt: generateTimestamp()
+          unreadCount: 3
         },
         {
           tenantId,
           dialogId: dialog.dialogId,
           userId: 'bob',
-          role: 'supervisor',
-          isActive: false,
-          unreadCount: 0,
-          joinedAt: generateTimestamp(),
-          lastSeenAt: generateTimestamp(),
-          lastMessageAt: generateTimestamp()
+          unreadCount: 0
         },
         {
           tenantId,
           dialogId: dialog.dialogId,
           userId: 'carol',
-          role: 'agent',
-          isActive: true,
-          unreadCount: 1,
-          joinedAt: generateTimestamp(),
-          lastSeenAt: generateTimestamp(),
-          lastMessageAt: generateTimestamp()
+          unreadCount: 1
+        }
+      ]);
+
+      // Создаем UserDialogActivity
+      const timestamp = generateTimestamp();
+      await UserDialogActivity.create([
+        {
+          tenantId,
+          dialogId: dialog.dialogId,
+          userId: 'alice',
+          lastSeenAt: timestamp,
+          lastMessageAt: timestamp
+        },
+        {
+          tenantId,
+          dialogId: dialog.dialogId,
+          userId: 'bob',
+          lastSeenAt: timestamp,
+          lastMessageAt: timestamp
+        },
+        {
+          tenantId,
+          dialogId: dialog.dialogId,
+          userId: 'carol',
+          lastSeenAt: timestamp,
+          lastMessageAt: timestamp
         }
       ]);
 
@@ -544,12 +574,23 @@ describe('dialogMemberController', () => {
       await DialogMember.create({
         tenantId,
         dialogId: dialog.dialogId,
+        userId: 'alice'
+      });
+
+      await UserDialogStats.create({
+        tenantId,
+        dialogId: dialog.dialogId,
         userId: 'alice',
-        role: 'member',
-        isActive: true,
-        unreadCount: 0,
-        lastSeenAt: generateTimestamp(),
-        lastMessageAt: generateTimestamp()
+        unreadCount: 0
+      });
+
+      const timestamp = generateTimestamp();
+      await UserDialogActivity.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'alice',
+        lastSeenAt: timestamp,
+        lastMessageAt: timestamp
       });
 
       // Create meta for a different user
@@ -650,12 +691,23 @@ describe('dialogMemberController', () => {
       await DialogMember.create({
         tenantId,
         dialogId: dialog.dialogId,
+        userId: 'alice'
+      });
+
+      await UserDialogStats.create({
+        tenantId,
+        dialogId: dialog.dialogId,
         userId: 'alice',
-        role: 'member',
-        isActive: true,
-        unreadCount: 0,
-        lastSeenAt: generateTimestamp(),
-        lastMessageAt: generateTimestamp()
+        unreadCount: 0
+      });
+
+      const timestamp = generateTimestamp();
+      await UserDialogActivity.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'alice',
+        lastSeenAt: timestamp,
+        lastMessageAt: timestamp
       });
 
       const req = createMockReq(
@@ -758,11 +810,16 @@ describe('dialogMemberController', () => {
       const member = await DialogMember.create({
         tenantId,
         dialogId: dialog.dialogId,
+        userId: 'alice'
+      });
+
+      const timestamp = generateTimestamp();
+      await UserDialogActivity.create({
+        tenantId,
+        dialogId: dialog.dialogId,
         userId: 'alice',
-        role: 'member',
-        isActive: true,
-        lastSeenAt: generateTimestamp(),
-        lastMessageAt: generateTimestamp()
+        lastSeenAt: timestamp,
+        lastMessageAt: timestamp
       });
 
       // Создаем UserDialogStats с unreadCount: 5

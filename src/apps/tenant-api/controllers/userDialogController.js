@@ -4,6 +4,7 @@ import {
   // MessageReaction, 
   User,
   UserDialogStats,
+  UserDialogActivity,
   UserStats
 } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
@@ -388,13 +389,14 @@ const userDialogController = {
       // Но если есть dialogId в regularFilters, обрабатываем его отдельно
       const { dialogId: regularDialogId, ...otherRegularFilters } = regularFilters;
       
-      // Применяем другие regularFilters к dialogMembersQuery (lastSeenAt, lastMessageAt)
+      // Применяем другие regularFilters к dialogMembersQuery
+      // lastSeenAt и lastMessageAt теперь в UserDialogActivity, обрабатываем отдельно
       // unreadCount теперь в UserDialogStats, обрабатываем отдельно
       if (Object.keys(otherRegularFilters).length > 0) {
-        // Применяем фильтры для полей DialogMember (кроме unreadCount)
-        const allowedFields = ['lastSeenAt', 'lastMessageAt'];
+        // Применяем фильтры для полей DialogMember (кроме unreadCount, lastSeenAt, lastMessageAt)
+        const excludedFields = ['unreadCount', 'lastSeenAt', 'lastMessageAt'];
         for (const [field, condition] of Object.entries(otherRegularFilters)) {
-          if (allowedFields.includes(field)) {
+          if (!excludedFields.includes(field)) {
             dialogMembersQuery[field] = condition;
             console.log(`Applied regular filter ${field}:`, condition);
           }
@@ -454,21 +456,62 @@ const userDialogController = {
         console.log('unreadCount filter:', unreadCountFilter);
       }
       
-      if (req.query.lastSeenAt !== undefined) {
+      // Фильтры по lastSeenAt и lastMessageAt обрабатываются через UserDialogActivity
+      let activityFilter = null;
+      if (req.query.lastSeenAt !== undefined || otherRegularFilters.lastSeenAt !== undefined) {
+        const lastSeenAtValue = req.query.lastSeenAt !== undefined 
+          ? req.query.lastSeenAt 
+          : otherRegularFilters.lastSeenAt;
+        
+        if (!activityFilter) activityFilter = {};
+        
         // Поддержка операторов для lastSeenAt
-        const lastSeenAtValue = req.query.lastSeenAt;
-        if (lastSeenAtValue.startsWith('gt:')) {
-          dialogMembersQuery.lastSeenAt = { $gt: new Date(lastSeenAtValue.substring(3)) };
-        } else if (lastSeenAtValue.startsWith('gte:')) {
-          dialogMembersQuery.lastSeenAt = { $gte: new Date(lastSeenAtValue.substring(4)) };
-        } else if (lastSeenAtValue.startsWith('lt:')) {
-          dialogMembersQuery.lastSeenAt = { $lt: new Date(lastSeenAtValue.substring(3)) };
-        } else if (lastSeenAtValue.startsWith('lte:')) {
-          dialogMembersQuery.lastSeenAt = { $lte: new Date(lastSeenAtValue.substring(4)) };
+        if (typeof lastSeenAtValue === 'string') {
+          if (lastSeenAtValue.startsWith('gt:')) {
+            activityFilter.lastSeenAt = { $gt: parseInt(lastSeenAtValue.substring(3)) };
+          } else if (lastSeenAtValue.startsWith('gte:')) {
+            activityFilter.lastSeenAt = { $gte: parseInt(lastSeenAtValue.substring(4)) };
+          } else if (lastSeenAtValue.startsWith('lt:')) {
+            activityFilter.lastSeenAt = { $lt: parseInt(lastSeenAtValue.substring(3)) };
+          } else if (lastSeenAtValue.startsWith('lte:')) {
+            activityFilter.lastSeenAt = { $lte: parseInt(lastSeenAtValue.substring(4)) };
+          } else {
+            activityFilter.lastSeenAt = parseInt(lastSeenAtValue);
+          }
+        } else if (typeof lastSeenAtValue === 'object' && lastSeenAtValue !== null) {
+          activityFilter.lastSeenAt = lastSeenAtValue;
         } else {
-          dialogMembersQuery.lastSeenAt = new Date(lastSeenAtValue);
+          activityFilter.lastSeenAt = lastSeenAtValue;
         }
-        console.log('Applied lastSeenAt filter:', dialogMembersQuery.lastSeenAt);
+        console.log('Applied lastSeenAt filter to activity:', activityFilter.lastSeenAt);
+      }
+      
+      if (req.query.lastMessageAt !== undefined || otherRegularFilters.lastMessageAt !== undefined) {
+        const lastMessageAtValue = req.query.lastMessageAt !== undefined 
+          ? req.query.lastMessageAt 
+          : otherRegularFilters.lastMessageAt;
+        
+        if (!activityFilter) activityFilter = {};
+        
+        // Поддержка операторов для lastMessageAt
+        if (typeof lastMessageAtValue === 'string') {
+          if (lastMessageAtValue.startsWith('gt:')) {
+            activityFilter.lastMessageAt = { $gt: parseInt(lastMessageAtValue.substring(3)) };
+          } else if (lastMessageAtValue.startsWith('gte:')) {
+            activityFilter.lastMessageAt = { $gte: parseInt(lastMessageAtValue.substring(4)) };
+          } else if (lastMessageAtValue.startsWith('lt:')) {
+            activityFilter.lastMessageAt = { $lt: parseInt(lastMessageAtValue.substring(3)) };
+          } else if (lastMessageAtValue.startsWith('lte:')) {
+            activityFilter.lastMessageAt = { $lte: parseInt(lastMessageAtValue.substring(4)) };
+          } else {
+            activityFilter.lastMessageAt = parseInt(lastMessageAtValue);
+          }
+        } else if (typeof lastMessageAtValue === 'object' && lastMessageAtValue !== null) {
+          activityFilter.lastMessageAt = lastMessageAtValue;
+        } else {
+          activityFilter.lastMessageAt = lastMessageAtValue;
+        }
+        console.log('Applied lastMessageAt filter to activity:', activityFilter.lastMessageAt);
       }
 
       // Если есть фильтрация по meta или по участникам, ограничиваем выборку
@@ -517,9 +560,66 @@ const userDialogController = {
       }
 
       console.log('Final dialogMembersQuery:', JSON.stringify(dialogMembersQuery, null, 2));
-      let dialogMembers = await DialogMember.find(dialogMembersQuery)
-        .sort({ lastSeenAt: -1 }) // Sort by last seen (most recent first)
-        .lean();
+      
+      // Используем aggregation для получения DialogMember с данными из UserDialogActivity
+      const aggregationPipeline = [
+        { $match: dialogMembersQuery },
+        {
+          $lookup: {
+            from: 'userdialogactivities',
+            let: { memberUserId: '$userId', memberDialogId: '$dialogId' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$tenantId', req.tenantId] },
+                      { $eq: ['$userId', '$$memberUserId'] },
+                      { $eq: ['$dialogId', '$$memberDialogId'] }
+                    ]
+                  }
+                }
+              }
+            ],
+            as: 'activity'
+          }
+        },
+        {
+          $unwind: {
+            path: '$activity',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $addFields: {
+            lastSeenAt: { $ifNull: ['$activity.lastSeenAt', 0] },
+            lastMessageAt: { $ifNull: ['$activity.lastMessageAt', 0] }
+          }
+        }
+      ];
+      
+      // Если есть фильтр по активности, добавляем его после lookup
+      if (activityFilter !== null) {
+        const activityMatch = {
+          $or: []
+        };
+        
+        if (activityFilter.lastSeenAt) {
+          activityMatch.$or.push({ 'activity.lastSeenAt': activityFilter.lastSeenAt });
+        }
+        if (activityFilter.lastMessageAt) {
+          activityMatch.$or.push({ 'activity.lastMessageAt': activityFilter.lastMessageAt });
+        }
+        
+        if (activityMatch.$or.length > 0) {
+          aggregationPipeline.push({ $match: activityMatch });
+        }
+      }
+      
+      // Сортировка по lastSeenAt (из activity)
+      aggregationPipeline.push({ $sort: { lastSeenAt: -1 } });
+      
+      let dialogMembers = await DialogMember.aggregate(aggregationPipeline);
       
       console.log('Found dialogMembers:', dialogMembers.length);
       
@@ -1490,8 +1590,8 @@ const userDialogController = {
         dialogId: dialogId
       }).lean();
 
-      // Получаем DialogMember для других полей (lastSeenAt, lastMessageAt)
-      const dialogMember = await DialogMember.findOne({
+      // Получаем активность из UserDialogActivity для lastSeenAt и lastMessageAt
+      const dialogActivity = await UserDialogActivity.findOne({
         tenantId: req.tenantId,
         userId: userId,
         dialogId: dialogId
@@ -1508,9 +1608,9 @@ const userDialogController = {
           userId,
           state: {
             unreadCount: updatedUserDialogStats.unreadCount, // Используем из UserDialogStats
-            lastSeenAt: dialogMember?.lastSeenAt || null,
-            lastMessageAt: dialogMember?.lastMessageAt || null,
-            isActive: dialogMember?.isActive || true
+            lastSeenAt: dialogActivity?.lastSeenAt || null,
+            lastMessageAt: dialogActivity?.lastMessageAt || null,
+            isActive: true
           }
         });
 

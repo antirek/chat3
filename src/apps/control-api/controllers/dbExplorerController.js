@@ -15,6 +15,7 @@ import {
   DialogReadTask,
   UserStats,
   UserDialogStats,
+  UserDialogActivity,
   MessageReactionStats,
   MessageStatusStats,
   CounterHistory
@@ -38,6 +39,7 @@ const MODELS_MAP = {
   'DialogReadTask': DialogReadTask,
   'UserStats': UserStats,
   'UserDialogStats': UserDialogStats,
+  'UserDialogActivity': UserDialogActivity,
   'MessageReactionStats': MessageReactionStats,
   'MessageStatusStats': MessageStatusStats,
   'CounterHistory': CounterHistory
@@ -49,7 +51,7 @@ const MODEL_CATEGORIES = {
   'Чаты': ['Dialog', 'DialogMember', 'Message', 'MessageStatus', 'MessageReaction', 'Meta'],
   'События': ['Event', 'Update'],
   'Журналы': ['ApiJournal', 'DialogReadTask'],
-  'Счетчики': ['UserStats', 'UserDialogStats', 'MessageReactionStats', 'MessageStatusStats', 'CounterHistory']
+  'Счетчики': ['UserStats', 'UserDialogStats', 'UserDialogActivity', 'MessageReactionStats', 'MessageStatusStats', 'CounterHistory']
 };
 
 // Список доступных моделей

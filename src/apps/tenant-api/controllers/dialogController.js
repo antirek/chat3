@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-unused-vars
-import { Dialog, Meta, DialogMember, Event, Update, UserDialogStats } from '../../../models/index.js';
+import { Dialog, Meta, DialogMember, Event, Update, UserDialogStats, UserDialogActivity } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort } from '../utils/queryParser.js';
@@ -220,7 +220,9 @@ export const dialogController = {
         }).lean();
         
         // Если сортировка по unreadCount, получаем данные из UserDialogStats
+        // Если сортировка по lastSeenAt или lastMessageAt, получаем данные из UserDialogActivity
         let statsMap = {};
+        let activityMap = {};
         if (field === 'unreadCount') {
           const stats = await UserDialogStats.find({
             dialogId: { $in: dialogIdsForMembers },
@@ -229,6 +231,15 @@ export const dialogController = {
           }).lean();
           stats.forEach(stat => {
             statsMap[stat.dialogId] = stat;
+          });
+        } else if (field === 'lastSeenAt' || field === 'lastMessageAt') {
+          const activities = await UserDialogActivity.find({
+            dialogId: { $in: dialogIdsForMembers },
+            userId: userId,
+            tenantId: req.tenantId
+          }).lean();
+          activities.forEach(activity => {
+            activityMap[activity.dialogId] = activity;
           });
         }
         
@@ -245,10 +256,13 @@ export const dialogController = {
             const member = membersMap[dialog.dialogId];
           if (member) {
             dialog.members = [member];
-            // Для unreadCount используем UserDialogStats, для других полей - DialogMember
+            // Для unreadCount используем UserDialogStats, для lastSeenAt/lastMessageAt - UserDialogActivity, для других полей - DialogMember
             if (field === 'unreadCount') {
               const stats = statsMap[dialog.dialogId];
               dialog.sortField = stats?.unreadCount || 0;
+            } else if (field === 'lastSeenAt' || field === 'lastMessageAt') {
+              const activity = activityMap[dialog.dialogId];
+              dialog.sortField = activity?.[field] || 0;
             } else {
               dialog.sortField = member[field] || 0;
             }
@@ -270,12 +284,27 @@ export const dialogController = {
         // Используем агрегацию для сортировки по полям DialogMember (старый способ)
         const sortDirection = req.query.sortDirection === 'asc' ? 1 : -1;
         
-        // Для unreadCount используем UserDialogStats, для других полей - DialogMember
-        const lookupCollection = sortField === 'unreadCount' ? 'userdialogstats' : 'dialogmembers';
-        const lookupLocalField = sortField === 'unreadCount' ? 'dialogId' : '_id';
-        const lookupForeignField = sortField === 'unreadCount' ? 'dialogId' : 'dialogId';
-        const lookupAs = sortField === 'unreadCount' ? 'stats' : 'members';
-        const sortFieldPath = sortField === 'unreadCount' ? `$stats.${sortField}` : `$members.${sortField}`;
+        // Для unreadCount используем UserDialogStats, для lastSeenAt/lastMessageAt - UserDialogActivity, для других полей - DialogMember
+        let lookupCollection, lookupLocalField, lookupForeignField, lookupAs, sortFieldPath;
+        if (sortField === 'unreadCount') {
+          lookupCollection = 'userdialogstats';
+          lookupLocalField = 'dialogId';
+          lookupForeignField = 'dialogId';
+          lookupAs = 'stats';
+          sortFieldPath = `$stats.${sortField}`;
+        } else if (sortField === 'lastSeenAt' || sortField === 'lastMessageAt') {
+          lookupCollection = 'userdialogactivities';
+          lookupLocalField = 'dialogId';
+          lookupForeignField = 'dialogId';
+          lookupAs = 'activity';
+          sortFieldPath = `$activity.${sortField}`;
+        } else {
+          lookupCollection = 'dialogmembers';
+          lookupLocalField = '_id';
+          lookupForeignField = 'dialogId';
+          lookupAs = 'members';
+          sortFieldPath = `$members.${sortField}`;
+        }
         
         const pipeline = [
           { $match: query },
@@ -596,13 +625,26 @@ export const dialogController = {
             dialog.dialogId
           );
 
+          // Получаем данные из UserDialogStats и UserDialogActivity для нового участника
+          const memberStats = await UserDialogStats.findOne({
+            tenantId: req.tenantId,
+            userId: member.userId,
+            dialogId: dialog.dialogId
+          }).lean();
+          
+          const memberActivity = await UserDialogActivity.findOne({
+            tenantId: req.tenantId,
+            userId: member.userId,
+            dialogId: dialog.dialogId
+          }).lean();
+          
           // Создаем событие dialog.member.add для каждого участника
           const memberSection = eventUtils.buildMemberSection({
             userId: member.userId,
             state: {
-              unreadCount: member.unreadCount,
-              lastSeenAt: member.lastSeenAt,
-              lastMessageAt: member.lastMessageAt,
+              unreadCount: memberStats?.unreadCount || 0,
+              lastSeenAt: memberActivity?.lastSeenAt || 0,
+              lastMessageAt: memberActivity?.lastMessageAt || 0,
             }
           });
 

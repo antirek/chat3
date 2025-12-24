@@ -20,17 +20,6 @@ const dialogMemberSchema = new mongoose.Schema({
     match: /^dlg_[a-z0-9]{20}$/,
     description: 'ID диалога (строка в формате dlg_XXXXXXXXXXXXXXXXXXXX)'
   },
-  lastSeenAt: {
-    type: Number,
-    default: generateTimestamp,
-    required: true,
-    description: 'Timestamp последнего просмотра диалога (микросекунды)'
-  },
-  lastMessageAt: {
-    type: Number,
-    default: generateTimestamp,
-    description: 'Timestamp последнего сообщения в диалоге (микросекунды)'
-  },
   createdAt: {
     type: Number,
     default: generateTimestamp,
@@ -52,8 +41,6 @@ dialogMemberSchema.pre('save', function(next) {
 dialogMemberSchema.index({ userId: 1, tenantId: 1, dialogId: 1 }, { unique: true });
 dialogMemberSchema.index({ dialogId: 1, tenantId: 1 });
 dialogMemberSchema.index({ userId: 1, tenantId: 1 });
-dialogMemberSchema.index({ lastSeenAt: 1 });
-dialogMemberSchema.index({ lastMessageAt: 1 });
 
 // Включить виртуальные поля в JSON/Object
 dialogMemberSchema.set('toJSON', { virtuals: true });

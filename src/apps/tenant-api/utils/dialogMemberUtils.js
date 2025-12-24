@@ -1,4 +1,4 @@
-import { DialogMember } from '../../../models/index.js';
+import { DialogMember, UserDialogActivity } from '../../../models/index.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
@@ -16,9 +16,22 @@ export async function addDialogMember(tenantId, userId, dialogId) {
     const member = await DialogMember.create({
       userId,
       tenantId,
-      dialogId,
-      lastSeenAt: generateTimestamp(),
+      dialogId
     });
+
+    // Создаем запись активности
+    const timestamp = generateTimestamp();
+    await UserDialogActivity.findOneAndUpdate(
+      { tenantId, userId, dialogId },
+      {
+        tenantId,
+        userId,
+        dialogId,
+        lastSeenAt: timestamp,
+        lastMessageAt: timestamp
+      },
+      { upsert: true, new: true }
+    );
 
     console.log(`✅ Added member ${userId} to dialog ${dialogId}`);
     return member;
@@ -54,24 +67,43 @@ export async function removeDialogMember(tenantId, userId, dialogId) {
  * @param {String} tenantId - ID организации
  * @param {String} userId - ID пользователя
  * @param {String} dialogId - ID диалога
+ * @param {Number} [timestamp] - Опциональный timestamp (если не указан, используется текущее время)
  */
-export async function updateLastSeen(tenantId, userId, dialogId) {
+export async function updateLastSeen(tenantId, userId, dialogId, timestamp = null) {
   try {
-    await DialogMember.findOneAndUpdate(
-      {
-        userId,
-        tenantId,
-        dialogId
-      },
-      {
-        lastSeenAt: generateTimestamp()
-      },
+    const lastSeenAt = timestamp || generateTimestamp();
+    await UserDialogActivity.findOneAndUpdate(
+      { tenantId, userId, dialogId },
+      { lastSeenAt },
       { upsert: true, new: true }
     );
 
     console.log(`✅ Updated last seen for user ${userId} in dialog ${dialogId}`);
   } catch (error) {
     console.error('Error updating last seen:', error);
+    throw error;
+  }
+}
+
+/**
+ * Обновить время последнего сообщения в диалоге
+ * @param {String} tenantId - ID организации
+ * @param {String} userId - ID пользователя
+ * @param {String} dialogId - ID диалога
+ * @param {Number} [timestamp] - Опциональный timestamp (если не указан, используется текущее время)
+ */
+export async function updateLastMessageAt(tenantId, userId, dialogId, timestamp = null) {
+  try {
+    const lastMessageAt = timestamp || generateTimestamp();
+    await UserDialogActivity.findOneAndUpdate(
+      { tenantId, userId, dialogId },
+      { lastMessageAt },
+      { upsert: true, new: true }
+    );
+
+    console.log(`✅ Updated last message at for user ${userId} in dialog ${dialogId}`);
+  } catch (error) {
+    console.error('Error updating last message at:', error);
     throw error;
   }
 }

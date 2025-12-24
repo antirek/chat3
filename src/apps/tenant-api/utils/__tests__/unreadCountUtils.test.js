@@ -5,8 +5,9 @@ import {
   getDialogMembers
 } from '../dialogMemberUtils.js';
 import { updateUnreadCount, recalculateUserStats } from '../counterUtils.js';
-import { DialogMember, Dialog, Message, MessageStatus, UserDialogStats } from "../../../../models/index.js";
+import { DialogMember, Dialog, Message, MessageStatus, UserDialogStats, UserDialogActivity } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
+import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
 // Setup MongoDB перед всеми тестами в этом файле
 beforeAll(async () => {
@@ -64,10 +65,15 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       const dialogId = generateDialogId();
       const userId = 'user1';
 
-      const member = await addDialogMember(tenantId, userId, dialogId);
+      await addDialogMember(tenantId, userId, dialogId);
 
-      expect(member.lastSeenAt).toBeDefined();
-      expect(typeof member.lastSeenAt).toBe('number');
+      // Проверяем, что активность создана в UserDialogActivity
+      const activity = await UserDialogActivity.findOne({ tenantId, userId, dialogId });
+      expect(activity).toBeDefined();
+      expect(activity.lastSeenAt).toBeDefined();
+      expect(typeof activity.lastSeenAt).toBe('number');
+      expect(activity.lastMessageAt).toBeDefined();
+      expect(typeof activity.lastMessageAt).toBe('number');
     });
   });
 
@@ -449,12 +455,13 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       const userId = 'user1';
 
       await addDialogMember(tenantId, userId, dialogId);
-      const beforeUpdate = Date.now();
+      const beforeUpdate = generateTimestamp();
 
       await updateLastSeen(tenantId, userId, dialogId);
 
-      const member = await DialogMember.findOne({ tenantId, userId, dialogId });
-      expect(member.lastSeenAt).toBeGreaterThanOrEqual(beforeUpdate);
+      const activity = await UserDialogActivity.findOne({ tenantId, userId, dialogId });
+      expect(activity).toBeDefined();
+      expect(activity.lastSeenAt).toBeGreaterThanOrEqual(beforeUpdate);
     });
 
     test('should create member if not exists', async () => {

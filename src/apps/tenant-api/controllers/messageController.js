@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-unused-vars
-import { Message, Dialog, MessageStatus, User, Event, Update, DialogMember } from '../../../models/index.js';
+import { Message, Dialog, MessageStatus, User, Event, Update, DialogMember, UserDialogActivity } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
@@ -11,6 +11,7 @@ import {
   updateUserStatsTotalMessagesCount,
   finalizeCounterUpdateContext 
 } from '../utils/counterUtils.js';
+import { updateLastMessageAt } from '../utils/dialogMemberUtils.js';
 
 /**
  * Helper function to enrich messages with meta data and statuses
@@ -501,6 +502,21 @@ const messageController = {
             senderId,
             'user'
           );
+          
+          // Обновление lastMessageAt для всех участников диалога
+          const messageTimestamp = message.createdAt;
+          for (const member of dialogMembers) {
+            try {
+              await updateLastMessageAt(
+                req.tenantId,
+                member.userId,
+                dialog.dialogId,
+                messageTimestamp
+              );
+            } catch (error) {
+              console.error(`Error updating lastMessageAt for user ${member.userId}:`, error);
+            }
+          }
         } finally {
           // КРИТИЧНО: Гарантированная финализация контекстов даже при ошибках
           // Создаем user.stats.update для всех пользователей, у которых изменились счетчики
