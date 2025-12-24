@@ -6,7 +6,11 @@ import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
 import { buildStatusMessageMatrix, buildReactionSet } from '../utils/userDialogUtils.js';
-import { incrementUnreadCount } from '../utils/unreadCountUtils.js';
+import { 
+  updateUnreadCount, 
+  updateUserStatsTotalMessagesCount,
+  finalizeCounterUpdateContext 
+} from '../utils/counterUtils.js';
 
 /**
  * Helper function to enrich messages with meta data and statuses
@@ -371,64 +375,153 @@ const messageController = {
         type: normalizedType
       });
 
-      // Create MessageStatus records and update DialogMember counters for all dialog participants
+      // Создаем событие message.create ПЕРЕД обновлением счетчиков, чтобы получить eventId
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'message.create',
+        dialogId: dialog.dialogId,
+        entityId: message.messageId,
+        messageId: message.messageId,
+        includedSections: ['dialog', 'message'],
+        updatedFields: ['message']
+      });
+
+      // Получаем мета-теги сообщения для события (пока без quotedMessage)
+      const messageMeta = await metaUtils.getEntityMeta(
+        req.tenantId,
+        'message',
+        message.messageId
+      );
+
+      const dialogMeta = await metaUtils.getEntityMeta(
+        req.tenantId,
+        'dialog',
+        dialog.dialogId
+      );
+
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        createdAt: dialog.createdAt,
+        meta: dialogMeta || {}
+      });
+
+      const senderInfo = await getSenderInfo(req.tenantId, senderId);
+
+      // Ограничиваем контент до 4096 символов для события
+      const MAX_CONTENT_LENGTH = 4096;
+      const eventContent = messageContent.length > MAX_CONTENT_LENGTH 
+        ? messageContent.substring(0, MAX_CONTENT_LENGTH) 
+        : messageContent;
+
+      const messageSection = eventUtils.buildMessageSection({
+        messageId: message.messageId,
+        dialogId: dialog.dialogId,
+        senderId,
+        type,
+        content: eventContent,
+        meta: messageMeta,
+        quotedMessage: null // quotedMessage добавим позже
+      });
+
+      // КРИТИЧНО: Создаем событие и сохраняем eventId для обновления счетчиков
+      const messageEvent = await eventUtils.createEvent({
+        tenantId: req.tenantId,
+        eventType: 'message.create',
+        entityType: 'message',
+        entityId: message.messageId,
+        actorId: senderId,
+        actorType: 'user',
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection,
+          message: messageSection
+        })
+      });
+
+      const sourceEventId = messageEvent?._id || null;
+      const sourceEventType = 'message.create';
+
+      // Create MessageStatus records and update counters for all dialog participants
       if (!isSystemMessage) {
-        // DialogMember и incrementUnreadCount уже импортированы в начале файла
         const dialogMembers = await DialogMember.find({
           tenantId: req.tenantId,
-          dialogId: dialog.dialogId // Используем строковый dialogId
-        }).select('userId unreadCount').lean();
+          dialogId: dialog.dialogId
+        }).select('userId').lean();
         
-        // Собираем пользователей, для которых изменился статус диалога (был 0 -> стал >0)
-        const usersWithStatusChange = new Set();
-        
-        for (const member of dialogMembers) {
-          const userId = member.userId;
-          if (userId !== senderId) { // Don't create status for sender
-            try {
-              // Получаем старое значение unreadCount перед увеличением
-              const oldUnreadCount = member.unreadCount ?? 0;
-              
-              // Получаем тип пользователя
-              const user = await User.findOne({
-                tenantId: req.tenantId,
-                userId: userId
-              }).select('type').lean();
-              
-              const userType = user?.type || null;
-              
-              // Create MessageStatus record
-              await MessageStatus.create({
-                messageId: message.messageId,
-                userId: userId,
-                userType: userType,
-                tenantId: req.tenantId,
-                status: 'unread'
-              });
-              
-              // Update DialogMember counter (только для существующих участников)
-              const updatedMember = await incrementUnreadCount(req.tenantId, userId, dialog.dialogId, message.messageId);
-              
-              // Проверяем, изменился ли статус диалога (был 0 -> стал >0)
-              if (updatedMember) {
-                const newUnreadCount = updatedMember.unreadCount ?? 0;
-                const wasUnread = oldUnreadCount > 0;
-                const isUnread = newUnreadCount > 0;
-                // Если диалог стал непрочитанным (был 0, стал >0)
-                if (!wasUnread && isUnread) {
-                  usersWithStatusChange.add(userId);
-                }
+        // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
+        try {
+          // Обновление unreadCount для всех участников (кроме отправителя)
+          for (const member of dialogMembers) {
+            const userId = member.userId;
+            if (userId !== senderId) { // Don't create status for sender
+              try {
+                // Получаем тип пользователя
+                const user = await User.findOne({
+                  tenantId: req.tenantId,
+                  userId: userId
+                }).select('type').lean();
+                
+                const userType = user?.type || null;
+                
+                // Create MessageStatus record
+                await MessageStatus.create({
+                  messageId: message.messageId,
+                  userId: userId,
+                  userType: userType,
+                  tenantId: req.tenantId,
+                  status: 'unread'
+                });
+                
+                // Обновляем unreadCount используя новые функции счетчиков
+                await updateUnreadCount(
+                  req.tenantId,
+                  userId,
+                  dialog.dialogId,
+                  1, // delta
+                  sourceEventType,
+                  sourceEventId,
+                  message.messageId,
+                  senderId,
+                  'user'
+                );
+              } catch (error) {
+                console.error(`Error creating MessageStatus for user ${userId}:`, error);
               }
-              // Если updatedMember === null, значит участник не существовал, и incrementUnreadCount не создал его
-              // В этом случае событие не нужно, так как участник не был активным
-            } catch (error) {
-              console.error(`Error creating MessageStatus for user ${userId}:`, error);
             }
           }
+          
+          // Обновление totalMessagesCount для отправителя
+          await updateUserStatsTotalMessagesCount(
+            req.tenantId,
+            senderId,
+            1, // delta
+            sourceEventType,
+            sourceEventId,
+            message.messageId,
+            senderId,
+            'user'
+          );
+        } finally {
+          // КРИТИЧНО: Гарантированная финализация контекстов даже при ошибках
+          // Создаем user.stats.update для всех пользователей, у которых изменились счетчики
+          // Для получателей (изменился unreadCount)
+          for (const member of dialogMembers) {
+            if (member.userId !== senderId) {
+              try {
+                await finalizeCounterUpdateContext(req.tenantId, member.userId, sourceEventId);
+              } catch (error) {
+                console.error(`Failed to finalize context for ${member.userId}:`, error);
+              }
+            }
+          }
+          
+          // Для отправителя (изменился totalMessagesCount)
+          try {
+            await finalizeCounterUpdateContext(req.tenantId, senderId, sourceEventId);
+          } catch (error) {
+            console.error(`Failed to finalize context for ${senderId}:`, error);
+          }
         }
-        
-        // Логика создания user.stats.update перенесена в update-worker
-        // update-worker будет создавать UserUpdate на основе dialog.member.update событий
       }
 
       // Add meta data if provided
@@ -465,12 +558,6 @@ const messageController = {
           }
         }
       }
-
-      const dialogMeta = await metaUtils.getEntityMeta(
-        req.tenantId,
-        'dialog',
-        dialog.dialogId
-      );
 
       // Обработка quotedMessageId: находим цитируемое сообщение с мета-тегами
       let quotedMessage = null;
@@ -517,62 +604,6 @@ const messageController = {
           // Не прерываем создание сообщения, если не удалось найти цитируемое
         }
       }
-
-      // Получаем мета-теги сообщения для события
-      const messageMeta = await metaUtils.getEntityMeta(
-        req.tenantId,
-        'message',
-        message.messageId
-      );
-
-      // Используем уже полученные метаданные диалога для события
-      const dialogSection = eventUtils.buildDialogSection({
-        dialogId: dialog.dialogId,
-        tenantId: dialog.tenantId,
-        createdAt: dialog.createdAt,
-        meta: dialogMeta || {}
-      });
-
-      const senderInfo = await getSenderInfo(req.tenantId, senderId);
-
-      // Ограничиваем контент до 4096 символов для события
-      const MAX_CONTENT_LENGTH = 4096;
-      const eventContent = messageContent.length > MAX_CONTENT_LENGTH 
-        ? messageContent.substring(0, MAX_CONTENT_LENGTH) 
-        : messageContent;
-
-      const messageSection = eventUtils.buildMessageSection({
-        messageId: message.messageId,
-        dialogId: dialog.dialogId,
-        senderId,
-        type,
-        content: eventContent,
-        meta: messageMeta,
-        quotedMessage
-      });
-
-      const eventContext = eventUtils.buildEventContext({
-        eventType: 'message.create',
-        dialogId: dialog.dialogId,
-        entityId: message.messageId,
-        messageId: message.messageId,
-        includedSections: ['dialog', 'message'],
-        updatedFields: ['message']
-      });
-
-      await eventUtils.createEvent({
-        tenantId: req.tenantId,
-        eventType: 'message.create',
-        entityType: 'message',
-        entityId: message.messageId,
-        actorId: senderId,
-        actorType: 'user',
-        data: eventUtils.composeEventData({
-          context: eventContext,
-          dialog: dialogSection,
-          message: messageSection
-        })
-      });
 
       // Get message with meta data (включая quotedMessage, если оно было добавлено)
       const messageWithMeta = await Message.findOne({ messageId: message.messageId })

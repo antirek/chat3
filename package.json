@@ -20,6 +20,8 @@
     "update-message-status-index": "node src/scripts/update-message-status-index.js",
     "generate-key": "node src/scripts/generateApiKey.js",
     "generate-demo-key": "node src/scripts/generateDemoApiKey.js",
+    "migrate-counters": "node src/scripts/migrate-counters.js",
+    "validate-counters": "node src/scripts/validate-counters.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",

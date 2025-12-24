@@ -2,7 +2,10 @@ import {
   DialogMember, Dialog, Message, 
   Meta, MessageStatus, 
   // MessageReaction, 
-  User } from '../../../models/index.js';
+  User,
+  UserDialogStats,
+  UserStats
+} from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters, parseSort } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
@@ -385,11 +388,11 @@ const userDialogController = {
       // Но если есть dialogId в regularFilters, обрабатываем его отдельно
       const { dialogId: regularDialogId, ...otherRegularFilters } = regularFilters;
       
-      // Применяем другие regularFilters к dialogMembersQuery (unreadCount, lastSeenAt и т.д.)
-      // Эти поля есть в модели DialogMember
+      // Применяем другие regularFilters к dialogMembersQuery (lastSeenAt, lastMessageAt)
+      // unreadCount теперь в UserDialogStats, обрабатываем отдельно
       if (Object.keys(otherRegularFilters).length > 0) {
-        // Применяем фильтры для полей DialogMember
-        const allowedFields = ['unreadCount', 'lastSeenAt', 'lastMessageAt'];
+        // Применяем фильтры для полей DialogMember (кроме unreadCount)
+        const allowedFields = ['lastSeenAt', 'lastMessageAt'];
         for (const [field, condition] of Object.entries(otherRegularFilters)) {
           if (allowedFields.includes(field)) {
             dialogMembersQuery[field] = condition;
@@ -398,61 +401,57 @@ const userDialogController = {
         }
       }
 
-      // Применяем обычные фильтры (unreadCount, lastSeenAt, etc.) из query параметров
-      // (для обратной совместимости, если фильтр приходит не через filter параметр)
-      if (req.query.unreadCount !== undefined) {
-        console.log('req.query.unreadCount:', req.query.unreadCount, 'type:', typeof req.query.unreadCount);
+      // Обрабатываем фильтр по unreadCount отдельно (из UserDialogStats)
+      // Сначала получаем dialogIds с нужным unreadCount, затем фильтруем dialogMembers
+      let unreadCountFilter = null;
+      if (req.query.unreadCount !== undefined || otherRegularFilters.unreadCount !== undefined) {
+        const unreadCountValue = req.query.unreadCount !== undefined 
+          ? req.query.unreadCount 
+          : otherRegularFilters.unreadCount;
+        
+        console.log('req.query.unreadCount:', unreadCountValue, 'type:', typeof unreadCountValue);
         
         // Поддержка операторов для unreadCount
-        const unreadCountValue = req.query.unreadCount;
-        
         if (typeof unreadCountValue === 'object' && unreadCountValue !== null) {
           // Объект с операторами MongoDB ($gte, $gt, $lte, $lt)
-          dialogMembersQuery.unreadCount = unreadCountValue;
-          console.log('Applied unreadCount object filter:', unreadCountValue);
+          unreadCountFilter = unreadCountValue;
         } else if (typeof unreadCountValue === 'string') {
           // Строка с префиксом оператора
           if (unreadCountValue.startsWith('gte:')) {
             const value = parseInt(unreadCountValue.substring(4));
             if (!isNaN(value)) {
-              dialogMembersQuery.unreadCount = { $gte: value };
-              console.log('Applied unreadCount gte filter:', value);
+              unreadCountFilter = { $gte: value };
             }
           } else if (unreadCountValue.startsWith('gt:')) {
             const value = parseInt(unreadCountValue.substring(3));
             if (!isNaN(value)) {
-              dialogMembersQuery.unreadCount = { $gt: value };
-              console.log('Applied unreadCount gt filter:', value);
+              unreadCountFilter = { $gt: value };
             }
           } else if (unreadCountValue.startsWith('lte:')) {
             const value = parseInt(unreadCountValue.substring(4));
             if (!isNaN(value)) {
-              dialogMembersQuery.unreadCount = { $lte: value };
-              console.log('Applied unreadCount lte filter:', value);
+              unreadCountFilter = { $lte: value };
             }
           } else if (unreadCountValue.startsWith('lt:')) {
             const value = parseInt(unreadCountValue.substring(3));
             if (!isNaN(value)) {
-              dialogMembersQuery.unreadCount = { $lt: value };
-              console.log('Applied unreadCount lt filter:', value);
+              unreadCountFilter = { $lt: value };
             }
           } else {
             // Точное равенство (eq)
             const unreadCount = parseInt(unreadCountValue);
             if (!isNaN(unreadCount)) {
-              dialogMembersQuery.unreadCount = unreadCount;
-              console.log('Applied unreadCount eq filter:', unreadCount);
+              unreadCountFilter = unreadCount;
             }
           }
         } else {
           // Число - точное равенство
           const unreadCount = parseInt(unreadCountValue);
           if (!isNaN(unreadCount)) {
-            dialogMembersQuery.unreadCount = unreadCount;
-            console.log('Applied unreadCount eq filter:', unreadCount);
+            unreadCountFilter = unreadCount;
           }
         }
-        console.log('dialogMembersQuery after unreadCount:', dialogMembersQuery);
+        console.log('unreadCount filter:', unreadCountFilter);
       }
       
       if (req.query.lastSeenAt !== undefined) {
@@ -523,6 +522,29 @@ const userDialogController = {
         .lean();
       
       console.log('Found dialogMembers:', dialogMembers.length);
+      
+      // Если есть фильтр по unreadCount, применяем его через UserDialogStats
+      if (unreadCountFilter !== null) {
+        const unreadCountQuery = {
+          tenantId: req.tenantId,
+          userId: userId,
+          dialogId: { $in: dialogMembers.map(m => m.dialogId) }
+        };
+        
+        if (typeof unreadCountFilter === 'object') {
+          unreadCountQuery.unreadCount = unreadCountFilter;
+        } else {
+          unreadCountQuery.unreadCount = unreadCountFilter;
+        }
+        
+        const userDialogStats = await UserDialogStats.find(unreadCountQuery)
+          .select('dialogId unreadCount')
+          .lean();
+        
+        const allowedDialogIds = new Set(userDialogStats.map(s => s.dialogId));
+        dialogMembers = dialogMembers.filter(m => allowedDialogIds.has(m.dialogId));
+        console.log('After unreadCount filter:', dialogMembers.length, 'dialogs');
+      }
 
       // Получаем уникальные dialogId
       const uniqueDialogIds = [...new Set(dialogMembers.map(m => m.dialogId))];
@@ -604,6 +626,21 @@ const userDialogController = {
         membersCountByDialog[member.dialogId]++;
       });
 
+      // Загружаем unreadCount из UserDialogStats для всех диалогов
+      const memberDialogIds = dialogMembers.map(m => m.dialogId);
+      const userDialogStatsMap = new Map();
+      if (memberDialogIds.length > 0) {
+        const userDialogStats = await UserDialogStats.find({
+          tenantId: req.tenantId,
+          userId: userId,
+          dialogId: { $in: memberDialogIds }
+        }).select('dialogId unreadCount').lean();
+        
+        userDialogStats.forEach(stat => {
+          userDialogStatsMap.set(stat.dialogId, stat.unreadCount || 0);
+        });
+      }
+
       // Format response data
       const dialogs = dialogMembers
         .map(member => {
@@ -613,13 +650,16 @@ const userDialogController = {
             return null;
           }
           
+          // Получаем unreadCount из UserDialogStats (или 0, если записи нет)
+          const unreadCount = userDialogStatsMap.get(member.dialogId) || 0;
+          
           return {
             dialogId: dialog.dialogId,
             dialogObjectId: dialog._id, // Сохраняем ObjectId для поиска сообщений
             // Context - данные текущего пользователя в этом диалоге
             context: {
               userId: userId,
-              unreadCount: member.unreadCount,
+              unreadCount: unreadCount, // Используем значение из UserDialogStats
               lastSeenAt: member.lastSeenAt,
               lastMessageAt: member.lastMessageAt,
               joinedAt: member.createdAt
@@ -655,6 +695,7 @@ const userDialogController = {
               aVal = a.lastInteractionAt || 0;
               bVal = b.lastInteractionAt || 0;
             } else if (field === 'unreadCount') {
+              // unreadCount уже загружен из UserDialogStats в context
               aVal = a.context.unreadCount || 0;
               bVal = b.context.unreadCount || 0;
             } else {
@@ -1354,13 +1395,13 @@ const userDialogController = {
       const oldStatus = lastStatus?.status || null;
 
       // Получаем старое значение unreadCount ПЕРЕД созданием MessageStatus
-      // (pre-save hook обновит счетчик при создании)
-      const oldDialogMember = await DialogMember.findOne({
+      // (post-save hook обновит счетчик при создании)
+      const oldUserDialogStats = await UserDialogStats.findOne({
         tenantId: req.tenantId,
         userId: userId,
         dialogId: dialogId
       }).lean();
-      const oldUnreadCount = oldDialogMember?.unreadCount ?? 0;
+      const oldUnreadCount = oldUserDialogStats?.unreadCount ?? 0;
 
       // Всегда создаем новую запись в истории статусов (не обновляем существующую)
       const newStatusData = {
@@ -1441,28 +1482,35 @@ const userDialogController = {
         })
       });
 
-      // Получаем обновленный DialogMember после создания MessageStatus
-      // (pre-save hook уже обновил счетчик)
-      const updatedMember = await DialogMember.findOne({
+      // Получаем обновленный UserDialogStats после создания MessageStatus
+      // (post-save hook уже обновил счетчик)
+      const updatedUserDialogStats = await UserDialogStats.findOne({
+        tenantId: req.tenantId,
+        userId: userId,
+        dialogId: dialogId
+      }).lean();
+
+      // Получаем DialogMember для других полей (lastSeenAt, lastMessageAt)
+      const dialogMember = await DialogMember.findOne({
         tenantId: req.tenantId,
         userId: userId,
         dialogId: dialogId
       }).lean();
 
       // Проверяем, изменился ли счетчик (сравниваем oldUnreadCount с новым)
-      const _newUnreadCount = updatedMember?.unreadCount ?? 0; // Используется в сравнении ниже
+      const _newUnreadCount = updatedUserDialogStats?.unreadCount ?? 0; // Используется в сравнении ниже
       const unreadCountChanged = oldUnreadCount !== _newUnreadCount;
 
       // Если счетчик был обновлен (изменился), создаем событие dialog.member.update
-      if (updatedMember && unreadCountChanged) {
+      if (updatedUserDialogStats && unreadCountChanged) {
         // Используем уже полученную секцию dialog из события message.status.update
         const memberSection = eventUtils.buildMemberSection({
           userId,
           state: {
-            unreadCount: updatedMember.unreadCount,
-            lastSeenAt: updatedMember.lastSeenAt,
-            lastMessageAt: updatedMember.lastMessageAt,
-            isActive: updatedMember.isActive
+            unreadCount: updatedUserDialogStats.unreadCount, // Используем из UserDialogStats
+            lastSeenAt: dialogMember?.lastSeenAt || null,
+            lastMessageAt: dialogMember?.lastMessageAt || null,
+            isActive: dialogMember?.isActive || true
           }
         });
 

@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 import { generateTimestamp } from '../../utils/timestampUtils.js';
-import { updateCountersOnStatusChange } from '../../apps/tenant-api/utils/unreadCountUtils.js';
+import { 
+  updateStatusCount, 
+  updateUnreadCount,
+  finalizeCounterUpdateContext 
+} from '../../apps/tenant-api/utils/counterUtils.js';
+import { Event, Message } from '../index.js';
 
 /**
  * MessageStatus - История изменений статусов сообщений
@@ -100,37 +105,80 @@ messageStatusSchema.index({ tenantId: 1, messageId: 1, userId: 1, createdAt: -1 
  * Это позволяет корректно обновлять счетчики непрочитанных сообщений
  * при каждом изменении статуса в истории.
  */
-messageStatusSchema.pre('save', async function(next) {
-  if (this.isNew) {
+messageStatusSchema.post('save', async function(doc) {
+  if (doc.isNew) {
     try {
-      // updateCountersOnStatusChange уже импортирован в начале файла
-      
-      // Получаем последний статус для этого пользователя и сообщения
+      // Получаем последний статус для этого пользователя и сообщения (до текущего)
       const lastStatus = await this.constructor.findOne({
-        messageId: this.messageId,
-        userId: this.userId,
-        tenantId: this.tenantId,
-        _id: { $ne: this._id } // Исключаем текущий документ (если он уже существует)
+        messageId: doc.messageId,
+        userId: doc.userId,
+        tenantId: doc.tenantId,
+        _id: { $ne: doc._id }
       })
         .sort({ createdAt: -1 })
         .lean();
       
       const oldStatus = lastStatus?.status || 'unread';
       
-      // Обновляем счетчики непрочитанных сообщений
-      await updateCountersOnStatusChange(
-        this.tenantId,
-        this.messageId,
-        this.userId,
-        oldStatus,
-        this.status
-      );
+      // Получаем eventId из созданного события message.status.update
+      const messageEvent = await Event.findOne({
+        tenantId: doc.tenantId,
+        eventType: 'message.status.update',
+        entityId: doc.messageId,
+        'data.context.messageId': doc.messageId
+      }).sort({ createdAt: -1 });
+      
+      const sourceEventId = messageEvent?._id || null;
+      const sourceEventType = 'message.status.update';
+      
+      // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
+      try {
+        // Обновляем счетчик статусов
+        await updateStatusCount(
+          doc.tenantId,
+          doc.messageId,
+          doc.status,
+          1, // delta
+          sourceEventType,
+          sourceEventId,
+          doc.userId,
+          'user'
+        );
+        
+        // Обновляем unreadCount если статус изменился на 'read'
+        if (oldStatus !== 'read' && doc.status === 'read') {
+          // Получаем dialogId из сообщения
+          const message = await Message.findOne({ messageId: doc.messageId }).lean();
+          
+          if (message && message.dialogId) {
+            await updateUnreadCount(
+              doc.tenantId,
+              doc.userId,
+              message.dialogId,
+              -1, // delta (уменьшаем при прочтении)
+              sourceEventType,
+              sourceEventId,
+              doc.messageId,
+              doc.userId,
+              'user'
+            );
+          }
+        }
+      } finally {
+        // Финализируем контекст для пользователя
+        if (sourceEventId) {
+          try {
+            await finalizeCounterUpdateContext(doc.tenantId, doc.userId, sourceEventId);
+          } catch (error) {
+            console.error(`Failed to finalize context for ${doc.userId}:`, error);
+          }
+        }
+      }
     } catch (error) {
-      console.error('Error updating counters in pre-save:', error);
+      console.error('Error updating counters in post-save:', error);
       // Не прерываем сохранение из-за ошибки счетчиков
     }
   }
-  next();
 });
 
 // Включить виртуальные поля в JSON/Object

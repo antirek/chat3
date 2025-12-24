@@ -7,6 +7,10 @@ import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
 import { scheduleDialogReadTask } from '../utils/dialogReadTaskUtils.js';
 import * as userUtils from '../utils/userUtils.js';
+import { 
+  updateUserStatsDialogCount,
+  finalizeCounterUpdateContext 
+} from '../utils/counterUtils.js';
 
 const dialogMemberController = {
   // Add member to dialog
@@ -82,16 +86,17 @@ const dialogMemberController = {
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.member.add',
         dialogId: dialog.dialogId,
-        entityId: dialog.dialogId,
+        entityId: `${dialog.dialogId}:${userId}`, // Используем составной ID
         includedSections: ['dialog', 'member'],
         updatedFields: ['member']
       });
 
-      await eventUtils.createEvent({
+      // КРИТИЧНО: Создаем событие и сохраняем eventId для обновления счетчиков
+      const memberEvent = await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'dialog.member.add',
         entityType: 'dialogMember',
-        entityId: dialog.dialogId,
+        entityId: `${dialog.dialogId}:${userId}`, // Используем составной ID
         actorId: req.apiKey?.name || 'unknown',
         actorType: 'api',
         data: eventUtils.composeEventData({
@@ -101,8 +106,28 @@ const dialogMemberController = {
         })
       });
 
-      // Логика создания user.stats.update перенесена в update-worker
-      // update-worker будет создавать UserUpdate на основе dialog.member.add событий
+      const sourceEventId = memberEvent?._id || null;
+
+      // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
+      try {
+        // Обновление dialogCount
+        await updateUserStatsDialogCount(
+          req.tenantId,
+          userId,
+          1, // delta
+          'dialog.member.add',
+          sourceEventId,
+          req.apiKey?.name || 'unknown',
+          'api'
+        );
+      } finally {
+        // Создаем user.stats.update после всех изменений счетчиков
+        try {
+          await finalizeCounterUpdateContext(req.tenantId, userId, sourceEventId);
+        } catch (error) {
+          console.error(`Failed to finalize context for ${userId}:`, error);
+        }
+      }
 
       res.status(201).json({
         data: sanitizeResponse({
@@ -330,16 +355,17 @@ const dialogMemberController = {
         const eventContext = eventUtils.buildEventContext({
           eventType: 'dialog.member.remove',
           dialogId: dialog.dialogId,
-          entityId: dialog.dialogId,
+          entityId: `${dialog.dialogId}:${userId}`, // Используем составной ID
           includedSections: ['dialog', 'member'],
           updatedFields: ['member']
         });
 
-        await eventUtils.createEvent({
+        // КРИТИЧНО: Создаем событие и сохраняем eventId для обновления счетчиков
+        const memberEvent = await eventUtils.createEvent({
           tenantId: req.tenantId,
           eventType: 'dialog.member.remove',
           entityType: 'dialogMember',
-          entityId: dialog.dialogId,
+          entityId: `${dialog.dialogId}:${userId}`, // Используем составной ID
           actorId: req.apiKey?.name || 'unknown',
           actorType: 'api',
           data: eventUtils.composeEventData({
@@ -349,8 +375,28 @@ const dialogMemberController = {
           })
         });
 
-        // Логика создания user.stats.update перенесена в update-worker
-        // update-worker будет создавать UserUpdate на основе dialog.member.remove событий
+        const sourceEventId = memberEvent?._id || null;
+
+        // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
+        try {
+          // Обновление dialogCount
+          await updateUserStatsDialogCount(
+            req.tenantId,
+            userId,
+            -1, // delta
+            'dialog.member.remove',
+            sourceEventId,
+            req.apiKey?.name || 'unknown',
+            'api'
+          );
+        } finally {
+          // Создаем user.stats.update после всех изменений счетчиков
+          try {
+            await finalizeCounterUpdateContext(req.tenantId, userId, sourceEventId);
+          } catch (error) {
+            console.error(`Failed to finalize context for ${userId}:`, error);
+          }
+        }
       }
 
       res.json({

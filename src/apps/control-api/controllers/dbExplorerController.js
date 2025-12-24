@@ -12,7 +12,12 @@ import {
   MessageReaction,
   Update,
   ApiJournal,
-  DialogReadTask
+  DialogReadTask,
+  UserStats,
+  UserDialogStats,
+  MessageReactionStats,
+  MessageStatusStats,
+  CounterHistory
 } from '../../../models/index.js';
 import { sanitizeResponse } from '../../../apps/tenant-api/utils/responseUtils.js';
 
@@ -30,7 +35,12 @@ const MODELS_MAP = {
   'MessageReaction': MessageReaction,
   'Update': Update,
   'ApiJournal': ApiJournal,
-  'DialogReadTask': DialogReadTask
+  'DialogReadTask': DialogReadTask,
+  'UserStats': UserStats,
+  'UserDialogStats': UserDialogStats,
+  'MessageReactionStats': MessageReactionStats,
+  'MessageStatusStats': MessageStatusStats,
+  'CounterHistory': CounterHistory
 };
 
 // Группировка моделей по категориям
@@ -38,7 +48,8 @@ const MODEL_CATEGORIES = {
   'Система': ['ApiKey', 'Tenant', 'User'],
   'Чаты': ['Dialog', 'DialogMember', 'Message', 'MessageStatus', 'MessageReaction', 'Meta'],
   'События': ['Event', 'Update'],
-  'Журналы': ['ApiJournal', 'DialogReadTask']
+  'Журналы': ['ApiJournal', 'DialogReadTask'],
+  'Счетчики': ['UserStats', 'UserDialogStats', 'MessageReactionStats', 'MessageStatusStats', 'CounterHistory']
 };
 
 // Список доступных моделей

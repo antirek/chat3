@@ -1,5 +1,5 @@
 import { Message, DialogMember, 
-  MessageStatus, Update, User } from '../models/index.js';
+  MessageStatus, Update, User, UserStats } from '../models/index.js';
 import * as metaUtils from '../apps/tenant-api/utils/metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from '../apps/tenant-api/utils/responseUtils.js';
@@ -522,8 +522,19 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
  */
 export async function createUserStatsUpdate(tenantId, userId, sourceEventId, sourceEventType, updatedFields = []) {
   try {
-    // Получаем статистику пользователя
-    const stats = await getUserStats(tenantId, userId);
+    // Получаем статистику пользователя из UserStats (новая архитектура)
+    let stats = await UserStats.findOne({ tenantId, userId }).lean();
+    
+    // Если UserStats не существует, возвращаем значения по умолчанию
+    // Это может произойти если счетчики еще не были инициализированы
+    if (!stats) {
+      stats = {
+        dialogCount: 0,
+        unreadDialogsCount: 0,
+        totalUnreadCount: 0,
+        totalMessagesCount: 0
+      };
+    }
 
     // Получаем данные пользователя
     const user = await User.findOne({ userId, tenantId }).lean();
@@ -540,7 +551,12 @@ export async function createUserStatsUpdate(tenantId, userId, sourceEventId, sou
       userId: user.userId,
       type: user.type,
       meta: userMeta || {},
-      stats: stats
+      stats: {
+        dialogCount: stats.dialogCount || 0,
+        unreadDialogsCount: stats.unreadDialogsCount || 0,
+        totalUnreadCount: stats.totalUnreadCount || 0,
+        totalMessagesCount: stats.totalMessagesCount || 0
+      }
     });
 
     // Создаем context для UserStatsUpdate

@@ -11,6 +11,11 @@ import MessageReaction from './data/MessageReaction.js';
 import Update from './operational/Update.js';
 import ApiJournal from './journals/ApiJournal.js';
 import DialogReadTask from './operational/DialogReadTask.js';
+import CounterHistory from './operational/CounterHistory.js';
+import UserStats from './stats/UserStats.js';
+import UserDialogStats from './stats/UserDialogStats.js';
+import MessageReactionStats from './stats/MessageReactionStats.js';
+import MessageStatusStats from './stats/MessageStatusStats.js';
 
 export {
   Tenant,
@@ -25,6 +30,11 @@ export {
   MessageReaction,
   Update,
   ApiJournal,
-  DialogReadTask
+  DialogReadTask,
+  CounterHistory,
+  UserStats,
+  UserDialogStats,
+  MessageReactionStats,
+  MessageStatusStats
 };
 

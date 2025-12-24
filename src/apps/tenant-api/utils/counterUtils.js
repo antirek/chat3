@@ -1,0 +1,600 @@
+import { 
+  UserStats, 
+  UserDialogStats, 
+  MessageReactionStats, 
+  MessageStatusStats, 
+  CounterHistory 
+} from '../../../models/index.js';
+import { generateTimestamp } from '../../../utils/timestampUtils.js';
+import { createUserStatsUpdate } from '../../../utils/updateUtils.js';
+
+/**
+ * Контекст операции для сбора измененных полей
+ * Используется для создания одного user.stats.update со всеми изменениями
+ */
+class CounterUpdateContext {
+  constructor(tenantId, userId, sourceEventId, sourceEventType) {
+    this.tenantId = tenantId;
+    this.userId = userId;
+    this.sourceEventId = sourceEventId;
+    this.sourceEventType = sourceEventType;
+    this.updatedFields = new Set(); // Множество измененных полей
+  }
+  
+  addUpdatedField(field) {
+    this.updatedFields.add(field);
+  }
+  
+  hasUpdates() {
+    return this.updatedFields.size > 0;
+  }
+  
+  getUpdatedFields() {
+    return Array.from(this.updatedFields);
+  }
+  
+  async createStatsUpdate() {
+    if (this.hasUpdates() && this.sourceEventId) {
+      await createUserStatsUpdate(
+        this.tenantId,
+        this.userId,
+        this.sourceEventId,
+        this.sourceEventType,
+        this.getUpdatedFields()
+      );
+    }
+  }
+}
+
+// Глобальный Map для хранения контекстов операций по ключу (tenantId:userId:sourceEventId)
+// КРИТИЧНО: Добавлен TTL механизм для предотвращения утечек памяти
+const counterUpdateContexts = new Map();
+const contextTimestamps = new Map();
+const CONTEXT_TTL_MS = 5 * 60 * 1000; // 5 минут
+
+// Периодическая очистка старых контекстов
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of contextTimestamps.entries()) {
+    if (now - timestamp > CONTEXT_TTL_MS) {
+      const context = counterUpdateContexts.get(key);
+      if (context) {
+        // Финализируем старый контекст перед удалением
+        context.createStatsUpdate().catch(err => {
+          console.error(`Failed to finalize expired context ${key}:`, err);
+        });
+      }
+      counterUpdateContexts.delete(key);
+      contextTimestamps.delete(key);
+    }
+  }
+}, CONTEXT_TTL_MS);
+
+/**
+ * Получить или создать контекст операции
+ */
+function getCounterUpdateContext(tenantId, userId, sourceEventId, sourceEventType) {
+  const key = `${tenantId}:${userId}:${sourceEventId || 'no-event'}`;
+  
+  // Очистка старых контекстов при каждом обращении
+  const now = Date.now();
+  for (const [k, timestamp] of contextTimestamps.entries()) {
+    if (now - timestamp > CONTEXT_TTL_MS) {
+      const context = counterUpdateContexts.get(k);
+      if (context) {
+        context.createStatsUpdate().catch(err => {
+          console.error(`Failed to finalize expired context ${k}:`, err);
+        });
+      }
+      counterUpdateContexts.delete(k);
+      contextTimestamps.delete(k);
+    }
+  }
+  
+  if (!counterUpdateContexts.has(key)) {
+    counterUpdateContexts.set(key, new CounterUpdateContext(tenantId, userId, sourceEventId, sourceEventType));
+    contextTimestamps.set(key, Date.now());
+  }
+  
+  return counterUpdateContexts.get(key);
+}
+
+/**
+ * Завершить контекст и создать user.stats.update
+ * КРИТИЧНО: Гарантированная очистка контекста
+ */
+export async function finalizeCounterUpdateContext(tenantId, userId, sourceEventId) {
+  const key = `${tenantId}:${userId}:${sourceEventId || 'no-event'}`;
+  const context = counterUpdateContexts.get(key);
+  
+  if (context) {
+    try {
+      await context.createStatsUpdate();
+    } catch (error) {
+      console.error(`Failed to create stats update for context ${key}:`, error);
+      // Все равно удаляем контекст, чтобы не было утечки
+    } finally {
+      counterUpdateContexts.delete(key);
+      contextTimestamps.delete(key);
+    }
+  }
+}
+
+/**
+ * Сохранить запись в историю изменений счетчиков
+ */
+async function saveCounterHistory(data) {
+  try {
+    await CounterHistory.create({
+      tenantId: data.tenantId,
+      counterType: data.counterType,
+      entityType: data.entityType,
+      entityId: data.entityId,
+      field: data.field,
+      oldValue: data.oldValue,
+      newValue: data.newValue,
+      delta: data.delta,
+      operation: data.operation,
+      sourceOperation: data.sourceOperation,
+      sourceEntityId: data.sourceEntityId,
+      actorId: data.actorId,
+      actorType: data.actorType || 'user',
+      createdAt: generateTimestamp()
+    });
+  } catch (error) {
+    console.error('Error saving counter history:', error);
+    // Не прерываем выполнение при ошибке сохранения истории
+  }
+}
+
+/**
+ * Обновление unreadCount
+ * КРИТИЧНО: Используем атомарные операции для предотвращения race conditions
+ */
+export async function updateUnreadCount(tenantId, userId, dialogId, delta, sourceOperation, sourceEventId, sourceEntityId, actorId, actorType) {
+  // Атомарное обновление с $inc - предотвращает race conditions
+  const result = await UserDialogStats.findOneAndUpdate(
+    { tenantId, userId, dialogId },
+    { 
+      $inc: { unreadCount: delta },
+      $set: { 
+        lastUpdatedAt: generateTimestamp()
+      },
+      $setOnInsert: {
+        createdAt: generateTimestamp()
+      }
+    },
+    { 
+      upsert: true, 
+      new: true,
+      setDefaultsOnInsert: true // Устанавливает unreadCount: 0 при создании
+    }
+  );
+  
+  // Вычисляем старое и новое значение
+  // result.unreadCount уже содержит новое значение после $inc
+  const newValue = result.unreadCount || 0;
+  const oldValue = Math.max(0, newValue - delta);
+  
+  // Сохраняем sourceEventId и sourceEventType для использования в обновлении UserStats
+  // (используем временные поля, которые не сохраняются в БД)
+  result._sourceEventId = sourceEventId;
+  result._sourceEventType = sourceOperation;
+  
+  // Обновляем UserStats (вычисляемые счетчики)
+  await updateUserStatsFromUnreadCount(tenantId, userId, oldValue, newValue, sourceEventId, sourceOperation);
+  
+  // Сохраняем в историю
+  await saveCounterHistory({
+    counterType: 'userDialogStats.unreadCount',
+    entityType: 'userDialogStats',
+    entityId: `${dialogId}:${userId}`,
+    field: 'unreadCount',
+    oldValue,
+    newValue,
+    delta,
+    operation: delta > 0 ? 'increment' : 'decrement',
+    sourceOperation,
+    sourceEntityId,
+    actorId,
+    actorType: actorType || 'user',
+    tenantId
+  });
+  
+  return { oldValue, newValue };
+}
+
+/**
+ * Обновление reactionCount
+ * КРИТИЧНО: Используем атомарные операции
+ */
+export async function updateReactionCount(tenantId, messageId, reaction, delta, sourceOperation, sourceEventId, actorId, actorType) {
+  // Атомарное обновление с $inc
+  const result = await MessageReactionStats.findOneAndUpdate(
+    { tenantId, messageId, reaction },
+    { 
+      $inc: { count: delta },
+      $set: { lastUpdatedAt: generateTimestamp() },
+      $setOnInsert: {
+        createdAt: generateTimestamp()
+      }
+    },
+    { 
+      upsert: true, 
+      new: true,
+      setDefaultsOnInsert: true
+    }
+  );
+  
+  const newCount = result.count;
+  const oldCount = newCount - delta;
+  
+  if (newCount <= 0) {
+    // Удаляем запись если счетчик стал 0 или отрицательным
+    await MessageReactionStats.deleteOne({ tenantId, messageId, reaction });
+    return { oldValue: oldCount, newValue: 0 };
+  }
+  
+  // Сохраняем в историю
+  await saveCounterHistory({
+    counterType: 'messageReactionStats.count',
+    entityType: 'messageReactionStats',
+    entityId: `${messageId}:${reaction}`,
+    field: 'count',
+    oldValue: oldCount,
+    newValue: newCount,
+    delta,
+    operation: delta > 0 ? 'increment' : 'decrement',
+    sourceOperation,
+    sourceEntityId: messageId,
+    actorId,
+    actorType: actorType || 'user',
+    tenantId
+  });
+  
+  return { oldValue: oldCount, newValue: newCount };
+}
+
+/**
+ * Обновление statusCount
+ * КРИТИЧНО: Используем атомарные операции
+ */
+export async function updateStatusCount(tenantId, messageId, status, delta, sourceOperation, sourceEventId, actorId, actorType) {
+  // Атомарное обновление с $inc
+  const result = await MessageStatusStats.findOneAndUpdate(
+    { tenantId, messageId, status },
+    { 
+      $inc: { count: delta },
+      $set: { lastUpdatedAt: generateTimestamp() },
+      $setOnInsert: {
+        createdAt: generateTimestamp()
+      }
+    },
+    { 
+      upsert: true, 
+      new: true,
+      setDefaultsOnInsert: true
+    }
+  );
+  
+  const newCount = result.count;
+  const oldCount = newCount - delta;
+  
+  // Сохраняем в историю
+  await saveCounterHistory({
+    counterType: 'messageStatusStats.count',
+    entityType: 'messageStatusStats',
+    entityId: `${messageId}:${status}`,
+    field: 'count',
+    oldValue: oldCount,
+    newValue: newCount,
+    delta,
+    operation: 'increment',
+    sourceOperation,
+    sourceEntityId: messageId,
+    actorId,
+    actorType: actorType || 'user',
+    tenantId
+  });
+  
+  return { oldValue: oldCount, newValue: newCount };
+}
+
+/**
+ * Получение всех реакций сообщения
+ */
+export async function getMessageReactionCounts(tenantId, messageId) {
+  const stats = await MessageReactionStats.find({ tenantId, messageId }).lean();
+  return stats.map(s => ({
+    reaction: s.reaction,
+    count: s.count
+  }));
+}
+
+/**
+ * Получение всех статусов сообщения
+ */
+export async function getMessageStatusCounts(tenantId, messageId) {
+  const stats = await MessageStatusStats.find({ tenantId, messageId }).lean();
+  return stats.map(s => ({
+    status: s.status,
+    count: s.count
+  }));
+}
+
+/**
+ * Обновление UserStats на основе изменения unreadCount
+ */
+async function updateUserStatsFromUnreadCount(tenantId, userId, oldUnreadCount, newUnreadCount, sourceEventId = null, sourceEventType = null) {
+  let stats = await UserStats.findOne({ tenantId, userId });
+  
+  if (!stats) {
+    stats = await UserStats.create({
+      tenantId,
+      userId,
+      dialogCount: 0,
+      unreadDialogsCount: 0,
+      totalUnreadCount: 0,
+      totalMessagesCount: 0
+    });
+  }
+  
+  const oldWasUnread = oldUnreadCount > 0;
+  const newIsUnread = newUnreadCount > 0;
+  
+  const oldStats = {
+    unreadDialogsCount: stats.unreadDialogsCount,
+    totalUnreadCount: stats.totalUnreadCount
+  };
+  
+  // Получаем контекст операции
+  const context = sourceEventId ? getCounterUpdateContext(tenantId, userId, sourceEventId, sourceEventType) : null;
+  
+  // Обновляем unreadDialogsCount если статус диалога изменился
+  if (oldWasUnread && !newIsUnread) {
+    // Диалог стал прочитанным
+    stats.unreadDialogsCount = Math.max(0, stats.unreadDialogsCount - 1);
+  } else if (!oldWasUnread && newIsUnread) {
+    // Диалог стал непрочитанным
+    stats.unreadDialogsCount = stats.unreadDialogsCount + 1;
+  }
+  
+  // Обновляем totalUnreadCount (гарантируем, что не станет отрицательным)
+  const newTotalUnreadCount = Math.max(0, stats.totalUnreadCount - oldUnreadCount + newUnreadCount);
+  stats.totalUnreadCount = newTotalUnreadCount;
+  
+  await stats.save();
+  
+  // Сохраняем в историю и добавляем в контекст только если значения изменились
+  if (oldStats.unreadDialogsCount !== stats.unreadDialogsCount) {
+    await saveCounterHistory({
+      counterType: 'userStats.unreadDialogsCount',
+      entityType: 'user',
+      entityId: userId,
+      field: 'unreadDialogsCount',
+      oldValue: oldStats.unreadDialogsCount,
+      newValue: stats.unreadDialogsCount,
+      delta: stats.unreadDialogsCount - oldStats.unreadDialogsCount,
+      operation: 'computed',
+      sourceOperation: 'userDialogStats.unreadCount.update',
+      sourceEntityId: userId,
+      tenantId
+    });
+    
+    // Добавляем поле в контекст (не создаем update сразу)
+    if (context) {
+      context.addUpdatedField('user.stats.unreadDialogsCount');
+    }
+  }
+  
+  if (oldStats.totalUnreadCount !== stats.totalUnreadCount) {
+    await saveCounterHistory({
+      counterType: 'userStats.totalUnreadCount',
+      entityType: 'user',
+      entityId: userId,
+      field: 'totalUnreadCount',
+      oldValue: oldStats.totalUnreadCount,
+      newValue: stats.totalUnreadCount,
+      delta: stats.totalUnreadCount - oldStats.totalUnreadCount,
+      operation: 'computed',
+      sourceOperation: 'userDialogStats.unreadCount.update',
+      sourceEntityId: userId,
+      tenantId
+    });
+    
+    // Добавляем поле в контекст (не создаем update сразу)
+    if (context) {
+      context.addUpdatedField('user.stats.totalUnreadCount');
+    }
+  }
+}
+
+/**
+ * Обновление dialogCount
+ * КРИТИЧНО: Используем атомарные операции
+ */
+export async function updateUserStatsDialogCount(tenantId, userId, delta, sourceOperation, sourceEventId = null, actorId, actorType) {
+  // Атомарное обновление с $inc
+  const result = await UserStats.findOneAndUpdate(
+    { tenantId, userId },
+    { 
+      $inc: { dialogCount: delta },
+      $set: { lastUpdatedAt: generateTimestamp() },
+      $setOnInsert: {
+        unreadDialogsCount: 0,
+        totalUnreadCount: 0,
+        totalMessagesCount: 0,
+        createdAt: generateTimestamp()
+      }
+    },
+    { 
+      upsert: true, 
+      new: true,
+      setDefaultsOnInsert: true
+    }
+  );
+  
+  const oldValue = Math.max(0, result.dialogCount - delta);
+  const newValue = result.dialogCount;
+  
+  // Получаем контекст операции
+  const context = sourceEventId ? getCounterUpdateContext(tenantId, userId, sourceEventId, sourceOperation) : null;
+  
+  // Сохраняем в историю
+  await saveCounterHistory({
+    counterType: 'userStats.dialogCount',
+    entityType: 'user',
+    entityId: userId,
+    field: 'dialogCount',
+    oldValue,
+    newValue,
+    delta,
+    operation: delta > 0 ? 'increment' : 'decrement',
+    sourceOperation,
+    sourceEntityId: userId,
+    actorId,
+    actorType: actorType || 'user',
+    tenantId
+  });
+  
+  // Добавляем поле в контекст (не создаем update сразу)
+  if (context) {
+    context.addUpdatedField('user.stats.dialogCount');
+  }
+  
+  return { oldValue, newValue };
+}
+
+/**
+ * Обновление totalMessagesCount
+ * КРИТИЧНО: Используем атомарные операции
+ */
+export async function updateUserStatsTotalMessagesCount(tenantId, userId, delta, sourceOperation, sourceEventId = null, sourceEntityId, actorId, actorType) {
+  // Атомарное обновление с $inc
+  const result = await UserStats.findOneAndUpdate(
+    { tenantId, userId },
+    { 
+      $inc: { totalMessagesCount: delta },
+      $set: { lastUpdatedAt: generateTimestamp() },
+      $setOnInsert: {
+        dialogCount: 0,
+        unreadDialogsCount: 0,
+        totalUnreadCount: 0,
+        createdAt: generateTimestamp()
+      }
+    },
+    { 
+      upsert: true, 
+      new: true,
+      setDefaultsOnInsert: true
+    }
+  );
+  
+  const oldValue = Math.max(0, result.totalMessagesCount - delta);
+  const newValue = result.totalMessagesCount;
+  
+  // Получаем контекст операции
+  const context = sourceEventId ? getCounterUpdateContext(tenantId, userId, sourceEventId, sourceOperation) : null;
+  
+  // Сохраняем в историю
+  await saveCounterHistory({
+    counterType: 'userStats.totalMessagesCount',
+    entityType: 'user',
+    entityId: userId,
+    field: 'totalMessagesCount',
+    oldValue,
+    newValue,
+    delta,
+    operation: delta > 0 ? 'increment' : 'decrement',
+    sourceOperation,
+    sourceEntityId,
+    actorId,
+    actorType: actorType || 'user',
+    tenantId
+  });
+  
+  // Добавляем поле в контекст (не создаем update сразу)
+  if (context) {
+    context.addUpdatedField('user.stats.totalMessagesCount');
+  }
+  
+  return { oldValue, newValue };
+}
+
+/**
+ * Пересчет всех счетчиков пользователя
+ */
+export async function recalculateUserStats(tenantId, userId) {
+  // Пересчитываем dialogCount из DialogMember
+  const dialogCount = await UserDialogStats.countDocuments({ tenantId, userId });
+  
+  // Пересчитываем unreadDialogsCount и totalUnreadCount из UserDialogStats
+  const unreadStats = await UserDialogStats.aggregate([
+    { $match: { tenantId, userId } },
+    {
+      $group: {
+        _id: null,
+        unreadDialogsCount: {
+          $sum: { $cond: [{ $gt: ['$unreadCount', 0] }, 1, 0] }
+        },
+        totalUnreadCount: { $sum: '$unreadCount' }
+      }
+    }
+  ]);
+  
+  const unreadDialogsCount = unreadStats[0]?.unreadDialogsCount || 0;
+  const totalUnreadCount = unreadStats[0]?.totalUnreadCount || 0;
+  
+  // Обновляем UserStats
+  await UserStats.findOneAndUpdate(
+    { tenantId, userId },
+    {
+      $set: {
+        dialogCount,
+        unreadDialogsCount,
+        totalUnreadCount,
+        lastUpdatedAt: generateTimestamp()
+      },
+      $setOnInsert: {
+        totalMessagesCount: 0,
+        createdAt: generateTimestamp()
+      }
+    },
+    { upsert: true, setDefaultsOnInsert: true }
+  );
+  
+  return { dialogCount, unreadDialogsCount, totalUnreadCount };
+}
+
+/**
+ * Получение истории изменений счетчика
+ */
+export async function getCounterHistory(tenantId, options = {}) {
+  const {
+    counterType,
+    entityType,
+    entityId,
+    startDate,
+    endDate,
+    limit = 100,
+    skip = 0
+  } = options;
+  
+  const query = { tenantId };
+  
+  if (counterType) query.counterType = counterType;
+  if (entityType) query.entityType = entityType;
+  if (entityId) query.entityId = entityId;
+  if (startDate || endDate) {
+    query.createdAt = {};
+    if (startDate) query.createdAt.$gte = startDate;
+    if (endDate) query.createdAt.$lte = endDate;
+  }
+  
+  return await CounterHistory.find(query)
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip)
+    .lean();
+}
+
