@@ -2,9 +2,8 @@ import { DialogMember } from '../../../models/index.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
 
 /**
- * Утилиты для управления участниками диалогов и счетчиками непрочитанных сообщений
+ * Утилиты для управления участниками диалогов
  */
-
 
 /**
  * Добавить участника в диалог
@@ -96,3 +95,4 @@ export async function getDialogMembers(tenantId, dialogId) {
     throw error;
   }
 }
+

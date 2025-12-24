@@ -18,7 +18,7 @@ afterAll(async () => {
   await teardownMongoMemoryServer();
 });
 
-describe('unreadCountUtils - Integration Tests with MongoDB', () => {
+describe('dialogMemberUtils - Integration Tests with MongoDB', () => {
   const tenantId = 'tnt_test';
 
   beforeEach(async () => {

@@ -13,7 +13,7 @@ import { validateGetUserDialogMessagesResponse, validateGetUserDialogMessageResp
 import * as eventUtils from '../utils/eventUtils.js';
 import { generateTimestamp } from '../../../utils/timestampUtils.js';
 // eslint-disable-next-line no-unused-vars
-import * as unreadCountUtils from '../utils/unreadCountUtils.js';
+import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 import {
   getSenderInfo,
   mergeMetaRecords,

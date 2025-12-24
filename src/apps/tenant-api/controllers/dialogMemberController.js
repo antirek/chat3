@@ -1,5 +1,5 @@
 import { Dialog, DialogMember, Meta, UserDialogStats } from '../../../models/index.js';
-import * as unreadCountUtils from '../utils/unreadCountUtils.js';
+import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import * as metaUtils from '../utils/metaUtils.js';
@@ -60,7 +60,7 @@ const dialogMemberController = {
         name
       });
 
-      const member = await unreadCountUtils.addDialogMember(
+      const member = await dialogMemberUtils.addDialogMember(
         req.tenantId,
         userId,
         dialog.dialogId // Передаем строковый dialogId
@@ -343,7 +343,7 @@ const dialogMemberController = {
       }).lean();
       const unreadCount = userDialogStats?.unreadCount || 0;
 
-      await unreadCountUtils.removeDialogMember(
+      await dialogMemberUtils.removeDialogMember(
         req.tenantId,
         userId,
         dialog.dialogId // Передаем строковый dialogId

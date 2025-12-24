@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import connectDB from '../config/database.js';
 import { DialogMember, Dialog, User } from '../models/index.js';
-import { addDialogMember } from '../apps/tenant-api/utils/unreadCountUtils.js';
+import { addDialogMember } from '../apps/tenant-api/utils/dialogMemberUtils.js';
 
 const TENANT_ID = 'tnt_default';
 const DIALOG_ID = 'dlg_rg5ywcijezquc8jibyqs';

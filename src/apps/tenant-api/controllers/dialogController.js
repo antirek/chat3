@@ -5,7 +5,7 @@ import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import * as userUtils from '../utils/userUtils.js';
-import * as unreadCountUtils from '../utils/unreadCountUtils.js';
+import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 
 export const dialogController = {
   // Get all dialogs for current tenant
@@ -590,7 +590,7 @@ export const dialogController = {
           });
 
           // Добавляем участника в диалог
-          const member = await unreadCountUtils.addDialogMember(
+          const member = await dialogMemberUtils.addDialogMember(
             req.tenantId,
             memberData.userId,
             dialog.dialogId
