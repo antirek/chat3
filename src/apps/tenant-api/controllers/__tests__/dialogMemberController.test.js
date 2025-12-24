@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import dialogMemberController from '../dialogMemberController.js';
-import { Tenant, Dialog, DialogMember, Meta, User, DialogReadTask, Event } from "../../../../models/index.js";
+import { Tenant, Dialog, DialogMember, Meta, User, DialogReadTask, Event, UserDialogStats } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
@@ -174,18 +174,19 @@ describe('dialogMemberController', () => {
 
       const member = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'alice' }).lean();
       expect(member).toBeTruthy();
-      expect(member.unreadCount).toBe(0);
+      const stats = await UserDialogStats.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'alice' }).lean();
+      expect(stats?.unreadCount || 0).toBe(0);
 
       const event = await Event.findOne({ tenantId, eventType: 'dialog.member.add' }).lean();
       expect(event).toBeTruthy();
       expect(event.entityType).toBe('dialogMember');
-      expect(event.entityId).toBe(dialog.dialogId);
+      expect(event.entityId).toBe(`${dialog.dialogId}:alice`);
       expect(event.actorId).toBe('test-key');
       expect(event.data.context).toMatchObject({
         eventType: 'dialog.member.add',
-        dialogId: dialog.dialogId,
-        entityId: dialog.dialogId
+        dialogId: dialog.dialogId
       });
+      expect(event.data.context.entityId).toBe(`${dialog.dialogId}:alice`);
       expect(event.data.member).toMatchObject({
         userId: 'alice'
       });
@@ -298,10 +299,17 @@ describe('dialogMemberController', () => {
         userId: 'alice',
         role: 'member',
         isActive: true,
-        unreadCount: 2,
         joinedAt: generateTimestamp(),
         lastSeenAt: generateTimestamp(),
         createdAt: generateTimestamp()
+      });
+
+      // Создаем UserDialogStats для unreadCount
+      await UserDialogStats.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'alice',
+        unreadCount: 2
       });
 
       const req = createMockReq({ dialogId: dialog.dialogId, userId: 'alice' });
@@ -317,7 +325,7 @@ describe('dialogMemberController', () => {
 
       const event = await Event.findOne({ tenantId, eventType: 'dialog.member.remove' }).lean();
       expect(event).toBeTruthy();
-      expect(event.entityId).toBe(dialog.dialogId);
+      expect(event.entityId).toBe(`${dialog.dialogId}:alice`);
       expect(event.data.context).toMatchObject({
         eventType: 'dialog.member.remove',
         dialogId: dialog.dialogId

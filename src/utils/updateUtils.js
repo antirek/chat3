@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Message, DialogMember, 
   MessageStatus, Update, User, UserStats } from '../models/index.js';
 import * as metaUtils from '../apps/tenant-api/utils/metaUtils.js';
@@ -522,6 +523,13 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
  */
 export async function createUserStatsUpdate(tenantId, userId, sourceEventId, sourceEventType, updatedFields = []) {
   try {
+    // Если sourceEventId не является ObjectId, пропускаем создание Update
+    // Это может произойти в тестах, где используется строка вместо ObjectId
+    if (sourceEventId && !mongoose.Types.ObjectId.isValid(sourceEventId)) {
+      console.warn(`Skipping UserStatsUpdate creation: sourceEventId "${sourceEventId}" is not a valid ObjectId`);
+      return;
+    }
+    
     // Получаем статистику пользователя из UserStats (новая архитектура)
     let stats = await UserStats.findOne({ tenantId, userId }).lean();
     

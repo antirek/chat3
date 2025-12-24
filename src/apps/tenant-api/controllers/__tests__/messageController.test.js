@@ -1,7 +1,7 @@
 import * as fakeAmqp from '@onify/fake-amqplib';
 import { jest } from '@jest/globals';
 import messageController from '../messageController.js';
-import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember, Event } from "../../../../models/index.js";
+import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember, Event, UserDialogStats } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
@@ -290,8 +290,8 @@ describe('messageController.createMessage - unread handling', () => {
     const message = await Message.findOne({ tenantId, senderId: 'alice', type: 'internal.text' }).lean();
     expect(message).toBeTruthy();
 
-    const bobMember = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'bob' }).lean();
-    expect(bobMember?.unreadCount).toBe(1);
+    const bobStats = await UserDialogStats.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'bob' }).lean();
+    expect(bobStats?.unreadCount).toBe(1);
 
     const statuses = await MessageStatus.find({ tenantId, messageId: message.messageId }).lean();
     expect(statuses).toHaveLength(1);
@@ -313,8 +313,8 @@ describe('messageController.createMessage - unread handling', () => {
     const message = await Message.findOne({ tenantId, type: 'system.text' }).lean();
     expect(message).toBeTruthy();
 
-    const bobMember = await DialogMember.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'bob' }).lean();
-    expect(bobMember?.unreadCount).toBe(0);
+    const bobStats = await UserDialogStats.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'bob' }).lean();
+    expect(bobStats?.unreadCount || 0).toBe(0);
 
     const statuses = await MessageStatus.find({ tenantId, messageId: message.messageId }).lean();
     expect(statuses).toHaveLength(0);

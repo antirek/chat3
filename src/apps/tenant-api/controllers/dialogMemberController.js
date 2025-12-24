@@ -1,4 +1,4 @@
-import { Dialog, DialogMember, Meta } from '../../../models/index.js';
+import { Dialog, DialogMember, Meta, UserDialogStats } from '../../../models/index.js';
 import * as unreadCountUtils from '../utils/unreadCountUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
@@ -65,6 +65,14 @@ const dialogMemberController = {
         dialog.dialogId // Передаем строковый dialogId
       );
 
+      // Получаем unreadCount из UserDialogStats
+      const userDialogStats = await UserDialogStats.findOne({
+        tenantId: req.tenantId,
+        userId,
+        dialogId: dialog.dialogId
+      }).lean();
+      const unreadCount = userDialogStats?.unreadCount || 0;
+
       // Получаем метаданные диалога для события
       const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
       const dialogSection = eventUtils.buildDialogSection({
@@ -77,7 +85,7 @@ const dialogMemberController = {
       const memberSection = eventUtils.buildMemberSection({
         userId: member.userId,
         state: {
-          unreadCount: member.unreadCount,
+          unreadCount: unreadCount, // Используем unreadCount из UserDialogStats
           lastSeenAt: member.lastSeenAt,
           lastMessageAt: member.lastMessageAt
         }
@@ -326,6 +334,14 @@ const dialogMemberController = {
         dialogId: dialog.dialogId // Используем строковый dialogId
       });
 
+      // Получаем unreadCount из UserDialogStats перед удалением
+      const userDialogStats = await UserDialogStats.findOne({
+        tenantId: req.tenantId,
+        userId,
+        dialogId: dialog.dialogId
+      }).lean();
+      const unreadCount = userDialogStats?.unreadCount || 0;
+
       await unreadCountUtils.removeDialogMember(
         req.tenantId,
         userId,
@@ -346,7 +362,7 @@ const dialogMemberController = {
         const memberSection = eventUtils.buildMemberSection({
           userId: member.userId,
           state: {
-            unreadCount: member.unreadCount,
+            unreadCount: unreadCount, // Используем unreadCount из UserDialogStats
             lastSeenAt: member.lastSeenAt,
             lastMessageAt: member.lastMessageAt
           }

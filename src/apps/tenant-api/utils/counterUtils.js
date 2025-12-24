@@ -173,8 +173,20 @@ export async function updateUnreadCount(tenantId, userId, dialogId, delta, sourc
   
   // Вычисляем старое и новое значение
   // result.unreadCount уже содержит новое значение после $inc
-  const newValue = result.unreadCount || 0;
+  let newValue = result.unreadCount || 0;
   const oldValue = Math.max(0, newValue - delta);
+  
+  // Защита от отрицательных значений: если значение стало отрицательным, устанавливаем 0
+  if (newValue < 0) {
+    const correctedResult = await UserDialogStats.findOneAndUpdate(
+      { tenantId, userId, dialogId },
+      { $set: { unreadCount: 0, lastUpdatedAt: generateTimestamp() } },
+      { new: true }
+    );
+    newValue = 0;
+    // Обновляем result для дальнейшего использования
+    result.unreadCount = 0;
+  }
   
   // Сохраняем sourceEventId и sourceEventType для использования в обновлении UserStats
   // (используем временные поля, которые не сохраняются в БД)

@@ -1,5 +1,5 @@
 import * as fakeAmqp from '@onify/fake-amqplib';
-import { Dialog, DialogMember, Meta, Message, MessageStatus, User, Event, Update } from "../../../../models/index.js";
+import { Dialog, DialogMember, Meta, Message, MessageStatus, User, Event, Update, UserStats, UserDialogStats } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 
@@ -875,21 +875,40 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         createdBy: userId
       });
 
+      const dialogId2 = generateDialogId();
+      
       // Создаем два диалога для пользователя
       await DialogMember.create([
         {
           tenantId,
           dialogId,
           userId,
-          unreadCount: 1, // Непрочитанный диалог
         },
         {
           tenantId,
-          dialogId: generateDialogId(),
+          dialogId: dialogId2,
           userId,
-          unreadCount: 0, // Прочитанный диалог
         }
       ]);
+
+      // Создаем UserDialogStats для unreadCount
+      await UserDialogStats.create([
+        { tenantId, userId, dialogId, unreadCount: 1 }, // Непрочитанный диалог
+        { tenantId, userId, dialogId: dialogId2, unreadCount: 0 } // Прочитанный диалог
+      ]);
+
+      // Инициализируем UserStats с правильными значениями
+      await UserStats.findOneAndUpdate(
+        { tenantId, userId },
+        { 
+          $set: { 
+            dialogCount: 2,
+            unreadDialogsCount: 1,
+            totalUnreadCount: 1
+          } 
+        },
+        { upsert: true, new: true }
+      );
 
       const eventId = await createEventAndGetId('message.create');
 
@@ -938,8 +957,14 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         tenantId,
         dialogId,
         userId,
-        unreadCount: 0,
       });
+
+      // Инициализируем UserStats с правильным dialogCount
+      await UserStats.findOneAndUpdate(
+        { tenantId, userId },
+        { $set: { dialogCount: 1 } },
+        { upsert: true, new: true }
+      );
 
       const eventId = await createEventAndGetId('dialog.member.add');
 
@@ -1029,13 +1054,32 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         createdBy: senderId
       });
 
-      // Создаем DialogMember для получателя с unreadCount = 0 (диалог прочитан)
+      // Создаем DialogMember для получателя
       await DialogMember.create({
         tenantId,
         dialogId,
         userId: recipientId,
-        unreadCount: 0,
       });
+
+      // Создаем UserDialogStats с unreadCount = 0 (диалог прочитан)
+      await UserDialogStats.findOneAndUpdate(
+        { tenantId, dialogId, userId: recipientId },
+        { $set: { unreadCount: 0 } },
+        { upsert: true, new: true }
+      );
+
+      // Инициализируем UserStats
+      await UserStats.findOneAndUpdate(
+        { tenantId, userId: recipientId },
+        { 
+          $set: { 
+            dialogCount: 1,
+            unreadDialogsCount: 0,
+            totalUnreadCount: 0
+          } 
+        },
+        { upsert: true, new: true }
+      );
 
       const messageId = generateMessageId();
       const eventId = await createEventAndGetId('message.create', {
@@ -1076,10 +1120,21 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         createdAt: generateTimestamp()
       });
 
-      // Обновляем unreadCount для получателя (симулируем создание сообщения)
-      await DialogMember.updateOne(
+      // Обновляем unreadCount для получателя через UserDialogStats (симулируем создание сообщения)
+      await UserDialogStats.updateOne(
         { tenantId, dialogId, userId: recipientId },
         { $inc: { unreadCount: 1 } }
+      );
+
+      // Обновляем UserStats после изменения unreadCount
+      await UserStats.updateOne(
+        { tenantId, userId: recipientId },
+        { 
+          $set: { 
+            unreadDialogsCount: 1,
+            totalUnreadCount: 1
+          } 
+        }
       );
 
       // Создаем UserStatsUpdate (как это делает update-worker)
@@ -1141,26 +1196,37 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         createdBy: senderId
       });
 
-      // Создаем DialogMember для всех получателей с unreadCount = 0 (диалог прочитан)
+      // Создаем DialogMember для всех получателей
       await DialogMember.create([
         {
           tenantId,
           dialogId,
           userId: recipient1Id,
-          unreadCount: 0,
         },
         {
           tenantId,
           dialogId,
           userId: recipient2Id,
-          unreadCount: 0,
         },
         {
           tenantId,
           dialogId,
           userId: recipient3Id,
-          unreadCount: 0,
         }
+      ]);
+
+      // Создаем UserDialogStats для всех получателей с unreadCount = 0 (диалог прочитан)
+      await UserDialogStats.create([
+        { tenantId, dialogId, userId: recipient1Id, unreadCount: 0 },
+        { tenantId, dialogId, userId: recipient2Id, unreadCount: 0 },
+        { tenantId, dialogId, userId: recipient3Id, unreadCount: 0 }
+      ]);
+
+      // Инициализируем UserStats для всех получателей
+      await UserStats.create([
+        { tenantId, userId: recipient1Id, dialogCount: 1, unreadDialogsCount: 0, totalUnreadCount: 0 },
+        { tenantId, userId: recipient2Id, dialogCount: 1, unreadDialogsCount: 0, totalUnreadCount: 0 },
+        { tenantId, userId: recipient3Id, dialogCount: 1, unreadDialogsCount: 0, totalUnreadCount: 0 }
       ]);
 
       const messageId = generateMessageId();
@@ -1202,36 +1268,46 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         createdAt: generateTimestamp()
       });
 
-      // Обновляем unreadCount для всех получателей (симулируем создание сообщения)
+      // Обновляем unreadCount для всех получателей через UserDialogStats (симулируем создание сообщения)
       // recipient1 и recipient2: диалог стал непрочитанным (unreadCount = 1)
       // recipient3: диалог остался прочитанным (unreadCount = 0, не обновляем)
-      await DialogMember.updateOne(
+      await UserDialogStats.updateOne(
         { tenantId, dialogId, userId: recipient1Id },
         { $inc: { unreadCount: 1 } }
       );
-      await DialogMember.updateOne(
+      await UserDialogStats.updateOne(
         { tenantId, dialogId, userId: recipient2Id },
         { $inc: { unreadCount: 1 } }
       );
 
+      // Обновляем UserStats для recipient1 и recipient2
+      await UserStats.updateOne(
+        { tenantId, userId: recipient1Id },
+        { $set: { unreadDialogsCount: 1, totalUnreadCount: 1 } }
+      );
+      await UserStats.updateOne(
+        { tenantId, userId: recipient2Id },
+        { $set: { unreadDialogsCount: 1, totalUnreadCount: 1 } }
+      );
+
       // Симулируем логику из update-worker: получаем всех участников и создаем UserStatsUpdate для тех, у кого unreadCount = 1
-      const members = await DialogMember.find({
+      const stats = await UserDialogStats.find({
         tenantId,
         dialogId,
       }).lean();
 
-      for (const member of members) {
-        if (member.userId !== senderId) {
-          const unreadCount = member.unreadCount ?? 0;
+      for (const stat of stats) {
+        if (stat.userId !== senderId) {
+          const unreadCount = stat.unreadCount ?? 0;
           // Если unreadCount = 1 (только что созданное сообщение), значит диалог стал непрочитанным
           if (unreadCount === 1) {
-            await updateUtils.createUserStatsUpdate(
-              tenantId,
-              member.userId,
-              eventId,
-              'message.create',
-              ['user.stats.unreadDialogsCount']
-            );
+          await updateUtils.createUserStatsUpdate(
+            tenantId,
+            stat.userId,
+            eventId,
+            'message.create',
+            ['user.stats.unreadDialogsCount']
+          );
           }
         }
       }
@@ -1307,6 +1383,15 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         userId,
         unreadCount: 0,
       });
+
+      // Обновляем UserStats после добавления (симулируем работу контроллера)
+      const { UserStats } = await import('../../../../models/index.js');
+      const dialogCount = await DialogMember.countDocuments({ tenantId, userId });
+      await UserStats.findOneAndUpdate(
+        { tenantId, userId },
+        { $set: { dialogCount } },
+        { upsert: true, new: true }
+      );
 
       // Создаем UserStatsUpdate (как это делает update-worker)
       await updateUtils.createUserStatsUpdate(
@@ -1390,6 +1475,15 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId
       });
+
+      // Обновляем UserStats после удаления (симулируем работу контроллера)
+      const { UserStats } = await import('../../../../models/index.js');
+      const remainingDialogs = await DialogMember.countDocuments({ tenantId, userId });
+      await UserStats.findOneAndUpdate(
+        { tenantId, userId },
+        { $set: { dialogCount: remainingDialogs } },
+        { upsert: true, new: true }
+      );
 
       // Создаем UserStatsUpdate (как это делает update-worker)
       await updateUtils.createUserStatsUpdate(
