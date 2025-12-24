@@ -122,7 +122,7 @@ const dialogMemberController = {
         })
       });
 
-      const sourceEventId = memberEvent?._id || null;
+      const sourceEventId = memberEvent?.eventId || null;
 
       // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
       try {
@@ -399,7 +399,7 @@ const dialogMemberController = {
           })
         });
 
-        const sourceEventId = memberEvent?._id || null;
+        const sourceEventId = memberEvent?.eventId || null;
 
         // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
         try {
@@ -539,7 +539,7 @@ const dialogMemberController = {
           actorType: 'api',
           data: {}
         });
-        const sourceEventId = eventId?._id || null;
+        const sourceEventId = eventId?.eventId || null;
 
         try {
           await updateUnreadCount(

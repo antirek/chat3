@@ -16,7 +16,8 @@ import {
   MessageReactionStats, 
   MessageStatusStats, 
   CounterHistory,
-  User
+  User,
+  DialogMember
 } from '../../../../models/index.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 
@@ -390,6 +391,10 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
       const dialogId2 = generateDialogId();
       const messageId = generateMessageId();
       const eventId = generateEventId();
+
+      // Создаем DialogMember записи (основная таблица участников диалогов)
+      await DialogMember.create({ tenantId, userId, dialogId: dialogId1 });
+      await DialogMember.create({ tenantId, userId, dialogId: dialogId2 });
 
       // Создаем два диалога с непрочитанными сообщениями
       await updateUnreadCount(tenantId, userId, dialogId1, 3, 'message.create', eventId, messageId, 'sender1', 'user');

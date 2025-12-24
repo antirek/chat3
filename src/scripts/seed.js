@@ -1,6 +1,8 @@
 import connectDB from '../config/database.js';
 import { Tenant, User, Dialog, Message, Meta, DialogMember, 
-  MessageStatus, Event, MessageReaction, Update } from '../models/index.js';
+  MessageStatus, Event, MessageReaction, Update,
+  UserStats, UserDialogStats, UserDialogActivity,
+  MessageReactionStats, MessageStatusStats, CounterHistory } from '../models/index.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
 
 async function seed() {
@@ -20,6 +22,13 @@ async function seed() {
     await MessageReaction.deleteMany({});
     await Event.deleteMany({});
     await Update.deleteMany({});
+    // Очищаем новые коллекции счетчиков и активности
+    await UserStats.deleteMany({});
+    await UserDialogStats.deleteMany({});
+    await UserDialogActivity.deleteMany({});
+    await MessageReactionStats.deleteMany({});
+    await MessageStatusStats.deleteMany({});
+    await CounterHistory.deleteMany({});
 
     console.log('✅ Cleared existing data');
 
@@ -109,6 +118,8 @@ async function seed() {
 
     // Create Dialog Members
     const dialogMembers = [];
+    const userDialogStats = [];
+    const userDialogActivities = [];
 
     console.log('\n👥 Creating dialog members...');
 
@@ -132,20 +143,34 @@ async function seed() {
         .sort(() => Math.random() - 0.5)
         .slice(0, Math.min(participantCount, tenantUsers.length));
 
-      // Создаем DialogMember записи для участников
+      // Создаем DialogMember записи для участников (без unreadCount, lastSeenAt, lastMessageAt, isActive)
       selectedUsers.forEach(user => {
         const unreadCount = Math.floor(Math.random() * 10); // 0-9 непрочитанных
         const lastSeenAt = generateTimestamp() - Math.random() * 7 * 24 * 60 * 60 * 1000;
         const lastMessageAt = generateTimestamp() - Math.random() * 3 * 24 * 60 * 60 * 1000;
 
+        // DialogMember - только связь
         dialogMembers.push({
           userId: user.userId,
           tenantId: dialog.tenantId,
+          dialogId: dialog.dialogId
+        });
+
+        // UserDialogStats - счетчик непрочитанных
+        userDialogStats.push({
+          tenantId: dialog.tenantId,
+          userId: user.userId,
           dialogId: dialog.dialogId,
-          unreadCount,
+          unreadCount
+        });
+
+        // UserDialogActivity - активность
+        userDialogActivities.push({
+          tenantId: dialog.tenantId,
+          userId: user.userId,
+          dialogId: dialog.dialogId,
           lastSeenAt,
-          lastMessageAt,
-          isActive: true
+          lastMessageAt
         });
       });
     });
@@ -157,6 +182,18 @@ async function seed() {
       const batch = dialogMembers.slice(i, i + batchSize);
       const savedBatch = await DialogMember.insertMany(batch);
       savedDialogMembers.push(...savedBatch);
+    }
+
+    // Создаем UserDialogStats записи батчами
+    for (let i = 0; i < userDialogStats.length; i += batchSize) {
+      const batch = userDialogStats.slice(i, i + batchSize);
+      await UserDialogStats.insertMany(batch);
+    }
+
+    // Создаем UserDialogActivity записи батчами
+    for (let i = 0; i < userDialogActivities.length; i += batchSize) {
+      const batch = userDialogActivities.slice(i, i + batchSize);
+      await UserDialogActivity.insertMany(batch);
     }
 
     console.log(`✅ Created ${savedDialogMembers.length} dialog members`);
@@ -364,7 +401,7 @@ async function seed() {
         .sort(() => Math.random() - 0.5)
         .slice(0, Math.min(statusCount, dialogParticipants.length));
 
-      selectedUsers.forEach((userId, _userIndex) => {
+      selectedUsers.forEach((userId, userIndex) => {
         // Время создания статуса - от времени сообщения до текущего времени
         const messageTime = message.createdAt;
         const now = generateTimestamp();
@@ -682,8 +719,7 @@ async function seed() {
       });
 
     // reactionCounts больше не используется в модели Message
-
-    console.log(`✅ Updated reaction counts for ${updatedCount} messages`);
+    // Счетчики реакций теперь хранятся в MessageReactionStats и обновляются автоматически через middleware
 
     console.log('\n🎉 Database seeding completed successfully!');
     console.log('\n📊 Summary:');

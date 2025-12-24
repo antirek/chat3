@@ -74,7 +74,7 @@ messageReactionSchema.post('save', async function(doc) {
         entityId: doc.messageId
       }).sort({ createdAt: -1 });
       
-      const sourceEventId = messageEvent?._id || null;
+      const sourceEventId = messageEvent?.eventId || null;
       const sourceEventType = 'message.reaction.update';
       
       // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов

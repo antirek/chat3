@@ -439,7 +439,7 @@ const messageController = {
         })
       });
 
-      const sourceEventId = messageEvent?._id || null;
+      const sourceEventId = messageEvent?.eventId || null;
       const sourceEventType = 'message.create';
 
       // Create MessageStatus records and update counters for all dialog participants
