@@ -49,47 +49,8 @@ async function processEvent(eventData) {
         await updateUtils.createDialogUpdate(tenantId, dialogId, eventId, eventType, data);
         console.log(`✅ Created DialogUpdate for event ${eventId}`);
         
-        // Для dialog.member.add создаем UserStatsUpdate для добавленного пользователя
-        if (eventType === 'dialog.member.add') {
-          const memberPayload = data.member || {};
-          const userId = memberPayload.userId;
-          if (userId) {
-            try {
-              await updateUtils.createUserStatsUpdate(
-                tenantId,
-                userId,
-                eventId,
-                eventType,
-                ['user.stats.dialogCount']
-              );
-              console.log(`✅ Created UserStatsUpdate for user ${userId} (dialogCount increased)`);
-            } catch (error) {
-              // Если пользователь не найден или другая ошибка - логируем, но не прерываем обработку
-              console.warn(`⚠️  Failed to create UserStatsUpdate for user ${userId}:`, error.message);
-            }
-          }
-        }
-        
-        // Для dialog.member.remove создаем UserStatsUpdate для удаленного пользователя
-        if (eventType === 'dialog.member.remove') {
-          const memberPayload = data.member || {};
-          const userId = memberPayload.userId;
-          if (userId) {
-            try {
-              await updateUtils.createUserStatsUpdate(
-                tenantId,
-                userId,
-                eventId,
-                eventType,
-                ['user.stats.dialogCount']
-              );
-              console.log(`✅ Created UserStatsUpdate for user ${userId} (dialogCount decreased)`);
-            } catch (error) {
-              // Если пользователь не найден или другая ошибка - логируем, но не прерываем обработку
-              console.warn(`⚠️  Failed to create UserStatsUpdate for user ${userId}:`, error.message);
-            }
-          }
-        }
+        // ВАЖНО: user.stats.update для dialog.member.add/remove создается синхронно в контроллере
+        // через finalizeCounterUpdateContext, поэтому здесь не создаем дубликаты
       } else {
         console.warn(`⚠️ No dialogId found for event ${eventId}`);
       }
