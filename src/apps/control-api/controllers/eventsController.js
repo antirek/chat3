@@ -384,7 +384,7 @@ export const eventsController = {
         filter.eventType = req.query.eventType;
       }
       if (req.query.eventId) {
-        // eventId может быть ObjectId или строкой
+        // eventId теперь всегда строка (evt_...) в Update документах
         filter.eventId = req.query.eventId;
       }
       if (req.query.published !== undefined) {
@@ -401,7 +401,7 @@ export const eventsController = {
         .limit(limit)
         .lean();
 
-      // Transform eventId to string
+      // eventId уже строка в Update документах, но преобразуем для совместимости
       const updatesWithStringEventId = updates.map(update => ({
         ...update,
         eventId: update.eventId ? String(update.eventId) : null

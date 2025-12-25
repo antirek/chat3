@@ -1598,5 +1598,199 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(updates.length).toBe(0); // Update не должен быть создан
     });
   });
+
+  describe('eventId format in Update documents', () => {
+    test('should store eventId as string (evt_...) in createDialogUpdate', async () => {
+      const dialogId = generateDialogId();
+      await Dialog.create({ tenantId, dialogId });
+      await DialogMember.create([
+        { tenantId, dialogId, userId: 'user1' },
+        { tenantId, dialogId, userId: 'user2' }
+      ]);
+
+      const event = await Event.create({
+        tenantId,
+        eventType: 'dialog.create',
+        entityType: 'dialog',
+        entityId: dialogId,
+        actorId: 'user1',
+        data: {
+          dialog: { dialogId, tenantId },
+          context: { eventType: 'dialog.create', dialogId }
+        }
+      });
+
+      await updateUtils.createDialogUpdate(tenantId, dialogId, event.eventId, 'dialog.create', {
+        dialog: { dialogId, tenantId },
+        context: { eventType: 'dialog.create', dialogId }
+      });
+
+      const updates = await Update.find({ tenantId, entityId: dialogId }).lean();
+      expect(updates.length).toBe(2);
+      
+      // Проверяем, что eventId - это строка, начинающаяся с "evt_"
+      updates.forEach(update => {
+        expect(typeof update.eventId).toBe('string');
+        expect(update.eventId).toMatch(/^evt_/);
+        expect(update.eventId).toBe(event.eventId);
+      });
+    });
+
+    test('should store eventId as string (evt_...) in createDialogMemberUpdate', async () => {
+      const dialogId = generateDialogId();
+      await Dialog.create({ tenantId, dialogId });
+      await DialogMember.create({ tenantId, dialogId, userId: 'user1' });
+
+      const event = await Event.create({
+        tenantId,
+        eventType: 'dialog.member.add',
+        entityType: 'dialogMember',
+        entityId: `${dialogId}:user1`,
+        actorId: 'user1',
+        data: {
+          dialog: { dialogId, tenantId },
+          member: { userId: 'user1' },
+          context: { eventType: 'dialog.member.add', dialogId }
+        }
+      });
+
+      await updateUtils.createDialogMemberUpdate(
+        tenantId,
+        dialogId,
+        'user1',
+        event.eventId,
+        'dialog.member.add',
+        {
+          dialog: { dialogId, tenantId },
+          member: { userId: 'user1' },
+          context: { eventType: 'dialog.member.add', dialogId }
+        }
+      );
+
+      const update = await Update.findOne({ tenantId, entityId: dialogId, userId: 'user1' }).lean();
+      expect(update).toBeDefined();
+      expect(typeof update.eventId).toBe('string');
+      expect(update.eventId).toMatch(/^evt_/);
+      expect(update.eventId).toBe(event.eventId);
+    });
+
+    test('should store eventId as string (evt_...) in createMessageUpdate', async () => {
+      const dialogId = generateDialogId();
+      const messageId = generateMessageId();
+      await Dialog.create({ tenantId, dialogId });
+      await DialogMember.create([
+        { tenantId, dialogId, userId: 'user1' },
+        { tenantId, dialogId, userId: 'user2' }
+      ]);
+      await Message.create({ tenantId, dialogId, messageId, senderId: 'user1', type: 'internal.text', content: 'test' });
+
+      const event = await Event.create({
+        tenantId,
+        eventType: 'message.create',
+        entityType: 'message',
+        entityId: messageId,
+        actorId: 'user1',
+        data: {
+          message: { messageId, dialogId, senderId: 'user1' },
+          dialog: { dialogId, tenantId },
+          context: { eventType: 'message.create', dialogId, messageId }
+        }
+      });
+
+      await updateUtils.createMessageUpdate(tenantId, dialogId, messageId, event.eventId, 'message.create', {
+        message: { messageId, dialogId, senderId: 'user1' },
+        dialog: { dialogId, tenantId },
+        context: { eventType: 'message.create', dialogId, messageId }
+      });
+
+      const updates = await Update.find({ tenantId, entityId: messageId }).lean();
+      expect(updates.length).toBe(2);
+      
+      updates.forEach(update => {
+        expect(typeof update.eventId).toBe('string');
+        expect(update.eventId).toMatch(/^evt_/);
+        expect(update.eventId).toBe(event.eventId);
+      });
+    });
+
+    test('should store eventId as string (evt_...) in createUserStatsUpdate', async () => {
+      const userId = 'user1';
+      await User.create({ tenantId, userId, type: 'user' });
+      await UserStats.create({ tenantId, userId, dialogCount: 5 });
+
+      const event = await Event.create({
+        tenantId,
+        eventType: 'dialog.member.add',
+        entityType: 'dialogMember',
+        entityId: 'dlg_test:user1',
+        actorId: 'user1',
+        data: {}
+      });
+
+      await updateUtils.createUserStatsUpdate(tenantId, userId, event.eventId, 'dialog.member.add', ['user.stats.dialogCount']);
+
+      const update = await Update.findOne({ tenantId, userId, eventType: 'user.stats.update' }).lean();
+      expect(update).toBeDefined();
+      expect(typeof update.eventId).toBe('string');
+      expect(update.eventId).toMatch(/^evt_/);
+      expect(update.eventId).toBe(event.eventId);
+    });
+
+    test('should convert ObjectId to string eventId when creating update', async () => {
+      const dialogId = generateDialogId();
+      await Dialog.create({ tenantId, dialogId });
+      await DialogMember.create({ tenantId, dialogId, userId: 'user1' });
+
+      const event = await Event.create({
+        tenantId,
+        eventType: 'dialog.create',
+        entityType: 'dialog',
+        entityId: dialogId,
+        actorId: 'user1',
+        data: {
+          dialog: { dialogId, tenantId },
+          context: { eventType: 'dialog.create', dialogId }
+        }
+      });
+
+      // Передаем ObjectId вместо строкового eventId
+      await updateUtils.createDialogUpdate(tenantId, dialogId, event._id, 'dialog.create', {
+        dialog: { dialogId, tenantId },
+        context: { eventType: 'dialog.create', dialogId }
+      });
+
+      const update = await Update.findOne({ tenantId, entityId: dialogId, userId: 'user1' }).lean();
+      expect(update).toBeDefined();
+      expect(typeof update.eventId).toBe('string');
+      expect(update.eventId).toMatch(/^evt_/);
+      expect(update.eventId).toBe(event.eventId); // Должен быть строковый eventId, а не ObjectId
+    });
+
+    test('should handle missing event gracefully when converting ObjectId', async () => {
+      const dialogId = generateDialogId();
+      await Dialog.create({ tenantId, dialogId });
+      await DialogMember.create({ tenantId, dialogId, userId: 'user1' });
+
+      // Используем несуществующий ObjectId
+      const fakeObjectId = '507f1f77bcf86cd799439011';
+      
+      // Сохраняем оригинальный console.warn
+      const originalWarn = console.warn;
+      let warnCalled = false;
+      console.warn = () => { warnCalled = true; };
+      
+      await updateUtils.createDialogUpdate(tenantId, dialogId, fakeObjectId, 'dialog.create', {
+        dialog: { dialogId, tenantId },
+        context: { eventType: 'dialog.create', dialogId }
+      });
+
+      const update = await Update.findOne({ tenantId, entityId: dialogId }).lean();
+      expect(update).toBeNull(); // Update не должен быть создан
+      expect(warnCalled).toBe(true); // console.warn должен быть вызван
+      
+      // Восстанавливаем оригинальный console.warn
+      console.warn = originalWarn;
+    });
+  });
 });
 

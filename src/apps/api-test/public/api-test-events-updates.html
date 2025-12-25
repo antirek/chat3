@@ -699,17 +699,19 @@
             html += '</tr></thead><tbody>';
 
             events.forEach(event => {
-                const eventIdStr = String(event._id);
+                // Используем строковый eventId (evt_...) для фильтрации updates
+                const eventIdStr = event.eventId || String(event._id);
                 const isSelected = selectedEventId === eventIdStr;
                 const rowClass = isSelected ? 'event-row event-row-selected' : 'event-row';
-                html += `<tr class="${rowClass}" data-event-id="${eventIdStr}" onclick="selectEvent('${eventIdStr}')">`;
+                // Сохраняем и eventId (строка) и _id (ObjectId) в data-атрибутах для совместимости
+                html += `<tr class="${rowClass}" data-event-id="${eventIdStr}" data-event-object-id="${event._id}" onclick="selectEvent('${eventIdStr}')">`;
                 html += `<td>${event.eventId || '-'}</td>`;
                 html += `<td>${event.eventType || '-'}</td>`;
                 html += `<td>${event.actorId || '-'}</td>`;
                 html += `<td>${formatTimestamp(event.createdAt)}</td>`;
                 html += '<td class="actions-column">';
                 html += `<button class="action-button updates-button" onclick="event.stopPropagation(); showEventUpdates('${eventIdStr}')">Updates</button>`;
-                html += `<button class="action-button" onclick="event.stopPropagation(); showEventJson('${eventIdStr}', ${JSON.stringify(event).replace(/"/g, '&quot;')})">Инфо</button>`;
+                html += `<button class="action-button" onclick="event.stopPropagation(); showEventJson('${event._id}', ${JSON.stringify(event).replace(/"/g, '&quot;')})">Инфо</button>`;
                 html += '</td>';
                 html += '</tr>';
             });
@@ -801,7 +803,7 @@
 
         // Выбрать событие и загрузить связанные обновления
         function selectEvent(eventId) {
-            selectedEventId = eventId;
+            selectedEventId = eventId; // eventId теперь строка evt_...
             currentUpdatesPage = 1;
             loadUpdates();
             
@@ -809,7 +811,8 @@
             const rows = document.querySelectorAll('.event-row');
             rows.forEach(row => {
                 row.classList.remove('event-row-selected');
-                if (row.getAttribute('data-event-id') === eventId) {
+                const rowEventId = row.getAttribute('data-event-id');
+                if (rowEventId === eventId) {
                     row.classList.add('event-row-selected');
                 }
             });
