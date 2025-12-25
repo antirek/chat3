@@ -228,7 +228,7 @@ export async function updateUnreadCount(tenantId, userId, dialogId, delta, sourc
  * Обновление reactionCount
  * КРИТИЧНО: Используем атомарные операции
  */
-export async function updateReactionCount(tenantId, messageId, reaction, delta, sourceOperation, sourceEventId, actorId, actorType) {
+export async function updateReactionCount(tenantId, messageId, reaction, delta, sourceOperation, actorId, actorType) {
   // Атомарное обновление с $inc
   const result = await MessageReactionStats.findOneAndUpdate(
     { tenantId, messageId, reaction },
@@ -279,7 +279,7 @@ export async function updateReactionCount(tenantId, messageId, reaction, delta, 
  * Обновление statusCount
  * КРИТИЧНО: Используем атомарные операции
  */
-export async function updateStatusCount(tenantId, messageId, status, delta, sourceOperation, sourceEventId, actorId, actorType) {
+export async function updateStatusCount(tenantId, messageId, status, delta, sourceOperation, actorId, actorType) {
   // Атомарное обновление с $inc
   const result = await MessageStatusStats.findOneAndUpdate(
     { tenantId, messageId, status },

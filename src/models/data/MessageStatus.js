@@ -140,7 +140,6 @@ messageStatusSchema.post('save', async function(doc) {
           doc.status,
           1, // delta
           sourceEventType,
-          sourceEventId,
           doc.userId,
           'user'
         );
