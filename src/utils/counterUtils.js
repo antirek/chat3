@@ -5,7 +5,8 @@ import {
   MessageStatusStats, 
   CounterHistory,
   DialogMember,
-  Message
+  Message,
+  MessageStatus
 } from '../models/index.js';
 import { generateTimestamp } from './timestampUtils.js';
 import { createUserStatsUpdate } from './updateUtils.js';
@@ -547,7 +548,73 @@ export async function recalculateUserStats(tenantId, userId) {
   // Пересчитываем dialogCount из DialogMember (основная таблица участников диалогов)
   const dialogCount = await DialogMember.countDocuments({ tenantId, userId });
   
-  // Пересчитываем unreadDialogsCount и totalUnreadCount из UserDialogStats
+  // КРИТИЧНО: Сначала создаем и пересчитываем UserDialogStats для всех DialogMember
+  // Это нужно, чтобы пересчет unreadDialogsCount был корректным
+  const dialogMembers = await DialogMember.find({ tenantId, userId }).select('dialogId').lean();
+  
+  for (const member of dialogMembers) {
+    // Пересчитываем unreadCount из реальных данных (MessageStatus)
+    // unreadCount = количество сообщений в диалоге, которые:
+    // 1. Не были отправлены пользователем (senderId != userId)
+    // 2. Не имеют статуса 'read' для этого пользователя
+    
+    // Получаем все сообщения в диалоге, которые не были отправлены пользователем
+    const messages = await Message.find({
+      tenantId,
+      dialogId: member.dialogId,
+      senderId: { $ne: userId }
+    }).select('messageId').lean();
+    
+    const messageIds = messages.map(m => m.messageId);
+    
+    if (messageIds.length > 0) {
+      // Получаем все статусы 'read' для этих сообщений от этого пользователя
+      const readStatuses = await MessageStatus.find({
+        tenantId,
+        userId,
+        messageId: { $in: messageIds },
+        status: 'read'
+      }).select('messageId').lean();
+      
+      const readMessageIds = new Set(readStatuses.map(s => s.messageId));
+      
+      // unreadCount = количество сообщений без статуса 'read'
+      const unreadCount = messageIds.filter(msgId => !readMessageIds.has(msgId)).length;
+      
+      // Обновляем или создаем UserDialogStats с пересчитанным unreadCount
+      await UserDialogStats.findOneAndUpdate(
+        { tenantId, userId, dialogId: member.dialogId },
+        {
+          $set: {
+            unreadCount,
+            lastUpdatedAt: generateTimestamp()
+          },
+          $setOnInsert: {
+            createdAt: generateTimestamp()
+          }
+        },
+        { upsert: true, setDefaultsOnInsert: true }
+      );
+    } else {
+      // Если сообщений нет, создаем UserDialogStats с unreadCount = 0
+      await UserDialogStats.findOneAndUpdate(
+        { tenantId, userId, dialogId: member.dialogId },
+        {
+          $setOnInsert: {
+            unreadCount: 0,
+            createdAt: generateTimestamp()
+          },
+          $set: {
+            lastUpdatedAt: generateTimestamp()
+          }
+        },
+        { upsert: true, setDefaultsOnInsert: true }
+      );
+    }
+  }
+  
+  // Теперь пересчитываем unreadDialogsCount и totalUnreadCount из UserDialogStats
+  // (теперь все записи гарантированно существуют)
   const unreadStats = await UserDialogStats.aggregate([
     { $match: { tenantId, userId } },
     {
