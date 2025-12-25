@@ -602,31 +602,6 @@ export const dialogController = {
         meta: dialogMeta || {}
       });
 
-      // КРИТИЧНО: Создаем событие dialog.create ПЕРЕД обработкой участников,
-      // чтобы использовать его eventId как общий sourceEventId для всех обновлений счетчиков
-      const eventContext = eventUtils.buildEventContext({
-        eventType: 'dialog.create',
-        dialogId: dialog.dialogId,
-        entityId: dialog.dialogId,
-        includedSections: ['dialog'],
-        updatedFields: ['dialog']
-      });
-
-      const dialogCreateEvent = await eventUtils.createEvent({
-        tenantId: req.tenantId,
-        eventType: 'dialog.create',
-        entityType: 'dialog',
-        entityId: dialog.dialogId,
-        actorId: actorId,
-        actorType: 'user',
-        data: eventUtils.composeEventData({
-          context: eventContext,
-          dialog: dialogSection
-        })
-      });
-
-      const dialogCreateEventId = dialogCreateEvent?.eventId || null;
-
       // КРИТИЧНО: Собираем уникальных пользователей для предотвращения дублирования обновлений счетчиков
       const processedUserIds = new Set();
 
@@ -696,7 +671,7 @@ export const dialogController = {
             updatedFields: ['member']
           });
 
-          await eventUtils.createEvent({
+          const memberEvent = await eventUtils.createEvent({
             tenantId: req.tenantId,
             eventType: 'dialog.member.add',
             entityType: 'dialogMember',
@@ -710,29 +685,52 @@ export const dialogController = {
             })
           });
 
-          // КРИТИЧНО: Обновляем dialogCount для пользователя, используя dialog.create eventId
-          // Это объединит все обновления для одного пользователя в один контекст
-          await updateUserStatsDialogCount(
-            req.tenantId,
-            member.userId,
-            1, // delta
-            'dialog.create',
-            dialogCreateEventId,
-            actorId,
-            'user'
-          );
-        }
+          const memberEventId = memberEvent?.eventId || null;
 
-        // КРИТИЧНО: Финализируем контексты для всех обработанных пользователей после цикла
-        // Это создаст одно событие user.stats.update для каждого пользователя
-        for (const userId of processedUserIds) {
+          // КРИТИЧНО: Обновляем dialogCount для пользователя, используя dialog.member.add eventId
+          // Это создаст user.stats.update с правильным sourceEventId от dialog.member.add
           try {
-            await finalizeCounterUpdateContext(req.tenantId, userId, dialogCreateEventId);
-          } catch (error) {
-            console.error(`Failed to finalize context for ${userId}:`, error);
+            await updateUserStatsDialogCount(
+              req.tenantId,
+              member.userId,
+              1, // delta
+              'dialog.member.add',
+              memberEventId,
+              actorId,
+              'user'
+            );
+          } finally {
+            // Создаем user.stats.update после обновления счетчика
+            try {
+              await finalizeCounterUpdateContext(req.tenantId, member.userId, memberEventId);
+            } catch (error) {
+              console.error(`Failed to finalize context for ${member.userId}:`, error);
+            }
           }
         }
       }
+
+      // Создаем событие dialog.create ПОСЛЕ обработки участников
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'dialog.create',
+        dialogId: dialog.dialogId,
+        entityId: dialog.dialogId,
+        includedSections: ['dialog'],
+        updatedFields: ['dialog']
+      });
+
+      await eventUtils.createEvent({
+        tenantId: req.tenantId,
+        eventType: 'dialog.create',
+        entityType: 'dialog',
+        entityId: dialog.dialogId,
+        actorId: actorId,
+        actorType: 'user',
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection
+        })
+      });
 
       // Используем уже полученные метаданные
       const meta = dialogMeta;
