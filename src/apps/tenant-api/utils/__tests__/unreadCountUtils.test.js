@@ -453,10 +453,9 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
     test('should update lastSeenAt timestamp', async () => {
       const dialogId = generateDialogId();
       const userId = 'user1';
-
-      await addDialogMember(tenantId, userId, dialogId);
       const beforeUpdate = generateTimestamp();
 
+      await addDialogMember(tenantId, userId, dialogId);
       await updateLastSeen(tenantId, userId, dialogId);
 
       const activity = await UserDialogActivity.findOne({ tenantId, userId, dialogId });

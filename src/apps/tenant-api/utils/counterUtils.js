@@ -54,7 +54,8 @@ const contextTimestamps = new Map();
 const CONTEXT_TTL_MS = 5 * 60 * 1000; // 5 минут
 
 // Периодическая очистка старых контекстов
-setInterval(() => {
+// КРИТИЧНО: Используем unref() чтобы interval не блокировал завершение процесса
+const cleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, timestamp] of contextTimestamps.entries()) {
     if (now - timestamp > CONTEXT_TTL_MS) {
@@ -70,6 +71,12 @@ setInterval(() => {
     }
   }
 }, CONTEXT_TTL_MS);
+
+// КРИТИЧНО: unref() позволяет процессу завершиться даже если interval активен
+// Это решает проблему с Jest, который жалуется на незакрытые асинхронные операции
+if (cleanupInterval.unref) {
+  cleanupInterval.unref();
+}
 
 /**
  * Получить или создать контекст операции
