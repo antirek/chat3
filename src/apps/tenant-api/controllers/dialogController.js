@@ -602,9 +602,42 @@ export const dialogController = {
         meta: dialogMeta || {}
       });
 
+      // КРИТИЧНО: Создаем событие dialog.create ПЕРЕД обработкой участников,
+      // чтобы использовать его eventId как общий sourceEventId для всех обновлений счетчиков
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'dialog.create',
+        dialogId: dialog.dialogId,
+        entityId: dialog.dialogId,
+        includedSections: ['dialog'],
+        updatedFields: ['dialog']
+      });
+
+      const dialogCreateEvent = await eventUtils.createEvent({
+        tenantId: req.tenantId,
+        eventType: 'dialog.create',
+        entityType: 'dialog',
+        entityId: dialog.dialogId,
+        actorId: actorId,
+        actorType: 'user',
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection
+        })
+      });
+
+      const dialogCreateEventId = dialogCreateEvent?.eventId || null;
+
+      // КРИТИЧНО: Собираем уникальных пользователей для предотвращения дублирования обновлений счетчиков
+      const processedUserIds = new Set();
+
       // Обрабатываем участников, если они предоставлены
       if (Array.isArray(members) && members.length > 0) {
         for (const memberData of members) {
+          // Пропускаем дубликаты в одном запросе
+          if (processedUserIds.has(memberData.userId)) {
+            continue;
+          }
+
           // Проверяем, существует ли участник уже в диалоге
           const existingMember = await DialogMember.findOne({
             tenantId: req.tenantId,
@@ -616,6 +649,9 @@ export const dialogController = {
             // Участник уже существует - пропускаем
             continue;
           }
+
+          // Отмечаем пользователя как обработанного
+          processedUserIds.add(memberData.userId);
 
           // Проверяем и создаем пользователя, если его нет
           await userUtils.ensureUserExists(req.tenantId, memberData.userId, {
@@ -660,7 +696,7 @@ export const dialogController = {
             updatedFields: ['member']
           });
 
-          const memberEvent = await eventUtils.createEvent({
+          await eventUtils.createEvent({
             tenantId: req.tenantId,
             eventType: 'dialog.member.add',
             entityType: 'dialogMember',
@@ -674,50 +710,29 @@ export const dialogController = {
             })
           });
 
-          const sourceEventId = memberEvent?.eventId || null;
+          // КРИТИЧНО: Обновляем dialogCount для пользователя, используя dialog.create eventId
+          // Это объединит все обновления для одного пользователя в один контекст
+          await updateUserStatsDialogCount(
+            req.tenantId,
+            member.userId,
+            1, // delta
+            'dialog.create',
+            dialogCreateEventId,
+            actorId,
+            'user'
+          );
+        }
 
-          // КРИТИЧНО: Обновляем dialogCount для пользователя
+        // КРИТИЧНО: Финализируем контексты для всех обработанных пользователей после цикла
+        // Это создаст одно событие user.stats.update для каждого пользователя
+        for (const userId of processedUserIds) {
           try {
-            await updateUserStatsDialogCount(
-              req.tenantId,
-              member.userId,
-              1, // delta
-              'dialog.member.add',
-              sourceEventId,
-              actorId,
-              'user'
-            );
-          } finally {
-            // Создаем user.stats.update после обновления счетчика
-            try {
-              await finalizeCounterUpdateContext(req.tenantId, member.userId, sourceEventId);
-            } catch (error) {
-              console.error(`Failed to finalize context for ${member.userId}:`, error);
-            }
+            await finalizeCounterUpdateContext(req.tenantId, userId, dialogCreateEventId);
+          } catch (error) {
+            console.error(`Failed to finalize context for ${userId}:`, error);
           }
         }
       }
-
-      const eventContext = eventUtils.buildEventContext({
-        eventType: 'dialog.create',
-        dialogId: dialog.dialogId,
-        entityId: dialog.dialogId,
-        includedSections: ['dialog'],
-        updatedFields: ['dialog']
-      });
-
-      await eventUtils.createEvent({
-        tenantId: req.tenantId,
-        eventType: 'dialog.create',
-        entityType: 'dialog',
-        entityId: dialog.dialogId,
-        actorId: actorId,
-        actorType: 'user',
-        data: eventUtils.composeEventData({
-          context: eventContext,
-          dialog: dialogSection
-        })
-      });
 
       // Используем уже полученные метаданные
       const meta = dialogMeta;

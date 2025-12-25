@@ -12,28 +12,28 @@ import * as eventUtils from '../apps/tenant-api/utils/eventUtils.js';
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 
 /**
- * Преобразует eventId (строка evt_...) в ObjectId для использования в модели Update
- * @param {string|ObjectId} eventId - eventId (строка) или ObjectId
+ * Преобразует eventId в строковый формат (evt_...) для использования в модели Update
+ * @param {string|ObjectId} eventId - eventId (строка evt_...) или ObjectId
  * @param {string} tenantId - ID тенанта для поиска Event
- * @returns {Promise<ObjectId|null>} ObjectId события или null если не найден
+ * @returns {Promise<string|null>} Строковый eventId (evt_...) или null если не найден
  */
-async function getEventObjectId(eventId, tenantId) {
+async function getEventIdString(eventId, tenantId) {
   if (!eventId) {
     return null;
   }
   
-  // Если это уже ObjectId (24 символа hex), используем напрямую
-  if (mongoose.Types.ObjectId.isValid(eventId) && eventId.toString().length === 24) {
+  // Если это уже строка evt_..., используем напрямую
+  if (typeof eventId === 'string' && eventId.startsWith('evt_')) {
     return eventId;
   }
   
-  // Если это eventId (строка evt_...), находим Event и получаем его _id
-  if (typeof eventId === 'string' && eventId.startsWith('evt_')) {
-    const event = await Event.findOne({ eventId, tenantId }).lean();
-    if (event) {
-      return event._id;
+  // Если это ObjectId, находим Event и получаем его строковый eventId
+  if (mongoose.Types.ObjectId.isValid(eventId) && eventId.toString().length === 24) {
+    const event = await Event.findOne({ _id: eventId, tenantId }).select('eventId').lean();
+    if (event && event.eventId) {
+      return event.eventId;
     }
-    console.warn(`Event with eventId "${eventId}" not found for tenant ${tenantId}`);
+    console.warn(`Event with ObjectId "${eventId}" not found for tenant ${tenantId}`);
     return null;
   }
   
@@ -151,9 +151,9 @@ async function buildFullMessagePayload(tenantId, message, senderCache = new Map(
  */
 export async function createDialogUpdate(tenantId, dialogId, eventId, eventType, eventData = {}) {
   try {
-    // Преобразуем eventId (строка evt_... или ObjectId) в ObjectId для модели Update
-    const eventObjectId = await getEventObjectId(eventId, tenantId);
-    if (!eventObjectId) {
+    // Преобразуем eventId в строковый формат (evt_...) для модели Update
+    const eventIdString = await getEventIdString(eventId, tenantId);
+    if (!eventIdString) {
       console.warn(`Cannot create DialogUpdate: eventId "${eventId}" not found for tenant ${tenantId}`);
       return;
     }
@@ -224,7 +224,7 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
         tenantId: tenantId,
         userId: userId,
         entityId: eventDialog.dialogId,
-        eventId: eventObjectId,
+        eventId: eventIdString,
         eventType: eventType,
         data,
         published: false
@@ -253,9 +253,9 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
  */
 export async function createDialogMemberUpdate(tenantId, dialogId, userId, eventId, eventType, eventData = {}) {
   try {
-    // Преобразуем eventId (строка evt_... или ObjectId) в ObjectId для модели Update
-    const eventObjectId = await getEventObjectId(eventId, tenantId);
-    if (!eventObjectId) {
+    // Преобразуем eventId в строковый формат (evt_...) для модели Update
+    const eventIdString = await getEventIdString(eventId, tenantId);
+    if (!eventIdString) {
       console.warn(`Cannot create DialogMemberUpdate: eventId "${eventId}" not found for tenant ${tenantId}`);
       return;
     }
@@ -296,7 +296,7 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
       tenantId: tenantId,
       userId: userId,
       entityId: eventDialog.dialogId,
-      eventId: eventObjectId,
+      eventId: eventIdString,
       eventType: eventType,
       data,
       published: false
@@ -322,9 +322,9 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
  */
 export async function createMessageUpdate(tenantId, dialogId, messageId, eventId, eventType, eventData = {}) {
   try {
-    // Преобразуем eventId (строка evt_... или ObjectId) в ObjectId для модели Update
-    const eventObjectId = await getEventObjectId(eventId, tenantId);
-    if (!eventObjectId) {
+    // Преобразуем eventId в строковый формат (evt_...) для модели Update
+    const eventIdString = await getEventIdString(eventId, tenantId);
+    if (!eventIdString) {
       console.warn(`Cannot create MessageUpdate: eventId "${eventId}" not found for tenant ${tenantId}`);
       return;
     }
@@ -443,7 +443,7 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
         tenantId: tenantId,
         userId: member.userId,
         entityId: eventMessage.messageId,
-        eventId: eventObjectId,
+        eventId: eventIdString,
         eventType: eventType,
         data,
         published: false
@@ -472,9 +472,9 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
  */
 export async function createTypingUpdate(tenantId, dialogId, typingUserId, eventId, eventType, eventData = {}) {
   try {
-    // Преобразуем eventId (строка evt_... или ObjectId) в ObjectId для модели Update
-    const eventObjectId = await getEventObjectId(eventId, tenantId);
-    if (!eventObjectId) {
+    // Преобразуем eventId в строковый формат (evt_...) для модели Update
+    const eventIdString = await getEventIdString(eventId, tenantId);
+    if (!eventIdString) {
       console.warn(`Cannot create TypingUpdate: eventId "${eventId}" not found for tenant ${tenantId}`);
       return;
     }
@@ -546,7 +546,7 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
           tenantId,
           userId: member.userId,
           entityId: eventDialog.dialogId,
-          eventId: eventObjectId,
+          eventId: eventIdString,
           eventType,
           data,
           published: false
@@ -582,9 +582,9 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
  */
 export async function createUserStatsUpdate(tenantId, userId, sourceEventId, sourceEventType, updatedFields = []) {
   try {
-    // Преобразуем sourceEventId (строка evt_... или ObjectId) в ObjectId для модели Update
-    const eventObjectId = await getEventObjectId(sourceEventId, tenantId);
-    if (!eventObjectId) {
+    // Преобразуем sourceEventId в строковый формат (evt_...) для модели Update
+    const eventIdString = await getEventIdString(sourceEventId, tenantId);
+    if (!eventIdString) {
       return;
     }
     
@@ -638,7 +638,7 @@ export async function createUserStatsUpdate(tenantId, userId, sourceEventId, sou
       tenantId: tenantId,
       userId: userId,
       entityId: userId,
-      eventId: eventObjectId,
+      eventId: eventIdString,
       eventType: 'user.stats.update',
       data: {
         user: cloneSection(userSection),
@@ -671,9 +671,9 @@ export async function createUserStatsUpdate(tenantId, userId, sourceEventId, sou
  */
 export async function createUserUpdate(tenantId, userId, eventId, eventType, eventData) {
   try {
-    // Преобразуем eventId (строка evt_... или ObjectId) в ObjectId для модели Update
-    const eventObjectId = await getEventObjectId(eventId, tenantId);
-    if (!eventObjectId) {
+    // Преобразуем eventId в строковый формат (evt_...) для модели Update
+    const eventIdString = await getEventIdString(eventId, tenantId);
+    if (!eventIdString) {
       console.warn(`Cannot create UserUpdate: eventId "${eventId}" not found for tenant ${tenantId}`);
       return;
     }
@@ -697,7 +697,7 @@ export async function createUserUpdate(tenantId, userId, eventId, eventType, eve
       tenantId: tenantId,
       userId: userId,
       entityId: userId,
-      eventId: eventObjectId,
+      eventId: eventIdString,
       eventType: eventType,
       data: {
         user: cloneSection(eventUser),

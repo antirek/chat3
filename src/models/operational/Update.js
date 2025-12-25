@@ -20,10 +20,9 @@ const updateSchema = new mongoose.Schema({
     index: true
   },
   eventId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Event',
+    type: String,
     required: true,
-    description: 'ID исходного события',
+    description: 'ID исходного события (строка evt_...)',
     index: true
   },
   eventType: {

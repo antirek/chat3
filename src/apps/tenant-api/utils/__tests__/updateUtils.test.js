@@ -78,8 +78,8 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
     return result;
   }
 
-  // eventId в Update модели - это ObjectId, а не строка
-  // Создаем Event объект, чтобы получить правильный ObjectId
+  // eventId в Update модели - это строка evt_...
+  // Создаем Event объект, чтобы получить правильный строковый eventId
   async function createEventAndGetId(eventType = 'dialog.create', eventData = {}) {
     const event = await Event.create({
       tenantId,
@@ -89,7 +89,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       actorId: 'user1',
       data: eventData
     });
-    return event._id; // Возвращаем ObjectId
+    return event.eventId; // Возвращаем строковый eventId (evt_...)
   }
 
   // Создает событие с правильной структурой данных, включая секцию dialog
@@ -145,7 +145,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       actorId: 'user1',
       data: eventData
     });
-    return { eventId: event._id, eventData };
+    return { eventId: event.eventId, eventData }; // Возвращаем строковый eventId (evt_...)
   }
 
   describe('createDialogUpdate', () => {
