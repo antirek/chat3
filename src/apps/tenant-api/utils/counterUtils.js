@@ -110,13 +110,13 @@ export async function finalizeCounterUpdateContext(tenantId, userId, sourceEvent
   
   if (context) {
     try {
+      // КРИТИЧНО: Удаляем контекст ДО создания update, чтобы предотвратить повторную финализацию
+      counterUpdateContexts.delete(key);
+      contextTimestamps.delete(key);
+      
       await context.createStatsUpdate();
     } catch (error) {
       console.error(`Failed to create stats update for context ${key}:`, error);
-      // Все равно удаляем контекст, чтобы не было утечки
-    } finally {
-      counterUpdateContexts.delete(key);
-      contextTimestamps.delete(key);
     }
   }
 }

@@ -6,6 +6,10 @@ import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import * as userUtils from '../utils/userUtils.js';
 import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
+import {
+  updateUserStatsDialogCount,
+  finalizeCounterUpdateContext
+} from '../utils/counterUtils.js';
 
 export const dialogController = {
   // Get all dialogs for current tenant
@@ -656,7 +660,7 @@ export const dialogController = {
             updatedFields: ['member']
           });
 
-          await eventUtils.createEvent({
+          const memberEvent = await eventUtils.createEvent({
             tenantId: req.tenantId,
             eventType: 'dialog.member.add',
             entityType: 'dialogMember',
@@ -669,6 +673,28 @@ export const dialogController = {
               member: memberSection
             })
           });
+
+          const sourceEventId = memberEvent?.eventId || null;
+
+          // КРИТИЧНО: Обновляем dialogCount для пользователя
+          try {
+            await updateUserStatsDialogCount(
+              req.tenantId,
+              member.userId,
+              1, // delta
+              'dialog.member.add',
+              sourceEventId,
+              actorId,
+              'user'
+            );
+          } finally {
+            // Создаем user.stats.update после обновления счетчика
+            try {
+              await finalizeCounterUpdateContext(req.tenantId, member.userId, sourceEventId);
+            } catch (error) {
+              console.error(`Failed to finalize context for ${member.userId}:`, error);
+            }
+          }
         }
       }
 
