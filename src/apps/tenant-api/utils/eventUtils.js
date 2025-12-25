@@ -171,10 +171,12 @@ export function buildUserSection({
   };
 
   // Добавляем stats только если они переданы
-  if (stats && (stats.dialogCount !== undefined || stats.unreadDialogsCount !== undefined)) {
+  if (stats && (stats.dialogCount !== undefined || stats.unreadDialogsCount !== undefined || stats.totalUnreadCount !== undefined || stats.totalMessagesCount !== undefined)) {
     userSection.stats = {
       dialogCount: stats.dialogCount ?? 0,
-      unreadDialogsCount: stats.unreadDialogsCount ?? 0
+      unreadDialogsCount: stats.unreadDialogsCount ?? 0,
+      totalUnreadCount: stats.totalUnreadCount ?? 0,
+      totalMessagesCount: stats.totalMessagesCount ?? 0
     };
   }
 

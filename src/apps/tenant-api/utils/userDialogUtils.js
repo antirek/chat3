@@ -1,10 +1,5 @@
-// eslint-disable-next-line no-unused-vars
-import { DialogMember, Dialog, Message, Meta, MessageStatus, MessageReaction, User } from '../../../models/index.js';
+import { DialogMember, MessageStatus, MessageReaction, User } from '../../../models/index.js';
 import * as metaUtils from './metaUtils.js';
-// eslint-disable-next-line no-unused-vars
-import { parseFilters, extractMetaFilters } from './queryParser.js';
-// eslint-disable-next-line no-unused-vars
-import * as eventUtils from './eventUtils.js';
 
 /**
  * Получение информации об отправителе сообщения
