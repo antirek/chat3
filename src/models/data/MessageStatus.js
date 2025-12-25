@@ -4,7 +4,7 @@ import {
   updateStatusCount, 
   updateUnreadCount,
   finalizeCounterUpdateContext 
-} from '../../apps/tenant-api/utils/counterUtils.js';
+} from '../../utils/counterUtils.js';
 import { Event, Message } from '../index.js';
 
 /**

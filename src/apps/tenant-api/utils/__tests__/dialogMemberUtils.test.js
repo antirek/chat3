@@ -4,7 +4,7 @@ import {
   updateLastSeen,
   getDialogMembers
 } from '../dialogMemberUtils.js';
-import { updateUnreadCount, recalculateUserStats } from '../counterUtils.js';
+import { updateUnreadCount, recalculateUserStats } from '../../../../utils/counterUtils.js';
 import { DialogMember, Dialog, Message, MessageStatus, UserDialogStats, UserDialogActivity } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
@@ -453,10 +453,9 @@ describe('dialogMemberUtils - Integration Tests with MongoDB', () => {
     test('should update lastSeenAt timestamp', async () => {
       const dialogId = generateDialogId();
       const userId = 'user1';
-
-      await addDialogMember(tenantId, userId, dialogId);
       const beforeUpdate = generateTimestamp();
 
+      await addDialogMember(tenantId, userId, dialogId);
       await updateLastSeen(tenantId, userId, dialogId);
 
       const activity = await UserDialogActivity.findOne({ tenantId, userId, dialogId });

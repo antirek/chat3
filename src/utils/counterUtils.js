@@ -5,9 +5,9 @@ import {
   MessageStatusStats, 
   CounterHistory,
   DialogMember
-} from '../../../models/index.js';
-import { generateTimestamp } from '../../../utils/timestampUtils.js';
-import { createUserStatsUpdate } from '../../../utils/updateUtils.js';
+} from '../models/index.js';
+import { generateTimestamp } from './timestampUtils.js';
+import { createUserStatsUpdate } from './updateUtils.js';
 
 /**
  * Контекст операции для сбора измененных полей

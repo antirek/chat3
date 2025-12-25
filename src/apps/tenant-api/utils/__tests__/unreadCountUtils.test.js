@@ -4,7 +4,7 @@ import {
   updateLastSeen,
   getDialogMembers
 } from '../dialogMemberUtils.js';
-import { updateUnreadCount, recalculateUserStats } from '../counterUtils.js';
+import { updateUnreadCount, recalculateUserStats } from '../../../../utils/counterUtils.js';
 import { DialogMember, Dialog, Message, MessageStatus, UserDialogStats, UserDialogActivity } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';

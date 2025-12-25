@@ -18,8 +18,8 @@ import {
   CounterHistory,
   User,
   DialogMember
-} from '../../../../models/index.js';
-import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
+} from '../../models/index.js';
+import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../apps/tenant-api/utils/__tests__/setup.js';
 
 // Setup MongoDB перед всеми тестами в этом файле
 beforeAll(async () => {

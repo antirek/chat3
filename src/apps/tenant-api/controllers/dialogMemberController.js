@@ -11,7 +11,7 @@ import {
   updateUserStatsDialogCount,
   finalizeCounterUpdateContext,
   updateUnreadCount
-} from '../utils/counterUtils.js';
+} from '../../../utils/counterUtils.js';
 
 const dialogMemberController = {
   // Add member to dialog

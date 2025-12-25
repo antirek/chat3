@@ -10,7 +10,7 @@ import {
   updateUnreadCount, 
   updateUserStatsTotalMessagesCount,
   finalizeCounterUpdateContext 
-} from '../utils/counterUtils.js';
+} from '../../../utils/counterUtils.js';
 import { updateLastMessageAt } from '../utils/dialogMemberUtils.js';
 
 /**

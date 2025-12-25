@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { generateTimestamp } from '../../utils/timestampUtils.js';
-import { updateReactionCount } from '../../apps/tenant-api/utils/counterUtils.js';
+import { updateReactionCount } from '../../utils/counterUtils.js';
 
 const messageReactionSchema = new mongoose.Schema({
   tenantId: {

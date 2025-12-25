@@ -9,7 +9,7 @@ import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 import {
   updateUserStatsDialogCount,
   finalizeCounterUpdateContext
-} from '../utils/counterUtils.js';
+} from '../../../utils/counterUtils.js';
 
 export const dialogController = {
   // Get all dialogs for current tenant
