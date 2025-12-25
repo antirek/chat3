@@ -312,6 +312,22 @@
                 </div>
                 <div id="seedResult" class="result"></div>
             </div>
+
+            <div class="section">
+                <h2>3. Пересчет счетчиков пользователей</h2>
+                <p>
+                    Пересчитывает все счетчики пользователей (dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount)
+                    для всех пользователей во всех тенантах на основе текущих данных в базе.
+                    <strong>Полезно:</strong> После миграций, исправления рассинхронизации или восстановления после ошибок.
+                </p>
+                <div class="button-group">
+                    <button id="recalculateStatsBtn" class="btn-primary" onclick="recalculateUserStats()">
+                        <span>🔄</span>
+                        <span>Пересчитать счетчики для всех пользователей</span>
+                    </button>
+                </div>
+                <div id="recalculateStatsResult" class="result"></div>
+            </div>
         </div>
     </div>
 
@@ -532,6 +548,72 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<span>🌱</span> <span>Заполнить базу тестовыми данными</span>';
+            }
+        }
+
+        async function recalculateUserStats() {
+            const btn = document.getElementById('recalculateStatsBtn');
+            const resultDiv = document.getElementById('recalculateStatsResult');
+            
+            // Подтверждение перед запуском пересчета
+            const confirmed = confirm(
+                '⚠️ Внимание!\n\n' +
+                'Будет выполнен пересчет всех счетчиков пользователей (dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount) ' +
+                'для всех пользователей во всех тенантах.\n\n' +
+                'Операция может занять некоторое время в зависимости от количества пользователей.\n\n' +
+                'Продолжить?'
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> <span>Пересчет счетчиков...</span>';
+            resultDiv.className = 'result';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(CHAT3_CONFIG.getControlApiUrl('/api/init/recalculate-stats'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok || response.status === 202) {
+                    resultDiv.className = 'result info';
+                    resultDiv.style.display = 'block';
+                    resultDiv.innerHTML = `
+                        <strong>⏳ Пересчет счетчиков запущен</strong>
+                        <p style="margin-top: 10px;">${data.message}</p>
+                        <p style="margin-top: 10px; font-size: 12px; color: #6c757d;">
+                            ${data.data.note || 'Операция выполняется в фоне. Проверьте логи сервера для отслеживания прогресса.'}
+                        </p>
+                        <p style="margin-top: 10px; font-size: 12px; color: #856404;">
+                            ⚠️ Пересчет выполняется для всех пользователей во всех тенантах. Это может занять некоторое время.
+                        </p>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.style.display = 'block';
+                    resultDiv.innerHTML = `
+                        <strong>❌ Ошибка запуска пересчета</strong>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <strong>❌ Ошибка запроса</strong>
+                    <p>${error.message}</p>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🔄</span> <span>Пересчитать счетчики для всех пользователей</span>';
             }
         }
     </script>

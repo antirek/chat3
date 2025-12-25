@@ -125,5 +125,46 @@ router.post('/', initController.initialize);
  */
 router.post('/seed', initController.seed);
 
+/**
+ * @swagger
+ * /api/init/recalculate-stats:
+ *   post:
+ *     summary: Recalculate user stats for all users
+ *     tags: [Initialization]
+ *     description: |
+ *       Пересчитывает все счетчики (dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount)
+ *       для всех пользователей во всех тенантах.
+ *       Операция выполняется асинхронно. Ответ возвращается сразу (202 Accepted),
+ *       а пересчет продолжается в фоне.
+ *       
+ *       **Важно:** Этот endpoint предназначен только для внутреннего использования и не должен быть доступен извне в production.
+ *     requestBody:
+ *       required: false
+ *       description: Тело запроса не требуется
+ *     responses:
+ *       202:
+ *         description: Recalculate user stats started
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Recalculate user stats started
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     status:
+ *                       type: string
+ *                       example: processing
+ *                     note:
+ *                       type: string
+ *                       example: This operation may take some time. Check server logs for progress.
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post('/recalculate-stats', initController.recalculateUserStats);
+
 export default router;
 

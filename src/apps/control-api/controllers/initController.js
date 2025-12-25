@@ -5,6 +5,7 @@ import {
 import connectDB from '../../../config/database.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { recalculateUserStats } from '../../../utils/counterUtils.js';
 
 const execAsync = promisify(exec);
 
@@ -147,6 +148,70 @@ export const initController = {
         .catch((error) => {
           console.error('❌ Seed script error:', error);
         });
+    } catch (error) {
+      // Если ошибка произошла до отправки ответа
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Internal Server Error',
+          message: error.message
+        });
+      } else {
+        console.error('Error after response sent:', error);
+      }
+    }
+  },
+
+  // Пересчет счетчиков для всех пользователей
+  async recalculateUserStats(req, res) {
+    try {
+      await connectDB();
+
+      // Получаем все тенанты
+      const tenants = await Tenant.find({}).select('tenantId').lean();
+      const results = {
+        tenantsProcessed: 0,
+        usersProcessed: 0,
+        usersWithErrors: 0,
+        errors: []
+      };
+
+      // Отправляем ответ сразу, чтобы клиент не ждал
+      res.status(202).json({
+        message: 'Recalculate user stats started',
+        data: {
+          status: 'processing',
+          note: 'This operation may take some time. Check server logs for progress.'
+        }
+      });
+
+      // Обрабатываем в фоне
+      (async () => {
+        try {
+          for (const tenant of tenants) {
+            results.tenantsProcessed++;
+            console.log(`🔄 Processing tenant: ${tenant.tenantId}`);
+
+            // Получаем всех пользователей для тенанта
+            const users = await User.find({ tenantId: tenant.tenantId }).select('userId').lean();
+
+            for (const user of users) {
+              try {
+                await recalculateUserStats(tenant.tenantId, user.userId);
+                results.usersProcessed++;
+                console.log(`✅ Recalculated stats for user ${user.userId} in tenant ${tenant.tenantId}`);
+              } catch (error) {
+                results.usersWithErrors++;
+                results.errors.push(`Error recalculating stats for user ${user.userId} in tenant ${tenant.tenantId}: ${error.message}`);
+                console.error(`❌ Error recalculating stats for user ${user.userId}:`, error);
+              }
+            }
+          }
+
+          console.log(`✅ Recalculate user stats completed: ${results.usersProcessed} users processed, ${results.usersWithErrors} errors`);
+        } catch (error) {
+          console.error('❌ Error in recalculate user stats background task:', error);
+        }
+      })();
     } catch (error) {
       // Если ошибка произошла до отправки ответа
       if (!res.headersSent) {
