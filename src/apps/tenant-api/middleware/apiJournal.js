@@ -62,8 +62,8 @@ export function apiJournalMiddleware(req, res, next) {
       }
 
       // Создаем запись в журнале асинхронно (не блокируем ответ)
-      // Используем 'tnt_unknown' если tenantId отсутствует (для соответствия формату модели)
-      const journalTenantId = tenantId || 'tnt_unknown';
+      // Используем 'tnt_default' если tenantId отсутствует (соответствует логике apiAuth)
+      const journalTenantId = tenantId || 'tnt_default';
       
       // Сохраняем body только для POST/PUT/PATCH запросов с JSON body
       let requestBody = null;
