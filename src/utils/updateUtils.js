@@ -633,6 +633,20 @@ export async function createUserStatsUpdate(tenantId, userId, sourceEventId, sou
       updatedFields: updatedFields.length > 0 ? updatedFields : ['user.stats.dialogCount', 'user.stats.unreadDialogsCount']
     });
 
+    // КРИТИЧНО: Проверяем, не существует ли уже update для этого события
+    // Это предотвращает создание дубликатов при повторных вызовах
+    const existingUpdate = await Update.findOne({
+      tenantId,
+      userId,
+      eventId: eventIdString,
+      eventType: 'user.stats.update'
+    }).lean();
+
+    if (existingUpdate) {
+      console.log(`UserStatsUpdate already exists for user ${userId} from event ${sourceEventId}, skipping creation`);
+      return;
+    }
+
     // Создаем update
     const update = {
       tenantId: tenantId,
