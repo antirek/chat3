@@ -17,7 +17,8 @@ import {
   MessageStatusStats, 
   CounterHistory,
   User,
-  DialogMember
+  DialogMember,
+  Message
 } from '../../models/index.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../apps/tenant-api/utils/__tests__/setup.js';
 
@@ -394,16 +395,23 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
       await updateUnreadCount(tenantId, userId, dialogId1, 3, 'message.create', eventId, messageId, 'sender1', 'user');
       await updateUnreadCount(tenantId, userId, dialogId2, 2, 'message.create', eventId, messageId, 'sender1', 'user');
 
+      // Создаем сообщения от пользователя для проверки totalMessagesCount
+      await Message.create({ tenantId, messageId: generateMessageId(), dialogId: dialogId1, senderId: userId, content: 'Test', type: 'internal.text' });
+      await Message.create({ tenantId, messageId: generateMessageId(), dialogId: dialogId2, senderId: userId, content: 'Test', type: 'internal.text' });
+      await Message.create({ tenantId, messageId: generateMessageId(), dialogId: dialogId1, senderId: userId, content: 'Test', type: 'internal.text' });
+
       const result = await recalculateUserStats(tenantId, userId);
 
       expect(result.dialogCount).toBe(2);
       expect(result.unreadDialogsCount).toBe(2);
       expect(result.totalUnreadCount).toBe(5);
+      expect(result.totalMessagesCount).toBe(3);
 
       const stats = await UserStats.findOne({ tenantId, userId });
       expect(stats.dialogCount).toBe(2);
       expect(stats.unreadDialogsCount).toBe(2);
       expect(stats.totalUnreadCount).toBe(5);
+      expect(stats.totalMessagesCount).toBe(3);
     });
   });
 

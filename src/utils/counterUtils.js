@@ -4,7 +4,8 @@ import {
   MessageReactionStats, 
   MessageStatusStats, 
   CounterHistory,
-  DialogMember
+  DialogMember,
+  Message
 } from '../models/index.js';
 import { generateTimestamp } from './timestampUtils.js';
 import { createUserStatsUpdate } from './updateUtils.js';
@@ -563,6 +564,9 @@ export async function recalculateUserStats(tenantId, userId) {
   const unreadDialogsCount = unreadStats[0]?.unreadDialogsCount || 0;
   const totalUnreadCount = unreadStats[0]?.totalUnreadCount || 0;
   
+  // Пересчитываем totalMessagesCount из Message (количество сообщений, отправленных пользователем)
+  const totalMessagesCount = await Message.countDocuments({ tenantId, senderId: userId });
+  
   // Обновляем UserStats
   await UserStats.findOneAndUpdate(
     { tenantId, userId },
@@ -571,17 +575,17 @@ export async function recalculateUserStats(tenantId, userId) {
         dialogCount,
         unreadDialogsCount,
         totalUnreadCount,
+        totalMessagesCount,
         lastUpdatedAt: generateTimestamp()
       },
       $setOnInsert: {
-        totalMessagesCount: 0,
         createdAt: generateTimestamp()
       }
     },
     { upsert: true, setDefaultsOnInsert: true }
   );
   
-  return { dialogCount, unreadDialogsCount, totalUnreadCount };
+  return { dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount };
 }
 
 /**

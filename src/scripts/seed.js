@@ -4,6 +4,7 @@ import { Tenant, User, Dialog, Message, Meta, DialogMember,
   UserStats, UserDialogStats, UserDialogActivity,
   MessageReactionStats, MessageStatusStats, CounterHistory } from '../models/index.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
+import { recalculateUserStats } from '../utils/counterUtils.js';
 
 async function seed() {
   try {
@@ -720,6 +721,19 @@ async function seed() {
 
     // reactionCounts больше не используется в модели Message
     // Счетчики реакций теперь хранятся в MessageReactionStats и обновляются автоматически через middleware
+
+    // Пересчитываем UserStats для всех пользователей после создания всех данных
+    console.log('\n🔄 Recalculating UserStats for all users...');
+    let recalculatedCount = 0;
+    for (const user of allUsers) {
+      try {
+        await recalculateUserStats(user.tenantId, user.userId);
+        recalculatedCount++;
+      } catch (error) {
+        console.error(`Error recalculating stats for user ${user.userId}:`, error.message);
+      }
+    }
+    console.log(`✅ Recalculated UserStats for ${recalculatedCount} users`);
 
     console.log('\n🎉 Database seeding completed successfully!');
     console.log('\n📊 Summary:');
