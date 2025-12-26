@@ -350,13 +350,16 @@ const dialogMemberController = {
       }).lean();
       const unreadCount = userDialogStats?.unreadCount || 0;
 
-      await dialogMemberUtils.removeDialogMember(
-        req.tenantId,
+      // Получаем активность из UserDialogActivity перед удалением
+      const activity = await UserDialogActivity.findOne({
+        tenantId: req.tenantId,
         userId,
-        dialog.dialogId // Передаем строковый dialogId
-      );
+        dialogId: dialog.dialogId
+      }).lean();
 
-      // Создаем событие dialog.member.remove
+      let sourceEventId = null;
+
+      // Создаем событие только если member существует
       if (member) {
         // Получаем метаданные диалога для события
         const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
@@ -371,8 +374,8 @@ const dialogMemberController = {
           userId: member.userId,
           state: {
             unreadCount: unreadCount, // Используем unreadCount из UserDialogStats
-            lastSeenAt: member.lastSeenAt,
-            lastMessageAt: member.lastMessageAt
+            lastSeenAt: activity?.lastSeenAt || 0,
+            lastMessageAt: activity?.lastMessageAt || 0
           }
         });
 
@@ -384,7 +387,7 @@ const dialogMemberController = {
           updatedFields: ['member']
         });
 
-        // КРИТИЧНО: Создаем событие и сохраняем eventId для обновления счетчиков
+        // КРИТИЧНО: Создаем событие ДО удаления, чтобы передать sourceEventId в утилиту
         const memberEvent = await eventUtils.createEvent({
           tenantId: req.tenantId,
           eventType: 'dialog.member.remove',
@@ -399,11 +402,25 @@ const dialogMemberController = {
           })
         });
 
-        const sourceEventId = memberEvent?.eventId || null;
+        sourceEventId = memberEvent?.eventId || null;
+      }
 
-        // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
-        try {
-          // Обновление dialogCount
+      // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
+      try {
+        // Удаляем участника через утилиту (она удалит UserDialogStats, UserDialogActivity и обновит счетчики)
+        // КРИТИЧНО: Удаляем даже если member не найден (idempotent операция)
+        await dialogMemberUtils.removeDialogMember(
+          req.tenantId,
+          userId,
+          dialog.dialogId,
+          sourceEventId,
+          'dialog.member.remove',
+          req.apiKey?.name || 'unknown',
+          'api'
+        );
+
+        // Обновление dialogCount (уменьшаем на 1) только если member существовал
+        if (member && sourceEventId) {
           await updateUserStatsDialogCount(
             req.tenantId,
             userId,
@@ -413,8 +430,10 @@ const dialogMemberController = {
             req.apiKey?.name || 'unknown',
             'api'
           );
-        } finally {
-          // Создаем user.stats.update после всех изменений счетчиков
+        }
+      } finally {
+        // Создаем user.stats.update после всех изменений счетчиков
+        if (sourceEventId) {
           try {
             await finalizeCounterUpdateContext(req.tenantId, userId, sourceEventId);
           } catch (error) {
