@@ -53,25 +53,34 @@ class CounterUpdateContext {
 // КРИТИЧНО: Добавлен TTL механизм для предотвращения утечек памяти
 const counterUpdateContexts = new Map();
 const contextTimestamps = new Map();
-const CONTEXT_TTL_MS = 5 * 60 * 1000; // 5 минут
+const CONTEXT_TTL_MS = 3 * 60 * 1000; // 3 минуты
 
 // Периодическая очистка старых контекстов
 // КРИТИЧНО: Используем unref() чтобы interval не блокировал завершение процесса
 const cleanupInterval = setInterval(() => {
   const now = Date.now();
+  let cleanedCount = 0;
+  const totalBefore = counterUpdateContexts.size;
+  
+  console.log(`[CounterContext] Начало очистки контекстов. Всего контекстов: ${totalBefore}`);
+  
   for (const [key, timestamp] of contextTimestamps.entries()) {
     if (now - timestamp > CONTEXT_TTL_MS) {
       const context = counterUpdateContexts.get(key);
       if (context) {
         // Финализируем старый контекст перед удалением
         context.createStatsUpdate().catch(err => {
-          console.error(`Failed to finalize expired context ${key}:`, err);
+          console.error(`[CounterContext] Failed to finalize expired context ${key}:`, err);
         });
       }
       counterUpdateContexts.delete(key);
       contextTimestamps.delete(key);
+      cleanedCount++;
     }
   }
+  
+  const totalAfter = counterUpdateContexts.size;
+  console.log(`[CounterContext] Очистка завершена. Удалено: ${cleanedCount}, осталось: ${totalAfter}`);
 }, CONTEXT_TTL_MS);
 
 // КРИТИЧНО: unref() позволяет процессу завершиться даже если interval активен
@@ -86,20 +95,8 @@ if (cleanupInterval.unref) {
 function getCounterUpdateContext(tenantId, userId, sourceEventId, sourceEventType) {
   const key = `${tenantId}:${userId}:${sourceEventId || 'no-event'}`;
   
-  // Очистка старых контекстов при каждом обращении
-  const now = Date.now();
-  for (const [k, timestamp] of contextTimestamps.entries()) {
-    if (now - timestamp > CONTEXT_TTL_MS) {
-      const context = counterUpdateContexts.get(k);
-      if (context) {
-        context.createStatsUpdate().catch(err => {
-          console.error(`Failed to finalize expired context ${k}:`, err);
-        });
-      }
-      counterUpdateContexts.delete(k);
-      contextTimestamps.delete(k);
-    }
-  }
+  // КРИТИЧНО: Очистка старых контекстов выполняется периодически через setInterval
+  // Не выполняем очистку при каждом вызове для улучшения производительности
   
   if (!counterUpdateContexts.has(key)) {
     counterUpdateContexts.set(key, new CounterUpdateContext(tenantId, userId, sourceEventId, sourceEventType));
