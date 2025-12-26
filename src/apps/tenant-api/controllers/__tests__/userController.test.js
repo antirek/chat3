@@ -278,13 +278,21 @@ describe('userController.getUsers', () => {
     const carl = res.body.data.find((user) => user.userId === 'agent_carl');
     const alice = res.body.data.find((user) => user.userId === 'manager_alice');
     
-    // Проверяем, что dialogCount всегда присутствует
-    expect(carl.dialogCount).toBe(2);
-    expect(alice.dialogCount).toBe(1); // все участники учитываются
+    // Проверяем, что stats всегда присутствует
+    expect(carl.stats).toBeDefined();
+    expect(alice.stats).toBeDefined();
     
-    // Проверяем, что unreadDialogsCount всегда присутствует
-    expect(carl.unreadDialogsCount).toBe(1); // только один диалог с unreadCount > 0
-    expect(alice.unreadDialogsCount).toBe(1); // диалог с unreadCount > 0
+    // Проверяем, что dialogCount всегда присутствует в stats
+    expect(carl.stats.dialogCount).toBe(2);
+    expect(alice.stats.dialogCount).toBe(1); // все участники учитываются
+    
+    // Проверяем, что unreadDialogsCount всегда присутствует в stats
+    expect(carl.stats.unreadDialogsCount).toBe(1); // только один диалог с unreadCount > 0
+    expect(alice.stats.unreadDialogsCount).toBe(1); // диалог с unreadCount > 0
+    
+    // Проверяем, что все поля stats присутствуют
+    expect(carl.stats.totalUnreadCount).toBeDefined();
+    expect(carl.stats.totalMessagesCount).toBeDefined();
   });
 });
 
@@ -332,11 +340,12 @@ describe('userController.getUserById', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data.userId).toBe('agent_carl');
     expect(res.body.data.meta).toEqual({ role: 'support' });
-    // Проверяем, что dialogCount и unreadDialogsCount всегда присутствуют
-    expect(res.body.data.dialogCount).toBeDefined();
-    expect(res.body.data.unreadDialogsCount).toBeDefined();
-    expect(res.body.data.dialogCount).toBe(0);
-    expect(res.body.data.unreadDialogsCount).toBe(0);
+    // Проверяем, что stats всегда присутствует
+    expect(res.body.data.stats).toBeDefined();
+    expect(res.body.data.stats.dialogCount).toBe(0);
+    expect(res.body.data.stats.unreadDialogsCount).toBe(0);
+    expect(res.body.data.stats.totalUnreadCount).toBe(0);
+    expect(res.body.data.stats.totalMessagesCount).toBe(0);
   });
 
   test('returns fallback meta when user missing but meta exists', async () => {
@@ -361,11 +370,12 @@ describe('userController.getUserById', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data.userId).toBe('ghost_user');
     expect(res.body.data.meta).toEqual({ role: 'ghost' });
-    // Проверяем, что dialogCount и unreadDialogsCount всегда присутствуют даже в fallback случае
-    expect(res.body.data.dialogCount).toBeDefined();
-    expect(res.body.data.unreadDialogsCount).toBeDefined();
-    expect(res.body.data.dialogCount).toBe(0);
-    expect(res.body.data.unreadDialogsCount).toBe(0);
+    // Проверяем, что stats всегда присутствует даже в fallback случае
+    expect(res.body.data.stats).toBeDefined();
+    expect(res.body.data.stats.dialogCount).toBe(0);
+    expect(res.body.data.stats.unreadDialogsCount).toBe(0);
+    expect(res.body.data.stats.totalUnreadCount).toBe(0);
+    expect(res.body.data.stats.totalMessagesCount).toBe(0);
   });
 
   test('includes dialogCount and unreadDialogsCount with actual dialog data', async () => {
@@ -414,8 +424,11 @@ describe('userController.getUserById', () => {
 
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data.userId).toBe('agent_carl');
-    expect(res.body.data.dialogCount).toBe(3); // все диалоги учитываются
-    expect(res.body.data.unreadDialogsCount).toBe(2); // два диалога с unreadCount > 0
+    expect(res.body.data.stats).toBeDefined();
+    expect(res.body.data.stats.dialogCount).toBe(3); // все диалоги учитываются
+    expect(res.body.data.stats.unreadDialogsCount).toBe(2); // два диалога с unreadCount > 0
+    expect(res.body.data.stats.totalUnreadCount).toBe(8);
+    expect(res.body.data.stats.totalMessagesCount).toBeDefined();
   });
 
   test('returns 404 when neither user nor meta found', async () => {

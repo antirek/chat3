@@ -2,7 +2,7 @@
 
 # Скрипт запуска Chat3 сервера с переменными окружения
 # Использование: ./start.sh
-export MMS3_PROJECT_NAME=tubo
+export MMS3_PROJECT_NAME=LOCAL
 
 # Установка переменных окружения для RabbitMQ
 export RABBITMQ_URL="${RABBITMQ_URL:-amqp://rmuser:rmpassword@localhost:5672/}"

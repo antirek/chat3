@@ -153,23 +153,36 @@ export async function getUsers(req, res) {
         userId: { $in: userIds }
       }).lean();
 
-      const dialogCountsByUser = new Map(
+      const statsByUser = new Map(
         userStatsList.map((stats) => [
           stats.userId,
-          { dialogCount: stats.dialogCount || 0, unreadDialogsCount: stats.unreadDialogsCount || 0 }
+          {
+            dialogCount: stats.dialogCount || 0,
+            unreadDialogsCount: stats.unreadDialogsCount || 0,
+            totalUnreadCount: stats.totalUnreadCount || 0,
+            totalMessagesCount: stats.totalMessagesCount || 0
+          }
         ])
       );
 
       users.forEach((user) => {
-        const counts = dialogCountsByUser.get(user.userId) || { dialogCount: 0, unreadDialogsCount: 0 };
-        user.dialogCount = counts.dialogCount;
-        user.unreadDialogsCount = counts.unreadDialogsCount;
+        const stats = statsByUser.get(user.userId) || {
+          dialogCount: 0,
+          unreadDialogsCount: 0,
+          totalUnreadCount: 0,
+          totalMessagesCount: 0
+        };
+        user.stats = stats;
       });
     } else {
       // Если пользователей нет, устанавливаем нулевые значения
       users.forEach((user) => {
-        user.dialogCount = 0;
-        user.unreadDialogsCount = 0;
+        user.stats = {
+          dialogCount: 0,
+          unreadDialogsCount: 0,
+          totalUnreadCount: 0,
+          totalMessagesCount: 0
+        };
       });
     }
 
@@ -216,9 +229,19 @@ export async function getUserById(req, res) {
           userId: userId
         }).lean();
 
-        const counts = userStats 
-          ? { dialogCount: userStats.dialogCount || 0, unreadDialogsCount: userStats.unreadDialogsCount || 0 }
-          : { dialogCount: 0, unreadDialogsCount: 0 };
+        const stats = userStats 
+          ? {
+              dialogCount: userStats.dialogCount || 0,
+              unreadDialogsCount: userStats.unreadDialogsCount || 0,
+              totalUnreadCount: userStats.totalUnreadCount || 0,
+              totalMessagesCount: userStats.totalMessagesCount || 0
+            }
+          : {
+              dialogCount: 0,
+              unreadDialogsCount: 0,
+              totalUnreadCount: 0,
+              totalMessagesCount: 0
+            };
 
         return res.json({
           data: sanitizeResponse({
@@ -226,8 +249,7 @@ export async function getUserById(req, res) {
             tenantId: req.tenantId,
             createdAt: null,
             meta: userMeta,
-            dialogCount: counts.dialogCount,
-            unreadDialogsCount: counts.unreadDialogsCount
+            stats: stats
           })
         });
       }
@@ -245,16 +267,25 @@ export async function getUserById(req, res) {
       userId: userId
     }).lean();
 
-    const counts = userStats 
-      ? { dialogCount: userStats.dialogCount || 0, unreadDialogsCount: userStats.unreadDialogsCount || 0 }
-      : { dialogCount: 0, unreadDialogsCount: 0 };
+    const stats = userStats 
+      ? {
+          dialogCount: userStats.dialogCount || 0,
+          unreadDialogsCount: userStats.unreadDialogsCount || 0,
+          totalUnreadCount: userStats.totalUnreadCount || 0,
+          totalMessagesCount: userStats.totalMessagesCount || 0
+        }
+      : {
+          dialogCount: 0,
+          unreadDialogsCount: 0,
+          totalUnreadCount: 0,
+          totalMessagesCount: 0
+        };
 
     // Пользователь существует, обогащаем мета-тегами и данными о диалогах
     const enrichedUser = {
       ...user,
       meta: userMeta,
-      dialogCount: counts.dialogCount,
-      unreadDialogsCount: counts.unreadDialogsCount
+      stats: stats
     };
 
     res.json({
