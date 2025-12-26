@@ -82,6 +82,9 @@ messageSchema.index({ tenantId: 1, createdAt: -1 });
 // Index for filtering by sender
 messageSchema.index({ senderId: 1 });
 
+// Index for recalculateUserStats - подсчет сообщений по tenantId и senderId
+messageSchema.index({ tenantId: 1, senderId: 1 });
+
 // Включить все поля в JSON/Object
 messageSchema.set('toJSON', { virtuals: true });
 messageSchema.set('toObject', { virtuals: true });

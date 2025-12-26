@@ -159,41 +159,34 @@ async function saveCounterHistory(data) {
  * КРИТИЧНО: Используем атомарные операции для предотвращения race conditions
  */
 export async function updateUnreadCount(tenantId, userId, dialogId, delta, sourceOperation, sourceEventId, sourceEntityId, actorId, actorType) {
-  // Атомарное обновление с $inc - предотвращает race conditions
+  // КРИТИЧНО: Используем pipeline update с $max для атомарной защиты от отрицательных значений
+  // Это предотвращает race conditions и убирает необходимость в дополнительном запросе
+  const timestamp = generateTimestamp();
   const result = await UserDialogStats.findOneAndUpdate(
     { tenantId, userId, dialogId },
-    { 
-      $inc: { unreadCount: delta },
-      $set: { 
-        lastUpdatedAt: generateTimestamp()
-      },
-      $setOnInsert: {
-        createdAt: generateTimestamp()
+    [
+      {
+        $set: {
+          unreadCount: {
+            $max: [
+              { $add: [{ $ifNull: ["$unreadCount", 0] }, delta] },
+              0
+            ]
+          },
+          lastUpdatedAt: timestamp,
+          createdAt: { $ifNull: ["$createdAt", timestamp] }
+        }
       }
-    },
+    ],
     { 
       upsert: true, 
-      new: true,
-      setDefaultsOnInsert: true // Устанавливает unreadCount: 0 при создании
+      new: true
     }
   );
   
   // Вычисляем старое и новое значение
-  // result.unreadCount уже содержит новое значение после $inc
-  let newValue = result.unreadCount || 0;
+  const newValue = result.unreadCount || 0;
   const oldValue = Math.max(0, newValue - delta);
-  
-  // Защита от отрицательных значений: если значение стало отрицательным, устанавливаем 0
-  if (newValue < 0) {
-    const correctedResult = await UserDialogStats.findOneAndUpdate(
-      { tenantId, userId, dialogId },
-      { $set: { unreadCount: 0, lastUpdatedAt: generateTimestamp() } },
-      { new: true }
-    );
-    newValue = 0;
-    // Обновляем result для дальнейшего использования
-    result.unreadCount = 0;
-  }
   
   // Сохраняем sourceEventId и sourceEventType для использования в обновлении UserStats
   // (используем временные поля, которые не сохраняются в БД)
@@ -279,25 +272,32 @@ export async function updateReactionCount(tenantId, messageId, reaction, delta, 
  * КРИТИЧНО: Используем атомарные операции
  */
 export async function updateStatusCount(tenantId, messageId, status, delta, sourceOperation, actorId, actorType) {
-  // Атомарное обновление с $inc
+  // КРИТИЧНО: Используем pipeline update с $max для атомарной защиты от отрицательных значений
+  const timestamp = generateTimestamp();
   const result = await MessageStatusStats.findOneAndUpdate(
     { tenantId, messageId, status },
-    { 
-      $inc: { count: delta },
-      $set: { lastUpdatedAt: generateTimestamp() },
-      $setOnInsert: {
-        createdAt: generateTimestamp()
+    [
+      {
+        $set: {
+          count: {
+            $max: [
+              { $add: [{ $ifNull: ["$count", 0] }, delta] },
+              0
+            ]
+          },
+          lastUpdatedAt: timestamp,
+          createdAt: { $ifNull: ["$createdAt", timestamp] }
+        }
       }
-    },
+    ],
     { 
       upsert: true, 
-      new: true,
-      setDefaultsOnInsert: true
+      new: true
     }
   );
   
-  const newCount = result.count;
-  const oldCount = newCount - delta;
+  const newCount = result.count || 0;
+  const oldCount = Math.max(0, newCount - delta);
   
   // Сохраняем в историю
   await saveCounterHistory({
@@ -370,27 +370,48 @@ async function updateUserStatsFromUnreadCount(tenantId, userId, oldUnreadCount, 
     unreadDialogsCountDelta = -1;
   }
   
-  // Атомарное обновление UserStats с инкрементальными изменениями
+  // КРИТИЧНО: Используем pipeline update с $max для атомарной защиты от отрицательных значений
+  const timestamp = generateTimestamp();
   const updateResult = await UserStats.findOneAndUpdate(
     { tenantId, userId },
-    {
-      $inc: {
-        totalUnreadCount: delta,
-        unreadDialogsCount: unreadDialogsCountDelta
-      },
-      $set: {
-        lastUpdatedAt: generateTimestamp()
-      },
-      $setOnInsert: {
-        dialogCount: 0,
-        totalMessagesCount: 0,
-        createdAt: generateTimestamp()
+    [
+      {
+        $set: {
+          totalUnreadCount: {
+            $max: [
+              { $add: [{ $ifNull: ["$totalUnreadCount", 0] }, delta] },
+              0
+            ]
+          },
+          unreadDialogsCount: {
+            $max: [
+              { $add: [{ $ifNull: ["$unreadDialogsCount", 0] }, unreadDialogsCountDelta] },
+              0
+            ]
+          },
+          lastUpdatedAt: timestamp,
+          // Устанавливаем значения по умолчанию только при создании
+          dialogCount: {
+            $cond: {
+              if: { $ne: [{ $ifNull: ["$_id", null] }, null] },
+              then: { $ifNull: ["$dialogCount", 0] },
+              else: 0
+            }
+          },
+          totalMessagesCount: {
+            $cond: {
+              if: { $ne: [{ $ifNull: ["$_id", null] }, null] },
+              then: { $ifNull: ["$totalMessagesCount", 0] },
+              else: 0
+            }
+          },
+          createdAt: { $ifNull: ["$createdAt", timestamp] }
+        }
       }
-    },
+    ],
     {
       upsert: true,
-      new: true,
-      setDefaultsOnInsert: true
+      new: true
     }
   );
   
@@ -447,28 +468,54 @@ async function updateUserStatsFromUnreadCount(tenantId, userId, oldUnreadCount, 
  * КРИТИЧНО: Используем атомарные операции
  */
 export async function updateUserStatsDialogCount(tenantId, userId, delta, sourceOperation, sourceEventId = null, actorId, actorType) {
-  // Атомарное обновление с $inc
+  // КРИТИЧНО: Используем pipeline update с $max для атомарной защиты от отрицательных значений
+  const timestamp = generateTimestamp();
   const result = await UserStats.findOneAndUpdate(
     { tenantId, userId },
-    { 
-      $inc: { dialogCount: delta },
-      $set: { lastUpdatedAt: generateTimestamp() },
-      $setOnInsert: {
-        unreadDialogsCount: 0,
-        totalUnreadCount: 0,
-        totalMessagesCount: 0,
-        createdAt: generateTimestamp()
+    [
+      {
+        $set: {
+          dialogCount: {
+            $max: [
+              { $add: [{ $ifNull: ["$dialogCount", 0] }, delta] },
+              0
+            ]
+          },
+          lastUpdatedAt: timestamp,
+          // Устанавливаем значения по умолчанию только при создании (если _id не существует)
+          unreadDialogsCount: {
+            $cond: {
+              if: { $ne: [{ $ifNull: ["$_id", null] }, null] },
+              then: { $ifNull: ["$unreadDialogsCount", 0] },
+              else: 0
+            }
+          },
+          totalUnreadCount: {
+            $cond: {
+              if: { $ne: [{ $ifNull: ["$_id", null] }, null] },
+              then: { $ifNull: ["$totalUnreadCount", 0] },
+              else: 0
+            }
+          },
+          totalMessagesCount: {
+            $cond: {
+              if: { $ne: [{ $ifNull: ["$_id", null] }, null] },
+              then: { $ifNull: ["$totalMessagesCount", 0] },
+              else: 0
+            }
+          },
+          createdAt: { $ifNull: ["$createdAt", timestamp] }
+        }
       }
-    },
+    ],
     { 
       upsert: true, 
-      new: true,
-      setDefaultsOnInsert: true
+      new: true
     }
   );
   
-  const oldValue = Math.max(0, result.dialogCount - delta);
-  const newValue = result.dialogCount;
+  const oldValue = Math.max(0, (result.dialogCount || 0) - delta);
+  const newValue = result.dialogCount || 0;
   
   // Получаем контекст операции
   const context = sourceEventId ? getCounterUpdateContext(tenantId, userId, sourceEventId, sourceOperation) : null;
@@ -566,64 +613,84 @@ export async function recalculateUserStats(tenantId, userId) {
   const dialogMembers = await DialogMember.find({ tenantId, userId }).select('dialogId').lean();
   
   for (const member of dialogMembers) {
-    // Пересчитываем unreadCount из реальных данных (MessageStatus)
+    // КРИТИЧНО: Оптимизированный пересчет unreadCount через агрегацию MongoDB
     // unreadCount = количество сообщений в диалоге, которые:
     // 1. Не были отправлены пользователем (senderId != userId)
     // 2. Не имеют статуса 'read' для этого пользователя
+    // Используем один агрегационный запрос вместо двух отдельных запросов
     
-    // Получаем все сообщения в диалоге, которые не были отправлены пользователем
-    const messages = await Message.find({
-      tenantId,
-      dialogId: member.dialogId,
-      senderId: { $ne: userId }
-    }).select('messageId').lean();
+    const unreadCountResult = await Message.aggregate([
+      // Находим все сообщения в диалоге, которые не были отправлены пользователем
+      {
+        $match: {
+          tenantId,
+          dialogId: member.dialogId,
+          senderId: { $ne: userId }
+        }
+      },
+      // Соединяем с MessageStatus для поиска статусов 'read' от этого пользователя
+      {
+        $lookup: {
+          from: 'messagestatuses',
+          let: { messageId: '$messageId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$messageId', '$$messageId'] },
+                    { $eq: ['$tenantId', tenantId] },
+                    { $eq: ['$userId', userId] },
+                    { $eq: ['$status', 'read'] }
+                  ]
+                }
+              }
+            },
+            { $limit: 1 } // Нам нужно только проверить наличие статуса 'read'
+          ],
+          as: 'readStatus'
+        }
+      },
+      // Фильтруем сообщения без статуса 'read'
+      {
+        $match: {
+          readStatus: { $size: 0 } // Если readStatus пустой, значит сообщение не прочитано
+        }
+      },
+      // Считаем количество непрочитанных сообщений
+      {
+        $count: 'unreadCount'
+      }
+    ]);
     
-    const messageIds = messages.map(m => m.messageId);
+    // Если агрегация вернула результат, используем его, иначе проверяем существующий UserDialogStats
+    let unreadCount = unreadCountResult[0]?.unreadCount;
     
-    if (messageIds.length > 0) {
-      // Получаем все статусы 'read' для этих сообщений от этого пользователя
-      const readStatuses = await MessageStatus.find({
+    // Если агрегация не вернула результат (нет сообщений или все прочитаны),
+    // проверяем существующий UserDialogStats или устанавливаем 0
+    if (unreadCount === undefined) {
+      const existingStats = await UserDialogStats.findOne({
         tenantId,
         userId,
-        messageId: { $in: messageIds },
-        status: 'read'
-      }).select('messageId').lean();
-      
-      const readMessageIds = new Set(readStatuses.map(s => s.messageId));
-      
-      // unreadCount = количество сообщений без статуса 'read'
-      const unreadCount = messageIds.filter(msgId => !readMessageIds.has(msgId)).length;
-      
-      // Обновляем или создаем UserDialogStats с пересчитанным unreadCount
-      await UserDialogStats.findOneAndUpdate(
-        { tenantId, userId, dialogId: member.dialogId },
-        {
-          $set: {
-            unreadCount,
-            lastUpdatedAt: generateTimestamp()
-          },
-          $setOnInsert: {
-            createdAt: generateTimestamp()
-          }
-        },
-        { upsert: true, setDefaultsOnInsert: true }
-      );
-    } else {
-      // Если сообщений нет, создаем UserDialogStats с unreadCount = 0
-      await UserDialogStats.findOneAndUpdate(
-        { tenantId, userId, dialogId: member.dialogId },
-        {
-          $setOnInsert: {
-            unreadCount: 0,
-            createdAt: generateTimestamp()
-          },
-          $set: {
-            lastUpdatedAt: generateTimestamp()
-          }
-        },
-        { upsert: true, setDefaultsOnInsert: true }
-      );
+        dialogId: member.dialogId
+      }).lean();
+      unreadCount = existingStats?.unreadCount || 0;
     }
+    
+    // Обновляем или создаем UserDialogStats с пересчитанным unreadCount
+    await UserDialogStats.findOneAndUpdate(
+      { tenantId, userId, dialogId: member.dialogId },
+      {
+        $set: {
+          unreadCount,
+          lastUpdatedAt: generateTimestamp()
+        },
+        $setOnInsert: {
+          createdAt: generateTimestamp()
+        }
+      },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
   }
   
   // Теперь пересчитываем unreadDialogsCount и totalUnreadCount из UserDialogStats
