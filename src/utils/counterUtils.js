@@ -346,56 +346,72 @@ export async function getMessageStatusCounts(tenantId, messageId) {
 
 /**
  * Обновление UserStats на основе изменения unreadCount
+ * КРИТИЧНО: Используем инкрементальный пересчет для производительности
+ * Полный пересчет выполняется только в recalculateUserStats
  */
 async function updateUserStatsFromUnreadCount(tenantId, userId, oldUnreadCount, newUnreadCount, sourceEventId = null, sourceEventType = null) {
-  let stats = await UserStats.findOne({ tenantId, userId });
+  // Нормализуем значения
+  const oldValue = Math.max(0, oldUnreadCount || 0);
+  const newValue = Math.max(0, newUnreadCount || 0);
+  const delta = newValue - oldValue;
   
-  if (!stats) {
-    stats = await UserStats.create({
-      tenantId,
-      userId,
-      dialogCount: 0,
-      unreadDialogsCount: 0,
-      totalUnreadCount: 0,
-      totalMessagesCount: 0
-    });
+  // Если значения не изменились, ничего не делаем
+  if (delta === 0) {
+    return;
   }
-  
-  const oldStats = {
-    unreadDialogsCount: stats.unreadDialogsCount,
-    totalUnreadCount: stats.totalUnreadCount
-  };
   
   // Получаем контекст операции
   const context = sourceEventId ? getCounterUpdateContext(tenantId, userId, sourceEventId, sourceEventType) : null;
   
-  // КРИТИЧНО: Пересчитываем оба счетчика из UserDialogStats для гарантии синхронизации
-  // Это гарантирует синхронизацию даже если UserStats был создан до всех UserDialogStats
-  const allDialogStats = await UserDialogStats.find({ tenantId, userId }).lean();
+  // Вычисляем изменения для unreadDialogsCount
+  // Если unreadCount меняется с 0 → >0, то unreadDialogsCount += 1
+  // Если unreadCount меняется с >0 → 0, то unreadDialogsCount -= 1
+  let unreadDialogsCountDelta = 0;
+  if (oldValue === 0 && newValue > 0) {
+    unreadDialogsCountDelta = 1;
+  } else if (oldValue > 0 && newValue === 0) {
+    unreadDialogsCountDelta = -1;
+  }
   
-  // Пересчитываем totalUnreadCount как сумму всех unreadCount
-  const calculatedTotalUnreadCount = allDialogStats.reduce((sum, s) => sum + (s.unreadCount || 0), 0);
-  const oldTotalUnreadCount = stats.totalUnreadCount;
-  stats.totalUnreadCount = Math.max(0, calculatedTotalUnreadCount);
+  // Атомарное обновление UserStats с инкрементальными изменениями
+  const updateResult = await UserStats.findOneAndUpdate(
+    { tenantId, userId },
+    {
+      $inc: {
+        totalUnreadCount: delta,
+        unreadDialogsCount: unreadDialogsCountDelta
+      },
+      $set: {
+        lastUpdatedAt: generateTimestamp()
+      },
+      $setOnInsert: {
+        dialogCount: 0,
+        totalMessagesCount: 0,
+        createdAt: generateTimestamp()
+      }
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true
+    }
+  );
   
-  // Пересчитываем unreadDialogsCount как количество диалогов с unreadCount > 0
-  const calculatedUnreadDialogsCount = allDialogStats.filter(s => (s.unreadCount || 0) > 0).length;
-  const oldUnreadDialogsCount = stats.unreadDialogsCount;
-  stats.unreadDialogsCount = calculatedUnreadDialogsCount;
-  
-  await stats.save();
+  // Получаем старые значения для истории (до обновления)
+  const oldTotalUnreadCount = Math.max(0, (updateResult.totalUnreadCount || 0) - delta);
+  const oldUnreadDialogsCount = Math.max(0, (updateResult.unreadDialogsCount || 0) - unreadDialogsCountDelta);
   
   // Сохраняем в историю и добавляем в контекст только если значения изменились
-  if (oldUnreadDialogsCount !== stats.unreadDialogsCount) {
+  if (unreadDialogsCountDelta !== 0) {
     await saveCounterHistory({
       counterType: 'userStats.unreadDialogsCount',
       entityType: 'user',
       entityId: userId,
       field: 'unreadDialogsCount',
       oldValue: oldUnreadDialogsCount,
-      newValue: stats.unreadDialogsCount,
-      delta: stats.unreadDialogsCount - oldUnreadDialogsCount,
-      operation: 'computed',
+      newValue: updateResult.unreadDialogsCount,
+      delta: unreadDialogsCountDelta,
+      operation: 'incremental',
       sourceOperation: 'userDialogStats.unreadCount.update',
       sourceEntityId: userId,
       tenantId
@@ -407,16 +423,16 @@ async function updateUserStatsFromUnreadCount(tenantId, userId, oldUnreadCount, 
     }
   }
   
-  if (oldTotalUnreadCount !== stats.totalUnreadCount) {
+  if (delta !== 0) {
     await saveCounterHistory({
       counterType: 'userStats.totalUnreadCount',
       entityType: 'user',
       entityId: userId,
       field: 'totalUnreadCount',
       oldValue: oldTotalUnreadCount,
-      newValue: stats.totalUnreadCount,
-      delta: stats.totalUnreadCount - oldTotalUnreadCount,
-      operation: 'computed',
+      newValue: updateResult.totalUnreadCount,
+      delta: delta,
+      operation: 'incremental',
       sourceOperation: 'userDialogStats.unreadCount.update',
       sourceEntityId: userId,
       tenantId

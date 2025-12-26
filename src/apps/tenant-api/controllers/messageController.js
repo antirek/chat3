@@ -449,34 +449,49 @@ const messageController = {
           dialogId: dialog.dialogId
         }).select('userId').lean();
         
+        // Фильтруем получателей (исключаем отправителя)
+        const recipients = dialogMembers.filter(m => m.userId !== senderId);
+        
         // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
         try {
-          // Обновление unreadCount для всех участников (кроме отправителя)
-          for (const member of dialogMembers) {
-            const userId = member.userId;
-            if (userId !== senderId) { // Don't create status for sender
-              try {
-                // Получаем тип пользователя
-                const user = await User.findOne({
-                  tenantId: req.tenantId,
-                  userId: userId
-                }).select('type').lean();
-                
-                const userType = user?.type || null;
-                
-                // Create MessageStatus record
-                await MessageStatus.create({
-                  messageId: message.messageId,
-                  userId: userId,
-                  userType: userType,
-                  tenantId: req.tenantId,
-                  status: 'unread'
-                });
-                
-                // Обновляем unreadCount используя новые функции счетчиков
-                await updateUnreadCount(
+          if (recipients.length > 0) {
+            // 1. Загружаем типы пользователей одним запросом
+            const userIds = recipients.map(m => m.userId);
+            const users = await User.find({
+              tenantId: req.tenantId,
+              userId: { $in: userIds }
+            }).select('userId type').lean();
+            
+            // Создаем Map для быстрого доступа к типам пользователей
+            const userTypeMap = new Map();
+            users.forEach(user => {
+              userTypeMap.set(user.userId, user.type || null);
+            });
+            
+            // 2. Создаем MessageStatus записи батчем через insertMany
+            const messageStatuses = recipients.map(member => ({
+              messageId: message.messageId,
+              userId: member.userId,
+              userType: userTypeMap.get(member.userId) || null,
+              tenantId: req.tenantId,
+              status: 'unread',
+              createdAt: generateTimestamp()
+            }));
+            
+            if (messageStatuses.length > 0) {
+              await MessageStatus.insertMany(messageStatuses, { ordered: false });
+            }
+            
+            // 3. Обновляем unreadCount батчами по 10 через Promise.allSettled
+            const BATCH_SIZE = 10;
+            const updatePromises = [];
+            
+            for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+              const batch = recipients.slice(i, i + BATCH_SIZE);
+              const batchPromises = batch.map(member =>
+                updateUnreadCount(
                   req.tenantId,
-                  userId,
+                  member.userId,
                   dialog.dialogId,
                   1, // delta
                   sourceEventType,
@@ -484,14 +499,20 @@ const messageController = {
                   message.messageId,
                   senderId,
                   'user'
-                );
-              } catch (error) {
-                console.error(`Error creating MessageStatus for user ${userId}:`, error);
-              }
+                ).catch(error => {
+                  console.error(`Error updating unreadCount for user ${member.userId}:`, error);
+                  return { error, userId: member.userId };
+                })
+              );
+              
+              updatePromises.push(Promise.allSettled(batchPromises));
             }
+            
+            // Ждем завершения всех батчей
+            await Promise.all(updatePromises);
           }
           
-          // Обновление totalMessagesCount для отправителя
+          // 4. Обновление totalMessagesCount для отправителя
           await updateUserStatsTotalMessagesCount(
             req.tenantId,
             senderId,
@@ -503,33 +524,33 @@ const messageController = {
             'user'
           );
           
-          // Обновление lastMessageAt для всех участников диалога
+          // 5. Обновление lastMessageAt для всех участников диалога параллельно
           const messageTimestamp = message.createdAt;
-          for (const member of dialogMembers) {
-            try {
-              await updateLastMessageAt(
-                req.tenantId,
-                member.userId,
-                dialog.dialogId,
-                messageTimestamp
-              );
-            } catch (error) {
+          const lastMessageAtPromises = dialogMembers.map(member =>
+            updateLastMessageAt(
+              req.tenantId,
+              member.userId,
+              dialog.dialogId,
+              messageTimestamp
+            ).catch(error => {
               console.error(`Error updating lastMessageAt for user ${member.userId}:`, error);
-            }
-          }
+              return { error, userId: member.userId };
+            })
+          );
+          
+          await Promise.allSettled(lastMessageAtPromises);
         } finally {
           // КРИТИЧНО: Гарантированная финализация контекстов даже при ошибках
           // Создаем user.stats.update для всех пользователей, у которых изменились счетчики
           // Для получателей (изменился unreadCount)
-          for (const member of dialogMembers) {
-            if (member.userId !== senderId) {
-              try {
-                await finalizeCounterUpdateContext(req.tenantId, member.userId, sourceEventId);
-              } catch (error) {
-                console.error(`Failed to finalize context for ${member.userId}:`, error);
-              }
-            }
-          }
+          const finalizePromises = recipients.map(member =>
+            finalizeCounterUpdateContext(req.tenantId, member.userId, sourceEventId).catch(error => {
+              console.error(`Failed to finalize context for ${member.userId}:`, error);
+              return { error, userId: member.userId };
+            })
+          );
+          
+          await Promise.allSettled(finalizePromises);
           
           // Для отправителя (изменился totalMessagesCount)
           try {
