@@ -472,6 +472,7 @@ const messageController = {
             const messageStatuses = recipients.map(member => ({
               messageId: message.messageId,
               userId: member.userId,
+              dialogId: dialog.dialogId, // КРИТИЧНО: Передаем dialogId для избежания поиска Message
               userType: userTypeMap.get(member.userId) || null,
               tenantId: req.tenantId,
               status: 'unread',

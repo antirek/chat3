@@ -1577,6 +1577,7 @@ const userDialogController = {
         messageId: messageId,
         userId: userId,
         tenantId: req.tenantId,
+        dialogId: dialogId, // КРИТИЧНО: Передаем dialogId для избежания поиска Message
         status: status,
         userType: userType, // Заполняем тип пользователя
         createdAt: generateTimestamp(),

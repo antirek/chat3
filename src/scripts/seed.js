@@ -426,6 +426,7 @@ async function seed() {
 
         messageStatuses.push({
           messageId: message.messageId,
+          dialogId: message.dialogId, // КРИТИЧНО: Передаем dialogId для избежания поиска Message
           userId,
           userType: userType,
           tenantId: message.tenantId,

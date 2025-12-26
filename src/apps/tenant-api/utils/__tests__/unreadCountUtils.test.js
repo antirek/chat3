@@ -279,12 +279,14 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
         {
           tenantId,
           messageId: messageId1,
+          dialogId: dialogId,
           userId,
           status: 'unread'
         },
         {
           tenantId,
           messageId: messageId2,
+          dialogId: dialogId,
           userId,
           status: 'read'
         }

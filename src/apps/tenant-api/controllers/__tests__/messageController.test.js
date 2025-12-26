@@ -152,9 +152,9 @@ describe('messageController.getAll - filter combinations', () => {
     ]);
 
     await MessageStatus.create([
-      { tenantId, messageId: message1.messageId, userId: 'bob', status: 'read', createdAt: generateTimestamp() },
-      { tenantId, messageId: message2.messageId, userId: 'alice', status: 'delivered', createdAt: generateTimestamp() },
-      { tenantId, messageId: message3.messageId, userId: 'bob', status: 'unread', createdAt: generateTimestamp() }
+      { tenantId, messageId: message1.messageId, dialogId: dialog.dialogId, userId: 'bob', status: 'read', createdAt: generateTimestamp() },
+      { tenantId, messageId: message2.messageId, dialogId: dialog.dialogId, userId: 'alice', status: 'delivered', createdAt: generateTimestamp() },
+      { tenantId, messageId: message3.messageId, dialogId: dialog.dialogId, userId: 'bob', status: 'unread', createdAt: generateTimestamp() }
     ]);
   });
 
@@ -869,6 +869,7 @@ describe('messageController.getMessageById - error handling', () => {
     await MessageStatus.create({
       tenantId,
       messageId: message.messageId,
+      dialogId: dialog.dialogId,
       userId: 'bob',
       status: 'read',
       createdAt: generateTimestamp(),

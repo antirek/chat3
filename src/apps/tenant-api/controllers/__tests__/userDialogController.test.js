@@ -1186,6 +1186,7 @@ describe('userDialogController', () => {
         {
           tenantId,
           messageId,
+          dialogId: dialog.dialogId,
           userId,
           status: 'read',
           userType: 'user',
@@ -1195,6 +1196,7 @@ describe('userDialogController', () => {
         {
           tenantId,
           messageId,
+          dialogId: dialog.dialogId,
           userId: otherUserId,
           status: 'unread',
           userType: 'user',
@@ -1310,6 +1312,7 @@ describe('userDialogController', () => {
         {
           tenantId,
           messageId,
+          dialogId: dialog.dialogId,
           userId,
           status: 'read',
           userType: 'user',
@@ -1319,6 +1322,7 @@ describe('userDialogController', () => {
         {
           tenantId,
           messageId,
+          dialogId: dialog.dialogId,
           userId: otherUserId,
           status: 'unread',
           userType: 'user',

@@ -5,7 +5,7 @@ import {
   updateUnreadCount,
   finalizeCounterUpdateContext 
 } from '../../utils/counterUtils.js';
-import { Message } from '../index.js';
+// Импорт Message больше не нужен, так как dialogId хранится в MessageStatus
 
 /**
  * MessageStatus - История изменений статусов сообщений
@@ -55,6 +55,12 @@ const messageStatusSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
+  dialogId: {
+    type: String,
+    required: true,
+    index: true,
+    description: 'ID диалога, к которому относится сообщение'
+  },
   status: {
     type: String,
     default: 'sent',
@@ -98,6 +104,8 @@ messageStatusSchema.index({ messageId: 1, status: 1 }); // Для фильтра
 messageStatusSchema.index({ userId: 1, status: 1 }); // Для фильтрации по пользователю и статусу
 messageStatusSchema.index({ tenantId: 1, status: 1 }); // Для фильтрации по тенанту и статусу
 messageStatusSchema.index({ tenantId: 1, messageId: 1, userId: 1, createdAt: -1 }); // Составной индекс для быстрого поиска последнего статуса
+messageStatusSchema.index({ tenantId: 1, dialogId: 1 }); // Для фильтрации по диалогу
+messageStatusSchema.index({ dialogId: 1, userId: 1 }); // Для фильтрации по диалогу и пользователю
 
 /**
  * Middleware для обновления счетчиков при создании нового статуса
@@ -145,14 +153,12 @@ messageStatusSchema.post('save', async function(doc) {
         
         // Обновляем unreadCount если статус изменился на 'read'
         if (oldStatus !== 'read' && doc.status === 'read') {
-          // Получаем dialogId из сообщения
-          const message = await Message.findOne({ messageId: doc.messageId }).lean();
-          
-          if (message && message.dialogId) {
+          // КРИТИЧНО: Используем dialogId из документа (не нужно искать Message)
+          if (doc.dialogId) {
             await updateUnreadCount(
               doc.tenantId,
               doc.userId,
-              message.dialogId,
+              doc.dialogId,
               -1, // delta (уменьшаем при прочтении)
               sourceEventType,
               sourceEventId,
