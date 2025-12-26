@@ -5,7 +5,7 @@ import {
   updateUnreadCount,
   finalizeCounterUpdateContext 
 } from '../../utils/counterUtils.js';
-import { Event, Message } from '../index.js';
+import { Message } from '../index.js';
 
 /**
  * MessageStatus - История изменений статусов сообщений
@@ -72,6 +72,11 @@ const messageStatusSchema = new mongoose.Schema({
   timestamps: false // Отключаем автоматические timestamps
 });
 
+// Временное поле для передачи sourceEventId (не сохраняется в БД)
+// В Mongoose поля, не определенные в схеме, не сохраняются в БД,
+// но доступны в документе и middleware до сохранения
+// Мы явно не добавляем _sourceEventId в схему, чтобы оно не сохранялось
+
 // Pre-save hook для установки createdAt при создании
 messageStatusSchema.pre('save', function(next) {
   if (this.isNew) {
@@ -120,15 +125,9 @@ messageStatusSchema.post('save', async function(doc) {
       
       const oldStatus = lastStatus?.status || 'unread';
       
-      // Получаем eventId из созданного события message.status.update
-      const messageEvent = await Event.findOne({
-        tenantId: doc.tenantId,
-        eventType: 'message.status.update',
-        entityId: doc.messageId,
-        'data.context.messageId': doc.messageId
-      }).sort({ createdAt: -1 });
-      
-      const sourceEventId = messageEvent?.eventId || null;
+      // КРИТИЧНО: Получаем sourceEventId из временного поля _sourceEventId
+      // Это поле передается при создании MessageStatus и не сохраняется в БД
+      const sourceEventId = doc._sourceEventId || null;
       const sourceEventType = 'message.status.update';
       
       // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов

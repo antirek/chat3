@@ -1503,20 +1503,6 @@ const userDialogController = {
       }).lean();
       const oldUnreadCount = oldUserDialogStats?.unreadCount ?? 0;
 
-      // Всегда создаем новую запись в истории статусов (не обновляем существующую)
-      const newStatusData = {
-        messageId: messageId,
-        userId: userId,
-        tenantId: req.tenantId,
-        status: status,
-        userType: userType, // Заполняем тип пользователя
-        createdAt: generateTimestamp()
-      };
-
-      // Создаем новую запись в истории
-      // pre-save hook автоматически обновит счетчики непрочитанных сообщений
-      const messageStatus = await MessageStatus.create(newStatusData);
-
       // Получаем диалог и его метаданные для события
       const dialog = await Dialog.findOne({
         dialogId: dialogId,
@@ -1568,7 +1554,8 @@ const userDialogController = {
         updatedFields: ['message.status']
       });
 
-      await eventUtils.createEvent({
+      // КРИТИЧНО: Создаем событие ДО создания MessageStatus, чтобы получить eventId
+      const statusEvent = await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'message.status.update',
         entityType: 'messageStatus',
@@ -1581,6 +1568,24 @@ const userDialogController = {
           message: messageSection
         })
       });
+
+      const sourceEventId = statusEvent?.eventId || null;
+
+      // Всегда создаем новую запись в истории статусов (не обновляем существующую)
+      // КРИТИЧНО: Передаем sourceEventId через временное поле _sourceEventId
+      const newStatusData = {
+        messageId: messageId,
+        userId: userId,
+        tenantId: req.tenantId,
+        status: status,
+        userType: userType, // Заполняем тип пользователя
+        createdAt: generateTimestamp(),
+        _sourceEventId: sourceEventId // Временное поле для передачи eventId в middleware
+      };
+
+      // Создаем новую запись в истории
+      // post-save hook автоматически обновит счетчики непрочитанных сообщений
+      const messageStatus = await MessageStatus.create(newStatusData);
 
       // Получаем обновленный UserDialogStats после создания MessageStatus
       // (post-save hook уже обновил счетчик)
