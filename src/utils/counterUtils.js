@@ -6,7 +6,10 @@ import {
   CounterHistory,
   DialogMember,
   Message,
-  MessageStatus
+  MessageStatus,
+  UserTopicStats,
+  DialogStats,
+  Topic
 } from '../models/index.js';
 import { generateTimestamp } from './timestampUtils.js';
 import { createUserStatsUpdate } from './updateUtils.js';
@@ -157,11 +160,64 @@ async function saveCounterHistory(data) {
 /**
  * Обновление unreadCount
  * КРИТИЧНО: Используем атомарные операции для предотвращения race conditions
+ * @param {string} tenantId - ID тенанта
+ * @param {string} userId - ID пользователя
+ * @param {string} dialogId - ID диалога
+ * @param {number} delta - Изменение счетчика (+1 или -1)
+ * @param {string} sourceOperation - Тип операции
+ * @param {string} sourceEventId - ID события
+ * @param {string} sourceEntityId - ID сущности
+ * @param {string} actorId - ID актора
+ * @param {string} actorType - Тип актора
+ * @param {string|null} topicId - ID топика (опционально). Если указан, обновляет UserTopicStats, иначе UserDialogStats
+ * @param {Object} session - MongoDB session для транзакций (опционально)
  */
-export async function updateUnreadCount(tenantId, userId, dialogId, delta, sourceOperation, sourceEventId, sourceEntityId, actorId, actorType) {
+export async function updateUnreadCount(tenantId, userId, dialogId, delta, sourceOperation, sourceEventId, sourceEntityId, actorId, actorType, topicId = null, session = null) {
+  // Если topicId указан, обновляем UserTopicStats для конкретного топика
+  // (updateTopicUnreadCount определена ниже, но это нормально для hoisting в JS)
+  if (topicId) {
+    // Обновляем счетчик топика напрямую, чтобы избежать рекурсии
+    const timestamp = generateTimestamp();
+    const topicUpdateOptions = {
+      upsert: true,
+      new: true
+    };
+    if (session) {
+      topicUpdateOptions.session = session;
+    }
+
+    await UserTopicStats.findOneAndUpdate(
+      { tenantId, userId, dialogId, topicId },
+      [
+        {
+          $set: {
+            unreadCount: {
+              $max: [
+                { $add: [{ $ifNull: ["$unreadCount", 0] }, delta] },
+                0
+              ]
+            },
+            lastUpdatedAt: timestamp,
+            createdAt: { $ifNull: ["$createdAt", timestamp] }
+          }
+        }
+      ],
+      topicUpdateOptions
+    );
+    // Общий счетчик диалога обновим ниже
+  }
+
   // КРИТИЧНО: Используем pipeline update с $max для атомарной защиты от отрицательных значений
   // Это предотвращает race conditions и убирает необходимость в дополнительном запросе
   const timestamp = generateTimestamp();
+  const updateOptions = { 
+    upsert: true, 
+    new: true
+  };
+  if (session) {
+    updateOptions.session = session;
+  }
+
   const result = await UserDialogStats.findOneAndUpdate(
     { tenantId, userId, dialogId },
     [
@@ -178,10 +234,7 @@ export async function updateUnreadCount(tenantId, userId, dialogId, delta, sourc
         }
       }
     ],
-    { 
-      upsert: true, 
-      new: true
-    }
+    updateOptions
   );
   
   // Вычисляем старое и новое значение
@@ -765,5 +818,305 @@ export async function getCounterHistory(tenantId, options = {}) {
     .limit(limit)
     .skip(skip)
     .lean();
+}
+
+// ============================================================================
+// Функции для работы с топиками
+// ============================================================================
+
+/**
+ * Обновление unreadCount для топика
+ * @param {string} tenantId - ID тенанта
+ * @param {string} userId - ID пользователя
+ * @param {string} dialogId - ID диалога
+ * @param {string} topicId - ID топика
+ * @param {number} delta - Изменение счетчика (+1 или -1)
+ * @param {string} sourceOperation - Тип операции
+ * @param {string} sourceEventId - ID события
+ * @param {string} sourceEntityId - ID сущности
+ * @param {string} actorId - ID актора
+ * @param {string} actorType - Тип актора
+ * @param {Object} session - MongoDB session для транзакций (опционально)
+ * @returns {Promise<Object>} { oldValue, newValue }
+ */
+export async function updateTopicUnreadCount(tenantId, userId, dialogId, topicId, delta, sourceOperation, sourceEventId, sourceEntityId, actorId, actorType, session = null) {
+  const timestamp = generateTimestamp();
+  const updateOptions = {
+    upsert: true,
+    new: true
+  };
+  if (session) {
+    updateOptions.session = session;
+  }
+
+  const result = await UserTopicStats.findOneAndUpdate(
+    { tenantId, userId, dialogId, topicId },
+    [
+      {
+        $set: {
+          unreadCount: {
+            $max: [
+              { $add: [{ $ifNull: ["$unreadCount", 0] }, delta] },
+              0
+            ]
+          },
+          lastUpdatedAt: timestamp,
+          createdAt: { $ifNull: ["$createdAt", timestamp] }
+        }
+      }
+    ],
+    updateOptions
+  );
+
+  const newValue = result.unreadCount || 0;
+  const oldValue = Math.max(0, newValue - delta);
+
+  // Обновляем общий счетчик диалога в UserDialogStats
+  // Используем ту же логику, но без рекурсивного вызова updateTopicUnreadCount
+  const dialogUpdateOptions = {
+    upsert: true,
+    new: true
+  };
+  if (session) {
+    dialogUpdateOptions.session = session;
+  }
+
+  await UserDialogStats.findOneAndUpdate(
+    { tenantId, userId, dialogId },
+    [
+      {
+        $set: {
+          unreadCount: {
+            $max: [
+              { $add: [{ $ifNull: ["$unreadCount", 0] }, delta] },
+              0
+            ]
+          },
+          lastUpdatedAt: timestamp,
+          createdAt: { $ifNull: ["$createdAt", timestamp] }
+        }
+      }
+    ],
+    dialogUpdateOptions
+  );
+
+  // Сохраняем в историю
+  await saveCounterHistory({
+    counterType: 'userTopicStats.unreadCount',
+    entityType: 'userTopicStats',
+    entityId: `${dialogId}:${userId}:${topicId}`,
+    field: 'unreadCount',
+    oldValue,
+    newValue,
+    delta,
+    operation: delta > 0 ? 'increment' : 'decrement',
+    sourceOperation,
+    sourceEntityId,
+    actorId,
+    actorType: actorType || 'user',
+    tenantId
+  });
+
+  return { oldValue, newValue };
+}
+
+/**
+ * Получение unreadCount для топика
+ * @param {string} tenantId - ID тенанта
+ * @param {string} userId - ID пользователя
+ * @param {string} dialogId - ID диалога
+ * @param {string} topicId - ID топика
+ * @returns {Promise<number>} unreadCount
+ */
+export async function getTopicUnreadCount(tenantId, userId, dialogId, topicId) {
+  const stats = await UserTopicStats.findOne({
+    tenantId,
+    userId,
+    dialogId,
+    topicId
+  }).lean();
+
+  return stats?.unreadCount || 0;
+}
+
+/**
+ * Получение общего unreadCount для диалога
+ * @param {string} tenantId - ID тенанта
+ * @param {string} userId - ID пользователя
+ * @param {string} dialogId - ID диалога
+ * @returns {Promise<number>} unreadCount
+ */
+export async function getDialogUnreadCount(tenantId, userId, dialogId) {
+  const stats = await UserDialogStats.findOne({
+    tenantId,
+    userId,
+    dialogId
+  }).lean();
+
+  return stats?.unreadCount || 0;
+}
+
+/**
+ * Обновление счетчиков диалога (DialogStats)
+ * @param {string} tenantId - ID тенанта
+ * @param {string} dialogId - ID диалога
+ * @param {Object} updates - Обновления { topicCount?: delta, memberCount?: delta, messageCount?: delta }
+ * @param {Object} session - MongoDB session для транзакций (опционально)
+ * @returns {Promise<Object>} Обновленная статистика
+ */
+export async function updateDialogStats(tenantId, dialogId, updates = {}, session = null) {
+  const timestamp = generateTimestamp();
+  const updateOptions = {
+    upsert: true,
+    new: true
+  };
+  if (session) {
+    updateOptions.session = session;
+  }
+
+  const updateQuery = {
+    $set: {
+      lastUpdatedAt: timestamp
+    },
+    $setOnInsert: {
+      createdAt: timestamp
+    }
+  };
+
+  if (updates.topicCount !== undefined) {
+    updateQuery.$inc = updateQuery.$inc || {};
+    updateQuery.$inc.topicCount = updates.topicCount;
+  }
+  if (updates.memberCount !== undefined) {
+    updateQuery.$inc = updateQuery.$inc || {};
+    updateQuery.$inc.memberCount = updates.memberCount;
+  }
+  if (updates.messageCount !== undefined) {
+    updateQuery.$inc = updateQuery.$inc || {};
+    updateQuery.$inc.messageCount = updates.messageCount;
+  }
+
+  const result = await DialogStats.findOneAndUpdate(
+    { tenantId, dialogId },
+    updateQuery,
+    updateOptions
+  );
+
+  return result;
+}
+
+/**
+ * Обновление topicCount в DialogStats
+ * @param {string} tenantId - ID тенанта
+ * @param {string} dialogId - ID диалога
+ * @param {number} delta - Изменение счетчика (+1 или -1)
+ * @param {Object} session - MongoDB session для транзакций (опционально)
+ */
+export async function updateDialogTopicCount(tenantId, dialogId, delta, session = null) {
+  return await updateDialogStats(tenantId, dialogId, { topicCount: delta }, session);
+}
+
+/**
+ * Обновление memberCount в DialogStats
+ * @param {string} tenantId - ID тенанта
+ * @param {string} dialogId - ID диалога
+ * @param {number} delta - Изменение счетчика (+1 или -1)
+ * @param {Object} session - MongoDB session для транзакций (опционально)
+ */
+export async function updateDialogMemberCount(tenantId, dialogId, delta, session = null) {
+  return await updateDialogStats(tenantId, dialogId, { memberCount: delta }, session);
+}
+
+/**
+ * Обновление messageCount в DialogStats
+ * @param {string} tenantId - ID тенанта
+ * @param {string} dialogId - ID диалога
+ * @param {number} delta - Изменение счетчика (+1 или -1)
+ * @param {Object} session - MongoDB session для транзакций (опционально)
+ */
+export async function updateDialogMessageCount(tenantId, dialogId, delta, session = null) {
+  return await updateDialogStats(tenantId, dialogId, { messageCount: delta }, session);
+}
+
+/**
+ * Пересчет общего unreadCount для диалога
+ * Суммирует все unreadCount из UserTopicStats для данного диалога
+ * @param {string} tenantId - ID тенанта
+ * @param {string} userId - ID пользователя
+ * @param {string} dialogId - ID диалога
+ * @returns {Promise<number>} Пересчитанный unreadCount
+ */
+export async function recalculateDialogUnreadCount(tenantId, userId, dialogId) {
+  const topicStats = await UserTopicStats.aggregate([
+    {
+      $match: {
+        tenantId,
+        userId,
+        dialogId
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalUnreadCount: { $sum: '$unreadCount' }
+      }
+    }
+  ]);
+
+  const totalUnreadCount = topicStats[0]?.totalUnreadCount || 0;
+
+  // Обновляем UserDialogStats
+  const timestamp = generateTimestamp();
+  await UserDialogStats.findOneAndUpdate(
+    { tenantId, userId, dialogId },
+    {
+      $set: {
+        unreadCount: totalUnreadCount,
+        lastUpdatedAt: timestamp
+      },
+      $setOnInsert: {
+        createdAt: timestamp
+      }
+    },
+    { upsert: true, setDefaultsOnInsert: true }
+  );
+
+  return totalUnreadCount;
+}
+
+/**
+ * Пересчет всех счетчиков диалога (DialogStats)
+ * @param {string} tenantId - ID тенанта
+ * @param {string} dialogId - ID диалога
+ * @returns {Promise<Object>} Пересчитанная статистика
+ */
+export async function recalculateDialogStats(tenantId, dialogId) {
+  // Используем уже импортированные модели
+  const topicCount = await Topic.countDocuments({ tenantId, dialogId });
+  const memberCount = await DialogMember.countDocuments({ tenantId, dialogId });
+  const messageCount = await Message.countDocuments({ tenantId, dialogId });
+
+  const timestamp = generateTimestamp();
+  const result = await DialogStats.findOneAndUpdate(
+    { tenantId, dialogId },
+    {
+      $set: {
+        topicCount,
+        memberCount,
+        messageCount,
+        lastUpdatedAt: timestamp
+      },
+      $setOnInsert: {
+        createdAt: timestamp
+      }
+    },
+    { upsert: true, setDefaultsOnInsert: true }
+  );
+
+  return {
+    topicCount,
+    memberCount,
+    messageCount
+  };
 }
 

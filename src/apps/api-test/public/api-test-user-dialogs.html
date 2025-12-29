@@ -61,13 +61,13 @@
         }
 
         .dialogs-panel {
-            width: 40%;
-            min-width: 400px;
+            width: 30%;
+            min-width: 350px;
         }
 
         .messages-panel {
-            width: 47%;
-            min-width: 400px;
+            width: 57%;
+            min-width: 350px;
         }
 
         .panel {
@@ -369,6 +369,18 @@
         .action-button.messages-button:hover {
             background: #8b6ce8;
             border-color: #8b6ce8;
+        }
+
+        .action-button.topics-button {
+            background: #f0f0f0;
+            color: #495057;
+            border: 1px solid #dee2e6;
+        }
+
+        .action-button.topics-button:hover {
+            background: #ffc107;
+            color: white;
+            border-color: #ffc107;
         }
 
         .action-button.add-message-button {
@@ -1278,6 +1290,12 @@
                             <option value="(meta.type,eq,internal)&(meta.maxParticipants,eq,50)">meta. Внутренний + 50 участников</option>
                             <option value="(meta.channelType,eq,telegram)&(meta.securityLevel,eq,high)">meta. Telegram + высокий уровень безопасности</option>
                         </optgroup>
+                        <optgroup label="Фильтры по топикам">
+                            <option value="(topicId,eq,topic_xxxxxxxxxxxxxxxxxxxx)">📌 По topicId (замените на реальный)</option>
+                            <option value="(topic.meta.category,eq,general)">📌 Топики с meta.category = general</option>
+                            <option value="(topic.meta.priority,eq,high)">📌 Топики с meta.priority = high</option>
+                            <option value="(topic.meta.status,eq,active)">📌 Топики с meta.status = active</option>
+                        </optgroup>
                         <optgroup label="Комбинированные фильтры">
                             <option value="(unreadCount,gte,4)&(meta.channelType,eq,whatsapp)">📬 ≥4 непрочитанных + WhatsApp</option>
                             <option value="(unreadCount,eq,0)&(meta.type,eq,internal)">📬 0 непрочитанных + Внутренний</option>
@@ -1314,11 +1332,11 @@
             </div>
         </div>
 
-        <!-- Сообщения -->
+        <!-- Сообщения / Топики -->
         <div class="panel messages-panel">
             <div class="panel-header">
                 <div class="header-left">
-                    <span>📝 Сообщения</span>
+                    <span id="messagesHeaderTitle">📝 Сообщения</span>
                     <button onclick="showAddMessageModal()" class="url-button" title="Добавить сообщение" id="addMessageBtn" style="display: none;">➕ Добавить</button>
                 </div>
                 <div class="header-right">
@@ -1342,6 +1360,8 @@
                         <option value="(senderId,eq,carl)">👤 Отправитель = carl</option>
                         <option value="(senderId,eq,sara)">👤 Отправитель = sara</option>
                         <option value="(senderId,in,[carl,marta])">👥 Отправитель в [carl,marta]</option>
+                        <option value="(topicId,eq,topic_xxxxxxxxxxxxxxxxxxxx)">📌 По topicId (замените на реальный)</option>
+                        <option value="(topicId,eq,null)">📌 Без топика (topicId = null)</option>
                         <option value="(createdAt,gte,2025-10-24)">📅 Создано ≥ 24.10.2025</option>
                         <option value="(createdAt,gte,2025-10-22)">📅 Создано ≥ 22.10.2025</option>
                         <option value="(createdAt,lt,2025-10-21)">📅 Создано < 21.10.2025</option>
@@ -1349,6 +1369,7 @@
                         <option value="(senderId,eq,carl)&(type,eq,system)">👤 Carl + system</option>
                         <option value="(content,regex,спасибо)&(createdAt,gte,2025-10-24)">📝 "спасибо" + ≥24.10</option>
                         <option value="(senderId,in,[carl,sara])&(type,eq,internal.text)&(content,regex,привет)">👥 Carl/Sara + internal.text + "привет"</option>
+                        <option value="(topicId,eq,topic_xxxxxxxxxxxxxxxxxxxx)&(type,eq,internal.text)">📌 По topicId + internal.text</option>
                         <option value="Пользовательский фильтр">✏️ Пользовательский фильтр</option>
                     </select>
                     <div class="input-with-clear">
@@ -1365,6 +1386,22 @@
             </div>
             <div class="panel-content" id="messagesList">
                 <div class="placeholder">Выберите диалог</div>
+            </div>
+            
+            <!-- Секция топиков (скрыта по умолчанию) -->
+            <div id="topicsPanelContent" style="display: none; flex: 1; flex-direction: column; overflow: hidden;">
+                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #e9ecef;">
+                    <div class="header-left">
+                        <span>📌 Топики</span>
+                        <button onclick="showAddTopicModal()" class="url-button" title="Создать топик" id="addTopicBtn" style="display: none;">➕ Создать</button>
+                    </div>
+                    <div class="header-right">
+                        <button onclick="showTopicsUrlModal()" class="url-button" title="Показать URL API" id="topicsUrlBtn">🔗 URL</button>
+                    </div>
+                </div>
+                <div id="topicsListSectionPanel" style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 15px 20px;">
+                    <div class="loading">Загрузка топиков...</div>
+                </div>
             </div>
             
             <!-- Секция участников (скрыта по умолчанию) -->
@@ -1758,6 +1795,35 @@
         </div>
     </div>
 
+    <!-- Модальное окно для создания топика -->
+    <div id="addTopicModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Создать топик</h2>
+                <span class="close" onclick="closeAddTopicModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="addTopicFormModal">
+                    <div class="form-group">
+                        <label>Мета-теги (опционально):</label>
+                        <div id="newTopicMetaContainerModal" style="margin-top: 10px;">
+                            <div class="meta-tag-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                                <input type="text" class="topic-meta-key-input" placeholder="Ключ" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <input type="text" class="topic-meta-value-input" placeholder="Значение" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <button type="button" class="remove-meta-btn" onclick="removeTopicMetaRow(this)" style="padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">✕</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-add-tag" onclick="addTopicMetaRowModal()" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">➕ Добавить мета-тег</button>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-success">Создать</button>
+                        <button type="button" class="btn-secondary" onclick="closeAddTopicModal()">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Модальное окно для редактирования мета-тегов участника -->
     <div id="memberMetaModal" class="modal">
         <div class="modal-content width-60">
@@ -1805,6 +1871,32 @@
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" onclick="closeMessageMetaModal()">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для мета-тегов топика -->
+    <div id="topicMetaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🏷️ Meta теги топика</h2>
+                <span class="close" onclick="closeTopicMetaModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="metaTopicId">
+                <input type="hidden" id="metaTopicDialogId">
+                <div class="meta-list" id="topicMetaList"></div>
+                <div class="meta-section">
+                    <h3>Добавить Meta тег</h3>
+                    <div class="meta-tag-row">
+                        <input type="text" id="newTopicMetaKey" placeholder="key (например: category)">
+                        <input type="text" id="newTopicMetaValue" placeholder="value (например: general)">
+                        <button class="btn-success btn-small" onclick="addTopicMetaTag()">➕ Добавить</button>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeTopicMetaModal()">Закрыть</button>
                 </div>
             </div>
         </div>
@@ -2203,6 +2295,7 @@
                                 <tr>
                                     <th>Dialog ID</th>
                                     <th onclick="toggleSort('unreadCount')" style="cursor: pointer;">Непрочитанные<span class="sort-indicator" id="sort-unreadCount">${getSortIndicator('unreadCount')}</span></th>
+                                    <th style="text-align: center;">📌 Топики</th>
                                     <th onclick="toggleSort('lastSeenAt')" style="cursor: pointer;">Последний просмотр<span class="sort-indicator" id="sort-lastSeenAt">${getSortIndicator('lastSeenAt')}</span></th>
                                     <th>Действия</th>
                                     <th>Просмотр</th>
@@ -2212,10 +2305,16 @@
                                 ${data.data.map(dialog => {
                                     const isSelected = currentDialogId === dialog.dialogId ? 'dialog-row-selected' : '';
                                     const safeDialogId = escapeJsString(dialog.dialogId);
+                                    const topicsCount = dialog.stats?.topicCount || 0;
                                     return `
                                     <tr onclick="selectDialog('${safeDialogId}', '${safeDialogId}')" class="dialog-row ${isSelected}" data-dialog-id="${safeDialogId}">
                                         <td title="${escapeHtml(dialog.dialogId)}">${shortenDialogId(dialog.dialogId)}</td>
                                         <td>${dialog.context?.unreadCount || 0}</td>
+                                        <td style="text-align: center;">
+                                            <span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #495057;">
+                                                ${topicsCount}
+                                            </span>
+                                        </td>
                                         <td>${formatLastSeen(dialog.context?.lastSeenAt)}</td>
                                         <td class="actions-column">
                                             <button class="info-button" onclick="event.stopPropagation(); showDialogInfo('${safeDialogId}')">ℹ️ Инфо</button>
@@ -2225,6 +2324,7 @@
                                         <td class="view-column">
                                             <button class="action-button members-button" onclick="event.stopPropagation(); selectDialogMembers('${safeDialogId}', '${safeDialogId}')">👥 Участники</button>
                                             <button class="action-button messages-button" onclick="selectDialog('${safeDialogId}', '${safeDialogId}')">📝 Сообщения</button>
+                                            <button class="action-button topics-button" onclick="event.stopPropagation(); selectDialogTopics('${safeDialogId}', '${safeDialogId}')">📌 Топики</button>
                                         </td>
                                     </tr>
                                 `;
@@ -2275,28 +2375,51 @@
         }
 
         // Выбор диалога
-        // Переключение между режимами "Сообщения" и "Участники" в третьей колонке
+        // Переключение между режимами "Сообщения", "Топики" и "Участники" в третьей колонке
         function switchThirdColumnView(mode) {
             const messagesPanel = document.querySelector('.messages-panel');
             const messagesHeader = messagesPanel ? messagesPanel.querySelector('.panel-header') : null;
-            const messagesHeaderSpan = messagesPanel ? messagesPanel.querySelector('.panel-header span') : null;
+            const messagesHeaderTitle = document.getElementById('messagesHeaderTitle');
             const messagesFilterForm = document.getElementById('messagesFilterForm');
             const messagesList = document.getElementById('messagesList');
             const messagesPagination = document.getElementById('messagesPagination');
             const addMessageBtn = document.getElementById('addMessageBtn');
             const messageUrlBtn = document.getElementById('messageUrlBtn');
             
+            const topicsPanelContent = document.getElementById('topicsPanelContent');
             const membersPanelContent = document.getElementById('membersPanelContent');
             const addMemberBtn = document.getElementById('addMemberBtn');
             
             if (mode === 'messages') {
                 // Показываем Сообщения
                 if (messagesHeader) messagesHeader.style.display = 'flex';
-                if (messagesHeaderSpan) messagesHeaderSpan.textContent = '📝 Сообщения';
+                if (messagesHeaderTitle) messagesHeaderTitle.textContent = '📝 Сообщения';
                 if (messagesFilterForm) messagesFilterForm.style.display = 'block';
                 if (messagesList) messagesList.style.display = 'block';
                 if (addMessageBtn) addMessageBtn.style.display = 'inline-block';
                 if (messageUrlBtn) messageUrlBtn.style.display = 'inline-block';
+                
+                // Скрываем Топики и Участники
+                if (topicsPanelContent) topicsPanelContent.style.display = 'none';
+                const addTopicBtn = document.getElementById('addTopicBtn');
+                if (addTopicBtn) addTopicBtn.style.display = 'none';
+                if (membersPanelContent) membersPanelContent.style.display = 'none';
+            } else if (mode === 'topics') {
+                // Показываем Топики
+                if (messagesHeader) messagesHeader.style.display = 'none';
+                if (messagesFilterForm) messagesFilterForm.style.display = 'none';
+                if (messagesList) messagesList.style.display = 'none';
+                if (messagesPagination) {
+                    messagesPagination.style.display = 'none';
+                    messagesPagination.innerHTML = '';
+                }
+                if (addMessageBtn) addMessageBtn.style.display = 'none';
+                if (messageUrlBtn) messageUrlBtn.style.display = 'none';
+                
+                // Показываем панель топиков
+                if (topicsPanelContent) topicsPanelContent.style.display = 'flex';
+                const addTopicBtn = document.getElementById('addTopicBtn');
+                if (addTopicBtn) addTopicBtn.style.display = 'inline-block';
                 
                 // Скрываем Участники
                 if (membersPanelContent) membersPanelContent.style.display = 'none';
@@ -2385,6 +2508,134 @@
             
             // Загружаем участников в панель
             await loadDialogMembersInPanel(currentDialogId, 1);
+        }
+
+        // Выбор топиков диалога
+        async function selectDialogTopics(dialogId, safeDialogId) {
+            console.log('Selected dialog for topics:', dialogId, safeDialogId);
+            
+            // Убираем выделение с предыдущего выбранного диалога
+            const previouslySelected = document.querySelector('.dialog-row-selected');
+            if (previouslySelected) {
+                previouslySelected.classList.remove('dialog-row-selected');
+            }
+            
+            currentDialogId = dialogId;
+            currentViewMode = 'topics';
+            
+            // Выделяем текущий выбранный диалог
+            const currentDialogRow = document.querySelector(`.dialog-row[data-dialog-id="${escapeJsString(dialogId)}"]`);
+            if (currentDialogRow) {
+                currentDialogRow.classList.add('dialog-row-selected');
+            }
+            
+            // Переключаем на режим Топиков
+            switchThirdColumnView('topics');
+            
+            await loadDialogTopics(dialogId, 1);
+        }
+        
+        // Загрузка топиков диалога
+        let currentTopicsPage = 1;
+        let totalTopicsPages = 1;
+        
+        async function loadDialogTopics(dialogId, page = 1) {
+            const topicsList = document.getElementById('topicsListSectionPanel');
+            
+            if (!topicsList) {
+                console.error('Topics list panel not found');
+                return;
+            }
+            
+            topicsList.innerHTML = '<div class="loading">Загрузка топиков...</div>';
+            
+            try {
+                const url = `/api/dialogs/${dialogId}/topics?page=${page}&limit=20`;
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Tenant-Id': tenantId,
+                        'X-API-Key': apiKey
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Topics response:', data);
+                
+                if (data.data && data.data.length > 0) {
+                    totalTopicsPages = data.pagination.pages;
+                    currentTopicsPage = page;
+                    
+                    topicsList.innerHTML = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Topic ID</th>
+                                    <th>Meta</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.data.map(topic => {
+                                    const safeTopicId = escapeJsString(topic.topicId);
+                                    const safeDialogId = escapeJsString(dialogId);
+                                    const metaStr = topic.meta && Object.keys(topic.meta).length > 0 
+                                        ? JSON.stringify(topic.meta, null, 2) 
+                                        : '{}';
+                                    return `
+                                    <tr>
+                                        <td title="${escapeHtml(topic.topicId)}">${shortenTopicId(topic.topicId)}</td>
+                                        <td><pre style="margin: 0; font-size: 11px; max-width: 400px; overflow-x: auto; white-space: pre-wrap;">${escapeHtml(metaStr)}</pre></td>
+                                        <td class="actions-column">
+                                            <button class="btn-success btn-small" onclick="showTopicMetaModal('${safeDialogId}', '${safeTopicId}')">🏷️ Мета</button>
+                                        </td>
+                                    </tr>
+                                `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        ${data.pagination.pages > 1 ? `
+                            <div class="pagination" style="margin-top: 15px;">
+                                <button onclick="loadDialogTopics('${escapeJsString(dialogId)}', ${page - 1})" ${page === 1 ? 'disabled' : ''}>← Назад</button>
+                                <span>Страница ${page} из ${data.pagination.pages}</span>
+                                <button onclick="loadDialogTopics('${escapeJsString(dialogId)}', ${page + 1})" ${page === data.pagination.pages ? 'disabled' : ''}>Вперёд →</button>
+                            </div>
+                        ` : ''}
+                    `;
+                } else {
+                    topicsList.innerHTML = '<div class="no-data">Топики не найдены</div>';
+                }
+            } catch (error) {
+                console.error('Error loading topics:', error);
+                topicsList.innerHTML = `<div class="error">Ошибка загрузки топиков: ${error.message}</div>`;
+            }
+        }
+        
+        // Функция для сокращения topicId
+        function shortenTopicId(topicId) {
+            if (!topicId) return '-';
+            if (topicId.startsWith('topic_')) {
+                return `topic_${topicId.substring(6, 10)}...`;
+            }
+            return topicId;
+        }
+        
+        // Показать URL для топиков
+        function showTopicsUrlModal() {
+            if (!currentDialogId) {
+                alert('Сначала выберите диалог');
+                return;
+            }
+            
+            const url = `${baseUrl}/api/dialogs/${currentDialogId}/topics?page=${currentTopicsPage}&limit=20`;
+            showModal('URL API для топиков', `
+                <div style="word-break: break-all;">
+                    <strong>GET</strong> ${url}
+                </div>
+            `, url);
         }
 
         // Загрузка сообщений диалога (в контексте пользователя)
@@ -3249,6 +3500,148 @@
             }
         });
 
+        // Функции для работы с модальным окном создания топика
+        async function showAddTopicModal() {
+            if (!currentDialogId) {
+                alert('Ошибка: не выбран диалог');
+                return;
+            }
+            
+            const modal = document.getElementById('addTopicModal');
+            modal.style.display = 'block';
+        }
+
+        function closeAddTopicModal() {
+            const modal = document.getElementById('addTopicModal');
+            const form = document.getElementById('addTopicFormModal');
+            modal.style.display = 'none';
+            if (form) {
+                form.reset();
+                // Очищаем контейнер мета-тегов, оставляя одну пустую строку
+                const metaContainer = document.getElementById('newTopicMetaContainerModal');
+                if (metaContainer) {
+                    metaContainer.innerHTML = `
+                        <div class="meta-tag-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                            <input type="text" class="topic-meta-key-input" placeholder="Ключ" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <input type="text" class="topic-meta-value-input" placeholder="Значение" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <button type="button" class="remove-meta-btn" onclick="removeTopicMetaRow(this)" style="padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">✕</button>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function addTopicMetaRowModal() {
+            const container = document.getElementById('newTopicMetaContainerModal');
+            if (!container) return;
+            
+            const row = document.createElement('div');
+            row.className = 'meta-tag-row';
+            row.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
+            row.innerHTML = `
+                <input type="text" class="topic-meta-key-input" placeholder="Ключ" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <input type="text" class="topic-meta-value-input" placeholder="Значение" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <button type="button" class="remove-meta-btn" onclick="removeTopicMetaRow(this)" style="padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">✕</button>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeTopicMetaRow(button) {
+            const container = document.getElementById('newTopicMetaContainerModal');
+            if (!container) return;
+            
+            const row = button.closest('.meta-tag-row');
+            if (row && container.children.length > 1) {
+                row.remove();
+            } else if (row) {
+                // Если это последняя строка, просто очищаем поля
+                const keyInput = row.querySelector('.topic-meta-key-input');
+                const valueInput = row.querySelector('.topic-meta-value-input');
+                if (keyInput) keyInput.value = '';
+                if (valueInput) valueInput.value = '';
+            }
+        }
+
+        function collectTopicMetaTags() {
+            const container = document.getElementById('newTopicMetaContainerModal');
+            if (!container) return {};
+            
+            const meta = {};
+            const rows = container.querySelectorAll('.meta-tag-row');
+            
+            rows.forEach(row => {
+                const keyInput = row.querySelector('.topic-meta-key-input');
+                const valueInput = row.querySelector('.topic-meta-value-input');
+                
+                if (keyInput && valueInput && keyInput.value.trim() && valueInput.value.trim()) {
+                    meta[keyInput.value.trim()] = valueInput.value.trim();
+                }
+            });
+            
+            return meta;
+        }
+
+        // Обработчик формы создания топика
+        document.getElementById('addTopicFormModal').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!currentDialogId) {
+                alert('Ошибка: не выбран диалог');
+                return;
+            }
+
+            const meta = collectTopicMetaTags();
+            
+            try {
+                // Подготавливаем тело запроса
+                const requestBody = {};
+                if (Object.keys(meta).length > 0) {
+                    requestBody.meta = meta;
+                }
+
+                const response = await fetch(`/api/dialogs/${currentDialogId}/topics`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    let errorMessage = `HTTP error! status: ${response.status}`;
+                    try {
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const errorData = await response.json();
+                            errorMessage = errorData.message || errorData.error || errorMessage;
+                        } else {
+                            const errorText = await response.text();
+                            if (errorText) errorMessage = errorText;
+                        }
+                    } catch (parseError) {
+                        console.error('Error parsing error response:', parseError);
+                    }
+                    alert(`Ошибка при создании топика: ${errorMessage}`);
+                    return;
+                }
+
+                const result = await response.json();
+                console.log('Topic created:', result);
+                
+                closeAddTopicModal();
+                
+                // Обновляем список топиков
+                await loadDialogTopics(currentDialogId, currentTopicsPage);
+                
+                alert('Топик успешно создан!');
+            } catch (error) {
+                console.error('Error creating topic:', error);
+                alert(`Ошибка при создании топика: ${error.message}`);
+            }
+        });
+
         // Форматирование времени сообщения
         function formatMessageTime(createdAt) {
             if (!createdAt) return '-';
@@ -3772,6 +4165,140 @@
             }
         }
 
+        // Показать модальное окно мета-тегов топика
+        async function showTopicMetaModal(dialogId, topicId) {
+            document.getElementById('metaTopicId').value = topicId;
+            document.getElementById('metaTopicDialogId').value = dialogId;
+            document.getElementById('topicMetaModal').style.display = 'block';
+            await loadTopicMetaTags(dialogId, topicId);
+        }
+
+        // Закрыть модальное окно мета-тегов топика
+        function closeTopicMetaModal() {
+            document.getElementById('topicMetaModal').style.display = 'none';
+        }
+
+        // Загрузить мета-теги топика
+        async function loadTopicMetaTags(dialogId, topicId) {
+            try {
+                const response = await fetch(`/api/dialogs/${dialogId}/topics/${topicId}`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load topic meta');
+                }
+
+                const { data: topic } = await response.json();
+                const meta = topic.meta || {};
+
+                let html = '<h3 style="margin-bottom: 15px; font-size: 14px;">Текущие Meta теги:</h3>';
+                
+                const metaKeys = Object.keys(meta);
+                if (metaKeys.length === 0) {
+                    html += '<div class="no-data" style="padding: 20px;">Meta теги отсутствуют</div>';
+                } else {
+                    html += '<table><thead><tr><th>Key</th><th>Value</th><th>Действия</th></tr></thead><tbody>';
+                    for (const key of metaKeys) {
+                        html += `
+                            <tr>
+                                <td><strong>${escapeHtml(key)}</strong></td>
+                                <td>${escapeHtml(JSON.stringify(meta[key]))}</td>
+                                <td><button class="btn-danger btn-small" onclick="deleteTopicMetaTag('${escapeJsString(dialogId)}', '${escapeJsString(topicId)}', '${escapeJsString(key)}')">🗑️ Удалить</button></td>
+                            </tr>
+                        `;
+                    }
+                    html += '</tbody></table>';
+                }
+
+                document.getElementById('topicMetaList').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading topic meta tags:', error);
+                document.getElementById('topicMetaList').innerHTML = `<div class="error">Ошибка загрузки meta тегов: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        // Добавить мета-тег топика
+        async function addTopicMetaTag() {
+            const dialogId = document.getElementById('metaTopicDialogId').value;
+            const topicId = document.getElementById('metaTopicId').value;
+            const key = document.getElementById('newTopicMetaKey').value.trim();
+            const valueStr = document.getElementById('newTopicMetaValue').value.trim();
+
+            if (!key || !valueStr) {
+                alert('Заполните ключ и значение');
+                return;
+            }
+
+            // Пытаемся распарсить значение как JSON, если не получается - оставляем строкой
+            let value;
+            try {
+                value = JSON.parse(valueStr);
+            } catch (e) {
+                value = valueStr;
+            }
+
+            try {
+                const response = await fetch(`/api/meta/topic/${topicId}/${encodeURIComponent(key)}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    },
+                    body: JSON.stringify({ value })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to set meta tag');
+                }
+
+                document.getElementById('newTopicMetaKey').value = '';
+                document.getElementById('newTopicMetaValue').value = '';
+                await loadTopicMetaTags(dialogId, topicId);
+                // Обновляем список топиков, чтобы изменения были видны
+                await loadDialogTopics(dialogId, currentTopicsPage);
+                alert('Meta тег успешно добавлен!');
+            } catch (error) {
+                console.error('Error adding topic meta tag:', error);
+                alert('Ошибка добавления meta тега: ' + error.message);
+            }
+        }
+
+        // Удалить мета-тег топика
+        async function deleteTopicMetaTag(dialogId, topicId, key) {
+            if (!confirm(`Удалить meta тег "${key}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/meta/topic/${topicId}/${encodeURIComponent(key)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to delete meta tag');
+                }
+
+                await loadTopicMetaTags(dialogId, topicId);
+                // Обновляем список топиков, чтобы изменения были видны
+                await loadDialogTopics(dialogId, currentTopicsPage);
+                alert('Meta тег успешно удален!');
+            } catch (error) {
+                console.error('Error deleting topic meta tag:', error);
+                alert('Ошибка удаления meta тега: ' + error.message);
+            }
+        }
+
         // Закрыть модальное окно при клике вне его
         window.onclick = function(event) {
             const modal = document.getElementById('infoModal');
@@ -3781,6 +4308,10 @@
             const messageMetaModal = document.getElementById('messageMetaModal');
             if (event.target === messageMetaModal) {
                 closeMessageMetaModal();
+            }
+            const topicMetaModal = document.getElementById('topicMetaModal');
+            if (event.target === topicMetaModal) {
+                closeTopicMetaModal();
             }
         }
 
@@ -3794,6 +4325,10 @@
                 const messageMetaModal = document.getElementById('messageMetaModal');
                 if (messageMetaModal.style.display === 'block') {
                     closeMessageMetaModal();
+                }
+                const topicMetaModal = document.getElementById('topicMetaModal');
+                if (topicMetaModal && topicMetaModal.style.display === 'block') {
+                    closeTopicMetaModal();
                 }
             }
         });
@@ -4039,6 +4574,9 @@
                 if (event.target === addMemberModal) {
                     closeAddMemberModal();
                 }
+                if (event.target === addTopicModal) {
+                    closeAddTopicModal();
+                }
                 if (event.target === memberMetaModal) {
                     closeMemberMetaModal();
                 }
@@ -4048,10 +4586,14 @@
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Escape') {
                     const addMemberModal = document.getElementById('addMemberModal');
+                    const addTopicModal = document.getElementById('addTopicModal');
                     const memberMetaModal = document.getElementById('memberMetaModal');
                     
                     if (addMemberModal && addMemberModal.style.display === 'block') {
                         closeAddMemberModal();
+                    }
+                    if (addTopicModal && addTopicModal.style.display === 'block') {
+                        closeAddTopicModal();
                     }
                     if (memberMetaModal && memberMetaModal.style.display === 'block') {
                         closeMemberMetaModal();
@@ -6891,12 +7433,20 @@
         // Закрытие модального окна по клику вне его
         window.onclick = function(event) {
             const addMessageModal = document.getElementById('addMessageModal');
+            const addTopicModal = document.getElementById('addTopicModal');
+            const topicMetaModal = document.getElementById('topicMetaModal');
             const reactionModal = document.getElementById('reactionModal');
             const dialogMetaModal = document.getElementById('dialogMetaModal');
             const statusMatrixModal = document.getElementById('statusMatrixModal');
             const statusesModal = document.getElementById('statusesModal');
             if (event.target === addMessageModal) {
                 closeAddMessageModal();
+            }
+            if (event.target === addTopicModal) {
+                closeAddTopicModal();
+            }
+            if (event.target === topicMetaModal) {
+                closeTopicMetaModal();
             }
             if (event.target === reactionModal) {
                 closeReactionModal();

@@ -155,6 +155,15 @@ messageStatusSchema.post('save', async function(doc) {
         if (oldStatus !== 'read' && doc.status === 'read') {
           // КРИТИЧНО: Используем dialogId из документа (не нужно искать Message)
           if (doc.dialogId) {
+            // Получаем topicId из сообщения для обновления счетчиков топика
+            const { Message } = await import('../../models/index.js');
+            const message = await Message.findOne({
+              messageId: doc.messageId,
+              tenantId: doc.tenantId
+            }).select('topicId').lean();
+            
+            const topicId = message?.topicId || null;
+            
             await updateUnreadCount(
               doc.tenantId,
               doc.userId,
@@ -164,7 +173,8 @@ messageStatusSchema.post('save', async function(doc) {
               sourceEventId,
               doc.messageId,
               doc.userId,
-              'user'
+              'user',
+              topicId // topicId для обновления счетчиков топика
             );
           }
         }

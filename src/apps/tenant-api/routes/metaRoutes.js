@@ -26,7 +26,7 @@ const router = express.Router();
  *         required: true
  *         schema:
  *           type: string
- *           enum: [user, dialog, message, tenant, system, dialogMember]
+ *           enum: [user, dialog, message, tenant, system, dialogMember, topic]
  *         description: Entity type
  *       - in: path
  *         name: entityId
@@ -85,7 +85,7 @@ router.put('/:entityType/:entityId/:key',
  *         required: true
  *         schema:
  *           type: string
- *           enum: [user, dialog, message, tenant, system, dialogMember]
+ *           enum: [user, dialog, message, tenant, system, dialogMember, topic]
  *         description: Entity type
  *       - in: path
  *         name: entityId
@@ -126,7 +126,7 @@ router.delete('/:entityType/:entityId/:key',
  *         required: true
  *         schema:
  *           type: string
- *           enum: [user, dialog, message, tenant, system, dialogMember]
+ *           enum: [user, dialog, message, tenant, system, dialogMember, topic]
  *         description: Entity type
  *       - in: path
  *         name: entityId

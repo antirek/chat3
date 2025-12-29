@@ -9,7 +9,7 @@ const metaSchema = new mongoose.Schema({
   },
   entityType: {
     type: String,
-    enum: ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember'],
+    enum: ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'],
     required: true
   },
   entityId: {
@@ -65,6 +65,8 @@ metaSchema.index(
     partialFilterExpression: { key: 'participant' }
   }
 );
+// Index for filtering topics by meta tags (topic.meta.{param},eq,{value})
+metaSchema.index({ tenantId: 1, entityType: 1, key: 1, value: 1 });
 
 const Meta = mongoose.model('Meta', metaSchema);
 

@@ -12,7 +12,7 @@ export const validateEntityType = (req, res, next) => {
     });
   }
   
-  const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember'];
+  const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'];
   
   if (!validEntityTypes.includes(entityType)) {
     return res.status(400).json({

@@ -69,6 +69,27 @@ export function buildMemberSection({
   };
 }
 
+export function buildTopicSection({
+  topicId,
+  dialogId = null,
+  createdAt = null,
+  meta = {}
+} = {}) {
+  if (!topicId) {
+    return null;
+  }
+
+  // Убеждаемся, что meta всегда является объектом (не null, не undefined)
+  const metaObject = meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : {};
+
+  return {
+    topicId,
+    dialogId,
+    createdAt,
+    meta: metaObject
+  };
+}
+
 export function buildMessageSection({
   messageId,
   dialogId = null,
@@ -79,7 +100,9 @@ export function buildMessageSection({
   quotedMessage = null,
   statusUpdate = null,
   reactionUpdate = null,
-  statusMessageMatrix = null
+  statusMessageMatrix = null,
+  topicId = null,
+  topic = null
 } = {}) {
   if (!messageId) {
     return null;
@@ -91,7 +114,9 @@ export function buildMessageSection({
     senderId,
     type,
     content,
-    meta: meta || {}
+    meta: meta || {},
+    topicId: topicId ?? null,
+    topic: topic ?? null
   };
 
   // Добавляем quotedMessage только если он передан
@@ -191,6 +216,7 @@ export function composeEventData({
   user = null,
   typing = null,
   actor = null,
+  topic = null,
   extra = {}
 } = {}) {
   if (!context) {
@@ -227,6 +253,10 @@ export function composeEventData({
 
   if (actor) {
     payload.actor = actor;
+  }
+
+  if (topic) {
+    payload.topic = topic;
   }
 
   return {
@@ -491,6 +521,7 @@ export default {
   buildEventContext,
   buildDialogSection,
   buildMemberSection,
+  buildTopicSection,
   buildMessageSection,
   buildTypingSection,
   buildActorSection,

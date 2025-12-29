@@ -12,6 +12,8 @@ import {
   finalizeCounterUpdateContext 
 } from '../../../utils/counterUtils.js';
 import { updateLastMessageAt } from '../utils/dialogMemberUtils.js';
+import * as topicUtils from '../../../utils/topicUtils.js';
+import mongoose from 'mongoose';
 
 /**
  * Helper function to enrich messages with meta data and statuses
@@ -52,8 +54,28 @@ async function getSenderInfo(tenantId, senderId, cache = new Map()) {
   return senderInfo;
 }
 
-async function enrichMessagesWithMetaAndStatuses(messages, tenantId) {
+async function enrichMessagesWithMetaAndStatuses(messages, tenantId, dialogId = null) {
   const senderInfoCache = new Map();
+
+  // Собираем все уникальные topicId из сообщений для батчинга
+  const topicIds = [...new Set(messages
+    .map(msg => {
+      const msgObj = msg.toObject ? msg.toObject() : msg;
+      return msgObj.topicId;
+    })
+    .filter(id => id !== null && id !== undefined)
+  )];
+
+  // Получаем все топики одним запросом (оптимизация N+1)
+  let topicsMap = new Map();
+  if (topicIds.length > 0 && dialogId) {
+    try {
+      topicsMap = await topicUtils.getTopicsWithMetaBatch(tenantId, dialogId, topicIds);
+    } catch (error) {
+      console.error('Error getting topics with meta batch:', error);
+      // Продолжаем выполнение, topicsMap останется пустым
+    }
+  }
 
   return await Promise.all(
     messages.map(async (message) => {
@@ -65,6 +87,12 @@ async function enrichMessagesWithMetaAndStatuses(messages, tenantId) {
       );
       
       const messageObj = message.toObject ? message.toObject() : message;
+      
+      // Получаем информацию о топике из map
+      let topic = null;
+      if (messageObj.topicId) {
+        topic = topicsMap.get(messageObj.topicId) || null;
+      }
       
       // Формируем матрицу статусов (исключая статусы отправителя сообщения)
       const statusMessageMatrix = await buildStatusMessageMatrix(tenantId, message.messageId, messageObj.senderId);
@@ -78,6 +106,7 @@ async function enrichMessagesWithMetaAndStatuses(messages, tenantId) {
       return {
         ...messageObj,
         meta,
+        topic,
         statusMessageMatrix,
         reactionSet,
         senderInfo: senderInfo || null
@@ -245,6 +274,16 @@ const messageController = {
           // Apply regular filters
           Object.assign(query, regularFilters);
           
+          // Обработка фильтра по topicId
+          if (regularFilters.topicId !== undefined) {
+            if (regularFilters.topicId === null || regularFilters.topicId === 'null') {
+              query.topicId = null;
+            } else {
+              query.topicId = regularFilters.topicId;
+            }
+            delete regularFilters.topicId; // Удаляем из regularFilters, чтобы не дублировать
+          }
+          
           // Apply meta filters if any
           if (Object.keys(metaFilters).length > 0) {
             const metaQuery = await metaUtils.buildMetaQuery(req.tenantId, 'message', metaFilters);
@@ -291,7 +330,8 @@ const messageController = {
         .sort(sortOptions);
 
       // Add meta data and message statuses for each message
-      const messagesWithMeta = await enrichMessagesWithMetaAndStatuses(messages, req.tenantId);
+      // Передаем dialogId для батчинга топиков
+      const messagesWithMeta = await enrichMessagesWithMetaAndStatuses(messages, req.tenantId, dialog.dialogId);
 
       const total = await Message.countDocuments(query);
 
@@ -320,9 +360,32 @@ const messageController = {
 
   // Create new message in dialog
   async createMessage(req, res) {
+    // Проверяем поддержку транзакций (mongodb-memory-server не поддерживает)
+    // В тестах используем mongodb-memory-server, который не поддерживает транзакции
+    // Поэтому просто не используем транзакции в тестах
+    const useTransactions = process.env.NODE_ENV !== 'test';
+    let session = null;
+    if (useTransactions) {
+      try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+      } catch (error) {
+        // Если не удалось создать сессию, продолжаем без транзакций
+        console.warn('Failed to start transaction session, continuing without transactions:', error.message);
+        if (session) {
+          try {
+            await session.endSession();
+          } catch (e) {
+            // Игнорируем ошибки при закрытии сессии
+          }
+        }
+        session = null;
+      }
+    }
+
     try {
       const { dialogId } = req.params;
-      const { content, senderId, type = 'internal.text', meta, quotedMessageId } = req.body;
+      const { content, senderId, type = 'internal.text', meta, quotedMessageId, topicId } = req.body;
       const normalizedType = type;
       const messageContent = typeof content === 'string' ? content : '';
       const metaPayload = meta && typeof meta === 'object' ? { ...meta } : {};
@@ -330,6 +393,10 @@ const messageController = {
       const MEDIA_MESSAGE_TYPES = new Set(['internal.image', 'internal.file', 'internal.audio', 'internal.video']);
 
       if (!senderId) {
+        if (useTransactions && session) {
+          await session.abortTransaction();
+          await session.endSession();
+        }
         return res.status(400).json({
           error: 'Bad Request',
           message: 'Missing required field: senderId'
@@ -337,6 +404,10 @@ const messageController = {
       }
 
       if (normalizedType === 'internal.text' && messageContent.trim().length === 0) {
+        if (useTransactions && session) {
+          await session.abortTransaction();
+          await session.endSession();
+        }
         return res.status(400).json({
           error: 'Bad Request',
           message: 'content is required for internal.text messages'
@@ -346,6 +417,10 @@ const messageController = {
       if (MEDIA_MESSAGE_TYPES.has(normalizedType)) {
         const mediaUrl = typeof metaPayload.url === 'string' ? metaPayload.url.trim() : '';
         if (!mediaUrl) {
+          if (useTransactions && session) {
+            await session.abortTransaction();
+            await session.endSession();
+          }
           return res.status(400).json({
             error: 'Bad Request',
             message: `meta.url is required for ${normalizedType} messages`
@@ -361,27 +436,58 @@ const messageController = {
       });
 
       if (!dialog) {
+        if (useTransactions && session) {
+          await session.abortTransaction();
+          await session.endSession();
+        }
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
         });
       }
 
+      // Валидация topicId, если указан
+      let topic = null;
+      if (topicId) {
+        const topicDoc = await topicUtils.getTopicById(req.tenantId, dialogId, topicId);
+        if (!topicDoc) {
+          if (useTransactions && session) {
+            await session.abortTransaction();
+            await session.endSession();
+          }
+          return res.status(404).json({
+            error: 'ERROR_NO_TOPIC',
+            message: 'Topic not found'
+          });
+        }
+        // Получаем топик с мета-тегами для ответа
+        try {
+          topic = await topicUtils.getTopicWithMeta(req.tenantId, dialogId, topicId);
+        } catch (error) {
+          console.error('Error getting topic with meta:', error);
+          topic = { topicId, meta: {} };
+        }
+      }
+
       // Create message
-      const message = await Message.create({
+      const createOptions = useTransactions && session ? { session } : {};
+      const message = await Message.create([{
         tenantId: req.tenantId,
         dialogId: dialog.dialogId, // Используем строковый dialogId
         content: messageContent || '',
         senderId,
-        type: normalizedType
-      });
+        type: normalizedType,
+        topicId: topicId || null
+      }], createOptions);
+
+      const createdMessage = message[0];
 
       // Создаем событие message.create ПЕРЕД обновлением счетчиков, чтобы получить eventId
       const eventContext = eventUtils.buildEventContext({
         eventType: 'message.create',
         dialogId: dialog.dialogId,
-        entityId: message.messageId,
-        messageId: message.messageId,
+        entityId: createdMessage.messageId,
+        messageId: createdMessage.messageId,
         includedSections: ['dialog', 'message'],
         updatedFields: ['message']
       });
@@ -390,7 +496,7 @@ const messageController = {
       const messageMeta = await metaUtils.getEntityMeta(
         req.tenantId,
         'message',
-        message.messageId
+        createdMessage.messageId
       );
 
       const dialogMeta = await metaUtils.getEntityMeta(
@@ -414,14 +520,27 @@ const messageController = {
         ? messageContent.substring(0, MAX_CONTENT_LENGTH) 
         : messageContent;
 
+      // Получаем топик для события, если topicId указан
+      let topicForEvent = null;
+      if (topicId) {
+        try {
+          topicForEvent = await topicUtils.getTopicWithMeta(req.tenantId, dialogId, topicId);
+        } catch (error) {
+          console.error('Error getting topic with meta for event:', error);
+          topicForEvent = { topicId, meta: {} };
+        }
+      }
+
       const messageSection = eventUtils.buildMessageSection({
-        messageId: message.messageId,
+        messageId: createdMessage.messageId,
         dialogId: dialog.dialogId,
         senderId,
         type,
         content: eventContent,
         meta: messageMeta,
-        quotedMessage: null // quotedMessage добавим позже
+        quotedMessage: null, // quotedMessage добавим позже
+        topicId: topicId || null,
+        topic: topicForEvent
       });
 
       // КРИТИЧНО: Создаем событие и сохраняем eventId для обновления счетчиков
@@ -429,7 +548,7 @@ const messageController = {
         tenantId: req.tenantId,
         eventType: 'message.create',
         entityType: 'message',
-        entityId: message.messageId,
+        entityId: createdMessage.messageId,
         actorId: senderId,
         actorType: 'user',
         data: eventUtils.composeEventData({
@@ -470,7 +589,7 @@ const messageController = {
             
             // 2. Создаем MessageStatus записи батчем через insertMany
             const messageStatuses = recipients.map(member => ({
-              messageId: message.messageId,
+              messageId: createdMessage.messageId,
               userId: member.userId,
               dialogId: dialog.dialogId, // КРИТИЧНО: Передаем dialogId для избежания поиска Message
               userType: userTypeMap.get(member.userId) || null,
@@ -480,7 +599,10 @@ const messageController = {
             }));
             
             if (messageStatuses.length > 0) {
-              await MessageStatus.insertMany(messageStatuses, { ordered: false });
+              const insertOptions = useTransactions && session 
+                ? { ordered: false, session } 
+                : { ordered: false };
+              await MessageStatus.insertMany(messageStatuses, insertOptions);
             }
             
             // 3. Обновляем unreadCount батчами по 10 через Promise.allSettled
@@ -497,9 +619,11 @@ const messageController = {
                   1, // delta
                   sourceEventType,
                   sourceEventId,
-                  message.messageId,
+                  createdMessage.messageId,
                   senderId,
-                  'user'
+                  'user',
+                  topicId || null, // topicId для обновления счетчиков топика
+                  useTransactions && session ? session : null // session для транзакции
                 ).catch(error => {
                   console.error(`Error updating unreadCount for user ${member.userId}:`, error);
                   return { error, userId: member.userId };
@@ -520,13 +644,13 @@ const messageController = {
             1, // delta
             sourceEventType,
             sourceEventId,
-            message.messageId,
+            createdMessage.messageId,
             senderId,
             'user'
           );
           
           // 5. Обновление lastMessageAt для всех участников диалога параллельно
-          const messageTimestamp = message.createdAt;
+          const messageTimestamp = createdMessage.createdAt;
           const lastMessageAtPromises = dialogMembers.map(member =>
             updateLastMessageAt(
               req.tenantId,
@@ -562,6 +686,12 @@ const messageController = {
         }
       }
 
+      // Коммитим транзакцию, если используется
+      if (useTransactions && session) {
+        await session.commitTransaction();
+        await session.endSession();
+      }
+
       // Add meta data if provided
       if (metaPayload && typeof metaPayload === 'object') {
         for (const [key, value] of Object.entries(metaPayload)) {
@@ -574,7 +704,7 @@ const messageController = {
             await metaUtils.setEntityMeta(
               req.tenantId,
               'message',
-              message.messageId,
+              createdMessage.messageId,
               key,
               value.value,
               value.dataType || 'string',
@@ -585,7 +715,7 @@ const messageController = {
             await metaUtils.setEntityMeta(
               req.tenantId,
               'message',
-              message.messageId,
+              createdMessage.messageId,
               key,
               value,
               typeof value === 'number' ? 'number' : 
@@ -631,7 +761,7 @@ const messageController = {
 
             // Сохраняем quotedMessage в созданное сообщение
             await Message.findOneAndUpdate(
-              { messageId: message.messageId },
+              { messageId: createdMessage.messageId },
               { quotedMessage: quotedMessage }
             );
           } else {
@@ -644,7 +774,7 @@ const messageController = {
       }
 
       // Get message with meta data (включая quotedMessage, если оно было добавлено)
-      const messageWithMeta = await Message.findOne({ messageId: message.messageId })
+      const messageWithMeta = await Message.findOne({ messageId: createdMessage.messageId })
         .select('-__v')
         .populate('tenantId', 'name domain');
 
@@ -657,12 +787,21 @@ const messageController = {
         data: sanitizeResponse({
           ...messageObj,
           meta: messageMeta,
+          topic: topic, // Добавляем topic в ответ
           senderInfo: senderInfo || null,
           quotedMessage: quotedMessage || null
         }),
         message: 'Message created successfully'
       });
     } catch (error) {
+      // Откатываем транзакцию в случае ошибки
+      if (useTransactions && session && session.inTransaction && session.inTransaction()) {
+        await session.abortTransaction();
+      }
+      if (session) {
+        await session.endSession();
+      }
+
       if (error.name === 'CastError') {
         return res.status(400).json({
           error: 'Bad Request',

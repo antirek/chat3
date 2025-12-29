@@ -5,8 +5,11 @@ import {
   User,
   UserDialogStats,
   UserDialogActivity,
-  UserStats
+  UserStats,
+  Topic,
+  DialogStats
 } from '../../../models/index.js';
+import * as topicUtils from '../../../utils/topicUtils.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters, parseSort } from '../utils/queryParser.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
@@ -23,6 +26,7 @@ import {
   getContextUserInfo
    
 } from '../utils/userDialogUtils.js';
+import mongoose from 'mongoose';
 
 const userDialogController = {
   // Get user's dialogs with optional last message
@@ -107,6 +111,118 @@ const userDialogController = {
               } else {
                 // Пересечение (AND логика между фильтрами)
                 dialogIds = dialogIds.filter(id => foundDialogIds.includes(id));
+              }
+            }
+          }
+          
+          // Обрабатываем фильтры по топикам
+          // Фильтр topicId,eq,{topicId} - диалоги, содержащие топик с указанным topicId
+          if (regularFilters.topicId !== undefined) {
+            const topicIdValue = regularFilters.topicId;
+            // Находим диалоги текущего пользователя
+            const userDialogs = await DialogMember.find({
+              userId: userId,
+              tenantId: req.tenantId,
+            }).select('dialogId').lean();
+            
+            const userDialogIds = userDialogs.map(d => d.dialogId);
+            
+            if (userDialogIds.length === 0) {
+              return res.json({
+                data: [],
+                pagination: { page, limit, total: 0, pages: 0 }
+              });
+            }
+            
+            // Находим диалоги, содержащие топик с указанным topicId
+            const topic = await Topic.findOne({
+              tenantId: req.tenantId,
+              topicId: topicIdValue
+            }).lean();
+            
+            if (!topic || !userDialogIds.includes(topic.dialogId)) {
+              return res.json({
+                data: [],
+                pagination: { page, limit, total: 0, pages: 0 }
+              });
+            }
+            
+            // Если уже есть фильтр по meta, пересекаем результаты (AND логика)
+            if (dialogIds !== null) {
+              dialogIds = dialogIds.filter(id => id === topic.dialogId);
+            } else {
+              dialogIds = [topic.dialogId];
+            }
+            
+            delete regularFilters.topicId; // Удаляем из regularFilters
+          }
+          
+          // Фильтр topic.meta.{param},eq,{value} - диалоги, содержащие топики с указанным мета-тегом
+          const topicMetaFilters = Object.keys(metaFilters).filter(key => key.startsWith('topic.meta.'));
+          if (topicMetaFilters.length > 0) {
+            // Находим диалоги текущего пользователя
+            const userDialogs = await DialogMember.find({
+              userId: userId,
+              tenantId: req.tenantId,
+            }).select('dialogId').lean();
+            
+            const userDialogIds = userDialogs.map(d => d.dialogId);
+            
+            if (userDialogIds.length === 0) {
+              return res.json({
+                data: [],
+                pagination: { page, limit, total: 0, pages: 0 }
+              });
+            }
+            
+            let foundDialogIds = null;
+            
+            for (const metaKey of topicMetaFilters) {
+              // Извлекаем параметр из topic.meta.{param}
+              const param = metaKey.replace('topic.meta.', '');
+              const condition = metaFilters[metaKey];
+              
+              // Находим топики с указанным мета-тегом
+              const metaRecords = await Meta.find({
+                tenantId: req.tenantId,
+                entityType: 'topic',
+                key: param,
+                value: condition
+              }).select('entityId').lean();
+              
+              const topicIds = metaRecords.map(m => m.entityId);
+              
+              if (topicIds.length === 0) {
+                foundDialogIds = [];
+                break;
+              }
+              
+              // Находим диалоги, содержащие эти топики
+              const topics = await Topic.find({
+                tenantId: req.tenantId,
+                topicId: { $in: topicIds },
+                dialogId: { $in: userDialogIds }
+              }).select('dialogId').lean();
+              
+              const dialogIdsWithTopic = [...new Set(topics.map(t => t.dialogId))];
+              
+              // Объединяем с предыдущими результатами (AND логика)
+              if (foundDialogIds === null) {
+                foundDialogIds = dialogIdsWithTopic;
+              } else {
+                foundDialogIds = foundDialogIds.filter(id => dialogIdsWithTopic.includes(id));
+              }
+              
+              // Удаляем из metaFilters, чтобы не обрабатывать повторно
+              delete metaFilters[metaKey];
+            }
+            
+            if (foundDialogIds !== null) {
+              // Если уже есть фильтр по meta, пересекаем результаты (AND логика)
+              if (dialogIds !== null) {
+                dialogIds = dialogIds.filter(id => foundDialogIds.includes(id));
+              } else {
+                dialogIds = foundDialogIds;
               }
             }
           }
@@ -907,6 +1023,24 @@ const userDialogController = {
         }
       });
 
+      // Получаем DialogStats для всех диалогов одним запросом
+      const dialogIdsForStats = paginatedDialogs.map(d => d.dialogId);
+      const dialogStatsMap = new Map();
+      if (dialogIdsForStats.length > 0) {
+        const dialogStats = await DialogStats.find({
+          tenantId: req.tenantId,
+          dialogId: { $in: dialogIdsForStats }
+        }).lean();
+        
+        dialogStats.forEach(stat => {
+          dialogStatsMap.set(stat.dialogId, {
+            topicCount: stat.topicCount || 0,
+            memberCount: stat.memberCount || 0,
+            messageCount: stat.messageCount || 0
+          });
+        });
+      }
+
       // Get meta for each dialog and build final response
       let finalDialogs = await Promise.all(
         paginatedDialogs.map(async (dialog) => {
@@ -933,6 +1067,13 @@ const userDialogController = {
             }
           }
 
+          // Получаем stats для диалога
+          const stats = dialogStatsMap.get(dialog.dialogId) || {
+            topicCount: 0,
+            memberCount: 0,
+            messageCount: 0
+          };
+
           // Удаляем временное поле dialogObjectId из ответа
           // eslint-disable-next-line no-unused-vars
           const { dialogObjectId, ...dialogWithoutObjectId } = dialog;
@@ -940,6 +1081,7 @@ const userDialogController = {
           return {
             ...dialogWithoutObjectId,
             meta: dialogMeta,
+            stats: stats,
             lastMessage: lastMessage
           };
         })
@@ -1020,7 +1162,16 @@ const userDialogController = {
           
           // Применяем обычные фильтры
           for (const [field, condition] of Object.entries(regularFilters)) {
-            query[field] = condition;
+            // Обработка фильтра по topicId
+            if (field === 'topicId') {
+              if (condition === null || condition === 'null') {
+                query.topicId = null;
+              } else {
+                query.topicId = condition;
+              }
+            } else {
+              query[field] = condition;
+            }
           }
           
           // Для meta фильтров используем отдельную логику
@@ -1111,6 +1262,22 @@ const userDialogController = {
         senderInfoCache.set(contextUserInfo.userId, contextUserInfo);
       }
 
+      // 4.6. Получаем все топики для сообщений одним запросом (оптимизация N+1)
+      const topicIds = [...new Set(messages
+        .map(msg => msg.topicId)
+        .filter(id => id !== null && id !== undefined)
+      )];
+
+      let topicsMap = new Map();
+      if (topicIds.length > 0) {
+        try {
+          topicsMap = await topicUtils.getTopicsWithMetaBatch(req.tenantId, dialogId, topicIds);
+        } catch (error) {
+          console.error('Error getting topics with meta batch:', error);
+          // Продолжаем выполнение, topicsMap останется пустым
+        }
+      }
+
       // 5. Обогащаем сообщения контекстными данными для пользователя
       const enrichedMessages = await Promise.all(
         messages.map(async (message) => {
@@ -1128,6 +1295,12 @@ const userDialogController = {
 
           // Получаем метаданные сообщения
           const messageMeta = await fetchMeta('message', message.messageId);
+
+          // Получаем информацию о топике из map
+          let topic = null;
+          if (message.topicId) {
+            topic = topicsMap.get(message.topicId) || null;
+          }
 
           // Формируем обогащенное сообщение с контекстом пользователя
           const contextData = {
@@ -1148,6 +1321,7 @@ const userDialogController = {
           return {
             ...message,
             meta: messageMeta,
+            topic: topic, // Добавляем topic в ответ
             // Контекстные данные для конкретного пользователя
             context: contextData,
             // Матрица статусов (количество пар userType-status, исключая статусы отправителя)
@@ -1247,6 +1421,17 @@ const userDialogController = {
       // 7. Получаем метаданные сообщения
       const messageMeta = await fetchMeta('message', message.messageId);
 
+      // 7.4. Получаем информацию о топике, если topicId указан
+      let topic = null;
+      if (message.topicId) {
+        try {
+          topic = await topicUtils.getTopicWithMeta(req.tenantId, dialogId, message.topicId);
+        } catch (error) {
+          console.error('Error getting topic with meta:', error);
+          topic = { topicId: message.topicId, meta: {} };
+        }
+      }
+
       // 7.5. Загружаем информацию о пользователе из контекста
       const contextUserInfo = await getContextUserInfo(req.tenantId, userId, fetchMeta);
 
@@ -1269,6 +1454,7 @@ const userDialogController = {
       const enrichedMessage = {
         ...message,
         meta: messageMeta,
+        topic: topic, // Добавляем topic в ответ
         // Контекстные данные для конкретного пользователя
         context: contextData,
         // Матрица статусов (количество пар userType-status, исключая статусы отправителя)
@@ -1450,6 +1636,26 @@ const userDialogController = {
    * @param {Object} res - Express response object
    */
   async updateMessageStatus(req, res) {
+    // Проверяем поддержку транзакций (mongodb-memory-server не поддерживает)
+    const useTransactions = process.env.NODE_ENV !== 'test';
+    let session = null;
+    if (useTransactions) {
+      try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+      } catch (error) {
+        console.warn('Failed to start transaction session, continuing without transactions:', error.message);
+        if (session) {
+          try {
+            await session.endSession();
+          } catch (e) {
+            // Игнорируем ошибки при закрытии сессии
+          }
+        }
+        session = null;
+      }
+    }
+
     try {
       const { userId, dialogId, messageId, status } = req.params;
 
@@ -1527,6 +1733,17 @@ const userDialogController = {
       // Получаем мета-теги сообщения для события
       const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', messageId);
 
+      // Получаем топик для события, если topicId указан
+      let topicForEvent = null;
+      if (message.topicId) {
+        try {
+          topicForEvent = await topicUtils.getTopicWithMeta(req.tenantId, dialogId, message.topicId);
+        } catch (error) {
+          console.error('Error getting topic with meta for event:', error);
+          topicForEvent = { topicId: message.topicId, meta: {} };
+        }
+      }
+
       // Формируем полную матрицу статусов для Event
       const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, messageId, message.senderId);
 
@@ -1537,6 +1754,8 @@ const userDialogController = {
         type: message.type,
         content: message.content,
         meta: messageMeta || {},
+        topicId: message.topicId || null,
+        topic: topicForEvent,
         statusUpdate: {
           userId,
           status,
@@ -1586,7 +1805,16 @@ const userDialogController = {
 
       // Создаем новую запись в истории
       // post-save hook автоматически обновит счетчики непрочитанных сообщений
-      const messageStatus = await MessageStatus.create(newStatusData);
+      // Используем транзакцию для атомарности
+      const createOptions = useTransactions && session ? { session } : {};
+      const messageStatus = await MessageStatus.create([newStatusData], createOptions);
+      const createdStatus = messageStatus[0];
+      
+      // Коммитим транзакцию, если используется
+      if (useTransactions && session) {
+        await session.commitTransaction();
+        await session.endSession();
+      }
 
       // Получаем обновленный UserDialogStats после создания MessageStatus
       // (post-save hook уже обновил счетчик)
@@ -1647,10 +1875,18 @@ const userDialogController = {
       }
 
       res.json({
-        data: sanitizeResponse(messageStatus),
+        data: sanitizeResponse(createdStatus),
         message: 'Message status updated successfully'
       });
     } catch (error) {
+      // Откатываем транзакцию в случае ошибки
+      if (useTransactions && session && session.inTransaction && session.inTransaction()) {
+        await session.abortTransaction();
+      }
+      if (session) {
+        await session.endSession();
+      }
+
       if (error.name === 'CastError') {
         return res.status(400).json({
           error: 'Bad Request',

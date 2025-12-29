@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-unused-vars
-import { Dialog, Meta, DialogMember, Event, Update, UserDialogStats, UserDialogActivity } from '../../../models/index.js';
+import { Dialog, Meta, DialogMember, Event, Update, UserDialogStats, UserDialogActivity, DialogStats } from '../../../models/index.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort } from '../utils/queryParser.js';
@@ -8,8 +8,11 @@ import * as userUtils from '../utils/userUtils.js';
 import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 import {
   updateUserStatsDialogCount,
-  finalizeCounterUpdateContext
+  finalizeCounterUpdateContext,
+  updateDialogStats,
+  recalculateDialogStats
 } from '../../../utils/counterUtils.js';
+import mongoose from 'mongoose';
 
 export const dialogController = {
   // Get all dialogs for current tenant
@@ -436,19 +439,39 @@ export const dialogController = {
 
           const memberCount = dialogIdForCount ? memberCounts[dialogIdForCount] || 0 : 0;
 
+          // Получаем статистику диалога из DialogStats
+          let stats = null;
+          try {
+            let dialogStats = await DialogStats.findOne({
+              tenantId: req.tenantId,
+              dialogId: dialogIdForCount
+            }).lean();
+
+            // Если DialogStats не найдена, создаем лениво с пересчитанными значениями
+            if (!dialogStats) {
+              stats = await recalculateDialogStats(req.tenantId, dialogIdForCount);
+            } else {
+              stats = {
+                topicCount: dialogStats.topicCount || 0,
+                memberCount: dialogStats.memberCount || 0,
+                messageCount: dialogStats.messageCount || 0
+              };
+            }
+          } catch (error) {
+            console.error('Error getting dialog stats:', error);
+            // Возвращаем дефолтные значения при ошибке
+            stats = {
+              topicCount: 0,
+              memberCount: memberCount,
+              messageCount: 0
+            };
+          }
+
           return sanitizeResponse({
             ...dialogWithoutMembers,
             meta,
-            memberCount
-            // dialogStats: {
-            //   totalUnreadCount,
-            //   activeMembersCount,
-            //   totalMembersCount,
-            //   mostActiveMember: mostActiveMember ? {
-            //     userId: mostActiveMember.userId,
-            //     unreadCount: mostActiveMember.unreadCount
-            //   } : null
-            // }
+            memberCount,
+            stats
           });
         })
       );
@@ -501,15 +524,33 @@ export const dialogController = {
         dialogId: dialog.dialogId
       });
 
-      // Вычисляем общую статистику по диалогу
-      // const totalUnreadCount = members.reduce((total, member) => total + (member.unreadCount || 0), 0);
-      // const activeMembersCount = members.filter(member => member.isActive).length;
-      // const totalMembersCount = members.length;
-      
-      // Находим самого активного участника (с наибольшим количеством непрочитанных)
-      // const mostActiveMember = members.reduce((most, member) => {
-      //   return (member.unreadCount || 0) > (most.unreadCount || 0) ? member : most;
-      // }, members[0] || {});
+      // Получаем статистику диалога из DialogStats
+      let stats = null;
+      try {
+        let dialogStats = await DialogStats.findOne({
+          tenantId: req.tenantId,
+          dialogId: dialog.dialogId
+        }).lean();
+
+        // Если DialogStats не найдена, создаем лениво с пересчитанными значениями
+        if (!dialogStats) {
+          stats = await recalculateDialogStats(req.tenantId, dialog.dialogId);
+        } else {
+          stats = {
+            topicCount: dialogStats.topicCount || 0,
+            memberCount: dialogStats.memberCount || 0,
+            messageCount: dialogStats.messageCount || 0
+          };
+        }
+      } catch (error) {
+        console.error('Error getting dialog stats:', error);
+        // Возвращаем дефолтные значения при ошибке
+        stats = {
+          topicCount: 0,
+          memberCount: memberCount,
+          messageCount: 0
+        };
+      }
 
       const dialogObj = dialog.toObject();
 
@@ -517,16 +558,8 @@ export const dialogController = {
         data: sanitizeResponse({
           ...dialogObj,
           meta,
-          memberCount
-          // dialogStats: {
-          //   totalUnreadCount,
-          //   activeMembersCount,
-          //   totalMembersCount,
-          //   mostActiveMember: mostActiveMember ? {
-          //     userId: mostActiveMember.userId,
-          //     unreadCount: mostActiveMember.unreadCount
-          //   } : null
-          // }
+          memberCount,
+          stats
         })
       });
     } catch (error) {
@@ -545,6 +578,26 @@ export const dialogController = {
 
   // Create new dialog
   async create(req, res) {
+    // Проверяем поддержку транзакций (mongodb-memory-server не поддерживает)
+    const useTransactions = process.env.NODE_ENV !== 'test';
+    let session = null;
+    if (useTransactions) {
+      try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+      } catch (error) {
+        console.warn('Failed to start transaction session, continuing without transactions:', error.message);
+        if (session) {
+          try {
+            await session.endSession();
+          } catch (e) {
+            // Игнорируем ошибки при закрытии сессии
+          }
+        }
+        session = null;
+      }
+    }
+
     try {
       const { members, meta: metaPayload } = req.body;
 
@@ -554,9 +607,32 @@ export const dialogController = {
         actorId = members[0].userId;
       }
 
-      const dialog = await Dialog.create({
+      // Создаем диалог в транзакции
+      const createOptions = useTransactions && session ? { session } : {};
+      const dialog = await Dialog.create([{
         tenantId: req.tenantId
-      });
+      }], createOptions);
+
+      const createdDialog = dialog[0];
+
+      // Создаем DialogStats сразу после создания диалога атомарно
+      const memberCount = Array.isArray(members) ? members.length : 0;
+      await updateDialogStats(
+        req.tenantId,
+        createdDialog.dialogId,
+        {
+          topicCount: 0,
+          memberCount: memberCount,
+          messageCount: 0
+        },
+        useTransactions && session ? session : null
+      );
+
+      // Коммитим транзакцию, если используется
+      if (useTransactions && session) {
+        await session.commitTransaction();
+        await session.endSession();
+      }
 
       // Add meta data if provided (делаем это до обработки участников, чтобы метаданные были доступны)
       if (metaPayload && typeof metaPayload === 'object') {
@@ -570,7 +646,7 @@ export const dialogController = {
             await metaUtils.setEntityMeta(
               req.tenantId,
               'dialog',
-              dialog.dialogId,
+              createdDialog.dialogId,
               key,
               value.value,
               value.dataType || 'string',
@@ -581,7 +657,7 @@ export const dialogController = {
             await metaUtils.setEntityMeta(
               req.tenantId,
               'dialog',
-              dialog.dialogId,
+              createdDialog.dialogId,
               key,
               value,
               typeof value === 'number' ? 'number' :
@@ -594,11 +670,11 @@ export const dialogController = {
       }
 
       // Получаем метаданные диалога один раз для всех событий
-      const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
+      const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', createdDialog.dialogId);
       const dialogSection = eventUtils.buildDialogSection({
-        dialogId: dialog.dialogId,
-        tenantId: dialog.tenantId,
-        createdAt: dialog.createdAt,
+        dialogId: createdDialog.dialogId,
+        tenantId: createdDialog.tenantId,
+        createdAt: createdDialog.createdAt,
         meta: dialogMeta || {}
       });
 
@@ -616,7 +692,7 @@ export const dialogController = {
           // Проверяем, существует ли участник уже в диалоге
           const existingMember = await DialogMember.findOne({
             tenantId: req.tenantId,
-            dialogId: dialog.dialogId,
+            dialogId: createdDialog.dialogId,
             userId: memberData.userId
           }).lean();
 
@@ -637,20 +713,20 @@ export const dialogController = {
           const member = await dialogMemberUtils.addDialogMember(
             req.tenantId,
             memberData.userId,
-            dialog.dialogId
+            createdDialog.dialogId
           );
 
           // Получаем данные из UserDialogStats и UserDialogActivity для нового участника
           const memberStats = await UserDialogStats.findOne({
             tenantId: req.tenantId,
             userId: member.userId,
-            dialogId: dialog.dialogId
+            dialogId: createdDialog.dialogId
           }).lean();
           
           const memberActivity = await UserDialogActivity.findOne({
             tenantId: req.tenantId,
             userId: member.userId,
-            dialogId: dialog.dialogId
+            dialogId: createdDialog.dialogId
           }).lean();
           
           // Создаем событие dialog.member.add для каждого участника
@@ -665,8 +741,8 @@ export const dialogController = {
 
           const memberEventContext = eventUtils.buildEventContext({
             eventType: 'dialog.member.add',
-            dialogId: dialog.dialogId,
-            entityId: dialog.dialogId,
+            dialogId: createdDialog.dialogId,
+            entityId: createdDialog.dialogId,
             includedSections: ['dialog', 'member'],
             updatedFields: ['member']
           });
@@ -675,7 +751,7 @@ export const dialogController = {
             tenantId: req.tenantId,
             eventType: 'dialog.member.add',
             entityType: 'dialogMember',
-            entityId: dialog.dialogId,
+            entityId: createdDialog.dialogId,
             actorId: actorId,
             actorType: 'user',
             data: eventUtils.composeEventData({
@@ -713,8 +789,8 @@ export const dialogController = {
       // Создаем событие dialog.create ПОСЛЕ обработки участников
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.create',
-        dialogId: dialog.dialogId,
-        entityId: dialog.dialogId,
+        dialogId: createdDialog.dialogId,
+        entityId: createdDialog.dialogId,
         includedSections: ['dialog'],
         updatedFields: ['dialog']
       });
@@ -723,7 +799,7 @@ export const dialogController = {
         tenantId: req.tenantId,
         eventType: 'dialog.create',
         entityType: 'dialog',
-        entityId: dialog.dialogId,
+        entityId: createdDialog.dialogId,
         actorId: actorId,
         actorType: 'user',
         data: eventUtils.composeEventData({
@@ -735,16 +811,41 @@ export const dialogController = {
       // Используем уже полученные метаданные
       const meta = dialogMeta;
 
-      const dialogObj = dialog.toObject();
+      // Получаем статистику диалога для ответа
+      const dialogStats = await DialogStats.findOne({
+        tenantId: req.tenantId,
+        dialogId: createdDialog.dialogId
+      }).lean();
+
+      const stats = dialogStats ? {
+        topicCount: dialogStats.topicCount || 0,
+        memberCount: dialogStats.memberCount || 0,
+        messageCount: dialogStats.messageCount || 0
+      } : {
+        topicCount: 0,
+        memberCount: memberCount,
+        messageCount: 0
+      };
+
+      const dialogObj = createdDialog.toObject();
 
       res.status(201).json({
         data: sanitizeResponse({
           ...dialogObj,
-          meta
+          meta,
+          stats
         }),
         message: 'Dialog created successfully'
       });
     } catch (error) {
+      // Откатываем транзакцию в случае ошибки
+      if (useTransactions && session && session.inTransaction && session.inTransaction()) {
+        await session.abortTransaction();
+      }
+      if (session) {
+        await session.endSession();
+      }
+
       if (error.name === 'ValidationError') {
         return res.status(400).json({
           error: 'Validation Error',

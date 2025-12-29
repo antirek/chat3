@@ -8,6 +8,7 @@ import { generateTimestamp } from './timestampUtils.js';
 import { getUserType } from '../apps/tenant-api/utils/userTypeUtils.js';
 import { buildStatusMessageMatrix, getUserStats } from '../apps/tenant-api/utils/userDialogUtils.js';
 import * as eventUtils from '../apps/tenant-api/utils/eventUtils.js';
+import * as topicUtils from './topicUtils.js';
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 
@@ -47,7 +48,9 @@ const DIALOG_UPDATE_EVENTS = [
   'dialog.update',
   'dialog.delete',
   'dialog.member.add',
-  'dialog.member.remove'
+  'dialog.member.remove',
+  'dialog.topic.create',
+  'dialog.topic.update'
 ];
 
 const DIALOG_MEMBER_UPDATE_EVENTS = [
@@ -334,6 +337,24 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
     let eventMessage = eventData.message || {};
     let eventContext = eventData.context || {};
 
+    // Получаем topic для сообщения, если topicId указан
+    // Если topic уже есть в eventData.message, используем его, иначе получаем из БД
+    if (eventMessage.topicId && !eventMessage.topic) {
+      try {
+        const topic = await topicUtils.getTopicWithMeta(tenantId, dialogId, eventMessage.topicId);
+        if (topic) {
+          eventMessage.topic = topic;
+        } else {
+          eventMessage.topic = null;
+        }
+      } catch (error) {
+        console.error('Error getting topic with meta for MessageUpdate:', error);
+        eventMessage.topic = null;
+      }
+    } else if (!eventMessage.topicId) {
+      eventMessage.topic = null;
+    }
+
     // Секция dialog должна всегда присутствовать в event.data
     if (!eventDialog || !eventDialog.dialogId) {
       console.error(`Dialog section missing in event.data for event ${eventId} (${eventType}). This should not happen.`);
@@ -355,14 +376,44 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
           return;
         }
         eventMessage.dialogId = eventDialog.dialogId;
+        
+        // Получаем topic для сообщения, если topicId указан
+        if (message.topicId && !eventMessage.topic) {
+          try {
+            const topic = await topicUtils.getTopicWithMeta(tenantId, dialogId, message.topicId);
+            eventMessage.topic = topic;
+            eventMessage.topicId = message.topicId;
+          } catch (error) {
+            console.error('Error getting topic with meta for MessageUpdate:', error);
+            eventMessage.topic = null;
+            eventMessage.topicId = message.topicId;
+          }
+        } else if (!message.topicId) {
+          eventMessage.topic = null;
+          eventMessage.topicId = null;
+        }
       } else {
         // Для других типов создаем минимальную структуру
         eventMessage = {
           messageId: message.messageId,
           dialogId: eventDialog.dialogId,
           senderId: message.senderId,
-          type: message.type
+          type: message.type,
+          topicId: message.topicId || null
         };
+        
+        // Получаем topic для сообщения, если topicId указан
+        if (message.topicId && !eventMessage.topic) {
+          try {
+            const topic = await topicUtils.getTopicWithMeta(tenantId, dialogId, message.topicId);
+            eventMessage.topic = topic;
+          } catch (error) {
+            console.error('Error getting topic with meta for MessageUpdate:', error);
+            eventMessage.topic = null;
+          }
+        } else if (!message.topicId) {
+          eventMessage.topic = null;
+        }
         // Добавляем данные из eventData, если есть
         if (eventData.message?.statusUpdate) {
           eventMessage.statusUpdate = eventData.message.statusUpdate;
