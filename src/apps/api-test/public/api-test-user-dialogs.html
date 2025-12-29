@@ -1291,10 +1291,25 @@
                             <option value="(meta.channelType,eq,telegram)&(meta.securityLevel,eq,high)">meta. Telegram + высокий уровень безопасности</option>
                         </optgroup>
                         <optgroup label="Фильтры по топикам">
-                            <option value="(topicId,eq,topic_xxxxxxxxxxxxxxxxxxxx)">📌 По topicId (замените на реальный)</option>
+                            <option value="(topic.topicId,eq,topic_xxxxxxxxxxxxxxxxxxxx)">📌 По topicId (замените на реальный)</option>
+                            <option value="(topic.topicId,ne,null)">📌 Диалоги с любыми топиками</option>
+                            <option value="(topic.topicId,in,[topic_xxx1,topic_xxx2])">📌 С любым из указанных топиков (замените на реальные)</option>
+                            <option value="(topic.topicId,nin,[topic_xxx1,topic_xxx2])">📌 БЕЗ указанных топиков (замените на реальные)</option>
                             <option value="(topic.meta.category,eq,general)">📌 Топики с meta.category = general</option>
+                            <option value="(topic.meta.category,eq,support)">📌 Топики с meta.category = support</option>
+                            <option value="(topic.meta.category,in,[general,support])">📌 Топики с meta.category в [general,support]</option>
+                            <option value="(topic.meta.category,ne,archived)">📌 Топики с meta.category ≠ archived</option>
                             <option value="(topic.meta.priority,eq,high)">📌 Топики с meta.priority = high</option>
+                            <option value="(topic.meta.priority,in,[high,urgent])">📌 Топики с meta.priority в [high,urgent]</option>
                             <option value="(topic.meta.status,eq,active)">📌 Топики с meta.status = active</option>
+                            <option value="(topic.meta.status,ne,closed)">📌 Топики с meta.status ≠ closed</option>
+                            <option value="(topic.meta.assignedTo,exists,true)">📌 Топики с назначенным пользователем</option>
+                            <option value="(topic.meta.assignedTo,exists,false)">📌 Топики БЕЗ назначенного пользователя</option>
+                            <option value="(topic.topicCount,gt,0)">📌 Диалоги с топиками (topicCount > 0)</option>
+                            <option value="(topic.topicCount,eq,0)">📌 Диалоги без топиков (topicCount = 0)</option>
+                            <option value="(topic.topicCount,gte,3)">📌 Диалоги с 3+ топиками</option>
+                            <option value="(topic.topicCount,lte,5)">📌 Диалоги с ≤5 топиками</option>
+                            <option value="(topic.topicCount,in,[1,2,3])">📌 Диалоги с 1, 2 или 3 топиками</option>
                         </optgroup>
                         <optgroup label="Комбинированные фильтры">
                             <option value="(unreadCount,gte,4)&(meta.channelType,eq,whatsapp)">📬 ≥4 непрочитанных + WhatsApp</option>
@@ -1312,6 +1327,15 @@
                             <option value="(member,all,[carl,marta])&(meta.type,eq,internal)">👥 Со всеми: carl и marta + внутренний</option>
                             <option value="(member,in,[alice,bob])&(meta.channelType,eq,whatsapp)">👥 С alice или bob + WhatsApp</option>
                             <option value="(member,in,[sara])&(unreadCount,gte,1)">👥 С sara + ≥1 непрочитанных</option>
+                            <option value="(topic.topicId,ne,null)&(topic.meta.category,eq,support)">📌 С топиками + category = support</option>
+                            <option value="(topic.topicId,ne,null)&(topic.meta.status,ne,archived)">📌 С топиками + status ≠ archived</option>
+                            <option value="(topic.meta.priority,eq,high)&(topic.meta.status,ne,closed)">📌 priority = high + status ≠ closed</option>
+                            <option value="(topic.topicId,ne,null)&(topic.meta.priority,in,[high,urgent])&(topic.meta.status,ne,archived)">📌 С топиками + priority в [high,urgent] + не архивные</option>
+                            <option value="(topic.topicCount,gte,3)&(topic.meta.category,eq,support)">📌 ≥3 топиков + category = support</option>
+                            <option value="(topic.topicCount,in,[1,2,3])&(topic.meta.priority,eq,high)">📌 1-3 топика + priority = high</option>
+                            <option value="(member,in,[carl])&(topic.topicCount,gt,0)&(topic.meta.status,ne,archived)">👥 С carl + есть топики + не архивные</option>
+                            <option value="(topic.topicId,ne,null)&(unreadCount,gt,0)">📌 С топиками + есть непрочитанные</option>
+                            <option value="(topic.topicCount,gte,2)&(meta.channelType,eq,whatsapp)">📌 ≥2 топиков + WhatsApp</option>
                         </optgroup>
                         <option value="custom">Пользовательский фильтр</option>
                     </select>
@@ -1360,8 +1384,8 @@
                         <option value="(senderId,eq,carl)">👤 Отправитель = carl</option>
                         <option value="(senderId,eq,sara)">👤 Отправитель = sara</option>
                         <option value="(senderId,in,[carl,marta])">👥 Отправитель в [carl,marta]</option>
-                        <option value="(topicId,eq,topic_xxxxxxxxxxxxxxxxxxxx)">📌 По topicId (замените на реальный)</option>
-                        <option value="(topicId,eq,null)">📌 Без топика (topicId = null)</option>
+                        <option value="(topic.topicId,eq,topic_xxxxxxxxxxxxxxxxxxxx)">📌 По topicId (замените на реальный)</option>
+                        <option value="(topic.topicId,eq,null)">📌 Без топика (topicId = null)</option>
                         <option value="(createdAt,gte,2025-10-24)">📅 Создано ≥ 24.10.2025</option>
                         <option value="(createdAt,gte,2025-10-22)">📅 Создано ≥ 22.10.2025</option>
                         <option value="(createdAt,lt,2025-10-21)">📅 Создано < 21.10.2025</option>
@@ -1369,7 +1393,7 @@
                         <option value="(senderId,eq,carl)&(type,eq,system)">👤 Carl + system</option>
                         <option value="(content,regex,спасибо)&(createdAt,gte,2025-10-24)">📝 "спасибо" + ≥24.10</option>
                         <option value="(senderId,in,[carl,sara])&(type,eq,internal.text)&(content,regex,привет)">👥 Carl/Sara + internal.text + "привет"</option>
-                        <option value="(topicId,eq,topic_xxxxxxxxxxxxxxxxxxxx)&(type,eq,internal.text)">📌 По topicId + internal.text</option>
+                        <option value="(topic.topicId,eq,topic_xxxxxxxxxxxxxxxxxxxx)&(type,eq,internal.text)">📌 По topicId + internal.text</option>
                         <option value="Пользовательский фильтр">✏️ Пользовательский фильтр</option>
                     </select>
                     <div class="input-with-clear">

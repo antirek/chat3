@@ -117,8 +117,8 @@ const userDialogController = {
           
           // Обрабатываем фильтры по топикам
           // Фильтр topicId,eq,{topicId} - диалоги, содержащие топик с указанным topicId
+          // Фильтр topicId,ne,null - диалоги, содержащие хотя бы один топик
           if (regularFilters.topicId !== undefined) {
-            const topicIdValue = regularFilters.topicId;
             // Находим диалоги текущего пользователя
             const userDialogs = await DialogMember.find({
               userId: userId,
@@ -134,24 +134,47 @@ const userDialogController = {
               });
             }
             
-            // Находим диалоги, содержащие топик с указанным topicId
-            const topic = await Topic.findOne({
-              tenantId: req.tenantId,
-              topicId: topicIdValue
-            }).lean();
+            const topicIdValue = regularFilters.topicId;
             
-            if (!topic || !userDialogIds.includes(topic.dialogId)) {
-              return res.json({
-                data: [],
-                pagination: { page, limit, total: 0, pages: 0 }
-              });
-            }
-            
-            // Если уже есть фильтр по meta, пересекаем результаты (AND логика)
-            if (dialogIds !== null) {
-              dialogIds = dialogIds.filter(id => id === topic.dialogId);
+            // Проверяем, является ли это фильтром "не равно null" (диалоги с топиками)
+            if (typeof topicIdValue === 'object' && topicIdValue.$ne === null) {
+              // Фильтр topicId,ne,null - находим все диалоги, у которых есть хотя бы один топик
+              const topics = await Topic.find({
+                tenantId: req.tenantId,
+                dialogId: { $in: userDialogIds }
+              }).select('dialogId').lean();
+              
+              const dialogIdsWithTopics = [...new Set(topics.map(t => t.dialogId))];
+              
+              // Если уже есть фильтр по meta, пересекаем результаты (AND логика)
+              if (dialogIds !== null) {
+                dialogIds = dialogIds.filter(id => dialogIdsWithTopics.includes(id));
+              } else {
+                dialogIds = dialogIdsWithTopics;
+              }
             } else {
-              dialogIds = [topic.dialogId];
+              // Фильтр topicId,eq,{topicId} - находим диалог с конкретным топиком
+              const topicId = typeof topicIdValue === 'object' ? topicIdValue : topicIdValue;
+              
+              // Находим диалоги, содержащие топик с указанным topicId
+              const topic = await Topic.findOne({
+                tenantId: req.tenantId,
+                topicId: topicId
+              }).lean();
+              
+              if (!topic || !userDialogIds.includes(topic.dialogId)) {
+                return res.json({
+                  data: [],
+                  pagination: { page, limit, total: 0, pages: 0 }
+                });
+              }
+              
+              // Если уже есть фильтр по meta, пересекаем результаты (AND логика)
+              if (dialogIds !== null) {
+                dialogIds = dialogIds.filter(id => id === topic.dialogId);
+              } else {
+                dialogIds = [topic.dialogId];
+              }
             }
             
             delete regularFilters.topicId; // Удаляем из regularFilters
