@@ -9,6 +9,7 @@ const INTERNAL_MESSAGE_TYPES = Object.freeze([
   'internal.file',
   'internal.audio',
   'internal.video',
+  'internal.sticker',
   'internal.location',
   'internal.contact'
 ]);
@@ -17,7 +18,8 @@ const INTERNAL_MEDIA_MESSAGE_TYPES = Object.freeze([
   'internal.image',
   'internal.file',
   'internal.audio',
-  'internal.video'
+  'internal.video',
+  'internal.sticker'
 ]);
 
 const SYSTEM_MESSAGE_TYPE_REGEX = /^system\.[a-z0-9]+(?:[._-][a-z0-9]+)*$/;

@@ -874,6 +874,25 @@ describe('messageController.createMessage - validation', () => {
     expect(res.body.message).toBe('meta.url is required for internal.image messages');
   });
 
+  test('returns 400 when meta.url is missing for internal.sticker', async () => {
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      body: {
+        senderId: 'alice',
+        type: 'internal.sticker',
+        meta: {}
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.message).toBe('meta.url is required for internal.sticker messages');
+  });
+
   test('creates message with meta data', async () => {
     const req = {
       tenantId,

@@ -369,7 +369,7 @@ const messageController = {
       const messageContent = typeof content === 'string' ? content : '';
       const metaPayload = meta && typeof meta === 'object' ? { ...meta } : {};
       const isSystemMessage = normalizedType.startsWith('system.');
-      const MEDIA_MESSAGE_TYPES = new Set(['internal.image', 'internal.file', 'internal.audio', 'internal.video']);
+      const MEDIA_MESSAGE_TYPES = new Set(['internal.image', 'internal.file', 'internal.audio', 'internal.video', 'internal.sticker']);
 
       if (!senderId) {
         return res.status(400).json({
