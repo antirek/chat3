@@ -376,6 +376,41 @@ const messageController = {
         type: normalizedType
       });
 
+      // Add meta data if provided (ПЕРЕД созданием события, чтобы метаданные попали в событие)
+      if (metaPayload && typeof metaPayload === 'object' && Object.keys(metaPayload).length > 0) {
+        for (const [key, value] of Object.entries(metaPayload)) {
+          const metaOptions = {
+            createdBy: senderId,
+          };
+
+          if (typeof value === 'object' && value !== null && Object.prototype.hasOwnProperty.call(value, 'value')) {
+            // If value is an object with dataType/value properties
+            await metaUtils.setEntityMeta(
+              req.tenantId,
+              'message',
+              message.messageId,
+              key,
+              value.value,
+              value.dataType || 'string',
+              metaOptions
+            );
+          } else {
+            // If value is a simple value
+            await metaUtils.setEntityMeta(
+              req.tenantId,
+              'message',
+              message.messageId,
+              key,
+              value,
+              typeof value === 'number' ? 'number' : 
+              typeof value === 'boolean' ? 'boolean' :
+              Array.isArray(value) ? 'array' : 'string',
+              metaOptions
+            );
+          }
+        }
+      }
+
       // Создаем событие message.create ПЕРЕД обновлением счетчиков, чтобы получить eventId
       const eventContext = eventUtils.buildEventContext({
         eventType: 'message.create',
@@ -386,7 +421,7 @@ const messageController = {
         updatedFields: ['message']
       });
 
-      // Получаем мета-теги сообщения для события (пока без quotedMessage)
+      // Получаем мета-теги сообщения для события (теперь они уже сохранены)
       const messageMeta = await metaUtils.getEntityMeta(
         req.tenantId,
         'message',
@@ -558,41 +593,6 @@ const messageController = {
             await finalizeCounterUpdateContext(req.tenantId, senderId, sourceEventId);
           } catch (error) {
             console.error(`Failed to finalize context for ${senderId}:`, error);
-          }
-        }
-      }
-
-      // Add meta data if provided
-      if (metaPayload && typeof metaPayload === 'object') {
-        for (const [key, value] of Object.entries(metaPayload)) {
-          const metaOptions = {
-            createdBy: senderId,
-          };
-
-          if (typeof value === 'object' && value !== null && Object.prototype.hasOwnProperty.call(value, 'value')) {
-            // If value is an object with dataType/value properties
-            await metaUtils.setEntityMeta(
-              req.tenantId,
-              'message',
-              message.messageId,
-              key,
-              value.value,
-              value.dataType || 'string',
-              metaOptions
-            );
-          } else {
-            // If value is a simple value
-            await metaUtils.setEntityMeta(
-              req.tenantId,
-              'message',
-              message.messageId,
-              key,
-              value,
-              typeof value === 'number' ? 'number' : 
-              typeof value === 'boolean' ? 'boolean' :
-              Array.isArray(value) ? 'array' : 'string',
-              metaOptions
-            );
           }
         }
       }
