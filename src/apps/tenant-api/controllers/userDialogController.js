@@ -48,28 +48,27 @@ const userDialogController = {
 
       // Фильтрация по метаданным
       if (req.query.filter) {
-        console.log('Filter received:', req.query.filter);
         try {
           // Парсим фильтры (поддержка как JSON, так и (field,operator,value) формата)
           const parsedFilters = parseFilters(req.query.filter);
-          console.log('Parsed filters:', parsedFilters);
           
           // Извлекаем meta фильтры и member фильтры
           const { metaFilters, regularFilters: extractedRegularFilters, memberFilters } = extractMetaFilters(parsedFilters);
           regularFilters = extractedRegularFilters;
-          console.log('Meta filters:', metaFilters);
-          console.log('Regular filters:', regularFilters);
-          console.log('Member filters:', memberFilters);
           
-          // Обрабатываем meta фильтры
-          if (Object.keys(metaFilters).length > 0) {
+          // Обрабатываем meta фильтры (исключая topic.meta.*, которые обрабатываются отдельно)
+          const dialogMetaFilters = Object.fromEntries(
+            Object.entries(metaFilters).filter(([key]) => !key.startsWith('topic.meta.'))
+          );
+          
+          if (Object.keys(dialogMetaFilters).length > 0) {
           const metaQuery = {
               tenantId: req.tenantId, // tenantId теперь строка (tnt_*)
               entityType: 'dialog'
             };
 
-            // Проходим по всем meta фильтрам
-            for (const [key, condition] of Object.entries(metaFilters)) {
+            // Проходим по всем meta фильтрам диалогов
+            for (const [key, condition] of Object.entries(dialogMetaFilters)) {
               let foundDialogIds;
               
               // Обработка негативных операторов ($ne, $nin) требует специальной логики
@@ -1396,15 +1395,23 @@ const userDialogController = {
             }
             
             // Обработка нового формата topic.topicId
-            if (field === 'topic' && condition && typeof condition === 'object') {
+            if (field === 'topic' && condition && typeof condition === 'object' && condition !== null) {
               if (condition.topicId !== undefined) {
                 const topicIdCondition = condition.topicId;
                 
-                if (typeof topicIdCondition === 'object') {
+                // Обрабатываем null отдельно (typeof null === 'object' в JavaScript)
+                if (topicIdCondition === null || topicIdCondition === 'null') {
+                  query.topicId = null;
+                } else if (typeof topicIdCondition === 'object') {
                   if (topicIdCondition.$eq !== undefined) {
-                    query.topicId = topicIdCondition.$eq;
-                  } else if (topicIdCondition.$ne === null) {
-                    query.topicId = null; // Без топика
+                    // Обрабатываем $eq, включая null
+                    if (topicIdCondition.$eq === null || topicIdCondition.$eq === 'null') {
+                      query.topicId = null;
+                    } else {
+                      query.topicId = topicIdCondition.$eq;
+                    }
+                  } else if (topicIdCondition.$ne === null || topicIdCondition.$ne === 'null') {
+                    query.topicId = { $ne: null }; // Не null
                   } else {
                     query.topicId = topicIdCondition;
                   }

@@ -333,15 +333,38 @@ export function extractMetaFilters(filter) {
       // Новый формат: { "meta.type": "internal" }
       const metaKey = key.substring(5); // Убираем "meta."
       metaFilters[metaKey] = value;
+    } else if (key === 'topic' && typeof value === 'object' && value !== null) {
+      // Обрабатываем topic фильтры
+      const topicFilters = { ...value };
+      
+      // topic.meta.* фильтры должны попадать в metaFilters с префиксом "topic.meta."
+      if (value.meta && typeof value.meta === 'object') {
+        for (const [metaKey, metaValue] of Object.entries(value.meta)) {
+          metaFilters[`topic.meta.${metaKey}`] = metaValue;
+        }
+        // Удаляем meta из topicFilters, чтобы не дублировать
+        delete topicFilters.meta;
+      }
+      
+      // topic.topicId и topic.topicCount остаются в regularFilters
+      if (Object.keys(topicFilters).length > 0) {
+        regularFilters[key] = topicFilters;
+      }
     } else if (key === 'member') {
       // Фильтр по участникам: { member: "carl" } или { member: { $in: ["carl", "marta"] } }
       memberFilters[key] = value;
     } else if (key === '$and' && Array.isArray(value)) {
       // Обрабатываем $and массив
       for (const andCondition of value) {
-        const { metaFilters: nestedMeta, memberFilters: nestedMember } = extractMetaFilters(andCondition);
+        const { metaFilters: nestedMeta, memberFilters: nestedMember, regularFilters: nestedRegular } = extractMetaFilters(andCondition);
         Object.assign(metaFilters, nestedMeta);
         Object.assign(memberFilters, nestedMember);
+        // Обрабатываем nested regularFilters для topic.meta.*
+        if (nestedRegular.topic && nestedRegular.topic.meta) {
+          for (const [metaKey, metaValue] of Object.entries(nestedRegular.topic.meta)) {
+            metaFilters[`topic.meta.${metaKey}`] = metaValue;
+          }
+        }
       }
       // $and не добавляем в regularFilters
     } else {
