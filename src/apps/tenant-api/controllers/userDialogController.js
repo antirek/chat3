@@ -7,7 +7,8 @@ import {
   UserDialogActivity,
   UserStats,
   Topic,
-  DialogStats
+  DialogStats,
+  UserTopicStats
 } from '../../../models/index.js';
 import * as topicUtils from '../../../utils/topicUtils.js';
 import * as metaUtils from '../utils/metaUtils.js';
@@ -2144,6 +2145,106 @@ const userDialogController = {
           message: error.message
         });
       }
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  /**
+   * Получение топиков диалога в контексте пользователя
+   * Возвращает топики с мета-тегами и количеством непрочитанных сообщений для пользователя
+   */
+  async getUserDialogTopics(req, res) {
+    try {
+      const { userId, dialogId } = req.params;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const skip = (page - 1) * limit;
+
+      // Проверка существования диалога
+      const dialog = await Dialog.findOne({
+        dialogId,
+        tenantId: req.tenantId
+      });
+
+      if (!dialog) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Dialog not found'
+        });
+      }
+
+      // Проверка, что пользователь является участником диалога
+      const member = await DialogMember.findOne({
+        tenantId: req.tenantId,
+        dialogId,
+        userId
+      });
+
+      if (!member) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'User is not a member of this dialog'
+        });
+      }
+
+      // Получаем список топиков с пагинацией
+      const topics = await Topic.find({
+        tenantId: req.tenantId,
+        dialogId
+      })
+        .sort({ createdAt: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      // Получаем общее количество топиков для пагинации
+      const total = await Topic.countDocuments({
+        tenantId: req.tenantId,
+        dialogId
+      });
+
+      // Получаем unreadCount для каждого топика из UserTopicStats
+      const topicIds = topics.map(t => t.topicId);
+      const topicStats = await UserTopicStats.find({
+        tenantId: req.tenantId,
+        userId,
+        dialogId,
+        topicId: { $in: topicIds }
+      }).lean();
+
+      // Создаем Map для быстрого доступа к unreadCount
+      const unreadCountMap = new Map();
+      topicStats.forEach(stat => {
+        unreadCountMap.set(stat.topicId, stat.unreadCount || 0);
+      });
+
+      // Обогащаем топики мета-тегами и unreadCount
+      const topicsWithContext = await Promise.all(
+        topics.map(async (topic) => {
+          const meta = await metaUtils.getEntityMeta(req.tenantId, 'topic', topic.topicId);
+          const unreadCount = unreadCountMap.get(topic.topicId) || 0;
+
+          return {
+            ...topic,
+            meta: meta || {},
+            unreadCount
+          };
+        })
+      );
+
+      res.json({
+        data: sanitizeResponse(topicsWithContext),
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      });
+    } catch (error) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message

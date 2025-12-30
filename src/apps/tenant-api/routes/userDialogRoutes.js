@@ -106,6 +106,96 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
 
 /**
  * @swagger
+ * /api/users/{userId}/dialogs/{dialogId}/topics:
+ *   get:
+ *     summary: Get topics for a dialog in context of specific user
+ *     description: |
+ *       Возвращает список топиков диалога с мета-тегами и количеством непрочитанных сообщений для указанного пользователя.
+ *       Доступно только для участников диалога.
+ *     tags: [UserDialogs]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *       - in: path
+ *         name: dialogId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Dialog ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of topics per page
+ *     responses:
+ *       200:
+ *         description: Topics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       topicId:
+ *                         type: string
+ *                         description: Topic ID
+ *                       dialogId:
+ *                         type: string
+ *                         description: Dialog ID
+ *                       tenantId:
+ *                         type: string
+ *                         description: Tenant ID
+ *                       createdAt:
+ *                         type: number
+ *                         description: Timestamp создания (микросекунды)
+ *                       meta:
+ *                         type: object
+ *                         description: Мета-теги топика
+ *                         additionalProperties: true
+ *                       unreadCount:
+ *                         type: integer
+ *                         description: Количество непрочитанных сообщений в топике для пользователя
+ *                         example: 5
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     pages:
+ *                       type: integer
+ *       403:
+ *         description: Forbidden - User is not a member of this dialog
+ *       404:
+ *         description: Dialog not found
+ *       401:
+ *         description: Unauthorized - Invalid API key
+ */
+router.get('/:userId/dialogs/:dialogId/topics', apiAuth, requirePermission('read'), validateUserId, validateDialogId, userDialogController.getUserDialogTopics);
+
+/**
+ * @swagger
  * /api/users/{userId}/dialogs/{dialogId}/messages:
  *   get:
  *     summary: Get messages from a dialog in context of specific user
