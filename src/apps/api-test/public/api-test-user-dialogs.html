@@ -4973,6 +4973,12 @@
                 // Обновляем список сообщений, если диалог открыт
                 if (currentDialogId) {
                     loadDialogMessages(currentDialogId, currentMessagePage);
+                    
+                    // Если сообщение было создано с topicId, обновляем список топиков
+                    const topicId = document.getElementById('messageTopicId')?.value?.trim();
+                    if (topicId) {
+                        loadDialogTopics(currentDialogId, currentTopicsPage);
+                    }
                 }
                 
             } catch (error) {

@@ -1,7 +1,7 @@
 import * as fakeAmqp from '@onify/fake-amqplib';
 import { jest } from '@jest/globals';
 import messageController from '../messageController.js';
-import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember, Event, UserDialogStats, Topic } from "../../../../models/index.js";
+import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember, Event, UserDialogStats, Topic, UserTopicStats } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
 import { generateTopicId } from '../../../../utils/topicUtils.js';
@@ -319,6 +319,61 @@ describe('messageController.createMessage - unread handling', () => {
 
     const statuses = await MessageStatus.find({ tenantId, messageId: message.messageId }).lean();
     expect(statuses).toHaveLength(0);
+  });
+
+  test('message with topicId should increment unreadCount in UserTopicStats for recipients', async () => {
+    // Создаем топик
+    const topicId = generateTopicId();
+    await Topic.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      topicId,
+      createdAt: generateTimestamp()
+    });
+
+    const req = createRequest({
+      content: 'Hello Bob in topic',
+      senderId: 'alice',
+      type: 'internal.text',
+      topicId: topicId
+    });
+    const res = createResponse();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(201);
+    const message = await Message.findOne({ tenantId, senderId: 'alice', topicId: topicId }).lean();
+    expect(message).toBeTruthy();
+    expect(message.topicId).toBe(topicId);
+
+    // Проверяем, что счетчик топика увеличился для получателя (bob)
+    const bobTopicStats = await UserTopicStats.findOne({ 
+      tenantId, 
+      dialogId: dialog.dialogId, 
+      userId: 'bob',
+      topicId: topicId 
+    }).lean();
+    
+    expect(bobTopicStats).toBeTruthy();
+    expect(bobTopicStats.unreadCount).toBe(1);
+
+    // Проверяем, что общий счетчик диалога тоже увеличился
+    const bobDialogStats = await UserDialogStats.findOne({ 
+      tenantId, 
+      dialogId: dialog.dialogId, 
+      userId: 'bob' 
+    }).lean();
+    expect(bobDialogStats?.unreadCount).toBe(1);
+
+    // Проверяем, что для отправителя (alice) счетчик топика не увеличился
+    const aliceTopicStats = await UserTopicStats.findOne({ 
+      tenantId, 
+      dialogId: dialog.dialogId, 
+      userId: 'alice',
+      topicId: topicId 
+    }).lean();
+    // Отправитель не должен иметь непрочитанных сообщений в топике
+    expect(aliceTopicStats).toBeNull();
   });
 
 });
