@@ -2577,10 +2577,16 @@
                 return;
             }
             
+            if (!currentUserId) {
+                topicsList.innerHTML = '<div class="error">Сначала выберите пользователя</div>';
+                return;
+            }
+            
             topicsList.innerHTML = '<div class="loading">Загрузка топиков...</div>';
             
             try {
-                const url = `/api/dialogs/${dialogId}/topics?page=${page}&limit=20`;
+                // Используем новый endpoint с контекстом пользователя
+                const url = `/api/users/${currentUserId}/dialogs/${dialogId}/topics?page=${page}&limit=20`;
                 const response = await fetch(url, {
                     headers: {
                         'X-Tenant-Id': tenantId,
@@ -2604,6 +2610,7 @@
                             <thead>
                                 <tr>
                                     <th>Topic ID</th>
+                                    <th>Unread</th>
                                     <th>Meta</th>
                                     <th>Действия</th>
                                 </tr>
@@ -2615,9 +2622,14 @@
                                     const metaStr = topic.meta && Object.keys(topic.meta).length > 0 
                                         ? JSON.stringify(topic.meta, null, 2) 
                                         : '{}';
+                                    const unreadCount = topic.unreadCount !== undefined ? topic.unreadCount : 0;
+                                    const unreadDisplay = unreadCount > 0 
+                                        ? `<span style="color: #dc3545; font-weight: bold;">${unreadCount}</span>` 
+                                        : '<span style="color: #6c757d;">0</span>';
                                     return `
                                     <tr>
                                         <td title="${escapeHtml(topic.topicId)}">${shortenTopicId(topic.topicId)}</td>
+                                        <td style="text-align: center;">${unreadDisplay}</td>
                                         <td><pre style="margin: 0; font-size: 11px; max-width: 400px; overflow-x: auto; white-space: pre-wrap;">${escapeHtml(metaStr)}</pre></td>
                                         <td class="actions-column">
                                             <button class="btn-success btn-small" onclick="showTopicMetaModal('${safeDialogId}', '${safeTopicId}')">🏷️ Мета</button>
@@ -2660,12 +2672,41 @@
                 return;
             }
             
-            const url = `${baseUrl}/api/dialogs/${currentDialogId}/topics?page=${currentTopicsPage}&limit=20`;
-            showModal('URL API для топиков', `
-                <div style="word-break: break-all;">
-                    <strong>GET</strong> ${url}
+            if (!currentUserId) {
+                alert('Сначала выберите пользователя');
+                return;
+            }
+            
+            // Строим URL запроса (с контекстом пользователя)
+            let url = `/api/users/${currentUserId}/dialogs/${currentDialogId}/topics`;
+            const params = new URLSearchParams();
+            
+            // Добавляем параметры пагинации
+            params.append('page', currentTopicsPage || 1);
+            params.append('limit', 20);
+            
+            // Формируем полный URL
+            const fullUrl = url + (params.toString() ? '?' + params.toString() : '');
+            
+            // Показываем в модальном окне
+            showModal('Текущий URL запроса топиков', `
+                <div class="url-info">
+                    <h4>API Endpoint:</h4>
+                    <div class="url-display">${fullUrl}</div>
+                    
+                    <h4>Параметры:</h4>
+                    <div class="params-list">
+                        <div><strong>page:</strong> ${currentTopicsPage || 1}</div>
+                        <div><strong>limit:</strong> 20</div>
+                    </div>
+                    
+                    <h4>Полный URL для копирования:</h4>
+                    <div class="url-copy">
+                        <input type="text" value="${window.location.origin}${fullUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
+                        <button onclick="copyToClipboard('${window.location.origin}${fullUrl}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
+                    </div>
                 </div>
-            `, url);
+            `);
         }
 
         // Загрузка сообщений диалога (в контексте пользователя)
@@ -4707,7 +4748,7 @@
             topicSelect.disabled = true;
             
             try {
-                const topicsResponse = await fetch(`/api/dialogs/${currentDialogId}/topics?page=1&limit=100`, {
+                const topicsResponse = await fetch(`/api/users/${currentUserId}/dialogs/${currentDialogId}/topics?page=1&limit=100`, {
                     headers: {
                         'X-API-Key': apiKey,
                         'X-TENANT-ID': tenantId
