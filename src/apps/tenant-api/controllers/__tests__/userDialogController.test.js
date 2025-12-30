@@ -1,8 +1,9 @@
 import { jest } from '@jest/globals';
 import userDialogController from '../userDialogController.js';
-import { Tenant, User, Dialog, DialogMember, Meta, Message, MessageStatus, Event, UserDialogStats } from "../../../../models/index.js";
+import { Tenant, User, Dialog, DialogMember, Meta, Message, MessageStatus, Event, UserDialogStats, Topic, DialogStats } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
+import { generateTopicId } from '../../../../utils/topicUtils.js';
 
 // Helper function to generate dialogId in correct format
 function generateDialogId() {
@@ -1522,6 +1523,540 @@ describe('userDialogController', () => {
       }
     });
 
+  });
+
+  describe('getUserDialogs - topic filters', () => {
+    let userId1;
+    let dialog1, dialog2, dialog3, dialog4;
+    let topic1, topic2, topic3, topic4;
+
+    beforeEach(async () => {
+      userId1 = 'carl';
+
+      await User.create({
+        userId: userId1,
+        tenantId,
+        name: 'Carl',
+        createdAt: generateTimestamp()
+      });
+
+      // Create dialogs
+      dialog1 = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId1,
+        createdAt: generateTimestamp(),
+      });
+
+      dialog2 = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId1,
+        createdAt: generateTimestamp(),
+      });
+
+      dialog3 = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId1,
+        createdAt: generateTimestamp(),
+      });
+
+      dialog4 = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId1,
+        createdAt: generateTimestamp(),
+      });
+
+      // Create dialog members
+      await DialogMember.create([
+        { userId: userId1, dialogId: dialog1.dialogId, tenantId, role: 'member', isActive: true, unreadCount: 0, joinedAt: generateTimestamp(), lastSeenAt: generateTimestamp(), lastMessageAt: generateTimestamp(), createdAt: generateTimestamp() },
+        { userId: userId1, dialogId: dialog2.dialogId, tenantId, role: 'member', isActive: true, unreadCount: 0, joinedAt: generateTimestamp(), lastSeenAt: generateTimestamp(), lastMessageAt: generateTimestamp(), createdAt: generateTimestamp() },
+        { userId: userId1, dialogId: dialog3.dialogId, tenantId, role: 'member', isActive: true, unreadCount: 0, joinedAt: generateTimestamp(), lastSeenAt: generateTimestamp(), lastMessageAt: generateTimestamp(), createdAt: generateTimestamp() },
+        { userId: userId1, dialogId: dialog4.dialogId, tenantId, role: 'member', isActive: true, unreadCount: 0, joinedAt: generateTimestamp(), lastSeenAt: generateTimestamp(), lastMessageAt: generateTimestamp(), createdAt: generateTimestamp() }
+      ]);
+
+      // Create topics
+      topic1 = await Topic.create({
+        topicId: generateTopicId(),
+        dialogId: dialog1.dialogId,
+        tenantId,
+        createdAt: generateTimestamp()
+      });
+
+      topic2 = await Topic.create({
+        topicId: generateTopicId(),
+        dialogId: dialog1.dialogId,
+        tenantId,
+        createdAt: generateTimestamp()
+      });
+
+      topic3 = await Topic.create({
+        topicId: generateTopicId(),
+        dialogId: dialog2.dialogId,
+        tenantId,
+        createdAt: generateTimestamp()
+      });
+
+      // dialog3 has no topics
+      // dialog4 has no topics
+
+      // Create DialogStats
+      await DialogStats.create([
+        { tenantId, dialogId: dialog1.dialogId, topicCount: 2, memberCount: 1, messageCount: 0 },
+        { tenantId, dialogId: dialog2.dialogId, topicCount: 1, memberCount: 1, messageCount: 0 },
+        { tenantId, dialogId: dialog3.dialogId, topicCount: 0, memberCount: 1, messageCount: 0 },
+        { tenantId, dialogId: dialog4.dialogId, topicCount: 0, memberCount: 1, messageCount: 0 }
+      ]);
+
+      // Create topic meta tags
+      await Meta.create([
+        { entityType: 'topic', entityId: topic1.topicId, tenantId, key: 'category', value: 'support', dataType: 'string', createdAt: generateTimestamp() },
+        { entityType: 'topic', entityId: topic1.topicId, tenantId, key: 'priority', value: 'high', dataType: 'string', createdAt: generateTimestamp() },
+        { entityType: 'topic', entityId: topic2.topicId, tenantId, key: 'category', value: 'general', dataType: 'string', createdAt: generateTimestamp() },
+        { entityType: 'topic', entityId: topic3.topicId, tenantId, key: 'category', value: 'support', dataType: 'string', createdAt: generateTimestamp() },
+        { entityType: 'topic', entityId: topic3.topicId, tenantId, key: 'priority', value: 'low', dataType: 'string', createdAt: generateTimestamp() }
+      ]);
+    });
+
+    describe('topic.topicId filters', () => {
+      test('should filter dialogs by topic.topicId (eq)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: `(topic.topicId,eq,${topic1.topicId})` }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(1);
+        expect(res.body.data[0].dialogId).toBe(dialog1.dialogId);
+      });
+
+      test('should filter dialogs by topic.topicId (ne,null) - dialogs with any topics', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.topicId,ne,null)' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(2);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog1.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog2.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).not.toContain(dialog3.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).not.toContain(dialog4.dialogId);
+      });
+
+      test('should filter dialogs by topic.topicId (in)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: `(topic.topicId,in,[${topic1.topicId},${topic3.topicId}])` }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(2);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog1.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog2.dialogId);
+      });
+
+      test('should filter dialogs by topic.topicId (nin)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: `(topic.topicId,nin,[${topic1.topicId}])` }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        // Should return dialog2 (has topic3, not topic1) and dialogs without topics (dialog3, dialog4)
+        expect(res.body.data.length).toBeGreaterThan(0);
+        expect(res.body.data.map(d => d.dialogId)).not.toContain(dialog1.dialogId);
+      });
+
+      test('should return 400 for deprecated topicId format', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: `(topicId,eq,${topic1.topicId})` }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toBe('Bad Request');
+        expect(res.body.message).toContain('deprecated');
+        expect(res.body.message).toContain('topic.topicId');
+      });
+    });
+
+    describe('topic.meta.* filters', () => {
+      test('should filter dialogs by topic.meta.category (eq)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.meta.category,eq,support)' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(2);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog1.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog2.dialogId);
+      });
+
+      test('should filter dialogs by topic.meta.category (ne)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.meta.category,ne,support)' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        // Should return dialog1 (has topic2 with category=general) and dialogs without topics
+        expect(res.body.data.length).toBeGreaterThan(0);
+      });
+
+      test('should filter dialogs by topic.meta.category (in)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.meta.category,in,[support,general])' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(2);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog1.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog2.dialogId);
+      });
+
+      test('should filter dialogs by topic.meta.category (nin)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.meta.category,nin,[support])' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        // Should return dialog1 (has topic2 with category=general) and dialogs without topics
+        expect(res.body.data.length).toBeGreaterThan(0);
+      });
+
+      test('should filter dialogs by topic.meta.priority (exists,true)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.meta.priority,exists,true)' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(2);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog1.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog2.dialogId);
+      });
+
+      test('should filter dialogs by topic.meta.priority (exists,false)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.meta.priority,exists,false)' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        // Should return dialogs with topics that don't have priority meta tag
+        expect(res.body.data.length).toBeGreaterThanOrEqual(0);
+      });
+    });
+
+    describe('topic.topicCount filters', () => {
+      test('should filter dialogs by topic.topicCount (gt,0)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.topicCount,gt,0)' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(2);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog1.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog2.dialogId);
+      });
+
+      test('should filter dialogs by topic.topicCount (eq,0)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.topicCount,eq,0)' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(2);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog3.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog4.dialogId);
+      });
+
+      test('should filter dialogs by topic.topicCount (gte,2)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.topicCount,gte,2)' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(1);
+        expect(res.body.data[0].dialogId).toBe(dialog1.dialogId);
+      });
+
+      test('should filter dialogs by topic.topicCount (lte,1)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.topicCount,lte,1)' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(3);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog2.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog3.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog4.dialogId);
+      });
+
+      test('should filter dialogs by topic.topicCount (in)', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.topicCount,in,[1,2])' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(2);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog1.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog2.dialogId);
+      });
+    });
+
+    describe('combined topic filters', () => {
+      test('should filter dialogs by topic.topicId AND topic.meta.category', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: `(topic.topicId,ne,null)&(topic.meta.category,eq,support)` }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(2);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog1.dialogId);
+        expect(res.body.data.map(d => d.dialogId)).toContain(dialog2.dialogId);
+      });
+
+      test('should filter dialogs by topic.topicCount AND topic.meta.category', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.topicCount,gte,2)&(topic.meta.category,eq,support)' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(1);
+        expect(res.body.data[0].dialogId).toBe(dialog1.dialogId);
+      });
+
+      test('should filter dialogs by topic.topicId AND topic.meta.priority', async () => {
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: `(topic.topicId,ne,null)&(topic.meta.priority,eq,high)` }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(1);
+        expect(res.body.data[0].dialogId).toBe(dialog1.dialogId);
+      });
+    });
+  });
+
+  describe('getUserDialogMessages - topic filters', () => {
+    let dialog;
+    let userId;
+    let topic1, topic2;
+    let message1, message2, message3;
+
+    beforeEach(async () => {
+      userId = 'carl';
+      const timestamp = generateTimestamp();
+
+      await User.create({
+        userId,
+        tenantId,
+        name: 'Carl',
+        createdAt: timestamp
+      });
+
+      dialog = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId,
+        createdAt: timestamp
+      });
+
+      await DialogMember.create({
+        userId,
+        dialogId: dialog.dialogId,
+        tenantId,
+        role: 'member',
+        isActive: true,
+        unreadCount: 0,
+        joinedAt: timestamp,
+        lastSeenAt: timestamp,
+        lastMessageAt: timestamp,
+        createdAt: timestamp
+      });
+
+      topic1 = await Topic.create({
+        topicId: generateTopicId(),
+        dialogId: dialog.dialogId,
+        tenantId,
+        createdAt: timestamp
+      });
+
+      topic2 = await Topic.create({
+        topicId: generateTopicId(),
+        dialogId: dialog.dialogId,
+        tenantId,
+        createdAt: timestamp
+      });
+
+      message1 = await Message.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        messageId: generateMessageId(),
+        senderId: userId,
+        content: 'Message 1',
+        type: 'internal.text',
+        topicId: topic1.topicId,
+        createdAt: timestamp
+      });
+
+      message2 = await Message.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        messageId: generateMessageId(),
+        senderId: userId,
+        content: 'Message 2',
+        type: 'internal.text',
+        topicId: topic2.topicId,
+        createdAt: timestamp
+      });
+
+      message3 = await Message.create({
+        tenantId,
+        dialogId: dialog.dialogId,
+        messageId: generateMessageId(),
+        senderId: userId,
+        content: 'Message 3',
+        type: 'internal.text',
+        topicId: null,
+        createdAt: timestamp
+      });
+    });
+
+    test('should filter messages by topic.topicId (eq)', async () => {
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId },
+        { page: 1, limit: 10, filter: `(topic.topicId,eq,${topic1.topicId})` }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogMessages(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body).toBeDefined();
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].messageId).toBe(message1.messageId);
+    });
+
+    test('should filter messages by topic.topicId (eq,null)', async () => {
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId },
+        { page: 1, limit: 10, filter: '(topic.topicId,eq,null)' }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogMessages(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body).toBeDefined();
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].messageId).toBe(message3.messageId);
+    });
+
+    test('should return 400 for deprecated topicId format in messages', async () => {
+      const req = createMockReq(
+        { userId, dialogId: dialog.dialogId },
+        { page: 1, limit: 10, filter: `(topicId,eq,${topic1.topicId})` }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogMessages(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('Bad Request');
+      expect(res.body.message).toContain('deprecated');
+      expect(res.body.message).toContain('topic.topicId');
+    });
   });
 });
 

@@ -2,9 +2,11 @@ import connectDB from '../config/database.js';
 import { Tenant, User, Dialog, Message, Meta, DialogMember, 
   MessageStatus, Event, MessageReaction, Update,
   UserStats, UserDialogStats, UserDialogActivity,
-  MessageReactionStats, MessageStatusStats, CounterHistory } from '../models/index.js';
+  MessageReactionStats, MessageStatusStats, CounterHistory,
+  Topic, DialogStats } from '../models/index.js';
 import { generateTimestamp } from '../utils/timestampUtils.js';
-import { recalculateUserStats } from '../utils/counterUtils.js';
+import { recalculateUserStats, updateDialogStats } from '../utils/counterUtils.js';
+import { generateTopicId } from '../utils/topicUtils.js';
 
 async function seed() {
   try {
@@ -30,6 +32,8 @@ async function seed() {
     await MessageReactionStats.deleteMany({});
     await MessageStatusStats.deleteMany({});
     await CounterHistory.deleteMany({});
+    await Topic.deleteMany({});
+    await DialogStats.deleteMany({});
 
     console.log('✅ Cleared existing data');
 
@@ -284,6 +288,116 @@ async function seed() {
     console.log(`   - Muted: ${dialogMemberMetaEntries.filter(m => m.key === 'muted' && m.value === true).length} members`);
     console.log(`   - NotifySound enabled: ${dialogMemberMetaEntries.filter(m => m.key === 'notifySound' && m.value === true).length} members`);
 
+    // Create Topics for dialogs
+    console.log('\n📌 Creating topics for dialogs...');
+    const allTopics = [];
+    const topicMetaEntries = [];
+    const topicNames = ['general', 'support', 'questions', 'announcements', 'random', 'work', 'personal', 'ideas', 'feedback', 'help'];
+    const topicCategories = ['general', 'support', 'technical', 'business', 'social', 'other'];
+    
+    // Создаем топики для 60% диалогов (случайно выбранных)
+    const dialogsWithTopics = allDialogs.filter(() => Math.random() < 0.6);
+    
+    dialogsWithTopics.forEach((dialog) => {
+      // Количество топиков в диалоге: 1-5
+      const topicCount = Math.floor(Math.random() * 5) + 1;
+      
+      for (let i = 0; i < topicCount; i++) {
+        const topicId = generateTopicId();
+        const topicName = topicNames[Math.floor(Math.random() * topicNames.length)];
+        const topicCategory = topicCategories[Math.floor(Math.random() * topicCategories.length)];
+        
+        allTopics.push({
+          topicId,
+          dialogId: dialog.dialogId,
+          tenantId: dialog.tenantId,
+          createdAt: generateTimestamp() - Math.random() * 30 * 24 * 60 * 60 * 1000 // Созданы от 0 до 30 дней назад
+        });
+        
+        // Создаем мета-теги для топика
+        topicMetaEntries.push({
+          tenantId: dialog.tenantId,
+          entityType: 'topic',
+          entityId: topicId,
+          key: 'name',
+          value: topicName,
+          dataType: 'string',
+          createdBy: 'system'
+        });
+        
+        topicMetaEntries.push({
+          tenantId: dialog.tenantId,
+          entityType: 'topic',
+          entityId: topicId,
+          key: 'category',
+          value: topicCategory,
+          dataType: 'string',
+          createdBy: 'system'
+        });
+        
+        // 30% топиков имеют дополнительный мета-тег priority
+        if (Math.random() < 0.3) {
+          const priorities = ['low', 'normal', 'high'];
+          topicMetaEntries.push({
+            tenantId: dialog.tenantId,
+            entityType: 'topic',
+            entityId: topicId,
+            key: 'priority',
+            value: priorities[Math.floor(Math.random() * priorities.length)],
+            dataType: 'string',
+            createdBy: 'system'
+          });
+        }
+      }
+    });
+    
+    // Создаем топики батчами
+    const topicBatchSize = 100;
+    const savedTopics = [];
+    for (let i = 0; i < allTopics.length; i += topicBatchSize) {
+      const batch = allTopics.slice(i, i + topicBatchSize);
+      const savedBatch = await Topic.insertMany(batch);
+      savedTopics.push(...savedBatch);
+    }
+    
+    console.log(`✅ Created ${savedTopics.length} topics across ${dialogsWithTopics.length} dialogs`);
+    console.log(`   - Average topics per dialog: ${(savedTopics.length / dialogsWithTopics.length).toFixed(2)}`);
+    console.log(`   - Dialogs with topics: ${dialogsWithTopics.length} out of ${allDialogs.length}`);
+    
+    // Создаем мета-теги для топиков батчами
+    if (topicMetaEntries.length > 0) {
+      for (let i = 0; i < topicMetaEntries.length; i += metaBatchSize) {
+        const batch = topicMetaEntries.slice(i, i + metaBatchSize);
+        await Meta.insertMany(batch);
+      }
+      console.log(`✅ Created ${topicMetaEntries.length} topic meta entries`);
+    }
+    
+    // Создаем DialogStats для всех диалогов
+    console.log('\n📊 Creating DialogStats for dialogs...');
+    const dialogStatsEntries = [];
+    
+    allDialogs.forEach((dialog) => {
+      const dialogMembersCount = dialogMembers.filter(m => m.dialogId === dialog.dialogId).length;
+      const dialogTopicsCount = savedTopics.filter(t => t.dialogId === dialog.dialogId).length;
+      
+      dialogStatsEntries.push({
+        tenantId: dialog.tenantId,
+        dialogId: dialog.dialogId,
+        topicCount: dialogTopicsCount,
+        memberCount: dialogMembersCount,
+        messageCount: 0 // Будет обновлено после создания сообщений
+      });
+    });
+    
+    // Создаем DialogStats батчами
+    for (let i = 0; i < dialogStatsEntries.length; i += batchSize) {
+      const batch = dialogStatsEntries.slice(i, i + batchSize);
+      await DialogStats.insertMany(batch);
+    }
+    
+    console.log(`✅ Created ${dialogStatsEntries.length} DialogStats entries`);
+
     // Create Messages for all dialogs
     const messageTemplates = [
       'Привет всем!',
@@ -357,12 +471,21 @@ async function seed() {
             : `${randomTemplate} (сообщение ${i + 1})`;
         }
         
+        // 40% сообщений привязываем к топикам (если в диалоге есть топики)
+        const dialogTopics = savedTopics.filter(t => t.dialogId === dialog.dialogId);
+        let topicId = null;
+        if (dialogTopics.length > 0 && Math.random() < 0.4) {
+          const randomTopic = dialogTopics[Math.floor(Math.random() * dialogTopics.length)];
+          topicId = randomTopic.topicId;
+        }
+        
         allMessages.push({
           tenantId: dialog.tenantId,
           dialogId: dialog.dialogId,
           senderId: randomSenderId,
           content: messageContent,
           type: randomType,
+          topicId: topicId
         });
       }
     });
@@ -373,6 +496,25 @@ async function seed() {
     console.log(`✅ Created ${messages.length} messages across ${allDialogs.length} dialogs`);
     console.log(`   - Average messages per dialog: ${Math.round(messages.length / allDialogs.length)}`);
     console.log(`   - Messages range: 5-50 per dialog`);
+    
+    // Обновляем messageCount в DialogStats
+    console.log('\n📊 Updating DialogStats messageCount...');
+    const messageCountsByDialog = {};
+    messages.forEach(msg => {
+      messageCountsByDialog[msg.dialogId] = (messageCountsByDialog[msg.dialogId] || 0) + 1;
+    });
+    
+    const updatePromises = Object.entries(messageCountsByDialog).map(([dialogId, count]) => 
+      updateDialogStats(
+        messages.find(m => m.dialogId === dialogId)?.tenantId || allDialogs.find(d => d.dialogId === dialogId)?.tenantId,
+        dialogId,
+        { messageCount: count }
+      )
+    );
+    await Promise.all(updatePromises);
+    
+    const messagesWithTopics = messages.filter(m => m.topicId !== null);
+    console.log(`   - Messages with topics: ${messagesWithTopics.length} out of ${messages.length} (${Math.round(messagesWithTopics.length / messages.length * 100)}%)`);
 
     // Create Message Statuses
     console.log('\n📊 Creating message statuses...');

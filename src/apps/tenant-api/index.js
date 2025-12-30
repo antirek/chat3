@@ -12,6 +12,7 @@ import messageInfoRoutes from './routes/messageInfoRoutes.js';
 import dialogMemberRoutes from './routes/dialogMemberRoutes.js';
 import userDialogRoutes from './routes/userDialogRoutes.js';
 import metaRoutes from './routes/metaRoutes.js';
+import topicRoutes from './routes/topicRoutes.js';
 import idempotencyGuard from './middleware/idempotencyGuard.js';
 import { apiJournalMiddleware } from './middleware/apiJournal.js';
 
@@ -73,6 +74,7 @@ app.use('/api/dialogs', dialogRoutes);
 app.use('/api/dialogs', messageRoutes);
 app.use('/api/messages', messageInfoRoutes);
 app.use('/api/dialogs', dialogMemberRoutes);
+app.use('/api/dialogs', topicRoutes);
 app.use('/api/meta', metaRoutes);
 
 // API health check endpoint

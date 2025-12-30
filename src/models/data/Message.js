@@ -33,6 +33,15 @@ const messageSchema = new mongoose.Schema({
     match: /^dlg_[a-z0-9]{20}$/,
     description: 'ID диалога (строка в формате dlg_XXXXXXXXXXXXXXXXXXXX)'
   },
+  topicId: {
+    type: String,
+    required: false,
+    default: null,
+    trim: true,
+    lowercase: true,
+    match: /^topic_[a-z0-9]{20}$/,
+    description: 'ID топика (строка в формате topic_XXXXXXXXXXXXXXXXXXXX), опционально'
+  },
   senderId: {
     type: String,
     required: true
@@ -75,6 +84,8 @@ messageSchema.pre('save', function(next) {
 
 // Compound index for getDialogMessages() - получение сообщений конкретного диалога с сортировкой
 messageSchema.index({ tenantId: 1, dialogId: 1, createdAt: -1 });
+// Index for filtering messages by topicId (including null)
+messageSchema.index({ tenantId: 1, dialogId: 1, topicId: 1, createdAt: -1 });
 
 // Index for getAll() - глобальный поиск сообщений по tenant с сортировкой
 messageSchema.index({ tenantId: 1, createdAt: -1 });

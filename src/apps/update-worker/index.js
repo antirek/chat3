@@ -1,6 +1,12 @@
 import connectDB from '../../config/database.js';
 import * as updateUtils from '../../utils/updateUtils.js';
 import * as rabbitmqUtils from '../../utils/rabbitmqUtils.js';
+import {
+  updateDialogTopicCount,
+  updateDialogMemberCount,
+  updateDialogMessageCount
+} from '../../utils/counterUtils.js';
+import * as topicUtils from '../../utils/topicUtils.js';
 
 const WORKER_QUEUE = 'update_worker_queue';
 
@@ -26,8 +32,36 @@ async function processEvent(eventData) {
     const memberPayload = data.member || {};
     const messagePayload = data.message || {};
     const typingPayload = data.typing || {};
+    const topicPayload = data.topic || {};
 
     console.log(`📩 Processing event: ${eventType} (${entityId})`);
+
+    // Обновление DialogStats при событиях
+    if (eventType === 'dialog.topic.create') {
+      const dialogId = context.dialogId || dialogPayload.dialogId;
+      if (dialogId) {
+        await updateDialogTopicCount(tenantId, dialogId, 1);
+        console.log(`✅ Updated DialogStats.topicCount for dialog ${dialogId}`);
+      }
+    } else if (eventType === 'dialog.member.add') {
+      const dialogId = context.dialogId || dialogPayload.dialogId;
+      if (dialogId) {
+        await updateDialogMemberCount(tenantId, dialogId, 1);
+        console.log(`✅ Updated DialogStats.memberCount for dialog ${dialogId}`);
+      }
+    } else if (eventType === 'dialog.member.remove') {
+      const dialogId = context.dialogId || dialogPayload.dialogId;
+      if (dialogId) {
+        await updateDialogMemberCount(tenantId, dialogId, -1);
+        console.log(`✅ Updated DialogStats.memberCount for dialog ${dialogId}`);
+      }
+    } else if (eventType === 'message.create') {
+      const dialogId = context.dialogId || dialogPayload.dialogId || messagePayload.dialogId;
+      if (dialogId) {
+        await updateDialogMessageCount(tenantId, dialogId, 1);
+        console.log(`✅ Updated DialogStats.messageCount for dialog ${dialogId}`);
+      }
+    }
 
     // Определяем, нужно ли создавать update
     const shouldUpdate = updateUtils.shouldCreateUpdate(eventType);

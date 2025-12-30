@@ -33,6 +33,8 @@ const eventSchema = new mongoose.Schema({
       'message.status.update',
       'message.reaction.update',
       'dialog.typing',
+      'dialog.topic.create',
+      'dialog.topic.update',
       'user.add',
       'user.update',
       'user.remove'
@@ -42,7 +44,7 @@ const eventSchema = new mongoose.Schema({
   entityType: {
     type: String,
     required: true,
-    enum: ['dialog', 'message', 'dialogMember', 'messageStatus', 'messageReaction', 'tenant', 'user'],
+    enum: ['dialog', 'message', 'dialogMember', 'messageStatus', 'messageReaction', 'topic', 'tenant', 'user'],
     index: true
   },
   entityId: {
@@ -101,6 +103,8 @@ eventSchema.virtual('description').get(function() {
     'message.status.update': 'Обновлен статус сообщения',
     'message.reaction.update': 'Обновлена реакция на сообщение',
     'dialog.typing': 'Пользователь печатает в диалоге',
+    'dialog.topic.create': 'Создан топик диалога',
+    'dialog.topic.update': 'Обновлен топик диалога',
     'user.add': 'Добавлен пользователь',
     'user.update': 'Обновлен пользователь',
     'user.remove': 'Удален пользователь'

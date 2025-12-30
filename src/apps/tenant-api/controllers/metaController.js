@@ -1,7 +1,8 @@
 import * as metaUtils from '../utils/metaUtils.js';
-import { Dialog, Message, DialogMember, User } from '../../../models/index.js';
+import { Dialog, Message, DialogMember, User, Topic } from '../../../models/index.js';
 import { sanitizeResponse } from '../utils/responseUtils.js';
 import * as eventUtils from '../utils/eventUtils.js';
+import * as topicUtils from '../../../utils/topicUtils.js';
 
 const metaController = {
   // Get all meta for an entity
@@ -10,7 +11,7 @@ const metaController = {
       const { entityType, entityId } = req.params;
 
       // Validate entityType
-      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember'];
+      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'];
       if (!validEntityTypes.includes(entityType)) {
         return res.status(400).json({
           error: 'Bad Request',
@@ -52,7 +53,7 @@ const metaController = {
       const { value, dataType = 'string' } = req.body;
 
       // Validate entityType
-      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember'];
+      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'];
       if (!validEntityTypes.includes(entityType)) {
         return res.status(400).json({
           error: 'Bad Request',
@@ -136,7 +137,7 @@ const metaController = {
       const { entityType, entityId, key } = req.params;
 
       // Validate entityType
-      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember'];
+      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'];
       if (!validEntityTypes.includes(entityType)) {
         return res.status(400).json({
           error: 'Bad Request',
@@ -170,6 +171,8 @@ const metaController = {
         await createMessageUpdateEvent(req.tenantId, entityId, actorId);
       } else if (entityType === 'dialogMember') {
         await createDialogMemberUpdateEvent(req.tenantId, entityId, actorId);
+      } else if (entityType === 'topic') {
+        await createTopicUpdateEvent(req.tenantId, entityId, actorId);
       }
 
       res.json({
@@ -420,6 +423,67 @@ async function createDialogMemberUpdateEvent(tenantId, entityId, actorId) {
   }
 }
 
+// Helper function to create topic.update event
+async function createTopicUpdateEvent(tenantId, topicId, actorId) {
+  try {
+    const topic = await Topic.findOne({ topicId, tenantId });
+    if (!topic) {
+      console.warn(`Topic ${topicId} not found for update event`);
+      return;
+    }
+
+    const topicMeta = await metaUtils.getEntityMeta(tenantId, 'topic', topicId);
+    
+    // Получаем диалог для события
+    const dialog = await Dialog.findOne({
+      dialogId: topic.dialogId,
+      tenantId
+    }).lean();
+
+    let dialogSection = null;
+    if (dialog) {
+      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialog.dialogId);
+      dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        createdAt: dialog.createdAt,
+        meta: dialogMeta || {}
+      });
+    }
+
+    const topicSection = eventUtils.buildTopicSection({
+      topicId: topic.topicId,
+      dialogId: topic.dialogId,
+      meta: topicMeta || {}
+    });
+
+    const topicContext = eventUtils.buildEventContext({
+      eventType: 'dialog.topic.update',
+      dialogId: topic.dialogId,
+      entityId: topic.topicId,
+      includedSections: dialogSection ? ['dialog', 'topic'] : ['topic'],
+      updatedFields: ['topic.meta']
+    });
+
+    await eventUtils.createEvent({
+      tenantId,
+      eventType: 'dialog.topic.update',
+      entityType: 'topic',
+      entityId: topic.topicId,
+      actorId: actorId,
+      actorType: 'api',
+      data: eventUtils.composeEventData({
+        context: topicContext,
+        dialog: dialogSection,
+        topic: topicSection
+      })
+    });
+  } catch (error) {
+    console.error('Error creating dialog.topic.update event:', error);
+    // Не прерываем выполнение, если не удалось создать событие
+  }
+}
+
 // Helper function to verify entity exists
 async function verifyEntityExists(entityType, entityId, tenantId) {
   switch (entityType) {
@@ -469,6 +533,15 @@ async function verifyEntityExists(entityType, entityId, tenantId) {
       console.log('verifyEntityExists: dialogMember found:', !!dialogMember);
       if (!dialogMember) {
         const error = new Error('DialogMember not found');
+        error.statusCode = 404;
+        throw error;
+      }
+      break;
+    }
+    case 'topic': {
+      const topic = await Topic.findOne({ topicId: entityId, tenantId });
+      if (!topic) {
+        const error = new Error(`Topic ${entityId} not found`);
         error.statusCode = 404;
         throw error;
       }
