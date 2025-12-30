@@ -578,26 +578,6 @@ export const dialogController = {
 
   // Create new dialog
   async create(req, res) {
-    // Проверяем поддержку транзакций (mongodb-memory-server не поддерживает)
-    const useTransactions = process.env.NODE_ENV !== 'test';
-    let session = null;
-    if (useTransactions) {
-      try {
-        session = await mongoose.startSession();
-        session.startTransaction();
-      } catch (error) {
-        console.warn('Failed to start transaction session, continuing without transactions:', error.message);
-        if (session) {
-          try {
-            await session.endSession();
-          } catch (e) {
-            // Игнорируем ошибки при закрытии сессии
-          }
-        }
-        session = null;
-      }
-    }
-
     try {
       const { members, meta: metaPayload } = req.body;
 
@@ -607,15 +587,14 @@ export const dialogController = {
         actorId = members[0].userId;
       }
 
-      // Создаем диалог в транзакции
-      const createOptions = useTransactions && session ? { session } : {};
+      // Создаем диалог
       const dialog = await Dialog.create([{
         tenantId: req.tenantId
-      }], createOptions);
+      }]);
 
       const createdDialog = dialog[0];
 
-      // Создаем DialogStats сразу после создания диалога атомарно
+      // Создаем DialogStats сразу после создания диалога
       const memberCount = Array.isArray(members) ? members.length : 0;
       await updateDialogStats(
         req.tenantId,
@@ -625,14 +604,8 @@ export const dialogController = {
           memberCount: memberCount,
           messageCount: 0
         },
-        useTransactions && session ? session : null
+        null
       );
-
-      // Коммитим транзакцию, если используется
-      if (useTransactions && session) {
-        await session.commitTransaction();
-        await session.endSession();
-      }
 
       // Add meta data if provided (делаем это до обработки участников, чтобы метаданные были доступны)
       if (metaPayload && typeof metaPayload === 'object') {
@@ -838,13 +811,6 @@ export const dialogController = {
         message: 'Dialog created successfully'
       });
     } catch (error) {
-      // Откатываем транзакцию в случае ошибки
-      if (useTransactions && session && session.inTransaction && session.inTransaction()) {
-        await session.abortTransaction();
-      }
-      if (session) {
-        await session.endSession();
-      }
 
       if (error.name === 'ValidationError') {
         return res.status(400).json({

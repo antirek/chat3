@@ -1889,26 +1889,6 @@ const userDialogController = {
    * @param {Object} res - Express response object
    */
   async updateMessageStatus(req, res) {
-    // Проверяем поддержку транзакций (mongodb-memory-server не поддерживает)
-    const useTransactions = process.env.NODE_ENV !== 'test';
-    let session = null;
-    if (useTransactions) {
-      try {
-        session = await mongoose.startSession();
-        session.startTransaction();
-      } catch (error) {
-        console.warn('Failed to start transaction session, continuing without transactions:', error.message);
-        if (session) {
-          try {
-            await session.endSession();
-          } catch (e) {
-            // Игнорируем ошибки при закрытии сессии
-          }
-        }
-        session = null;
-      }
-    }
-
     try {
       const { userId, dialogId, messageId, status } = req.params;
 
@@ -2058,16 +2038,8 @@ const userDialogController = {
 
       // Создаем новую запись в истории
       // post-save hook автоматически обновит счетчики непрочитанных сообщений
-      // Используем транзакцию для атомарности
-      const createOptions = useTransactions && session ? { session } : {};
-      const messageStatus = await MessageStatus.create([newStatusData], createOptions);
+      const messageStatus = await MessageStatus.create([newStatusData]);
       const createdStatus = messageStatus[0];
-      
-      // Коммитим транзакцию, если используется
-      if (useTransactions && session) {
-        await session.commitTransaction();
-        await session.endSession();
-      }
 
       // Получаем обновленный UserDialogStats после создания MessageStatus
       // (post-save hook уже обновил счетчик)
@@ -2132,13 +2104,6 @@ const userDialogController = {
         message: 'Message status updated successfully'
       });
     } catch (error) {
-      // Откатываем транзакцию в случае ошибки
-      if (useTransactions && session && session.inTransaction && session.inTransaction()) {
-        await session.abortTransaction();
-      }
-      if (session) {
-        await session.endSession();
-      }
 
       if (error.name === 'CastError') {
         return res.status(400).json({

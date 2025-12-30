@@ -360,32 +360,11 @@ const messageController = {
 
   // Create new message in dialog
   async createMessage(req, res) {
-    // Проверяем поддержку транзакций (mongodb-memory-server не поддерживает)
-    // В тестах используем mongodb-memory-server, который не поддерживает транзакции
-    // Поэтому просто не используем транзакции в тестах
-    const useTransactions = process.env.NODE_ENV !== 'test';
-    let session = null;
-    if (useTransactions) {
-      try {
-        session = await mongoose.startSession();
-        session.startTransaction();
-      } catch (error) {
-        // Если не удалось создать сессию, продолжаем без транзакций
-        console.warn('Failed to start transaction session, continuing without transactions:', error.message);
-        if (session) {
-          try {
-            await session.endSession();
-          } catch (e) {
-            // Игнорируем ошибки при закрытии сессии
-          }
-        }
-        session = null;
-      }
-    }
-
     try {
       const { dialogId } = req.params;
       const { content, senderId, type = 'internal.text', meta, quotedMessageId, topicId } = req.body;
+      // Нормализуем topicId: пустая строка становится null
+      const normalizedTopicId = topicId && topicId.trim() ? topicId.trim() : null;
       const normalizedType = type;
       const messageContent = typeof content === 'string' ? content : '';
       const metaPayload = meta && typeof meta === 'object' ? { ...meta } : {};
@@ -393,10 +372,6 @@ const messageController = {
       const MEDIA_MESSAGE_TYPES = new Set(['internal.image', 'internal.file', 'internal.audio', 'internal.video']);
 
       if (!senderId) {
-        if (useTransactions && session) {
-          await session.abortTransaction();
-          await session.endSession();
-        }
         return res.status(400).json({
           error: 'Bad Request',
           message: 'Missing required field: senderId'
@@ -404,10 +379,6 @@ const messageController = {
       }
 
       if (normalizedType === 'internal.text' && messageContent.trim().length === 0) {
-        if (useTransactions && session) {
-          await session.abortTransaction();
-          await session.endSession();
-        }
         return res.status(400).json({
           error: 'Bad Request',
           message: 'content is required for internal.text messages'
@@ -417,10 +388,6 @@ const messageController = {
       if (MEDIA_MESSAGE_TYPES.has(normalizedType)) {
         const mediaUrl = typeof metaPayload.url === 'string' ? metaPayload.url.trim() : '';
         if (!mediaUrl) {
-          if (useTransactions && session) {
-            await session.abortTransaction();
-            await session.endSession();
-          }
           return res.status(400).json({
             error: 'Bad Request',
             message: `meta.url is required for ${normalizedType} messages`
@@ -436,10 +403,6 @@ const messageController = {
       });
 
       if (!dialog) {
-        if (useTransactions && session) {
-          await session.abortTransaction();
-          await session.endSession();
-        }
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
@@ -448,13 +411,9 @@ const messageController = {
 
       // Валидация topicId, если указан
       let topic = null;
-      if (topicId) {
-        const topicDoc = await topicUtils.getTopicById(req.tenantId, dialogId, topicId);
+      if (normalizedTopicId) {
+        const topicDoc = await topicUtils.getTopicById(req.tenantId, dialogId, normalizedTopicId);
         if (!topicDoc) {
-          if (useTransactions && session) {
-            await session.abortTransaction();
-            await session.endSession();
-          }
           return res.status(404).json({
             error: 'ERROR_NO_TOPIC',
             message: 'Topic not found'
@@ -462,23 +421,22 @@ const messageController = {
         }
         // Получаем топик с мета-тегами для ответа
         try {
-          topic = await topicUtils.getTopicWithMeta(req.tenantId, dialogId, topicId);
+          topic = await topicUtils.getTopicWithMeta(req.tenantId, dialogId, normalizedTopicId);
         } catch (error) {
           console.error('Error getting topic with meta:', error);
-          topic = { topicId, meta: {} };
+          topic = { topicId: normalizedTopicId, meta: {} };
         }
       }
 
       // Create message
-      const createOptions = useTransactions && session ? { session } : {};
       const message = await Message.create([{
         tenantId: req.tenantId,
         dialogId: dialog.dialogId, // Используем строковый dialogId
         content: messageContent || '',
         senderId,
         type: normalizedType,
-        topicId: topicId || null
-      }], createOptions);
+        topicId: normalizedTopicId
+      }]);
 
       const createdMessage = message[0];
 
@@ -494,7 +452,7 @@ const messageController = {
             await metaUtils.setEntityMeta(
               req.tenantId,
               'message',
-              message.messageId,
+              createdMessage.messageId,
               key,
               value.value,
               value.dataType || 'string',
@@ -505,7 +463,7 @@ const messageController = {
             await metaUtils.setEntityMeta(
               req.tenantId,
               'message',
-              message.messageId,
+              createdMessage.messageId,
               key,
               value,
               typeof value === 'number' ? 'number' : 
@@ -557,12 +515,12 @@ const messageController = {
 
       // Получаем топик для события, если topicId указан
       let topicForEvent = null;
-      if (topicId) {
+      if (normalizedTopicId) {
         try {
-          topicForEvent = await topicUtils.getTopicWithMeta(req.tenantId, dialogId, topicId);
+          topicForEvent = await topicUtils.getTopicWithMeta(req.tenantId, dialogId, normalizedTopicId);
         } catch (error) {
           console.error('Error getting topic with meta for event:', error);
-          topicForEvent = { topicId, meta: {} };
+          topicForEvent = { topicId: normalizedTopicId, meta: {} };
         }
       }
 
@@ -572,9 +530,9 @@ const messageController = {
         senderId,
         type,
         content: eventContent,
-        meta: messageMeta,
+        meta: messageMeta || {},
         quotedMessage: null, // quotedMessage добавим позже
-        topicId: topicId || null,
+        topicId: normalizedTopicId,
         topic: topicForEvent
       });
 
@@ -634,10 +592,7 @@ const messageController = {
             }));
             
             if (messageStatuses.length > 0) {
-              const insertOptions = useTransactions && session 
-                ? { ordered: false, session } 
-                : { ordered: false };
-              await MessageStatus.insertMany(messageStatuses, insertOptions);
+              await MessageStatus.insertMany(messageStatuses, { ordered: false });
             }
             
             // 3. Обновляем unreadCount батчами по 10 через Promise.allSettled
@@ -657,8 +612,7 @@ const messageController = {
                   createdMessage.messageId,
                   senderId,
                   'user',
-                  topicId || null, // topicId для обновления счетчиков топика
-                  useTransactions && session ? session : null // session для транзакции
+                  normalizedTopicId // topicId для обновления счетчиков топика
                 ).catch(error => {
                   console.error(`Error updating unreadCount for user ${member.userId}:`, error);
                   return { error, userId: member.userId };
@@ -719,12 +673,6 @@ const messageController = {
             console.error(`Failed to finalize context for ${senderId}:`, error);
           }
         }
-      }
-
-      // Коммитим транзакцию, если используется
-      if (useTransactions && session) {
-        await session.commitTransaction();
-        await session.endSession();
       }
 
       // Add meta data if provided
@@ -820,22 +768,14 @@ const messageController = {
       res.status(201).json({
         data: sanitizeResponse({
           ...messageObj,
-          meta: messageMeta,
-          topic: topic, // Добавляем topic в ответ
+          meta: messageMeta || {},
+          topic: topic || null, // Добавляем topic в ответ
           senderInfo: senderInfo || null,
           quotedMessage: quotedMessage || null
         }),
         message: 'Message created successfully'
       });
     } catch (error) {
-      // Откатываем транзакцию в случае ошибки
-      if (useTransactions && session && session.inTransaction && session.inTransaction()) {
-        await session.abortTransaction();
-      }
-      if (session) {
-        await session.endSession();
-      }
-
       if (error.name === 'CastError') {
         return res.status(400).json({
           error: 'Bad Request',
@@ -1010,13 +950,26 @@ const messageController = {
         ? newContent.substring(0, MAX_CONTENT_LENGTH)
         : newContent;
 
+      // Получаем топик для события, если topicId указан
+      let topicForEvent = null;
+      if (message.topicId) {
+        try {
+          topicForEvent = await topicUtils.getTopicWithMeta(req.tenantId, message.dialogId, message.topicId);
+        } catch (error) {
+          console.error('Error getting topic with meta for event:', error);
+          topicForEvent = { topicId: message.topicId, meta: {} };
+        }
+      }
+
       const messageSection = eventUtils.buildMessageSection({
         messageId: message.messageId,
         dialogId: message.dialogId,
         senderId: message.senderId,
         type: message.type,
         content: eventContent,
-        meta
+        meta: meta || {},
+        topicId: message.topicId || null,
+        topic: topicForEvent
       });
 
       const eventContext = eventUtils.buildEventContext({
