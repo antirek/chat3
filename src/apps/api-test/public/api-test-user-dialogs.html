@@ -1527,6 +1527,12 @@
                                 </select>
                             </div>
                             <div class="form-group">
+                                <label for="messageTopicId">Топик (необязательно):</label>
+                                <select id="messageTopicId" onchange="updatePayloadJson()">
+                                    <option value="">-- Без топика --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
                                 <label for="messageContent">Содержимое:</label>
                                 <textarea id="messageContent" rows="4" required oninput="updatePayloadJson()">тест тест</textarea>
                             </div>
@@ -4676,7 +4682,7 @@
 
         // Функции для модального окна добавления сообщения
 
-        function showAddMessageModal() {
+        async function showAddMessageModal() {
             if (!currentDialogId) {
                 alert('Сначала выберите диалог');
                 return;
@@ -4694,6 +4700,44 @@
             document.getElementById('addMessageForm').reset();
             document.getElementById('messageContent').value = 'тест тест';
             document.getElementById('quotedMessageId').value = '';
+            
+            // Загружаем список топиков для диалога
+            const topicSelect = document.getElementById('messageTopicId');
+            topicSelect.innerHTML = '<option value="">-- Без топика --</option>';
+            topicSelect.disabled = true;
+            
+            try {
+                const topicsResponse = await fetch(`/api/dialogs/${currentDialogId}/topics?page=1&limit=100`, {
+                    headers: {
+                        'X-API-Key': apiKey,
+                        'X-TENANT-ID': tenantId
+                    }
+                });
+                
+                if (topicsResponse.ok) {
+                    const topicsData = await topicsResponse.json();
+                    if (topicsData.data && topicsData.data.length > 0) {
+                        topicsData.data.forEach(topic => {
+                            const option = document.createElement('option');
+                            option.value = topic.topicId;
+                            // Формируем текст опции с мета-тегами, если есть
+                            let optionText = topic.topicId;
+                            if (topic.meta && Object.keys(topic.meta).length > 0) {
+                                const metaStr = Object.entries(topic.meta)
+                                    .map(([k, v]) => `${k}:${v}`)
+                                    .join(', ');
+                                optionText += ` (${metaStr})`;
+                            }
+                            option.textContent = optionText;
+                            topicSelect.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка при загрузке топиков:', error);
+            } finally {
+                topicSelect.disabled = false;
+            }
             
             // Сбрасываем мета-теги (оставляем только одну пустую строку)
             const container = document.getElementById('metaTagsContainer');
@@ -4776,6 +4820,7 @@
             const type = document.getElementById('messageType')?.value || '';
             const content = document.getElementById('messageContent')?.value || '';
             const quotedMessageId = document.getElementById('quotedMessageId')?.value?.trim() || '';
+            const topicId = document.getElementById('messageTopicId')?.value?.trim() || '';
             const meta = collectMetaTags();
             
             const payload = {
@@ -4786,6 +4831,10 @@
             
             if (quotedMessageId) {
                 payload.quotedMessageId = quotedMessageId;
+            }
+            
+            if (topicId) {
+                payload.topicId = topicId;
             }
             
             if (meta) {
@@ -4847,6 +4896,11 @@
                 const quotedMessageId = document.getElementById('quotedMessageId')?.value?.trim();
                 if (quotedMessageId) {
                     payload.quotedMessageId = quotedMessageId;
+                }
+                
+                const topicId = document.getElementById('messageTopicId')?.value?.trim();
+                if (topicId) {
+                    payload.topicId = topicId;
                 }
                 
                 if (meta) {
