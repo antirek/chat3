@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { Message, DialogMember, 
-  MessageStatus, Update, User, UserStats, Event } from '../models/index.js';
+  MessageStatus, Update, User, UserStats, Event, UserDialogStats } from '../models/index.js';
 import * as metaUtils from '../apps/tenant-api/utils/metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from '../apps/tenant-api/utils/responseUtils.js';
@@ -211,9 +211,33 @@ export async function createDialogUpdate(tenantId, dialogId, eventId, eventType,
       includedSections: eventData.member ? ['dialog', 'member'] : ['dialog']
     };
 
+    // Получаем UserDialogStats для всех пользователей одним запросом
+    const userDialogStatsList = await UserDialogStats.find({
+      tenantId: tenantId,
+      dialogId: eventDialog.dialogId,
+      userId: { $in: allMemberUserIds }
+    }).lean();
+
+    // Создаем Map для быстрого доступа к stats по userId
+    const statsMap = new Map();
+    userDialogStatsList.forEach(stats => {
+      statsMap.set(stats.userId, {
+        unreadCount: stats.unreadCount || 0
+      });
+    });
+
     const updates = allMemberUserIds.map((userId) => {
+      // Получаем stats для текущего пользователя
+      const userStats = statsMap.get(userId) || { unreadCount: 0 };
+      
+      // Клонируем dialog секцию и добавляем stats
+      const dialogWithStats = {
+        ...cloneSection(eventDialog),
+        stats: userStats
+      };
+      
       const data = {
-        dialog: cloneSection(eventDialog),
+        dialog: dialogWithStats,
         context: cloneSection(context)
       };
 
@@ -289,8 +313,26 @@ export async function createDialogMemberUpdate(tenantId, dialogId, userId, event
       updatedFields: eventContext.updatedFields || []
     };
 
+    // Получаем UserDialogStats для целевого пользователя
+    const userDialogStats = await UserDialogStats.findOne({
+      tenantId: tenantId,
+      dialogId: eventDialog.dialogId,
+      userId: userId
+    }).lean();
+
+    // Формируем stats секцию
+    const stats = userDialogStats ? {
+      unreadCount: userDialogStats.unreadCount || 0
+    } : { unreadCount: 0 };
+
+    // Клонируем dialog секцию и добавляем stats
+    const dialogWithStats = {
+      ...cloneSection(eventDialog),
+      stats: stats
+    };
+
     const data = {
-      dialog: cloneSection(eventDialog),
+      dialog: dialogWithStats,
       member: cloneSection(eventMember),
       context
     };
@@ -477,9 +519,34 @@ export async function createMessageUpdate(tenantId, dialogId, messageId, eventId
       updatedFields: eventContext.updatedFields || []
     };
 
+    // Получаем UserDialogStats для всех участников одним запросом
+    const memberUserIds = dialogMembers.map(m => m.userId);
+    const userDialogStatsList = await UserDialogStats.find({
+      tenantId: tenantId,
+      dialogId: eventDialog.dialogId,
+      userId: { $in: memberUserIds }
+    }).lean();
+
+    // Создаем Map для быстрого доступа к stats по userId
+    const statsMap = new Map();
+    userDialogStatsList.forEach(stats => {
+      statsMap.set(stats.userId, {
+        unreadCount: stats.unreadCount || 0
+      });
+    });
+
     const updates = dialogMembers.map(member => {
+      // Получаем stats для текущего пользователя
+      const userStats = statsMap.get(member.userId) || { unreadCount: 0 };
+      
+      // Клонируем dialog секцию и добавляем stats
+      const dialogWithStats = {
+        ...cloneSection(eventDialog),
+        stats: userStats
+      };
+      
       const data = {
-        dialog: cloneSection(eventDialog),
+        dialog: dialogWithStats,
         message: cloneSection(eventMessage),
         context: cloneSection(context)
       };
@@ -561,6 +628,30 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
       return;
     }
 
+    // Фильтруем участников, исключая инициатора
+    const recipientMembers = dialogMembers.filter(member => member.userId !== typingUserId);
+    
+    if (recipientMembers.length === 0) {
+      console.log(`No recipients found for typing update in dialog ${dialogId}`);
+      return;
+    }
+
+    // Получаем UserDialogStats для всех получателей одним запросом
+    const recipientUserIds = recipientMembers.map(m => m.userId);
+    const userDialogStatsList = await UserDialogStats.find({
+      tenantId: tenantId,
+      dialogId: eventDialog.dialogId,
+      userId: { $in: recipientUserIds }
+    }).lean();
+
+    // Создаем Map для быстрого доступа к stats по userId
+    const statsMap = new Map();
+    userDialogStatsList.forEach(stats => {
+      statsMap.set(stats.userId, {
+        unreadCount: stats.unreadCount || 0
+      });
+    });
+
     // Используем typing данные из event.data
     // Поддерживаем как новый формат (eventData.typing), так и старый (плоские поля в eventData)
     const legacyTyping = eventData.typing ? {} : eventData;
@@ -579,30 +670,37 @@ export async function createTypingUpdate(tenantId, dialogId, typingUserId, event
       includedSections: eventData.member ? ['dialog', 'member', 'typing'] : ['dialog', 'typing']
     };
 
-    const updatesPayload = dialogMembers
-      .filter(member => member.userId !== typingUserId)
-      .map(member => {
-        const data = {
-          dialog: cloneSection(eventDialog),
-          typing: typingSection,
-          context: cloneSection(context)
-        };
+    const updatesPayload = recipientMembers.map(member => {
+      // Получаем stats для текущего пользователя
+      const userStats = statsMap.get(member.userId) || { unreadCount: 0 };
+      
+      // Клонируем dialog секцию и добавляем stats
+      const dialogWithStats = {
+        ...cloneSection(eventDialog),
+        stats: userStats
+      };
+      
+      const data = {
+        dialog: dialogWithStats,
+        typing: typingSection,
+        context: cloneSection(context)
+      };
 
-        // Если в event.data есть member секция, добавляем её в update
-        if (eventData.member) {
-          data.member = cloneSection(eventData.member);
-        }
+      // Если в event.data есть member секция, добавляем её в update
+      if (eventData.member) {
+        data.member = cloneSection(eventData.member);
+      }
 
-        return {
-          tenantId,
-          userId: member.userId,
-          entityId: eventDialog.dialogId,
-          eventId: eventIdString,
-          eventType,
-          data,
-          published: false
-        };
-      });
+      return {
+        tenantId,
+        userId: member.userId,
+        entityId: eventDialog.dialogId,
+        eventId: eventIdString,
+        eventType,
+        data,
+        published: false
+      };
+    });
 
     if (updatesPayload.length === 0) {
       console.log(`No recipients for typing update in dialog ${dialogId}`);
