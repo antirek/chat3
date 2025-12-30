@@ -112,6 +112,12 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *     description: |
  *       Возвращает список топиков диалога с мета-тегами и количеством непрочитанных сообщений для указанного пользователя.
  *       Доступно только для участников диалога.
+ *       
+ *       **Особенности:**
+ *       - Каждый топик содержит мета-теги (meta)
+ *       - Для каждого топика возвращается количество непрочитанных сообщений (unreadCount) для указанного пользователя
+ *       - Поддерживается пагинация через параметры `page` и `limit`
+ *       - Топики отсортированы по дате создания (createdAt) в порядке возрастания
  *     tags: [UserDialogs]
  *     security:
  *       - ApiKeyAuth: []
@@ -123,24 +129,31 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *         schema:
  *           type: string
  *         description: User ID
+ *         example: "user123"
  *       - in: path
  *         name: dialogId
  *         required: true
  *         schema:
  *           type: string
  *         description: Dialog ID
+ *         example: "dlg_abc123def456ghi789"
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
+ *           minimum: 1
  *           default: 1
- *         description: Page number
+ *         description: Номер страницы (начинается с 1)
+ *         example: 1
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           maximum: 100
  *           default: 20
- *         description: Number of topics per page
+ *         description: Количество топиков на странице
+ *         example: 20
  *     responses:
  *       200:
  *         description: Topics retrieved successfully
@@ -151,46 +164,105 @@ router.get('/:userId/dialogs', apiAuth, requirePermission('read'), validateUserI
  *               properties:
  *                 data:
  *                   type: array
+ *                   description: Массив топиков с контекстной информацией пользователя
  *                   items:
  *                     type: object
  *                     properties:
  *                       topicId:
  *                         type: string
- *                         description: Topic ID
+ *                         description: Уникальный идентификатор топика
+ *                         example: "topic_abc123def456ghi789"
  *                       dialogId:
  *                         type: string
- *                         description: Dialog ID
+ *                         description: Идентификатор диалога
+ *                         example: "dlg_abc123def456ghi789"
  *                       tenantId:
  *                         type: string
- *                         description: Tenant ID
+ *                         description: Идентификатор тенанта
+ *                         example: "tnt_default"
  *                       createdAt:
  *                         type: number
- *                         description: Timestamp создания (микросекунды)
+ *                         description: Timestamp создания топика (микросекунды)
+ *                         example: 1699999999000000
  *                       meta:
  *                         type: object
- *                         description: Мета-теги топика
+ *                         description: Мета-теги топика (ключ-значение пары)
  *                         additionalProperties: true
+ *                         example:
+ *                           category: "support"
+ *                           priority: "high"
+ *                           status: "open"
  *                       unreadCount:
  *                         type: integer
- *                         description: Количество непрочитанных сообщений в топике для пользователя
+ *                         description: Количество непрочитанных сообщений в топике для указанного пользователя
+ *                         minimum: 0
  *                         example: 5
  *                 pagination:
- *                   type: object
- *                   properties:
- *                     page:
- *                       type: integer
- *                     limit:
- *                       type: integer
- *                     total:
- *                       type: integer
- *                     pages:
- *                       type: integer
- *       403:
- *         description: Forbidden - User is not a member of this dialog
- *       404:
- *         description: Dialog not found
+ *                   $ref: '#/components/schemas/Pagination'
+ *             examples:
+ *               success:
+ *                 summary: Успешный ответ
+ *                 value:
+ *                   data:
+ *                     - topicId: "topic_abc123def456ghi789"
+ *                       dialogId: "dlg_abc123def456ghi789"
+ *                       tenantId: "tnt_default"
+ *                       createdAt: 1699999999000000
+ *                       meta:
+ *                         category: "support"
+ *                         priority: "high"
+ *                       unreadCount: 5
+ *                     - topicId: "topic_xyz789abc123def456"
+ *                       dialogId: "dlg_abc123def456ghi789"
+ *                       tenantId: "tnt_default"
+ *                       createdAt: 1700000000000000
+ *                       meta:
+ *                         category: "general"
+ *                       unreadCount: 0
+ *                   pagination:
+ *                     page: 1
+ *                     limit: 20
+ *                     total: 2
+ *                     pages: 1
+ *       400:
+ *         description: Bad Request - Invalid parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Bad Request"
+ *               message: "Invalid page number"
  *       401:
  *         description: Unauthorized - Invalid API key
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Forbidden - User is not a member of this dialog
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Forbidden"
+ *               message: "User is not a member of this dialog"
+ *       404:
+ *         description: Dialog not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Not Found"
+ *               message: "Dialog not found"
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.get('/:userId/dialogs/:dialogId/topics', apiAuth, requirePermission('read'), validateUserId, validateDialogId, userDialogController.getUserDialogTopics);
 
