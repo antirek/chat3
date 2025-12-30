@@ -1,9 +1,10 @@
 import * as fakeAmqp from '@onify/fake-amqplib';
 import { jest } from '@jest/globals';
 import messageController from '../messageController.js';
-import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember, Event, UserDialogStats } from "../../../../models/index.js";
+import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember, Event, UserDialogStats, Topic } from "../../../../models/index.js";
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '../../../../utils/timestampUtils.js';
+import { generateTopicId } from '../../../../utils/topicUtils.js';
 
 const tenantId = 'tnt_test';
 
@@ -418,6 +419,106 @@ describe('messageController.updateMessageContent', () => {
     expect(res.statusCode).toBe(404);
     expect(res.body.error).toBe('Not Found');
   });
+
+  test('message.update event should include meta data', async () => {
+    // Создаем сообщение с метаданными
+    await Meta.create({
+      tenantId,
+      entityType: 'message',
+      entityId: message.messageId,
+      key: 'category',
+      value: 'support',
+      dataType: 'string'
+    });
+
+    const req = createRequest({ content: 'Updated content' });
+    const res = createResponse();
+
+    await messageController.updateMessageContent(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+
+    const event = await Event.findOne({
+      tenantId,
+      eventType: 'message.update',
+      entityId: message.messageId
+    }).lean();
+
+    expect(event).toBeTruthy();
+    expect(event.data.message).toBeDefined();
+    expect(event.data.message.meta).toBeDefined();
+    expect(typeof event.data.message.meta).toBe('object');
+    expect(event.data.message.meta.category).toBe('support');
+  });
+
+  test('message.update event should include topicId and topic when message has topicId', async () => {
+    // Создаем топик
+    const topicId = generateTopicId();
+    const topic = await Topic.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      topicId,
+      createdAt: generateTimestamp()
+    });
+
+    // Создаем мета-теги для топика
+    await Meta.create([
+      { tenantId, entityType: 'topic', entityId: topicId, key: 'category', value: 'support', dataType: 'string' }
+    ]);
+
+    // Обновляем сообщение, чтобы оно имело topicId
+    await Message.findOneAndUpdate(
+      { tenantId, messageId: message.messageId },
+      { topicId: topicId }
+    );
+
+    const req = createRequest({ content: 'Updated content with topic' });
+    const res = createResponse();
+
+    await messageController.updateMessageContent(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+
+    const event = await Event.findOne({
+      tenantId,
+      eventType: 'message.update',
+      entityId: message.messageId
+    }).lean();
+
+    expect(event).toBeTruthy();
+    expect(event.data.message).toBeDefined();
+    expect(event.data.message.topicId).toBe(topicId);
+    expect(event.data.message.topic).toBeDefined();
+    expect(event.data.message.topic.topicId).toBe(topicId);
+    expect(event.data.message.topic.meta).toBeDefined();
+    expect(event.data.message.topic.meta.category).toBe('support');
+  });
+
+  test('message.update event should have null topicId and topic when message has no topicId', async () => {
+    // Убеждаемся, что сообщение не имеет topicId
+    await Message.findOneAndUpdate(
+      { tenantId, messageId: message.messageId },
+      { $unset: { topicId: 1 } }
+    );
+
+    const req = createRequest({ content: 'Updated content without topic' });
+    const res = createResponse();
+
+    await messageController.updateMessageContent(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+
+    const event = await Event.findOne({
+      tenantId,
+      eventType: 'message.update',
+      entityId: message.messageId
+    }).lean();
+
+    expect(event).toBeTruthy();
+    expect(event.data.message).toBeDefined();
+    expect(event.data.message.topicId).toBeNull();
+    expect(event.data.message.topic).toBeNull();
+  });
 });
 
 describe('messageController.getAll - error handling', () => {
@@ -807,6 +908,191 @@ describe('messageController.createMessage - validation', () => {
     expect(event.data.message.attachments).toBeUndefined();
     expect(event.data.context.includedSections).toContain('dialog');
     expect(event.data.context.includedSections).toContain('message');
+  });
+
+  test('message.create event should include meta data when message has meta', async () => {
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      body: {
+        senderId: 'alice',
+        content: 'Test message with meta',
+        type: 'internal.text',
+        meta: {
+          category: 'support',
+          priority: 'high',
+          channel: 'email'
+        }
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(201);
+
+    const message = await Message.findOne({ tenantId, senderId: 'alice', content: 'Test message with meta' }).lean();
+    expect(message).toBeTruthy();
+
+    const event = await Event.findOne({
+      tenantId,
+      eventType: 'message.create',
+      entityId: message.messageId
+    }).lean();
+
+    expect(event).toBeTruthy();
+    expect(event.data.message).toBeDefined();
+    expect(event.data.message.meta).toBeDefined();
+    expect(typeof event.data.message.meta).toBe('object');
+    expect(event.data.message.meta.category).toBe('support');
+    expect(event.data.message.meta.priority).toBe('high');
+    expect(event.data.message.meta.channel).toBe('email');
+  });
+
+  test('message.create event should include topicId and topic when message has topicId', async () => {
+    // Создаем топик
+    const topicId = generateTopicId();
+    const topic = await Topic.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      topicId,
+      createdAt: generateTimestamp()
+    });
+
+    // Создаем мета-теги для топика
+    await Meta.create([
+      { tenantId, entityType: 'topic', entityId: topicId, key: 'category', value: 'support', dataType: 'string' },
+      { tenantId, entityType: 'topic', entityId: topicId, key: 'priority', value: 'high', dataType: 'string' }
+    ]);
+
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      body: {
+        senderId: 'alice',
+        content: 'Test message with topic',
+        type: 'internal.text',
+        topicId: topicId
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(201);
+
+    const message = await Message.findOne({ tenantId, senderId: 'alice', content: 'Test message with topic' }).lean();
+    expect(message).toBeTruthy();
+    expect(message.topicId).toBe(topicId);
+
+    const event = await Event.findOne({
+      tenantId,
+      eventType: 'message.create',
+      entityId: message.messageId
+    }).lean();
+
+    expect(event).toBeTruthy();
+    expect(event.data.message).toBeDefined();
+    expect(event.data.message.topicId).toBe(topicId);
+    expect(event.data.message.topic).toBeDefined();
+    expect(event.data.message.topic.topicId).toBe(topicId);
+    expect(event.data.message.topic.meta).toBeDefined();
+    expect(typeof event.data.message.topic.meta).toBe('object');
+    expect(event.data.message.topic.meta.category).toBe('support');
+    expect(event.data.message.topic.meta.priority).toBe('high');
+  });
+
+  test('message.create event should include both meta and topic when message has both', async () => {
+    // Создаем топик
+    const topicId = generateTopicId();
+    const topic = await Topic.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      topicId,
+      createdAt: generateTimestamp()
+    });
+
+    // Создаем мета-теги для топика
+    await Meta.create([
+      { tenantId, entityType: 'topic', entityId: topicId, key: 'category', value: 'support', dataType: 'string' }
+    ]);
+
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      body: {
+        senderId: 'alice',
+        content: 'Test message with meta and topic',
+        type: 'internal.text',
+        topicId: topicId,
+        meta: {
+          channel: 'email',
+          priority: 'urgent'
+        }
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(201);
+
+    const message = await Message.findOne({ tenantId, senderId: 'alice', content: 'Test message with meta and topic' }).lean();
+    expect(message).toBeTruthy();
+
+    const event = await Event.findOne({
+      tenantId,
+      eventType: 'message.create',
+      entityId: message.messageId
+    }).lean();
+
+    expect(event).toBeTruthy();
+    expect(event.data.message).toBeDefined();
+    
+    // Проверяем метаданные сообщения
+    expect(event.data.message.meta).toBeDefined();
+    expect(typeof event.data.message.meta).toBe('object');
+    expect(event.data.message.meta.channel).toBe('email');
+    expect(event.data.message.meta.priority).toBe('urgent');
+    
+    // Проверяем topicId и topic
+    expect(event.data.message.topicId).toBe(topicId);
+    expect(event.data.message.topic).toBeDefined();
+    expect(event.data.message.topic.topicId).toBe(topicId);
+    expect(event.data.message.topic.meta).toBeDefined();
+    expect(event.data.message.topic.meta.category).toBe('support');
+  });
+
+  test('message.create event should have null topicId and topic when message has no topicId', async () => {
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      body: {
+        senderId: 'alice',
+        content: 'Test message without topic',
+        type: 'internal.text'
+      }
+    };
+    const res = createMockRes();
+
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(201);
+
+    const message = await Message.findOne({ tenantId, senderId: 'alice', content: 'Test message without topic' }).lean();
+    expect(message).toBeTruthy();
+    expect(message.topicId).toBeNull();
+
+    const event = await Event.findOne({
+      tenantId,
+      eventType: 'message.create',
+      entityId: message.messageId
+    }).lean();
+
+    expect(event).toBeTruthy();
+    expect(event.data.message).toBeDefined();
+    expect(event.data.message.topicId).toBeNull();
+    expect(event.data.message.topic).toBeNull();
   });
 });
 
