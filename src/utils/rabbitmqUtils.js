@@ -533,7 +533,7 @@ export async function publishUpdate(update, routingKey) {
     );
     
     if (published) {
-      console.log(`📤 Update published to RabbitMQ: ${routingKey}`);
+      console.log(`📤 Update published to RabbitMQ (exchange: ${UPDATES_EXCHANGE_NAME}, routing key: ${routingKey})`);
       return true;
     } else {
       console.warn(`⚠️  Failed to publish update to RabbitMQ (buffer full): ${routingKey}`);

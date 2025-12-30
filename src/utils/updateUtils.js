@@ -897,28 +897,33 @@ async function publishUpdate(update) {
     const dialogUpdates = ['DialogUpdate', 'DialogMemberUpdate', 'MessageUpdate', 'TypingUpdate'];
     const category = dialogUpdates.includes(updateType) ? 'dialog' : 'user';
     
-    // Публикуем в exchange chat3_updates с routing key update.{category}.{type}.{userId}.{updateType}
+    // Публикуем в exchange (из конфига RABBITMQ_UPDATES_EXCHANGE или по умолчанию chat3_updates)
+    // с routing key update.{category}.{type}.{userId}.{updateType}
     const routingKey = `update.${category}.${userType}.${sanitizedUpdate.userId}.${updateType.toLowerCase()}`;
     
+    // Получаем имя exchange из rabbitmqUtils (читает из process.env.RABBITMQ_UPDATES_EXCHANGE)
+    const rabbitMQInfo = rabbitmqUtils.getRabbitMQInfo();
+    const exchangeName = rabbitMQInfo?.updatesExchange || 'chat3_updates';
+
     const published = await rabbitmqUtils.publishUpdate(sanitizedUpdate, routingKey);
-    
+
     if (!published) {
-      console.error(`❌ Failed to publish update ${updateId} to RabbitMQ (routing key: ${routingKey})`);
+      console.error(`❌ Failed to publish update ${updateId} to RabbitMQ (exchange: ${exchangeName}, routing key: ${routingKey})`);
       throw new Error('Failed to publish update to RabbitMQ');
     }
 
     // Обновляем статус published только если публикация успешна
     await Update.updateOne(
       { _id: updateId },
-      { 
-        $set: { 
+      {
+        $set: {
           published: true,
           publishedAt: generateTimestamp()
-        } 
+        }
       }
     );
-    
-    console.log(`✅ Update ${updateId} published to RabbitMQ (${routingKey})`);
+
+    console.log(`✅ Update ${updateId} published to RabbitMQ (exchange: ${exchangeName}, routing key: ${routingKey})`);
   } catch (error) {
     const updateId = update._id || (update.toObject ? update.toObject()._id : null);
     console.error(`❌ Error publishing update ${updateId}:`, error.message);
