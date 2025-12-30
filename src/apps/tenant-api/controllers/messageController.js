@@ -823,12 +823,15 @@ const messageController = {
       
       // Получаем топик с метаданными, если topicId указан
       let topic = null;
-      if (message.topicId) {
+      // Явно получаем topicId из документа (может быть null или undefined)
+      const messageTopicId = message.topicId || messageObj.topicId || null;
+      
+      if (messageTopicId) {
         try {
-          topic = await topicUtils.getTopicWithMeta(req.tenantId, message.dialogId, message.topicId);
+          topic = await topicUtils.getTopicWithMeta(req.tenantId, message.dialogId, messageTopicId);
         } catch (error) {
           console.error('Error getting topic with meta:', error);
-          topic = { topicId: message.topicId, meta: {} };
+          topic = { topicId: messageTopicId, meta: {} };
         }
       }
       
@@ -845,6 +848,7 @@ const messageController = {
       res.json({
         data: sanitizeResponse({
           ...messageObj,
+          topicId: messageTopicId, // Явно устанавливаем topicId (может быть null)
           statusMessageMatrix,
           reactionSet,
           meta,

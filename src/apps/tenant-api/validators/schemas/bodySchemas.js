@@ -114,6 +114,15 @@ export const createMessageSchema = Joi.object({
     .allow(null, '')
     .messages({
       'string.pattern.base': 'quotedMessageId must be in format msg_ followed by 20 lowercase alphanumeric characters'
+    }),
+  topicId: Joi.string()
+    .trim()
+    .lowercase()
+    .pattern(/^topic_[a-z0-9]{20}$/)
+    .optional()
+    .allow(null, '')
+    .messages({
+      'string.pattern.base': 'topicId must be in format topic_ followed by 20 lowercase alphanumeric characters'
     })
 });
 
