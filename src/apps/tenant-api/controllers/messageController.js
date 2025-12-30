@@ -821,6 +821,17 @@ const messageController = {
 
       const messageObj = message.toObject();
       
+      // Получаем топик с метаданными, если topicId указан
+      let topic = null;
+      if (message.topicId) {
+        try {
+          topic = await topicUtils.getTopicWithMeta(req.tenantId, message.dialogId, message.topicId);
+        } catch (error) {
+          console.error('Error getting topic with meta:', error);
+          topic = { topicId: message.topicId, meta: {} };
+        }
+      }
+      
       // Формируем матрицу статусов (исключая статусы отправителя сообщения)
       const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, message.messageId, messageObj.senderId);
       
@@ -837,6 +848,7 @@ const messageController = {
           statusMessageMatrix,
           reactionSet,
           meta,
+          topic: topic || null,
           senderInfo: senderInfo || null
         })
       });

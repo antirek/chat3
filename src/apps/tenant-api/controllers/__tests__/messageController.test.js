@@ -1244,4 +1244,49 @@ describe('messageController.getMessageById - error handling', () => {
     expect(res.body.data.senderInfo).toBeTruthy();
     expect(res.body.data.senderInfo.userId).toBe('alice');
   });
+
+  test('returns message with topic when message has topicId', async () => {
+    const dialog = await Dialog.create({
+      tenantId,
+      dialogId: generateDialogId(),
+      
+      createdBy: 'alice',
+      createdAt: generateTimestamp(),
+    });
+
+    const topicId = generateTopicId();
+    await Topic.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      topicId,
+      createdAt: generateTimestamp()
+    });
+
+    const message = await Message.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'alice',
+      content: 'Test message with topic',
+      type: 'internal.text',
+      topicId: topicId,
+      createdAt: generateTimestamp(),
+    });
+
+    const req = {
+      tenantId,
+      params: { messageId: message.messageId }
+    };
+    const res = createMockRes();
+
+    await messageController.getMessageById(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toBeTruthy();
+    expect(res.body.data.messageId).toBe(message.messageId);
+    expect(res.body.data.topicId).toBe(topicId);
+    expect(res.body.data.topic).toBeDefined();
+    expect(res.body.data.topic.topicId).toBe(topicId);
+    expect(res.body.data.topic.meta).toBeDefined();
+  });
 });
