@@ -154,22 +154,44 @@ async function consumeUserUpdates(channel, queueName, userId) {
 
 ### Dialog Updates
 
-Создаются для событий: `dialog.create`, `dialog.update`, `dialog.delete`, `dialog.member.add`, `dialog.member.remove`
+Создаются для событий: `dialog.create`, `dialog.update`, `dialog.delete`, `dialog.member.add`, `dialog.member.remove`, `dialog.topic.create`, `dialog.topic.update`
+
+**Важно:** В секции `dialog` каждого Update теперь содержится поле `stats` с информацией о непрочитанных сообщениях для получателя update:
+
+```javascript
+{
+  dialog: {
+    dialogId: "dlg_...",
+    tenantId: "tnt_default",
+    createdAt: 1234567890,
+    meta: {},
+    stats: {                    // Статистика для получателя update
+      unreadCount: 10           // Количество непрочитанных сообщений в диалоге
+    }
+  }
+}
+```
 
 ```javascript
 async function handleDialogUpdate(update) {
   const { eventType, data } = update;
   const { dialog, member, context } = data;
   
+  // dialog.stats.unreadCount содержит количество непрочитанных сообщений
+  // для пользователя, которому адресован этот update
+  const unreadCount = dialog.stats?.unreadCount || 0;
+  
   switch (eventType) {
     case 'dialog.create':
       // Новый диалог создан
       await addDialogToLocalState(dialog, member);
+      await updateDialogUnreadCount(dialog.dialogId, unreadCount);
       break;
       
     case 'dialog.update':
       // Диалог обновлен
       await updateDialogInLocalState(dialog);
+      await updateDialogUnreadCount(dialog.dialogId, unreadCount);
       break;
       
     case 'dialog.delete':
@@ -191,6 +213,17 @@ async function handleDialogUpdate(update) {
         // Другой участник удален
         await removeMemberFromDialog(dialog.dialogId, member.userId);
       }
+      break;
+      
+    case 'dialog.topic.create':
+      // Создан новый топик в диалоге
+      // topic информация может быть в data.topic
+      await handleTopicCreated(dialog.dialogId, data.topic);
+      break;
+      
+    case 'dialog.topic.update':
+      // Топик обновлен
+      await handleTopicUpdated(dialog.dialogId, data.topic);
       break;
   }
 }
@@ -224,6 +257,8 @@ async function handleMessageUpdate(update) {
   switch (eventType) {
     case 'message.create':
       // Новое сообщение
+      // message.topicId - ID топика (если сообщение в топике)
+      // message.topic - объект с информацией о топике (topicId, meta)
       await addMessageToDialog(dialog.dialogId, message);
       break;
       
@@ -245,9 +280,167 @@ async function handleMessageUpdate(update) {
 }
 ```
 
+### Топики (Topics)
+
+Топики позволяют организовывать сообщения внутри диалога по темам. Каждое сообщение может быть привязано к топику через поле `topicId`.
+
+#### Структура топика в событиях и updates
+
+В событиях `message.create` и `message.update`, а также в MessageUpdate, сообщения могут содержать информацию о топике:
+
+```javascript
+{
+  message: {
+    messageId: "msg_...",
+    dialogId: "dlg_...",
+    senderId: "user123",
+    content: "Сообщение в топике",
+    topicId: "topic_abc123...",  // ID топика (если сообщение в топике)
+    topic: {                      // Объект с информацией о топике
+      topicId: "topic_abc123...",
+      dialogId: "dlg_...",
+      createdAt: 1234567890,
+      meta: {
+        // Мета-теги топика (например, название, цвет и т.д.)
+        name: "Важная тема",
+        color: "#FF5733"
+      }
+    }
+  }
+}
+```
+
+Если сообщение не привязано к топику, поля `topicId` и `topic` будут `null`.
+
+#### События, связанные с топиками
+
+Топики создаются и обновляются через события:
+- `dialog.topic.create` - создание нового топика в диалоге
+- `dialog.topic.update` - обновление топика (мета-теги)
+
+Эти события создают DialogUpdate для всех участников диалога.
+
+#### API для работы с топиками
+
+**Получение списка топиков диалога:**
+```bash
+GET /api/dialogs/{dialogId}/topics?page=1&limit=20
+```
+
+**Получение топиков в контексте пользователя (с количеством непрочитанных сообщений):**
+```bash
+GET /api/users/{userId}/dialogs/{dialogId}/topics?page=1&limit=20
+```
+
+Ответ включает `unreadCount` для каждого топика:
+```json
+{
+  "data": [
+    {
+      "topicId": "topic_abc123...",
+      "dialogId": "dlg_...",
+      "createdAt": 1234567890,
+      "meta": {
+        "name": "Важная тема"
+      },
+      "unreadCount": 5  // Количество непрочитанных сообщений в топике для пользователя
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 10
+  }
+}
+```
+
+**Создание топика:**
+```bash
+POST /api/dialogs/{dialogId}/topics
+Content-Type: application/json
+
+{
+  "meta": {
+    "name": "Новый топик",
+    "color": "#FF5733"
+  }
+}
+```
+
+**Создание сообщения с топиком:**
+```bash
+POST /api/dialogs/{dialogId}/messages
+Content-Type: application/json
+
+{
+  "senderId": "user123",
+  "content": "Сообщение в топике",
+  "type": "internal.text",
+  "topicId": "topic_abc123..."  // Указываем ID топика
+}
+```
+
+#### Обработка топиков в вашей системе
+
+```javascript
+async function handleMessageUpdate(update) {
+  const { eventType, data } = update;
+  const { dialog, message } = data;
+  
+  if (message.topicId) {
+    // Сообщение привязано к топику
+    const topic = message.topic;
+    
+    // Сохраняем информацию о топике
+    await saveTopicInfo(dialog.dialogId, topic);
+    
+    // Добавляем сообщение в топик
+    await addMessageToTopic(dialog.dialogId, message.topicId, message);
+  } else {
+    // Сообщение без топика (в основном потоке диалога)
+    await addMessageToDialog(dialog.dialogId, message);
+  }
+}
+
+async function handleDialogUpdate(update) {
+  const { eventType, data } = update;
+  const { dialog, topic } = data;  // topic может быть в dialog.update событиях
+  
+  if (eventType === 'dialog.topic.create') {
+    // Новый топик создан
+    await addTopicToDialog(dialog.dialogId, topic);
+  } else if (eventType === 'dialog.topic.update') {
+    // Топик обновлен
+    await updateTopicInDialog(dialog.dialogId, topic);
+  }
+}
+```
+
+#### Статистика по топикам
+
+В секции `dialog` каждого Update теперь содержится поле `stats` с информацией о непрочитанных сообщениях:
+
+```javascript
+{
+  dialog: {
+    dialogId: "dlg_...",
+    tenantId: "tnt_default",
+    createdAt: 1234567890,
+    meta: {},
+    stats: {                    // Статистика для получателя update
+      unreadCount: 10           // Общее количество непрочитанных сообщений в диалоге
+    }
+  }
+}
+```
+
+Для получения детальной статистики по топикам используйте endpoint `/api/users/{userId}/dialogs/{dialogId}/topics`, который возвращает `unreadCount` для каждого топика.
+
 ### Typing Updates
 
 Создаются для событий: `dialog.typing`
+
+**Важно:** В секции `dialog` также содержится поле `stats` с информацией о непрочитанных сообщениях для получателя update.
 
 ```javascript
 async function handleTypingUpdate(update) {
@@ -256,6 +449,10 @@ async function handleTypingUpdate(update) {
   
   // Пользователь печатает в диалоге
   await showTypingIndicator(dialog.dialogId, typing.userId, typing.expiresInMs);
+  
+  // dialog.stats.unreadCount содержит актуальное количество непрочитанных сообщений
+  const unreadCount = dialog.stats?.unreadCount || 0;
+  await updateDialogUnreadCount(dialog.dialogId, unreadCount);
 }
 ```
 
@@ -459,7 +656,18 @@ class Chat3Integration {
   
   async handleMessageUpdate(update) {
     // Ваша реализация
-    console.log('Message update:', update.data.message);
+    const { dialog, message } = update.data;
+    
+    // dialog.stats.unreadCount содержит актуальное количество непрочитанных сообщений
+    const unreadCount = dialog.stats?.unreadCount || 0;
+    
+    // message.topicId и message.topic содержат информацию о топике (если есть)
+    if (message.topicId) {
+      console.log('Message in topic:', message.topicId, message.topic);
+    }
+    
+    console.log('Message update:', message);
+    console.log('Dialog unread count:', unreadCount);
   }
   
   async handleTypingUpdate(update) {
