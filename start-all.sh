@@ -4,6 +4,9 @@
 # Использование: ./start.sh
 export MMS3_PROJECT_NAME=LOCAL
 
+export CONTROL_APP_URL='http://localhost:3002'
+export TENANT_API_URL='http://localhost:3005'
+
 # Установка переменных окружения для RabbitMQ
 export RABBITMQ_URL="${RABBITMQ_URL:-amqp://rmuser:rmpassword@localhost:5672/}"
 export RABBITMQ_EVENTS_EXCHANGE=mms3_events

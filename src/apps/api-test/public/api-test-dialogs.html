@@ -1425,7 +1425,8 @@
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                    const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
+                    throw new Error(errorMessage);
                 }
 
                 const result = await response.json();
@@ -1440,7 +1441,8 @@
                 loadDialogsWithFilter(currentFilter || '');
             } catch (error) {
                 console.error('Error creating dialog:', error);
-                alert(`Ошибка создания диалога: ${error.message}`);
+                const errorMessage = error.message || error.toString() || 'Неизвестная ошибка';
+                alert(`Ошибка при создании диалога: ${errorMessage}`);
             }
         }
 

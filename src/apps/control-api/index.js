@@ -15,8 +15,6 @@ app.set('trust proxy', true);
 
 // Get URLs from environment variables or use defaults
 const CONTROL_APP_URL = process.env.CONTROL_APP_URL || 'http://localhost:3002';
-// eslint-disable-next-line no-unused-vars
-const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
 
 // Extract port from URL for server listening
 const PORT = new URL(CONTROL_APP_URL).port || 3002;

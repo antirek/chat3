@@ -811,7 +811,8 @@ export const dialogController = {
         message: 'Dialog created successfully'
       });
     } catch (error) {
-
+      console.error('Error creating dialog:', error);
+      
       if (error.name === 'ValidationError') {
         return res.status(400).json({
           error: 'Validation Error',
@@ -819,9 +820,12 @@ export const dialogController = {
           details: error.errors
         });
       }
+      
+      // Более детальное сообщение об ошибке
+      const errorMessage = error.message || 'Неизвестная ошибка при создании диалога';
       res.status(500).json({
         error: 'Internal Server Error',
-        message: error.message
+        message: errorMessage
       });
     }
   },
