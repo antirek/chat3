@@ -1,8 +1,8 @@
 import { Dialog, DialogMember, Meta, UserDialogStats, UserDialogActivity } from '@chat3/models';
 import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
-import * as eventUtils from '../utils/eventUtils.js';
-import { sanitizeResponse } from '../utils/responseUtils.js';
-import * as metaUtils from '../utils/metaUtils.js';
+import * as eventUtils from '@chat3/utils/eventUtils.js';
+import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
+import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { scheduleDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';

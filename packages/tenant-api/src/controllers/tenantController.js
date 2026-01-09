@@ -1,5 +1,5 @@
 import { Tenant, Meta } from '@chat3/models';
-import * as metaUtils from '../utils/metaUtils.js';
+import * as metaUtils from '@chat3/utils/metaUtils.js';
 
 // Хелпер для форматирования тенанта без _id и с мета-тегами
 const formatTenantResponse = (tenant, meta = null) => {

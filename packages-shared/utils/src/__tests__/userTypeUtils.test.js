@@ -1,7 +1,7 @@
 import { getUserType } from '../userTypeUtils.js';
 import { Tenant, User } from '@chat3/models';
-import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
-import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '@chat3/tenant-api/src/utils/__tests__/setup.js';
+import { generateTimestamp } from '../timestampUtils.js';
 
 describe('userTypeUtils', () => {
   let mongoUri;

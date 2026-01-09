@@ -1,7 +1,7 @@
 import { Dialog, DialogMember, User } from '@chat3/models';
-import * as eventUtils from '../utils/eventUtils.js';
-import * as metaUtils from '../utils/metaUtils.js';
-import { sanitizeResponse } from '../utils/responseUtils.js';
+import * as eventUtils from '@chat3/utils/eventUtils.js';
+import * as metaUtils from '@chat3/utils/metaUtils.js';
+import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 

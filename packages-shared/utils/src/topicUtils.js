@@ -1,5 +1,5 @@
 import { Topic, Meta } from '@chat3/models';
-import * as metaUtils from '@chat3/tenant-api/src/utils/metaUtils.js';
+import * as metaUtils from './metaUtils.js';
 
 /**
  * Утилиты для работы с топиками

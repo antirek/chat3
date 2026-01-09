@@ -225,4 +225,3 @@ export async function getUserStats(tenantId, userId) {
     return { dialogCount: 0, unreadDialogsCount: 0 };
   }
 }
-

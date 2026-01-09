@@ -1,5 +1,5 @@
 import amqp from 'amqplib';
-import { getUserType } from '@chat3/tenant-api/src/utils/userTypeUtils.js';
+import { getUserType } from './userTypeUtils.js';
 
 let connection = null;
 let channel = null;

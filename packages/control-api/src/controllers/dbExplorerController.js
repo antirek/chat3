@@ -20,7 +20,7 @@ import {
   MessageStatusStats,
   CounterHistory
 } from '@chat3/models';
-import { sanitizeResponse } from '@chat3/tenant-api/src/utils/responseUtils.js';
+import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 
 // Маппинг имен моделей на классы
 const MODELS_MAP = {

@@ -8,9 +8,14 @@
     "./rabbitmqUtils.js": "./src/rabbitmqUtils.js",
     "./counterUtils.js": "./src/counterUtils.js",
     "./dialogReadTaskUtils.js": "./src/dialogReadTaskUtils.js",
+    "./eventUtils.js": "./src/eventUtils.js",
+    "./metaUtils.js": "./src/metaUtils.js",
+    "./responseUtils.js": "./src/responseUtils.js",
     "./timestampUtils.js": "./src/timestampUtils.js",
     "./topicUtils.js": "./src/topicUtils.js",
-    "./updateUtils.js": "./src/updateUtils.js"
+    "./updateUtils.js": "./src/updateUtils.js",
+    "./userDialogUtils.js": "./src/userDialogUtils.js",
+    "./userTypeUtils.js": "./src/userTypeUtils.js"
   },
   "private": true,
   "dependencies": {

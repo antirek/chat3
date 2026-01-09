@@ -1,6 +1,6 @@
 import { Meta, Message } from '@chat3/models';
 // eslint-disable-next-line no-unused-vars
-import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { generateTimestamp } from './timestampUtils.js';
 
 /**
  * Утилиты для работы с метаданными
@@ -270,4 +270,3 @@ export async function buildMetaQuery(tenantId, entityType, metaFilters, options 
     throw new Error(`Failed to build meta query: ${error.message}`);
   }
 }
-

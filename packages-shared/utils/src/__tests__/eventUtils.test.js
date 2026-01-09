@@ -8,7 +8,7 @@ import {
   getEventStats
 } from '../eventUtils.js';
 import { Event } from '@chat3/models';
-import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
+import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '@chat3/tenant-api/src/utils/__tests__/setup.js';
 
 // Setup MongoDB перед всеми тестами в этом файле
 beforeAll(async () => {

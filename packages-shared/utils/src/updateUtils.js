@@ -1,13 +1,13 @@
 import mongoose from 'mongoose';
 import { Message, DialogMember, 
   MessageStatus, Update, User, UserStats, Event, UserDialogStats } from '@chat3/models';
-import * as metaUtils from '@chat3/tenant-api/src/utils/metaUtils.js';
+import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
-import { sanitizeResponse } from '@chat3/tenant-api/src/utils/responseUtils.js';
+import { sanitizeResponse } from './responseUtils.js';
 import { generateTimestamp } from './timestampUtils.js';
-import { getUserType } from '@chat3/tenant-api/src/utils/userTypeUtils.js';
-import { buildStatusMessageMatrix, getUserStats } from '@chat3/tenant-api/src/utils/userDialogUtils.js';
-import * as eventUtils from '@chat3/tenant-api/src/utils/eventUtils.js';
+import { getUserType } from './userTypeUtils.js';
+import { buildStatusMessageMatrix, getUserStats } from './userDialogUtils.js';
+import * as eventUtils from './eventUtils.js';
 import * as topicUtils from './topicUtils.js';
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;

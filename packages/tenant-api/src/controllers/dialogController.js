@@ -1,9 +1,9 @@
 // eslint-disable-next-line no-unused-vars
 import { Dialog, Meta, DialogMember, Event, Update, UserDialogStats, UserDialogActivity, DialogStats } from '@chat3/models';
-import * as metaUtils from '../utils/metaUtils.js';
-import * as eventUtils from '../utils/eventUtils.js';
+import * as metaUtils from '@chat3/utils/metaUtils.js';
+import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort } from '../utils/queryParser.js';
-import { sanitizeResponse } from '../utils/responseUtils.js';
+import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import * as userUtils from '../utils/userUtils.js';
 import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 import {

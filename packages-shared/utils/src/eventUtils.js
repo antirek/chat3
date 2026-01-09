@@ -1,5 +1,5 @@
 import { Event } from '@chat3/models';
-import * as rabbitmqUtils from '@chat3/utils/rabbitmqUtils.js';
+import * as rabbitmqUtils from './rabbitmqUtils.js';
 
 const EVENT_PAYLOAD_VERSION = 2;
 
@@ -527,4 +527,3 @@ export default {
   buildActorSection,
   composeEventData
 };
-

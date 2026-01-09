@@ -11,11 +11,11 @@ import {
   UserTopicStats
 } from '@chat3/models';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
-import * as metaUtils from '../utils/metaUtils.js';
+import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { parseFilters, extractMetaFilters, parseSort } from '../utils/queryParser.js';
-import { sanitizeResponse } from '../utils/responseUtils.js';
+import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { validateGetUserDialogMessagesResponse, validateGetUserDialogMessageResponse } from '../validators/schemas/responseSchemas.js';
-import * as eventUtils from '../utils/eventUtils.js';
+import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 // eslint-disable-next-line no-unused-vars
 import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
@@ -26,7 +26,7 @@ import {
   buildReactionSet,
   getContextUserInfo
    
-} from '../utils/userDialogUtils.js';
+} from '@chat3/utils/userDialogUtils.js';
 import mongoose from 'mongoose';
 
 const userDialogController = {

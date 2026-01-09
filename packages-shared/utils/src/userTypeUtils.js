@@ -30,4 +30,3 @@ export async function getUserType(tenantId, userId) {
     return 'user';
   }
 }
-
