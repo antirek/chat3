@@ -2,24 +2,24 @@
   "name": "@chat3/utils",
   "version": "0.0.24",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/utils/src/index.js",
+  "types": "dist/utils/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/utils/src/index.d.ts",
+      "default": "./dist/utils/src/index.js"
     },
-    "./rabbitmqUtils.js": "./dist/rabbitmqUtils.js",
-    "./counterUtils.js": "./dist/counterUtils.js",
-    "./dialogReadTaskUtils.js": "./dist/dialogReadTaskUtils.js",
-    "./eventUtils.js": "./dist/eventUtils.js",
-    "./metaUtils.js": "./dist/metaUtils.js",
-    "./responseUtils.js": "./dist/responseUtils.js",
-    "./timestampUtils.js": "./dist/timestampUtils.js",
-    "./topicUtils.js": "./dist/topicUtils.js",
-    "./updateUtils.js": "./dist/updateUtils.js",
-    "./userDialogUtils.js": "./dist/userDialogUtils.js",
-    "./userTypeUtils.js": "./dist/userTypeUtils.js"
+    "./rabbitmqUtils.js": "./dist/utils/src/rabbitmqUtils.js",
+    "./counterUtils.js": "./dist/utils/src/counterUtils.js",
+    "./dialogReadTaskUtils.js": "./dist/utils/src/dialogReadTaskUtils.js",
+    "./eventUtils.js": "./dist/utils/src/eventUtils.js",
+    "./metaUtils.js": "./dist/utils/src/metaUtils.js",
+    "./responseUtils.js": "./dist/utils/src/responseUtils.js",
+    "./timestampUtils.js": "./dist/utils/src/timestampUtils.js",
+    "./topicUtils.js": "./dist/utils/src/topicUtils.js",
+    "./updateUtils.js": "./dist/utils/src/updateUtils.js",
+    "./userDialogUtils.js": "./dist/utils/src/userDialogUtils.js",
+    "./userTypeUtils.js": "./dist/utils/src/userTypeUtils.js"
   },
   "private": true,
   "scripts": {

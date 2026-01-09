@@ -2,16 +2,16 @@
   "name": "@chat3/models",
   "version": "0.0.24",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/models/src/index.js",
+  "types": "dist/models/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/models/src/index.d.ts",
+      "default": "./dist/models/src/index.js"
     },
-    "./src/data/*": "./dist/data/*.js",
-    "./src/operational/*": "./dist/operational/*.js",
-    "./src/stats/*": "./dist/stats/*.js"
+    "./src/data/*": "./dist/models/src/data/*.js",
+    "./src/operational/*": "./dist/models/src/operational/*.js",
+    "./src/stats/*": "./dist/models/src/stats/*.js"
   },
   "private": true,
   "scripts": {
