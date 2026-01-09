@@ -1,9 +1,10 @@
 {
-  "name": "chat3-client",
+  "name": "@chat3/tenant-client",
   "version": "0.0.22",
   "description": "JavaScript client library for Chat3 Tenant API",
   "main": "src/Chat3Client.js",
   "type": "commonjs",
+  "private": true,
   "files": [
     "src/**/*.js",
     "README.md"
@@ -39,7 +40,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/antirek/chat3.git",
-    "directory": "client"
+    "directory": "packages/tenant-client"
   },
   "publishConfig": {
     "access": "public"
