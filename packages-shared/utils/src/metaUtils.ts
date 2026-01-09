@@ -1,8 +1,5 @@
 import { Meta, Message } from '@chat3/models';
 import type { EntityType } from '@chat3/models';
-// eslint-disable-next-line no-unused-vars
-import { generateTimestamp } from './timestampUtils.js';
-
 /**
  * Утилиты для работы с метаданными
  */

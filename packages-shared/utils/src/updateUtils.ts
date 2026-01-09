@@ -7,7 +7,7 @@ import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from './responseUtils.js';
 import { generateTimestamp } from './timestampUtils.js';
 import { getUserType } from './userTypeUtils.js';
-import { buildStatusMessageMatrix, getUserStats } from './userDialogUtils.js';
+import { buildStatusMessageMatrix } from './userDialogUtils.js';
 import * as eventUtils from './eventUtils.js';
 import * as topicUtils from './topicUtils.js';
 
