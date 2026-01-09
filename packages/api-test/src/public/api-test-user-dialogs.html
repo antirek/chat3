@@ -2688,6 +2688,15 @@
             // Формируем полный URL
             const fullUrl = url + (params.toString() ? '?' + params.toString() : '');
             
+            // Получаем правильный базовый URL для tenant-api
+            let baseUrl;
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                baseUrl = CHAT3_CONFIG.getTenantApiUrl('');
+            } else {
+                baseUrl = window.location.origin.replace(':3001', ':3000');
+            }
+            const fullUrlWithOrigin = `${baseUrl}${fullUrl}`;
+            
             // Показываем в модальном окне
             showModal('Текущий URL запроса топиков', `
                 <div class="url-info">
@@ -2702,8 +2711,8 @@
                     
                     <h4>Полный URL для копирования:</h4>
                     <div class="url-copy">
-                        <input type="text" value="${window.location.origin}${fullUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
-                        <button onclick="copyToClipboard('${window.location.origin}${fullUrl}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
+                        <input type="text" value="${fullUrlWithOrigin}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
+                        <button onclick="copyToClipboard('${fullUrlWithOrigin}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
                     </div>
                 </div>
             `);
@@ -3956,6 +3965,15 @@
             // Формируем полный URL
             const fullUrl = url + (params.toString() ? '?' + params.toString() : '');
             
+            // Получаем правильный базовый URL для tenant-api
+            let baseUrl;
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                baseUrl = CHAT3_CONFIG.getTenantApiUrl('');
+            } else {
+                baseUrl = window.location.origin.replace(':3001', ':3000');
+            }
+            const fullUrlWithOrigin = `${baseUrl}${fullUrl}`;
+            
             // Показываем в модальном окне
             showModal('Текущий URL запроса пользователей', `
                 <div class="url-info">
@@ -3971,8 +3989,8 @@
                     
                     <h4>Полный URL для копирования:</h4>
                     <div class="url-copy">
-                        <input type="text" value="${window.location.origin}${fullUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
-                        <button onclick="copyToClipboard('${window.location.origin}${fullUrl}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
+                        <input type="text" value="${fullUrlWithOrigin}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
+                        <button onclick="copyToClipboard('${fullUrlWithOrigin}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
                     </div>
                 </div>
             `);
@@ -4005,6 +4023,15 @@
             // Формируем полный URL
             const fullUrl = url + (params.toString() ? '?' + params.toString() : '');
             
+            // Получаем правильный базовый URL для tenant-api
+            let baseUrl;
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                baseUrl = CHAT3_CONFIG.getTenantApiUrl('');
+            } else {
+                baseUrl = window.location.origin.replace(':3001', ':3000');
+            }
+            const fullUrlWithOrigin = `${baseUrl}${fullUrl}`;
+            
             // Показываем в модальном окне
             showModal('Текущий URL запроса', `
                 <div class="url-info">
@@ -4021,8 +4048,8 @@
                     
                     <h4>Полный URL для копирования:</h4>
                     <div class="url-copy">
-                        <input type="text" value="${window.location.origin}${fullUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
-                        <button onclick="copyToClipboard('${window.location.origin}${fullUrl}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
+                        <input type="text" value="${fullUrlWithOrigin}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
+                        <button onclick="copyToClipboard('${fullUrlWithOrigin}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
                     </div>
                 </div>
             `);
@@ -4060,6 +4087,15 @@
             // Формируем полный URL
             const fullUrl = url + (params.toString() ? '?' + params.toString() : '');
             
+            // Получаем правильный базовый URL для tenant-api
+            let baseUrl;
+            if (typeof CHAT3_CONFIG !== 'undefined' && CHAT3_CONFIG && CHAT3_CONFIG.getTenantApiUrl) {
+                baseUrl = CHAT3_CONFIG.getTenantApiUrl('');
+            } else {
+                baseUrl = window.location.origin.replace(':3001', ':3000');
+            }
+            const fullUrlWithOrigin = `${baseUrl}${fullUrl}`;
+            
             // Показываем в модальном окне
             showModal('Текущий URL запроса сообщений', `
                 <div class="url-info">
@@ -4076,8 +4112,8 @@
                     
                     <h4>Полный URL для копирования:</h4>
                     <div class="url-copy">
-                        <input type="text" value="${window.location.origin}${fullUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
-                        <button onclick="copyToClipboard('${window.location.origin}${fullUrl}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
+                        <input type="text" value="${fullUrlWithOrigin}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
+                        <button onclick="copyToClipboard('${fullUrlWithOrigin}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
                     </div>
                 </div>
             `);

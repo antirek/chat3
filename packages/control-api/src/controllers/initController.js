@@ -6,8 +6,17 @@ import connectDB from '@chat3/config';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { recalculateUserStats } from '@chat3/utils/counterUtils.js';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 
 const execAsync = promisify(exec);
+
+// Получаем абсолютный путь к seed.js относительно корня проекта
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+// От packages/control-api/src/controllers/ поднимаемся на 3 уровня вверх к корню проекта
+const projectRoot = resolve(__dirname, '../../../');
+const seedScriptPath = resolve(projectRoot, 'packages/control-api/scripts/seed.js');
 
 export const initController = {
   // Инициализация: удаление всех данных, создание tenant и API ключа
@@ -81,11 +90,11 @@ export const initController = {
       // 4. Запустить seed скрипт автоматически
       try {
         console.log('🌱 Запуск seed скрипта...');
-        const seedScript = 'node packages/control-api/scripts/seed.js';
+        const seedScript = `node ${seedScriptPath}`;
         
         // Запускаем seed в фоне (не ждем завершения)
         // Ошибки логируются, но не добавляются в results.errors, так как ответ уже будет отправлен
-        execAsync(seedScript, { cwd: process.cwd() })
+        execAsync(seedScript, { cwd: projectRoot })
           .then(({ stdout, stderr }) => {
             console.log('✅ Seed script completed');
             if (stdout) console.log(stdout);
@@ -127,7 +136,7 @@ export const initController = {
   async seed(req, res) {
     try {
       // Запускаем seed скрипт асинхронно
-      const seedScript = 'node packages/control-api/scripts/seed.js';
+      const seedScript = `node ${seedScriptPath}`;
       
       // Отправляем ответ сразу, чтобы клиент не ждал
       res.status(202).json({
@@ -139,7 +148,7 @@ export const initController = {
       });
 
       // Запускаем seed в фоне
-      execAsync(seedScript, { cwd: process.cwd() })
+      execAsync(seedScript, { cwd: projectRoot })
         .then(({ stdout, stderr }) => {
           console.log('✅ Seed script completed');
           if (stdout) console.log(stdout);
