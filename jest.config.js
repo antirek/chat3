@@ -16,8 +16,8 @@ export default {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@chat3/models$': '<rootDir>/packages-shared/models/dist/models/src/index.js',
-    '^@chat3/utils$': '<rootDir>/packages-shared/utils/dist/utils/src/index.js',
-    '^@chat3/utils/(.*)\\.js$': '<rootDir>/packages-shared/utils/dist/utils/src/$1.js',
+    '^@chat3/utils$': '<rootDir>/packages-shared/utils/dist/index.js',
+    '^@chat3/utils/(.*)\\.js$': '<rootDir>/packages-shared/utils/dist/$1.js',
     '^@chat3/config$': '<rootDir>/packages-shared/config/dist/index.js',
   },
   testMatch: ['**/__tests__/**/*.test.{js,ts}', '**/*.test.{js,ts}'],

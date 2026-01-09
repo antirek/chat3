@@ -2,8 +2,16 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
+    "rootDir": "./src",
     "skipLibCheck": true,
-    "composite": false
+    "composite": false,
+    "paths": {
+      "@chat3/models": ["../models/dist/models/src/index"],
+      "@chat3/models/*": ["../models/dist/models/src/*"],
+      "@chat3/utils": ["./dist/index"],
+      "@chat3/utils/*": ["./dist/*"],
+      "@chat3/config": ["../config/dist/index"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.js", "../models"]
