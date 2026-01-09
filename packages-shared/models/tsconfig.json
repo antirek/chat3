@@ -6,9 +6,9 @@
     "skipLibCheck": true,
     "composite": false,
     "paths": {
-      "@chat3/utils": ["../utils/dist/index"],
+      "@chat3/utils": ["../utils/dist/index.js"],
       "@chat3/utils/*": ["../utils/dist/*"],
-      "@chat3/models": ["./dist/index"],
+      "@chat3/models": ["./dist/index.js"],
       "@chat3/models/*": ["./dist/*"]
     }
   },
