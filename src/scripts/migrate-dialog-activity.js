@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
-import connectDB from '../config/database.js';
-import { DialogMember, UserDialogActivity } from '../models/index.js';
-import { generateTimestamp } from '../utils/timestampUtils.js';
+import connectDB from '@chat3/config';
+import { DialogMember, UserDialogActivity } from '@chat3/models';
+import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
 /**
  * Миграция данных: перенос lastSeenAt и lastMessageAt из DialogMember в UserDialogActivity

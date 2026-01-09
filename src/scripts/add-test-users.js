@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import connectDB from '../config/database.js';
-import { User } from '../models/index.js';
+import connectDB from '@chat3/config';
+import { User } from '@chat3/models';
 
 const TENANT_ID = 'tnt_default';
 const NUM_USERS = 300;

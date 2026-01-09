@@ -7,5 +7,5 @@ if [ -f .env ]; then
 fi
 
 echo "🚀 Starting Dialog Read Worker..."
-node src/workers/dialogReadWorker.js
+npm run start:dialog-read-worker
 

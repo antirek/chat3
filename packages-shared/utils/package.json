@@ -1,0 +1,19 @@
+{
+  "name": "@chat3/utils",
+  "version": "0.0.24",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./rabbitmqUtils.js": "./src/rabbitmqUtils.js",
+    "./counterUtils.js": "./src/counterUtils.js",
+    "./timestampUtils.js": "./src/timestampUtils.js",
+    "./topicUtils.js": "./src/topicUtils.js",
+    "./updateUtils.js": "./src/updateUtils.js"
+  },
+  "private": true,
+  "dependencies": {
+    "amqplib": "^0.10.9",
+    "@chat3/models": "*"
+  }
+}

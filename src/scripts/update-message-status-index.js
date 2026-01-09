@@ -1,4 +1,4 @@
-import connectDB from '../config/database.js';
+import connectDB from '@chat3/config';
 import mongoose from 'mongoose';
 
 /**

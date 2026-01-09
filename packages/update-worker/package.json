@@ -1,0 +1,16 @@
+{
+  "name": "@chat3/update-worker",
+  "version": "0.0.24",
+  "type": "module",
+  "main": "src/index.js",
+  "private": true,
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@chat3/models": "*",
+    "@chat3/utils": "*",
+    "@chat3/config": "*"
+  }
+}

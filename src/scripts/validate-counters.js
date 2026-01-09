@@ -1,4 +1,4 @@
-import connectDB from '../config/database.js';
+import connectDB from '@chat3/config';
 import { 
   DialogMember, 
   Message, 
@@ -8,7 +8,7 @@ import {
   UserDialogStats,
   MessageReactionStats,
   MessageStatusStats
-} from '../models/index.js';
+} from '@chat3/models';
 
 /**
  * Скрипт валидации консистентности счетчиков

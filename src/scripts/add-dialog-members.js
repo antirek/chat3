@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import connectDB from '../config/database.js';
-import { DialogMember, Dialog, User } from '../models/index.js';
+import connectDB from '@chat3/config';
+import { DialogMember, Dialog, User } from '@chat3/models';
 import { addDialogMember } from '../apps/tenant-api/utils/dialogMemberUtils.js';
 
 const TENANT_ID = 'tnt_default';

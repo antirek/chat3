@@ -1,12 +1,12 @@
-import connectDB from '../config/database.js';
+import connectDB from '@chat3/config';
 import { Tenant, User, Dialog, Message, Meta, DialogMember, 
   MessageStatus, Event, MessageReaction, Update,
   UserStats, UserDialogStats, UserDialogActivity,
   MessageReactionStats, MessageStatusStats, CounterHistory,
-  Topic, DialogStats } from '../models/index.js';
-import { generateTimestamp } from '../utils/timestampUtils.js';
-import { recalculateUserStats, updateDialogStats } from '../utils/counterUtils.js';
-import { generateTopicId } from '../utils/topicUtils.js';
+  Topic, DialogStats } from '@chat3/models';
+import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { recalculateUserStats, updateDialogStats } from '@chat3/utils/counterUtils.js';
+import { generateTopicId } from '@chat3/utils/topicUtils.js';
 
 async function seed() {
   try {

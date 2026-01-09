@@ -1,5 +1,5 @@
-import connectDB from '../config/database.js';
-import { Meta } from '../models/index.js';
+import connectDB from '@chat3/config';
+import { Meta } from '@chat3/models';
 
 async function fixMetaIndexes() {
   try {

@@ -1,5 +1,5 @@
-import connectDB from '../config/database.js';
-import { Tenant, Dialog, Message, Meta } from '../models/index.js';
+import connectDB from '@chat3/config';
+import { Tenant, Dialog, Message, Meta } from '@chat3/models';
 
 async function addMediaMessages() {
   try {

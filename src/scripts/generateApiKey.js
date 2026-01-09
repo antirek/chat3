@@ -1,5 +1,5 @@
-import connectDB from '../config/database.js';
-import { ApiKey } from '../models/index.js';
+import connectDB from '@chat3/config';
+import { ApiKey } from '@chat3/models';
 
 async function generateApiKey() {
   try {

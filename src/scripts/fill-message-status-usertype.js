@@ -1,5 +1,5 @@
-import connectDB from '../config/database.js';
-import { MessageStatus, User } from '../models/index.js';
+import connectDB from '@chat3/config';
+import { MessageStatus, User } from '@chat3/models';
 
 async function fillMessageStatusUserType() {
   try {

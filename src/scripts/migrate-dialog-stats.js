@@ -1,6 +1,6 @@
-import connectDB from '../config/database.js';
-import { Dialog, DialogMember, Message, Topic, DialogStats } from '../models/index.js';
-import { recalculateDialogStats } from '../utils/counterUtils.js';
+import connectDB from '@chat3/config';
+import { Dialog, DialogMember, Message, Topic, DialogStats } from '@chat3/models';
+import { recalculateDialogStats } from '@chat3/utils/counterUtils.js';
 
 /**
  * Скрипт миграции для создания DialogStats для всех существующих диалогов

@@ -1,0 +1,16 @@
+{
+  "name": "@chat3/models",
+  "version": "0.0.24",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./src/data/*": "./src/data/*.js",
+    "./src/operational/*": "./src/operational/*.js",
+    "./src/stats/*": "./src/stats/*.js"
+  },
+  "private": true,
+  "dependencies": {
+    "mongoose": "^8.0.0"
+  }
+}

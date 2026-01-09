@@ -1,4 +1,4 @@
-import connectDB from '../config/database.js';
+import connectDB from '@chat3/config';
 import { 
   DialogMember, 
   Message, 
@@ -9,8 +9,8 @@ import {
   MessageReactionStats,
   MessageStatusStats,
   CounterHistory
-} from '../models/index.js';
-import { generateTimestamp } from '../utils/timestampUtils.js';
+} from '@chat3/models';
+import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
 /**
  * Скрипт миграции счетчиков из старых моделей в новые коллекции

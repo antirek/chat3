@@ -1,0 +1,10 @@
+{
+  "name": "@chat3/config",
+  "version": "0.0.24",
+  "type": "module",
+  "main": "src/index.js",
+  "private": true,
+  "dependencies": {
+    "mongoose": "^8.0.0"
+  }
+}
