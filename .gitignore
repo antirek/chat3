@@ -42,3 +42,4 @@ coverage/
 .api-key
 
 .playwright-mcp
+test-results
