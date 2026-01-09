@@ -4,18 +4,23 @@
   "description": "JavaScript client library for Chat3 Tenant API",
   "main": "src/Chat3Client.js",
   "type": "commonjs",
-  "private": true,
   "files": [
-    "src/**/*.js",
+    "src/Chat3Client.js",
     "README.md"
   ],
   "scripts": {
+    "build": "echo 'No build step required - source files are used directly'",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:integration": "jest Chat3Client.integration.test.js",
     "test:unit": "jest --testPathIgnorePatterns=integration",
-    "test:with-api": "./test-with-api.sh"
+    "test:with-api": "./test-with-api.sh",
+    "prepublishOnly": "npm run test:unit",
+    "prepack": "npm run test:unit",
+    "publish:patch": "npm version patch && npm publish",
+    "publish:minor": "npm version minor && npm publish",
+    "publish:major": "npm version major && npm publish"
   },
   "keywords": [
     "chat3",
