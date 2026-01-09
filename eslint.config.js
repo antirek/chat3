@@ -72,8 +72,8 @@ export default [
       '*.min.js',
       'dist/**',
       'build/**',
-      'packages/tenant-client/node_modules/**',
-      'packages/tenant-client/coverage/**',
+      'packages/tenant-api-client/node_modules/**',
+      'packages/tenant-api-client/coverage/**',
     ],
   },
 ];
