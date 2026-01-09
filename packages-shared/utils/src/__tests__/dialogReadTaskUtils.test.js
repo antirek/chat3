@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 import { Tenant, DialogReadTask, Dialog, DialogMember, Message, MessageStatus } from '@chat3/models';
 import { scheduleDialogReadTask, runDialogReadTask } from '../dialogReadTaskUtils.js';
-import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
-import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '@chat3/tenant-api/src/utils/__tests__/setup.js';
+import { generateTimestamp } from '../timestampUtils.js';
 
 const tenantId = 'tnt_test';
 
@@ -152,4 +152,3 @@ describe('dialogReadTaskUtils', () => {
     });
   });
 });
-

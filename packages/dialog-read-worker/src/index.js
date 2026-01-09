@@ -1,6 +1,6 @@
 import connectDB from '@chat3/config';
 import { DialogReadTask } from '@chat3/models';
-import { runDialogReadTask } from '@chat3/tenant-api/src/utils/dialogReadTaskUtils.js';
+import { runDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
 const POLL_INTERVAL_MS = parseInt(process.env.DIALOG_READ_TASK_POLL_MS || '2000', 10);

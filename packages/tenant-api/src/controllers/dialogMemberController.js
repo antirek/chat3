@@ -5,7 +5,7 @@ import { sanitizeResponse } from '../utils/responseUtils.js';
 import * as metaUtils from '../utils/metaUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
-import { scheduleDialogReadTask } from '../utils/dialogReadTaskUtils.js';
+import { scheduleDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import * as userUtils from '../utils/userUtils.js';
 import { 
   updateUserStatsDialogCount,
