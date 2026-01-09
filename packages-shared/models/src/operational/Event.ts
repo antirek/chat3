@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
 // TypeScript типы для Event

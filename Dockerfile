@@ -8,6 +8,7 @@ WORKDIR /app
 
 # Копируем файлы зависимостей (корневой package.json и все workspace пакеты)
 COPY package*.json ./
+COPY tsconfig.json ./
 COPY packages/ ./packages/
 COPY packages-shared/ ./packages-shared/
 
@@ -26,8 +27,9 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 chat3user
 
-# Копируем package.json для установки только production зависимостей
+# Копируем package.json и tsconfig.json для установки только production зависимостей
 COPY --chown=chat3user:nodejs package*.json ./
+COPY --chown=chat3user:nodejs tsconfig.json ./
 COPY --chown=chat3user:nodejs packages/ ./packages/
 COPY --chown=chat3user:nodejs packages-shared/ ./packages-shared/
 
