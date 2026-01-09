@@ -11,8 +11,11 @@ COPY package*.json ./
 COPY packages/ ./packages/
 COPY packages-shared/ ./packages-shared/
 
-# Устанавливаем зависимости для всех workspaces
-RUN npm ci --omit=dev && npm cache clean --force
+# Устанавливаем все зависимости (включая dev для сборки TypeScript)
+RUN npm ci && npm cache clean --force
+
+# Собираем TypeScript пакеты
+RUN npm run build --workspaces --if-present
 
 # Финальный образ
 FROM node:20-alpine AS runner
@@ -23,12 +26,13 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 chat3user
 
-# Копируем node_modules из базового образа (включая workspace зависимости)
-COPY --from=base --chown=chat3user:nodejs /app/node_modules ./node_modules
-COPY --from=base --chown=chat3user:nodejs /app/package-lock.json ./package-lock.json
+# Копируем package.json для установки только production зависимостей
+COPY --chown=chat3user:nodejs package*.json ./
+COPY --chown=chat3user:nodejs packages/ ./packages/
+COPY --chown=chat3user:nodejs packages-shared/ ./packages-shared/
 
-# Копируем исходный код приложения
-COPY --chown=chat3user:nodejs . .
+# Устанавливаем только production зависимости
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Переключаемся на непривилегированного пользователя
 USER chat3user
