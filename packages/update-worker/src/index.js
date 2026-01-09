@@ -6,7 +6,6 @@ import {
   updateDialogMemberCount,
   updateDialogMessageCount
 } from '@chat3/utils/counterUtils.js';
-import * as topicUtils from '@chat3/utils/topicUtils.js';
 
 const WORKER_QUEUE = 'update_worker_queue';
 

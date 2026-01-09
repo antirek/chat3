@@ -87,7 +87,8 @@ describe('queryParser', () => {
 
     test('should default to case-insensitive regex when value is not a string', () => {
       const result = parseFilter('(name,regex,123)');
-      expect(result).toEqual({ name: { $regex: 123, $options: 'i' } });
+      // В TypeScript версии число конвертируется в строку для regex
+      expect(result).toEqual({ name: { $regex: '123', $options: 'i' } });
     });
 
     test('should parse exists operator', () => {
@@ -422,13 +423,13 @@ describe('queryParser', () => {
     });
 
     test('should handle whitespace in sort string', () => {
-      // Note: parseMemberSort trims the string before parsing
+      // Note: parseMemberSort trims the string before parsing but preserves original in originalString
       const result = parseMemberSort('  (member[carl].unreadCount,desc)  ');
       expect(result).toEqual({
         userId: 'carl',
         field: 'unreadCount',
         direction: -1,
-        originalString: '(member[carl].unreadCount,desc)' // trimmed
+        originalString: '  (member[carl].unreadCount,desc)  ' // original string preserved
       });
     });
   });

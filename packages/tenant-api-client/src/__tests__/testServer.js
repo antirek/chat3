@@ -24,16 +24,16 @@ async function startTestServer() {
   // Динамически импортируем ES modules из основного проекта
   const { default: connectDB } = await import('@chat3/config');
   const rabbitmqUtils = await import('@chat3/utils/rabbitmqUtils.js');
-  const tenantRoutes = (await import('@chat3/tenant-api/src/routes/tenantRoutes.js')).default;
-  const userRoutes = (await import('@chat3/tenant-api/src/routes/userRoutes.js')).default;
-  const dialogRoutes = (await import('@chat3/tenant-api/src/routes/dialogRoutes.js')).default;
-  const messageRoutes = (await import('@chat3/tenant-api/src/routes/messageRoutes.js')).default;
-  const messageInfoRoutes = (await import('@chat3/tenant-api/src/routes/messageInfoRoutes.js')).default;
-  const dialogMemberRoutes = (await import('@chat3/tenant-api/src/routes/dialogMemberRoutes.js')).default;
-  const userDialogRoutes = (await import('@chat3/tenant-api/src/routes/userDialogRoutes.js')).default;
-  const metaRoutes = (await import('@chat3/tenant-api/src/routes/metaRoutes.js')).default;
-  const idempotencyGuard = (await import('@chat3/tenant-api/src/middleware/idempotencyGuard.js')).default;
-  const { apiJournalMiddleware } = await import('@chat3/tenant-api/src/middleware/apiJournal.js');
+  const tenantRoutes = (await import('@chat3/tenant-api/src/routes/tenantRoutes.ts')).default;
+  const userRoutes = (await import('@chat3/tenant-api/src/routes/userRoutes.ts')).default;
+  const dialogRoutes = (await import('@chat3/tenant-api/src/routes/dialogRoutes.ts')).default;
+  const messageRoutes = (await import('@chat3/tenant-api/src/routes/messageRoutes.ts')).default;
+  const messageInfoRoutes = (await import('@chat3/tenant-api/src/routes/messageInfoRoutes.ts')).default;
+  const dialogMemberRoutes = (await import('@chat3/tenant-api/src/routes/dialogMemberRoutes.ts')).default;
+  const userDialogRoutes = (await import('@chat3/tenant-api/src/routes/userDialogRoutes.ts')).default;
+  const metaRoutes = (await import('@chat3/tenant-api/src/routes/metaRoutes.ts')).default;
+  const idempotencyGuard = (await import('@chat3/tenant-api/src/middleware/idempotencyGuard.ts')).default;
+  const { apiJournalMiddleware } = await import('@chat3/tenant-api/src/middleware/apiJournal.ts');
   const { ApiKey } = await import('@chat3/models');
   
   // 1. Настройка MongoDB Memory Server
