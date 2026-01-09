@@ -78,7 +78,14 @@ const router = express.Router();
  *       404:
  *         description: Dialog not found
  */
-router.post('/:dialogId/members/add', apiAuth, requirePermission('write'), validateDialogId, validateBody(addDialogMemberSchema), dialogMemberController.addDialogMember);
+router.post(
+  '/:dialogId/members/add', 
+  apiAuth, 
+  requirePermission('write'), 
+  validateDialogId, 
+  validateBody(addDialogMemberSchema), 
+  dialogMemberController.addDialogMember
+);
 
 /**
  * @swagger
