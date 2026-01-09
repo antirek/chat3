@@ -239,9 +239,9 @@ chat3/
 - `@chat3/utils`
 - `@chat3/config`
 - `@chat3/tenant-api`
-- `@chat3/gateway`
-- `@chat3/control-api`
-- `@chat3/api-test`
+- `@chat3/controlo-gateway`
+- `@chat3/controlo-api`
+- `@chat3/controlo-ui`
 - `@chat3/update-worker`
 - `@chat3/dialog-read-worker`
 
@@ -249,9 +249,9 @@ chat3/
 
 ```
 tenant-api → @chat3/models, @chat3/utils, @chat3/config
-gateway → @chat3/models, @chat3/utils, @chat3/config, @chat3/control-api
-control-api → @chat3/models, @chat3/utils, @chat3/config
-api-test → @chat3/models, @chat3/utils, @chat3/config
+controlo-gateway → @chat3/models, @chat3/utils, @chat3/config, @chat3/controlo-api
+controlo-api → @chat3/models, @chat3/utils, @chat3/config
+controlo-ui → @chat3/models, @chat3/utils, @chat3/config
 update-worker → @chat3/models, @chat3/utils, @chat3/config
 dialog-read-worker → @chat3/models, @chat3/utils, @chat3/config
 utils → @chat3/models

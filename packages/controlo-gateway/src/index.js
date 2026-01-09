@@ -6,10 +6,10 @@ import { dirname, join } from 'path';
 import pkg from '../../../package.json' assert { type: 'json' };
 
 import connectDB from '@chat3/config';
-import initRoutes from '@chat3/control-api/src/routes/initRoutes.js';
-import eventsRoutes from '@chat3/control-api/src/routes/eventsRoutes.js';
-import dbExplorerRoutes from '@chat3/control-api/src/routes/dbExplorerRoutes.js';
-import swaggerSpec from '@chat3/control-api/src/config/swagger.js';
+import initRoutes from '@chat3/controlo-api/src/routes/initRoutes.js';
+import eventsRoutes from '@chat3/controlo-api/src/routes/eventsRoutes.js';
+import dbExplorerRoutes from '@chat3/controlo-api/src/routes/dbExplorerRoutes.js';
+import swaggerSpec from '@chat3/controlo-api/src/config/swagger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -117,15 +117,15 @@ window.CHAT3_CONFIG = {
 };`);
 });
 
-// Serve static files from api-test/public directory
-// Path: packages/api-test/src/public (using workspace structure)
-// __dirname is packages/gateway/src, so we go up to packages, then to api-test/src/public
-const apiTestPublicPath = join(__dirname, '../../api-test/src/public');
-app.use(express.static(apiTestPublicPath));
+// Serve static files from controlo-ui/public directory
+// Path: packages/controlo-ui/src/public (using workspace structure)
+// __dirname is packages/controlo-gateway/src, so we go up to packages, then to controlo-ui/src/public
+const controloUiPublicPath = join(__dirname, '../../controlo-ui/src/public');
+app.use(express.static(controloUiPublicPath));
 
-// Main page - API Test Suite
+// Main page - Controlo UI
 app.get('/', (req, res) => {
-  res.sendFile(join(apiTestPublicPath, 'api-test.html'));
+  res.sendFile(join(controloUiPublicPath, 'api-test.html'));
 });
 
 // ============================================

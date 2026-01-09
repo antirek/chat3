@@ -21,9 +21,9 @@
    npm run start:all
    
    # Или запустить по отдельности:
-   npm run start:tenant-api    # Tenant API (порт 3000)
-   npm run start:gateway       # Gateway (порт 3001)
-   npm run start:update-worker # Update Worker
+   npm run start:tenant-api         # Tenant API (порт 3000)
+   npm run start:controlo-gateway  # Controlo Gateway (порт 3001)
+   npm run start:update-worker      # Update Worker
    ```
 
 3. **Генерация API ключа:**
@@ -111,7 +111,7 @@ npm run start:dialog-read-worker
 1. MongoDB
 2. RabbitMQ
 3. Tenant API Server (`npm run start:tenant-api`)
-4. Gateway Server (`npm run start:gateway`) - опционально
+4. Controlo Gateway Server (`npm run start:controlo-gateway`) - опционально
 5. Update Worker (`npm run start:update-worker`) - обязательно
 6. Dialog Read Worker (`npm run start:dialog-read-worker`) - опционально
 
@@ -124,7 +124,7 @@ npm run start:dialog-read-worker
 - 💚 **Health Check**: http://localhost:3000/health
 - 🔑 **API Endpoints**: `/api/tenants`, `/api/users`, `/api/dialogs`, `/api/messages`, `/api/meta`
 
-### Gateway (порт 3001)
+### Controlo Gateway (порт 3001)
 - 🧪 **API Test Suite**: http://localhost:3001 (главная страница)
 - 📚 **Swagger UI**: http://localhost:3001/api-docs
 - 💚 **Health Check**: http://localhost:3001/health
