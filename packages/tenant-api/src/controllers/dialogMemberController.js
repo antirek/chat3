@@ -16,11 +16,19 @@ import {
 const dialogMemberController = {
   // Add member to dialog
   async addDialogMember(req, res) {
+    const routePath = '/:dialogId/members/add';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { dialogId } = req.params;
       const { userId, type, name } = req.body;
+      log(`Получены параметры: dialogId=${dialogId}, userId=${userId}`);
 
       if (!userId) {
+        log(`Ошибка валидации: отсутствует userId`);
         return res.status(400).json({
           error: 'Bad Request',
           message: 'Missing required field: userId'
@@ -28,15 +36,19 @@ const dialogMemberController = {
       }
 
       // Найти Dialog по dialogId для получения ObjectId
+      log(`Поиск диалога: dialogId=${dialogId}, tenantId=${req.tenantId}`);
       const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: req.tenantId });
       if (!dialog) {
+        log(`Диалог не найден: dialogId=${dialogId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
         });
       }
+      log(`Диалог найден: dialogId=${dialog.dialogId}`);
 
       // Проверяем, существует ли участник уже в диалоге
+      log(`Проверка существования участника: userId=${userId}, dialogId=${dialog.dialogId}`);
       const existingMember = await DialogMember.findOne({
         tenantId: req.tenantId,
         dialogId: dialog.dialogId,
@@ -45,6 +57,8 @@ const dialogMemberController = {
 
       if (existingMember) {
         // Участник уже существует - просто возвращаем успешный ответ
+        log(`Участник уже существует в диалоге: userId=${userId}`);
+        log('>>>>> end');
         return res.status(200).json({
           data: sanitizeResponse({
             userId,
@@ -55,26 +69,33 @@ const dialogMemberController = {
       }
 
       // Проверяем и создаем пользователя, если его нет
+      log(`Проверка/создание пользователя: userId=${userId}, type=${type}, name=${name}`);
       await userUtils.ensureUserExists(req.tenantId, userId, {
         type,
         name
       });
+      log(`Пользователь готов: userId=${userId}`);
 
+      log(`Добавление участника в диалог: userId=${userId}, dialogId=${dialog.dialogId}`);
       const member = await dialogMemberUtils.addDialogMember(
         req.tenantId,
         userId,
         dialog.dialogId // Передаем строковый dialogId
       );
+      log(`Участник добавлен: userId=${member.userId}`);
 
       // Получаем unreadCount из UserDialogStats
+      log(`Получение статистики диалога: userId=${userId}, dialogId=${dialog.dialogId}`);
       const userDialogStats = await UserDialogStats.findOne({
         tenantId: req.tenantId,
         userId,
         dialogId: dialog.dialogId
       }).lean();
       const unreadCount = userDialogStats?.unreadCount || 0;
+      log(`Статистика получена: unreadCount=${unreadCount}`);
 
       // Получаем метаданные диалога для события
+      log(`Получение метаданных диалога: dialogId=${dialog.dialogId}`);
       const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
       const dialogSection = eventUtils.buildDialogSection({
         dialogId: dialog.dialogId,
@@ -82,8 +103,10 @@ const dialogMemberController = {
         createdAt: dialog.createdAt,
         meta: dialogMeta || {}
       });
+      log(`Метаданные диалога получены`);
 
       // Получаем активность из UserDialogActivity
+      log(`Получение активности пользователя: userId=${member.userId}, dialogId=${dialog.dialogId}`);
       const activity = await UserDialogActivity.findOne({
         tenantId: req.tenantId,
         userId: member.userId,
@@ -98,6 +121,7 @@ const dialogMemberController = {
           lastMessageAt: activity?.lastMessageAt || 0
         }
       });
+      log(`Секция участника построена: userId=${member.userId}`);
 
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.member.add',
@@ -108,6 +132,7 @@ const dialogMemberController = {
       });
 
       // КРИТИЧНО: Создаем событие и сохраняем eventId для обновления счетчиков
+      log(`Создание события: eventType=dialog.member.add, entityId=${dialog.dialogId}:${userId}`);
       const memberEvent = await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'dialog.member.add',
@@ -123,10 +148,12 @@ const dialogMemberController = {
       });
 
       const sourceEventId = memberEvent?.eventId || null;
+      log(`Событие создано: eventId=${sourceEventId}`);
 
       // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
       try {
         // Обновление dialogCount
+        log(`Обновление счетчика dialogCount: userId=${userId}, delta=1`);
         await updateUserStatsDialogCount(
           req.tenantId,
           userId,
@@ -136,15 +163,20 @@ const dialogMemberController = {
           req.apiKey?.name || 'unknown',
           'api'
         );
+        log(`Счетчик dialogCount обновлен`);
       } finally {
         // Создаем user.stats.update после всех изменений счетчиков
         try {
+          log(`Финализация контекста обновления счетчиков: userId=${userId}, eventId=${sourceEventId}`);
           await finalizeCounterUpdateContext(req.tenantId, userId, sourceEventId);
+          log(`Контекст финализирован`);
         } catch (error) {
-          console.error(`Failed to finalize context for ${userId}:`, error);
+          log(`Ошибка финализации контекста для ${userId}:`, error);
         }
       }
 
+      log(`Отправка успешного ответа: userId=${userId}, dialogId=${dialogId}`);
+      log('>>>>> end');
       res.status(201).json({
         data: sanitizeResponse({
           userId,
@@ -153,29 +185,42 @@ const dialogMemberController = {
         message: 'Member added to dialog successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
+      log('>>>>> end');
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
-    }
+    } 
   },
 
   async getDialogMembers(req, res) {
+    const routePath = '/:dialogId/members';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { dialogId } = req.params;
       const { page: pageParam, limit: limitParam, filter, sort: sortParam, sortDirection } = req.query;
+      log(`Получены параметры: dialogId=${dialogId}, page=${pageParam}, limit=${limitParam}, filter=${filter}, sort=${sortParam}`);
 
       // Преобразуем page и limit в числа
       const page = parseInt(pageParam, 10) || 1;
       const limit = parseInt(limitParam, 10) || 10;
 
+      log(`Поиск диалога: dialogId=${dialogId}, tenantId=${req.tenantId}`);
       const dialog = await Dialog.findOne({ tenantId: req.tenantId, dialogId }).select('dialogId').lean();
       if (!dialog) {
+        log(`Диалог не найден: dialogId=${dialogId}`);
+        log('>>>>> end');
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
         });
       }
+      log(`Диалог найден: dialogId=${dialog.dialogId}`);
 
       // Убеждаемся, что page и limit - числа
       const skip = Math.max(0, (page - 1) * limit);
@@ -183,8 +228,12 @@ const dialogMemberController = {
 
       if (filter) {
         try {
+          log(`Парсинг фильтров: filter=${filter}`);
           parsedFilters = parseFilters(filter);
+          log(`Фильтры распарсены успешно`);
         } catch (error) {
+          log(`Ошибка парсинга фильтров: ${error.message}`);
+          log('>>>>> end');
           return res.status(400).json({
             error: 'Bad Request',
             message: `Invalid filter format. ${error.message}`
@@ -221,9 +270,13 @@ const dialogMemberController = {
       }
 
       if (Object.keys(metaFilters).length > 0) {
+        log(`Поиск участников по мета-фильтрам: metaFilters=${JSON.stringify(metaFilters)}`);
         const userIds = await findMemberUserIdsByMeta(req.tenantId, dialog.dialogId, metaFilters);
+        log(`Найдено участников по мета-фильтрам: ${userIds.length}`);
 
         if (userIds.length === 0) {
+          log(`Нет участников, соответствующих мета-фильтрам`);
+          log('>>>>> end');
           return res.json({
             data: [],
             pagination: {
@@ -279,6 +332,7 @@ const dialogMemberController = {
         _id: 1 // Вторичная сортировка по _id для стабильности (гарантирует предсказуемый порядок)
       };
 
+      log(`Выполнение запроса участников: query=${JSON.stringify(memberQuery)}, sort=${JSON.stringify(sortOptions)}, skip=${skip}, limit=${limit}`);
       const [total, members] = await Promise.all([
         DialogMember.countDocuments(memberQuery),
         DialogMember.find(memberQuery)
@@ -288,7 +342,9 @@ const dialogMemberController = {
           .select('-__v')
           .lean()
       ]);
+      log(`Найдено участников: ${members.length} из ${total}`);
 
+      log(`Получение метаданных для ${members.length} участников`);
       const membersWithMeta = await Promise.all(
         members.map(async (member) => {
           const memberMeta = await metaUtils.getEntityMeta(
@@ -303,7 +359,10 @@ const dialogMemberController = {
           };
         })
       );
+      log(`Метаданные получены для всех участников`);
 
+      log(`Отправка ответа: page=${page}, limit=${limit}, total=${total}, pages=${Math.ceil(total / limit)}`);
+      log('>>>>> end');
       return res.json({
         data: sanitizeResponse(membersWithMeta),
         pagination: {
@@ -314,6 +373,8 @@ const dialogMemberController = {
         }
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
+      log('>>>>> end');
       return res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
@@ -323,19 +384,31 @@ const dialogMemberController = {
 
   // Remove member from dialog
   async removeDialogMember(req, res) {
+    const routePath = '/:dialogId/members/:userId/remove';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { dialogId, userId } = req.params;
+      log(`Получены параметры: dialogId=${dialogId}, userId=${userId}`);
 
       // Найти Dialog по dialogId для получения ObjectId
+      log(`Поиск диалога: dialogId=${dialogId}, tenantId=${req.tenantId}`);
       const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: req.tenantId });
       if (!dialog) {
+        log(`Диалог не найден: dialogId=${dialogId}`);
+        log('>>>>> end');
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
         });
       }
+      log(`Диалог найден: dialogId=${dialog.dialogId}`);
 
       // Получаем member перед удалением для события
+      log(`Поиск участника перед удалением: userId=${userId}, dialogId=${dialog.dialogId}`);
       const member = await DialogMember.findOne({
         tenantId: req.tenantId,
         userId,
@@ -343,25 +416,31 @@ const dialogMemberController = {
       });
 
       // Получаем unreadCount из UserDialogStats перед удалением
+      log(`Получение статистики участника: userId=${userId}, dialogId=${dialog.dialogId}`);
       const userDialogStats = await UserDialogStats.findOne({
         tenantId: req.tenantId,
         userId,
         dialogId: dialog.dialogId
       }).lean();
       const unreadCount = userDialogStats?.unreadCount || 0;
+      log(`Статистика получена: unreadCount=${unreadCount}`);
 
       // Получаем активность из UserDialogActivity перед удалением
+      log(`Получение активности участника: userId=${userId}, dialogId=${dialog.dialogId}`);
       const activity = await UserDialogActivity.findOne({
         tenantId: req.tenantId,
         userId,
         dialogId: dialog.dialogId
       }).lean();
+      log(`Активность получена`);
 
       let sourceEventId = null;
 
       // Создаем событие только если member существует
       if (member) {
+        log(`Участник найден, создание события перед удалением: userId=${userId}`);
         // Получаем метаданные диалога для события
+        log(`Получение метаданных диалога: dialogId=${dialog.dialogId}`);
         const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
         const dialogSection = eventUtils.buildDialogSection({
           dialogId: dialog.dialogId,
@@ -369,6 +448,7 @@ const dialogMemberController = {
           createdAt: dialog.createdAt,
           meta: dialogMeta || {}
         });
+        log(`Метаданные диалога получены`);
 
         const memberSection = eventUtils.buildMemberSection({
           userId: member.userId,
@@ -388,6 +468,7 @@ const dialogMemberController = {
         });
 
         // КРИТИЧНО: Создаем событие ДО удаления, чтобы передать sourceEventId в утилиту
+        log(`Создание события: eventType=dialog.member.remove, entityId=${dialog.dialogId}:${userId}`);
         const memberEvent = await eventUtils.createEvent({
           tenantId: req.tenantId,
           eventType: 'dialog.member.remove',
@@ -403,12 +484,16 @@ const dialogMemberController = {
         });
 
         sourceEventId = memberEvent?.eventId || null;
+        log(`Событие создано: eventId=${sourceEventId}`);
+      } else {
+        log(`Участник не найден, удаление будет идемпотентным: userId=${userId}`);
       }
 
       // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
       try {
         // Удаляем участника через утилиту (она удалит UserDialogStats, UserDialogActivity и обновит счетчики)
         // КРИТИЧНО: Удаляем даже если member не найден (idempotent операция)
+        log(`Удаление участника через утилиту: userId=${userId}, dialogId=${dialog.dialogId}`);
         await dialogMemberUtils.removeDialogMember(
           req.tenantId,
           userId,
@@ -418,9 +503,11 @@ const dialogMemberController = {
           req.apiKey?.name || 'unknown',
           'api'
         );
+        log(`Участник удален через утилиту`);
 
         // Обновление dialogCount (уменьшаем на 1) только если member существовал
         if (member && sourceEventId) {
+          log(`Обновление счетчика dialogCount: userId=${userId}, delta=-1`);
           await updateUserStatsDialogCount(
             req.tenantId,
             userId,
@@ -430,22 +517,29 @@ const dialogMemberController = {
             req.apiKey?.name || 'unknown',
             'api'
           );
+          log(`Счетчик dialogCount обновлен`);
         }
       } finally {
         // Создаем user.stats.update после всех изменений счетчиков
         if (sourceEventId) {
           try {
+            log(`Финализация контекста обновления счетчиков: userId=${userId}, eventId=${sourceEventId}`);
             await finalizeCounterUpdateContext(req.tenantId, userId, sourceEventId);
+            log(`Контекст финализирован`);
           } catch (error) {
-            console.error(`Failed to finalize context for ${userId}:`, error);
+            log(`Ошибка финализации контекста для ${userId}:`, error);
           }
         }
       }
 
+      log(`Отправка успешного ответа: userId=${userId}, dialogId=${dialogId}`);
+      log('>>>>> end');
       res.json({
         message: 'Member removed from dialog successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
+      log('>>>>> end');
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
@@ -454,18 +548,29 @@ const dialogMemberController = {
   },
 
   async setUnreadCount(req, res) {
+    const routePath = '/:dialogId/members/:userId/unread';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { dialogId, userId } = req.params;
       // eslint-disable-next-line no-unused-vars
       const { unreadCount, lastSeenAt, reason } = req.body;
+      log(`Получены параметры: dialogId=${dialogId}, userId=${userId}, unreadCount=${unreadCount}, lastSeenAt=${lastSeenAt}`);
 
+      log(`Поиск диалога: dialogId=${dialogId}, tenantId=${req.tenantId}`);
       const dialog = await Dialog.findOne({ dialogId, tenantId: req.tenantId });
       if (!dialog) {
+        log(`Диалог не найден: dialogId=${dialogId}`);
+        log('>>>>> end');
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
         });
       }
+      log(`Диалог найден: dialogId=${dialog.dialogId}`);
 
       const memberFilter = {
         tenantId: req.tenantId,
@@ -473,23 +578,31 @@ const dialogMemberController = {
         userId
       };
 
+      log(`Поиск участника: userId=${userId}, dialogId=${dialog.dialogId}`);
       const existingMember = await DialogMember.findOne(memberFilter).lean();
       if (!existingMember) {
+        log(`Участник не найден: userId=${userId}`);
+        log('>>>>> end');
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog member not found'
         });
       }
+      log(`Участник найден: userId=${userId}`);
 
       // Получаем текущий unreadCount из UserDialogStats
+      log(`Получение текущей статистики: userId=${userId}, dialogId=${dialog.dialogId}`);
       const existingStats = await UserDialogStats.findOne({
         tenantId: req.tenantId,
         dialogId: dialog.dialogId,
         userId
       }).lean();
       const currentUnreadCount = existingStats?.unreadCount || 0;
+      log(`Текущий unreadCount: ${currentUnreadCount}, новый unreadCount: ${unreadCount}`);
 
       if (unreadCount > currentUnreadCount) {
+        log(`Ошибка валидации: новый unreadCount (${unreadCount}) больше текущего (${currentUnreadCount})`);
+        log('>>>>> end');
         return res.status(400).json({
           error: 'Bad Request',
           message: 'Unread count cannot be greater than current unread count'
@@ -507,6 +620,7 @@ const dialogMemberController = {
 
       // Обновляем lastSeenAt в UserDialogActivity, если нужно
       if (lastSeenAtValue !== null) {
+        log(`Обновление lastSeenAt: userId=${userId}, lastSeenAt=${lastSeenAtValue}`);
         await UserDialogActivity.findOneAndUpdate(
           {
             tenantId: req.tenantId,
@@ -516,9 +630,11 @@ const dialogMemberController = {
           { lastSeenAt: lastSeenAtValue },
           { upsert: true, new: true }
         );
+        log(`lastSeenAt обновлен`);
       }
 
       // Получаем или создаем активность
+      log(`Получение/создание активности: userId=${userId}, dialogId=${dialog.dialogId}`);
       let updatedActivity = await UserDialogActivity.findOne({
         tenantId: req.tenantId,
         userId,
@@ -527,6 +643,7 @@ const dialogMemberController = {
       
       // Если активности нет, создаем её с дефолтными значениями
       if (!updatedActivity) {
+        log(`Активность не найдена, создание с дефолтными значениями`);
         const defaultTimestamp = generateTimestamp();
         updatedActivity = await UserDialogActivity.findOneAndUpdate(
           {
@@ -543,12 +660,18 @@ const dialogMemberController = {
           },
           { upsert: true, new: true }
         ).lean();
+        log(`Активность создана`);
+      } else {
+        log(`Активность найдена`);
       }
 
       // Обновляем unreadCount в UserDialogStats
       const delta = unreadCount - currentUnreadCount;
+      log(`Вычислен delta для unreadCount: ${delta}`);
       if (delta !== 0) {
+        log(`Обновление unreadCount требуется: delta=${delta}`);
         // Создаем событие для обновления счетчиков
+        log(`Создание события для обновления счетчиков: eventType=dialog.member.update`);
         const eventId = await eventUtils.createEvent({
           tenantId: req.tenantId,
           eventType: 'dialog.member.update',
@@ -559,8 +682,10 @@ const dialogMemberController = {
           data: {}
         });
         const sourceEventId = eventId?.eventId || null;
+        log(`Событие создано: eventId=${sourceEventId}`);
 
         try {
+          log(`Обновление unreadCount: userId=${userId}, dialogId=${dialog.dialogId}, delta=${delta}`);
           await updateUnreadCount(
             req.tenantId,
             userId,
@@ -572,21 +697,29 @@ const dialogMemberController = {
             req.apiKey?.name || 'unknown',
             'api'
           );
+          log(`unreadCount обновлен`);
+          log(`Финализация контекста обновления счетчиков: userId=${userId}, eventId=${sourceEventId}`);
           await finalizeCounterUpdateContext(req.tenantId, userId, sourceEventId);
+          log(`Контекст финализирован`);
         } catch (error) {
-          console.error(`Failed to update unread count:`, error);
+          log(`Ошибка обновления unreadCount:`, error);
         }
+      } else {
+        log(`Обновление unreadCount не требуется: delta=0`);
       }
 
       // Получаем обновленный unreadCount из UserDialogStats
+      log(`Получение обновленной статистики: userId=${userId}, dialogId=${dialog.dialogId}`);
       const updatedStats = await UserDialogStats.findOne({
         tenantId: req.tenantId,
         dialogId: dialog.dialogId,
         userId
       }).lean();
       const finalUnreadCount = updatedStats?.unreadCount || 0;
+      log(`Финальный unreadCount: ${finalUnreadCount}`);
 
       // Получаем метаданные диалога для события
+      log(`Получение метаданных диалога для события: dialogId=${dialog.dialogId}`);
       const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
       const dialogSection = eventUtils.buildDialogSection({
         dialogId: dialog.dialogId,
@@ -594,6 +727,7 @@ const dialogMemberController = {
         createdAt: dialog.createdAt,
         meta: dialogMeta || {}
       });
+      log(`Метаданные диалога получены`);
 
       const memberSection = eventUtils.buildMemberSection({
         userId,
@@ -612,6 +746,7 @@ const dialogMemberController = {
         updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
       });
 
+      log(`Создание финального события: eventType=dialog.member.update, entityId=${dialog.dialogId}:${userId}`);
       await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'dialog.member.update',
@@ -633,8 +768,10 @@ const dialogMemberController = {
           }
         })
       });
+      log(`Финальное событие создано`);
 
       if (finalUnreadCount === 0) {
+        log(`unreadCount=0, планирование задачи чтения диалога: userId=${userId}, dialogId=${dialog.dialogId}`);
         await scheduleDialogReadTask({
           tenantId: req.tenantId,
           dialogId: dialog.dialogId,
@@ -642,8 +779,11 @@ const dialogMemberController = {
           readUntil: updatedActivity?.lastSeenAt || 0,
           source: 'api.setUnreadCount'
         });
+        log(`Задача чтения диалога запланирована`);
       }
 
+      log(`Отправка успешного ответа: userId=${userId}, dialogId=${dialogId}, unreadCount=${finalUnreadCount}`);
+      log('>>>>> end');
       return res.json({
         data: sanitizeResponse({
           userId: existingMember.userId,
@@ -656,6 +796,8 @@ const dialogMemberController = {
         message: 'Unread count updated successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
+      log('>>>>> end');
       return res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
