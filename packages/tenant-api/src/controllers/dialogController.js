@@ -1,9 +1,11 @@
 // eslint-disable-next-line no-unused-vars
-import { Dialog, Meta, DialogMember, Event, Update, UserDialogStats, UserDialogActivity, DialogStats } from '@chat3/models';
+import { Dialog, Meta, DialogMember,
+  UserDialogStats, UserDialogActivity, DialogStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort } from '../utils/queryParser.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
+
 import * as userUtils from '../utils/userUtils.js';
 import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 import {
@@ -12,7 +14,6 @@ import {
   updateDialogStats,
   recalculateDialogStats
 } from '@chat3/utils/counterUtils.js';
-import mongoose from 'mongoose';
 
 export const dialogController = {
   // Get all dialogs for current tenant

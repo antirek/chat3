@@ -1,17 +1,32 @@
 import { DialogReadTask, Message, MessageStatus } from '@chat3/models';
-import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import type { IDialogReadTask } from '@chat3/models';
+import { generateTimestamp } from './timestampUtils.js';
 
 const DEFAULT_BATCH_SIZE = parseInt(process.env.DIALOG_READ_BATCH_SIZE || '200', 10);
 const BATCH_SLEEP_MS = parseInt(process.env.DIALOG_READ_BATCH_SLEEP_MS || '0', 10);
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   if (!ms) {
     return Promise.resolve();
   }
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export async function scheduleDialogReadTask({ tenantId, dialogId, userId, readUntil, source = 'api' }) {
+interface ScheduleDialogReadTaskParams {
+  tenantId: string;
+  dialogId: string;
+  userId: string;
+  readUntil?: number;
+  source?: string;
+}
+
+export async function scheduleDialogReadTask({ 
+  tenantId, 
+  dialogId, 
+  userId, 
+  readUntil, 
+  source = 'api' 
+}: ScheduleDialogReadTaskParams): Promise<IDialogReadTask> {
   if (!tenantId || !dialogId || !userId) {
     throw new Error('scheduleDialogReadTask: tenantId, dialogId and userId are required');
   }
@@ -50,12 +65,19 @@ export async function scheduleDialogReadTask({ tenantId, dialogId, userId, readU
   });
 }
 
-export async function runDialogReadTask(task, options = {}) {
+interface RunDialogReadTaskOptions {
+  batchSize?: number;
+}
+
+export async function runDialogReadTask(
+  task: IDialogReadTask, 
+  options: RunDialogReadTaskOptions = {}
+): Promise<IDialogReadTask> {
   if (!task) {
     throw new Error('runDialogReadTask: task is required');
   }
 
-  const batchSize = parseInt(options.batchSize, 10) || DEFAULT_BATCH_SIZE;
+  const batchSize = parseInt(String(options.batchSize), 10) || DEFAULT_BATCH_SIZE;
   const readTimestamp = task.readUntil || generateTimestamp();
 
   let hasMore = true;
@@ -116,8 +138,16 @@ export async function runDialogReadTask(task, options = {}) {
   return task;
 }
 
-async function fetchNextMessageBatch(task, limit) {
-  const query = {
+async function fetchNextMessageBatch(task: IDialogReadTask, limit: number) {
+  const query: {
+    tenantId: string;
+    dialogId: string;
+    createdAt: { $lte: number };
+    $or?: Array<{
+      createdAt: { $gt: number } | number;
+      _id?: { $gt: unknown };
+    }>;
+  } = {
     tenantId: task.tenantId,
     dialogId: task.dialogId,
     createdAt: { $lte: task.readUntil }
@@ -133,7 +163,8 @@ async function fetchNextMessageBatch(task, limit) {
   return Message.find(query)
     .sort({ createdAt: 1, _id: 1 })
     .limit(limit)
-    .select('_id messageId senderId createdAt');
+    .select('_id messageId senderId createdAt')
+    .lean();
 }
 
 export default {

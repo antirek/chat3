@@ -3,56 +3,76 @@
  */
 /**
  * Генерирует ID топика
- * @returns {string} topicId в формате topic_xxxxxxxxxxxxx
+ * @returns topicId в формате topic_xxxxxxxxxxxxx
  */
-export function generateTopicId(): string;
+export declare function generateTopicId(): string;
+interface GetDialogTopicsOptions {
+    page?: number;
+    limit?: number;
+    sort?: Record<string, 1 | -1>;
+}
 /**
  * Получение списка топиков диалога
- * @param {string} tenantId - ID тенанта
- * @param {string} dialogId - ID диалога
- * @param {Object} options - Опции (page, limit, sort)
- * @returns {Promise<Array>} Массив топиков
+ * @param tenantId - ID тенанта
+ * @param dialogId - ID диалога
+ * @param options - Опции (page, limit, sort)
+ * @returns Массив топиков
  */
-export function getDialogTopics(tenantId: string, dialogId: string, options?: any): Promise<any[]>;
+export declare function getDialogTopics(tenantId: string, dialogId: string, options?: GetDialogTopicsOptions): Promise<unknown[]>;
+interface CreateTopicOptions {
+    meta?: Record<string, unknown>;
+    createdBy?: string;
+}
 /**
  * Создание нового топика
- * @param {string} tenantId - ID тенанта
- * @param {string} dialogId - ID диалога
- * @param {Object} options - Опции (meta - объект с мета-тегами)
- * @returns {Promise<Object>} Созданный топик
+ * @param tenantId - ID тенанта
+ * @param dialogId - ID диалога
+ * @param options - Опции (meta - объект с мета-тегами)
+ * @returns Созданный топик
  */
-export function createTopic(tenantId: string, dialogId: string, options?: any): Promise<any>;
+export declare function createTopic(tenantId: string, dialogId: string, options?: CreateTopicOptions): Promise<unknown>;
 /**
  * Получение топика по ID
- * @param {string} tenantId - ID тенанта
- * @param {string} dialogId - ID диалога
- * @param {string} topicId - ID топика
- * @returns {Promise<Object|null>} Топик или null, если не найден
+ * @param tenantId - ID тенанта
+ * @param dialogId - ID диалога
+ * @param topicId - ID топика
+ * @returns Топик или null, если не найден
  */
-export function getTopicById(tenantId: string, dialogId: string, topicId: string): Promise<any | null>;
+export declare function getTopicById(tenantId: string, dialogId: string, topicId: string): Promise<unknown | null>;
+interface UpdateTopicOptions {
+    meta?: Record<string, unknown>;
+    createdBy?: string;
+}
 /**
  * Обновление топика (мета-теги)
- * @param {string} tenantId - ID тенанта
- * @param {string} dialogId - ID диалога
- * @param {string} topicId - ID топика
- * @param {Object} updates - Обновления (meta - объект с мета-тегами)
- * @returns {Promise<Object|null>} Обновленный топик или null, если не найден
+ * @param tenantId - ID тенанта
+ * @param dialogId - ID диалога
+ * @param topicId - ID топика
+ * @param updates - Обновления (meta - объект с мета-тегами)
+ * @returns Обновленный топик или null, если не найден
  */
-export function updateTopic(tenantId: string, dialogId: string, topicId: string, updates?: any): Promise<any | null>;
+export declare function updateTopic(tenantId: string, dialogId: string, topicId: string, updates?: UpdateTopicOptions): Promise<unknown | null>;
 /**
  * Получение топика с мета-тегами (для одного топика)
- * @param {string} tenantId - ID тенанта
- * @param {string} dialogId - ID диалога
- * @param {string} topicId - ID топика
- * @returns {Promise<Object|null>} Объект { topicId, meta: {...} } или null
+ * @param tenantId - ID тенанта
+ * @param dialogId - ID диалога
+ * @param topicId - ID топика
+ * @returns Объект { topicId, meta: {...} } или null
  */
-export function getTopicWithMeta(tenantId: string, dialogId: string, topicId: string): Promise<any | null>;
+export declare function getTopicWithMeta(tenantId: string, dialogId: string, topicId: string): Promise<{
+    topicId: string;
+    meta: Record<string, unknown>;
+} | null>;
 /**
  * Получение нескольких топиков с мета-тегами (оптимизация N+1)
- * @param {string} tenantId - ID тенанта
- * @param {string} dialogId - ID диалога
- * @param {Array<string>} topicIds - Массив уникальных topicId (может быть пустым)
- * @returns {Promise<Map>} Map<topicId, { topicId, meta: {...} }>
+ * @param tenantId - ID тенанта
+ * @param dialogId - ID диалога
+ * @param topicIds - Массив уникальных topicId (может быть пустым)
+ * @returns Map<topicId, { topicId, meta: {...} }>
  */
-export function getTopicsWithMetaBatch(tenantId: string, dialogId: string, topicIds: Array<string>): Promise<Map<any, any>>;
+export declare function getTopicsWithMetaBatch(tenantId: string, dialogId: string, topicIds: string[]): Promise<Map<string, {
+    topicId: string;
+    meta: Record<string, unknown>;
+}>>;
+export {};
 //# sourceMappingURL=topicUtils.d.ts.map

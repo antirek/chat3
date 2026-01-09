@@ -1,170 +1,119 @@
+import mongoose from 'mongoose';
 /**
  * Завершить контекст и создать user.stats.update
  * КРИТИЧНО: Гарантированная очистка контекста
  */
-export function finalizeCounterUpdateContext(tenantId: any, userId: any, sourceEventId: any): Promise<void>;
+export declare function finalizeCounterUpdateContext(tenantId: string, userId: string, sourceEventId: string | null): Promise<void>;
+interface UpdateResult {
+    oldValue: number;
+    newValue: number;
+}
 /**
  * Обновление unreadCount
  * КРИТИЧНО: Используем атомарные операции для предотвращения race conditions
- * @param {string} tenantId - ID тенанта
- * @param {string} userId - ID пользователя
- * @param {string} dialogId - ID диалога
- * @param {number} delta - Изменение счетчика (+1 или -1)
- * @param {string} sourceOperation - Тип операции
- * @param {string} sourceEventId - ID события
- * @param {string} sourceEntityId - ID сущности
- * @param {string} actorId - ID актора
- * @param {string} actorType - Тип актора
- * @param {string|null} topicId - ID топика (опционально). Если указан, обновляет UserTopicStats, иначе UserDialogStats
- * @param {Object} session - MongoDB session для транзакций (опционально)
  */
-export function updateUnreadCount(tenantId: string, userId: string, dialogId: string, delta: number, sourceOperation: string, sourceEventId: string, sourceEntityId: string, actorId: string, actorType: string, topicId?: string | null, session?: any): Promise<{
-    oldValue: number;
-    newValue: number;
-}>;
+export declare function updateUnreadCount(tenantId: string, userId: string, dialogId: string, delta: number, sourceOperation: string, sourceEventId: string | null, sourceEntityId: string, actorId: string, actorType: string, topicId?: string | null, session?: mongoose.ClientSession | null): Promise<UpdateResult>;
 /**
  * Обновление reactionCount
  * КРИТИЧНО: Используем атомарные операции
  */
-export function updateReactionCount(tenantId: any, messageId: any, reaction: any, delta: any, sourceOperation: any, actorId: any, actorType: any): Promise<{
-    oldValue: number;
-    newValue: number;
-}>;
+export declare function updateReactionCount(tenantId: string, messageId: string, reaction: string, delta: number, sourceOperation: string, actorId: string, actorType: string): Promise<UpdateResult>;
 /**
  * Обновление statusCount
  * КРИТИЧНО: Используем атомарные операции
  */
-export function updateStatusCount(tenantId: any, messageId: any, status: any, delta: any, sourceOperation: any, actorId: any, actorType: any): Promise<{
-    oldValue: number;
-    newValue: number;
-}>;
+export declare function updateStatusCount(tenantId: string, messageId: string, status: string, delta: number, sourceOperation: string, actorId: string, actorType: string): Promise<UpdateResult>;
 /**
  * Получение всех реакций сообщения
  */
-export function getMessageReactionCounts(tenantId: any, messageId: any): Promise<{
+export declare function getMessageReactionCounts(tenantId: string, messageId: string): Promise<Array<{
     reaction: string;
     count: number;
-}[]>;
+}>>;
 /**
  * Получение всех статусов сообщения
  */
-export function getMessageStatusCounts(tenantId: any, messageId: any): Promise<{
-    status: import("@chat3/models").MessageStatusType;
+export declare function getMessageStatusCounts(tenantId: string, messageId: string): Promise<Array<{
+    status: string;
     count: number;
-}[]>;
+}>>;
 /**
  * Обновление dialogCount
  * КРИТИЧНО: Используем атомарные операции
  */
-export function updateUserStatsDialogCount(tenantId: any, userId: any, delta: any, sourceOperation: any, sourceEventId: any, actorId: any, actorType: any): Promise<{
-    oldValue: number;
-    newValue: number;
-}>;
+export declare function updateUserStatsDialogCount(tenantId: string, userId: string, delta: number, sourceOperation: string, sourceEventId: string | null, actorId: string, actorType: string): Promise<UpdateResult>;
 /**
  * Обновление totalMessagesCount
  * КРИТИЧНО: Используем атомарные операции
  */
-export function updateUserStatsTotalMessagesCount(tenantId: any, userId: any, delta: any, sourceOperation: any, sourceEventId: any, sourceEntityId: any, actorId: any, actorType: any): Promise<{
-    oldValue: number;
-    newValue: number;
-}>;
+export declare function updateUserStatsTotalMessagesCount(tenantId: string, userId: string, delta: number, sourceOperation: string, sourceEventId: string | null, sourceEntityId: string, actorId: string, actorType: string): Promise<UpdateResult>;
 /**
  * Пересчет всех счетчиков пользователя
  */
-export function recalculateUserStats(tenantId: any, userId: any): Promise<{
+export declare function recalculateUserStats(tenantId: string, userId: string): Promise<{
     dialogCount: number;
-    unreadDialogsCount: any;
-    totalUnreadCount: any;
+    unreadDialogsCount: number;
+    totalUnreadCount: number;
     totalMessagesCount: number;
 }>;
+interface GetCounterHistoryOptions {
+    counterType?: string;
+    entityType?: string;
+    entityId?: string;
+    startDate?: number;
+    endDate?: number;
+    limit?: number;
+    skip?: number;
+}
 /**
  * Получение истории изменений счетчика
  */
-export function getCounterHistory(tenantId: any, options?: {}): Promise<(import("mongoose").FlattenMaps<import("@chat3/models").ICounterHistory> & Required<{
-    _id: import("mongoose").Types.ObjectId;
-}> & {
-    __v: number;
-})[]>;
+export declare function getCounterHistory(tenantId: string, options?: GetCounterHistoryOptions): Promise<unknown[]>;
 /**
  * Обновление unreadCount для топика
- * @param {string} tenantId - ID тенанта
- * @param {string} userId - ID пользователя
- * @param {string} dialogId - ID диалога
- * @param {string} topicId - ID топика
- * @param {number} delta - Изменение счетчика (+1 или -1)
- * @param {string} sourceOperation - Тип операции
- * @param {string} sourceEventId - ID события
- * @param {string} sourceEntityId - ID сущности
- * @param {string} actorId - ID актора
- * @param {string} actorType - Тип актора
- * @param {Object} session - MongoDB session для транзакций (опционально)
- * @returns {Promise<Object>} { oldValue, newValue }
  */
-export function updateTopicUnreadCount(tenantId: string, userId: string, dialogId: string, topicId: string, delta: number, sourceOperation: string, sourceEventId: string, sourceEntityId: string, actorId: string, actorType: string, session?: any): Promise<any>;
+export declare function updateTopicUnreadCount(tenantId: string, userId: string, dialogId: string, topicId: string, delta: number, sourceOperation: string, sourceEventId: string, sourceEntityId: string, actorId: string, actorType: string, session?: mongoose.ClientSession | null): Promise<UpdateResult>;
 /**
  * Получение unreadCount для топика
- * @param {string} tenantId - ID тенанта
- * @param {string} userId - ID пользователя
- * @param {string} dialogId - ID диалога
- * @param {string} topicId - ID топика
- * @returns {Promise<number>} unreadCount
  */
-export function getTopicUnreadCount(tenantId: string, userId: string, dialogId: string, topicId: string): Promise<number>;
+export declare function getTopicUnreadCount(tenantId: string, userId: string, dialogId: string, topicId: string): Promise<number>;
 /**
  * Получение общего unreadCount для диалога
- * @param {string} tenantId - ID тенанта
- * @param {string} userId - ID пользователя
- * @param {string} dialogId - ID диалога
- * @returns {Promise<number>} unreadCount
  */
-export function getDialogUnreadCount(tenantId: string, userId: string, dialogId: string): Promise<number>;
+export declare function getDialogUnreadCount(tenantId: string, userId: string, dialogId: string): Promise<number>;
+interface DialogStatsUpdates {
+    topicCount?: number;
+    memberCount?: number;
+    messageCount?: number;
+}
 /**
  * Обновление счетчиков диалога (DialogStats)
- * @param {string} tenantId - ID тенанта
- * @param {string} dialogId - ID диалога
- * @param {Object} updates - Обновления { topicCount?: delta, memberCount?: delta, messageCount?: delta }
- * @param {Object} session - MongoDB session для транзакций (опционально)
- * @returns {Promise<Object>} Обновленная статистика
  */
-export function updateDialogStats(tenantId: string, dialogId: string, updates?: any, session?: any): Promise<any>;
+export declare function updateDialogStats(tenantId: string, dialogId: string, updates?: DialogStatsUpdates, session?: mongoose.ClientSession | null): Promise<unknown>;
 /**
  * Обновление topicCount в DialogStats
- * @param {string} tenantId - ID тенанта
- * @param {string} dialogId - ID диалога
- * @param {number} delta - Изменение счетчика (+1 или -1)
- * @param {Object} session - MongoDB session для транзакций (опционально)
  */
-export function updateDialogTopicCount(tenantId: string, dialogId: string, delta: number, session?: any): Promise<any>;
+export declare function updateDialogTopicCount(tenantId: string, dialogId: string, delta: number, session?: mongoose.ClientSession | null): Promise<unknown>;
 /**
  * Обновление memberCount в DialogStats
- * @param {string} tenantId - ID тенанта
- * @param {string} dialogId - ID диалога
- * @param {number} delta - Изменение счетчика (+1 или -1)
- * @param {Object} session - MongoDB session для транзакций (опционально)
  */
-export function updateDialogMemberCount(tenantId: string, dialogId: string, delta: number, session?: any): Promise<any>;
+export declare function updateDialogMemberCount(tenantId: string, dialogId: string, delta: number, session?: mongoose.ClientSession | null): Promise<unknown>;
 /**
  * Обновление messageCount в DialogStats
- * @param {string} tenantId - ID тенанта
- * @param {string} dialogId - ID диалога
- * @param {number} delta - Изменение счетчика (+1 или -1)
- * @param {Object} session - MongoDB session для транзакций (опционально)
  */
-export function updateDialogMessageCount(tenantId: string, dialogId: string, delta: number, session?: any): Promise<any>;
+export declare function updateDialogMessageCount(tenantId: string, dialogId: string, delta: number, session?: mongoose.ClientSession | null): Promise<unknown>;
 /**
  * Пересчет общего unreadCount для диалога
  * Суммирует все unreadCount из UserTopicStats для данного диалога
- * @param {string} tenantId - ID тенанта
- * @param {string} userId - ID пользователя
- * @param {string} dialogId - ID диалога
- * @returns {Promise<number>} Пересчитанный unreadCount
  */
-export function recalculateDialogUnreadCount(tenantId: string, userId: string, dialogId: string): Promise<number>;
+export declare function recalculateDialogUnreadCount(tenantId: string, userId: string, dialogId: string): Promise<number>;
 /**
  * Пересчет всех счетчиков диалога (DialogStats)
- * @param {string} tenantId - ID тенанта
- * @param {string} dialogId - ID диалога
- * @returns {Promise<Object>} Пересчитанная статистика
  */
-export function recalculateDialogStats(tenantId: string, dialogId: string): Promise<any>;
+export declare function recalculateDialogStats(tenantId: string, dialogId: string): Promise<{
+    topicCount: number;
+    memberCount: number;
+    messageCount: number;
+}>;
+export {};
 //# sourceMappingURL=counterUtils.d.ts.map

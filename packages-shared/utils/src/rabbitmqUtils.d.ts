@@ -1,32 +1,39 @@
+import { ConsumeMessage } from 'amqplib';
 /**
  * Инициализация подключения к RabbitMQ
  */
-export function initRabbitMQ(): Promise<boolean>;
+export declare function initRabbitMQ(): Promise<boolean>;
 /**
  * Закрытие подключения к RabbitMQ
  */
-export function closeRabbitMQ(): Promise<void>;
+export declare function closeRabbitMQ(): Promise<void>;
+interface Event {
+    eventType?: string;
+    entityType?: string;
+    entityId?: unknown;
+    tenantId?: unknown;
+}
 /**
  * Публикация события в RabbitMQ
- * @param {Object} event - Событие для публикации
- * @returns {Promise<boolean>} - true если успешно опубликовано
+ * @param event - Событие для публикации
+ * @returns true если успешно опубликовано
  */
-export function publishEvent(event: any): Promise<boolean>;
+export declare function publishEvent(event: Event): Promise<boolean>;
 /**
  * Создание очереди для прослушивания событий
- * @param {string} queueName - Имя очереди
- * @param {Array<string>} routingKeys - Массив routing keys для привязки
- * @param {Function} callback - Функция обработки сообщений
+ * @param queueName - Имя очереди
+ * @param routingKeys - Массив routing keys для привязки
+ * @param callback - Функция обработки сообщений
  */
-export function createQueue(queueName: string, routingKeys: Array<string>, callback: Function): Promise<boolean>;
+export declare function createQueue(queueName: string, routingKeys: string[], callback: (event: unknown, msg: ConsumeMessage) => void): Promise<boolean>;
 /**
  * Получить статус подключения
  */
-export function isRabbitMQConnected(): boolean;
+export declare function isRabbitMQConnected(): boolean;
 /**
  * Получить информацию о RabbitMQ
  */
-export function getRabbitMQInfo(): {
+export declare function getRabbitMQInfo(): {
     url: string;
     exchange: string;
     exchangeType: string;
@@ -36,33 +43,41 @@ export function getRabbitMQInfo(): {
 };
 /**
  * Создает или получает очередь для пользователя user_{userId}_updates
- * @param {string} userId - ID пользователя
- * @param {string} tenantId - ID тенанта (опционально, для получения типа из User модели)
+ * @param userId - ID пользователя
+ * @param tenantId - ID тенанта (опционально, для получения типа из User модели)
  */
-export function ensureUserUpdatesQueue(userId: string, tenantId?: string): Promise<string>;
+export declare function ensureUserUpdatesQueue(userId: string, tenantId?: string | null): Promise<string>;
+interface Update {
+    userId?: string;
+    entityId?: unknown;
+    eventType?: string;
+}
 /**
  * Публикация update в RabbitMQ
- * @param {Object} update - Update для публикации (уже очищенный от _id, id, __v)
- * @param {string} routingKey - Routing key (например, user.{userId}.dialogupdate)
- * @returns {Promise<boolean>} - true если успешно опубликовано
+ * @param update - Update для публикации (уже очищенный от _id, id, __v)
+ * @param routingKey - Routing key (например, user.{userId}.dialogupdate)
+ * @returns true если успешно опубликовано
  */
-export function publishUpdate(update: any, routingKey: string): Promise<boolean>;
+export declare function publishUpdate(update: Update, routingKey: string): Promise<boolean>;
+interface CreateConsumerOptions {
+    prefetch?: number;
+    queueTTL?: number;
+    durable?: boolean;
+    exchange?: string;
+}
+interface ConsumerObject {
+    consumerTag: string;
+    cancel: () => Promise<void>;
+    restart: () => Promise<void>;
+}
 /**
  * Создание consumer с автоматическим переподключением
- * @param {string} queueName - Имя очереди
- * @param {Array<string>} routingKeys - Routing keys для привязки к exchange
- * @param {Object} options - Опции consumer'а
- * @param {number} options.prefetch - Количество неподтвержденных сообщений (по умолчанию 1)
- * @param {number} options.queueTTL - TTL для очереди в миллисекундах (опционально)
- * @param {boolean} options.durable - Очередь переживет перезапуск RabbitMQ (по умолчанию true)
- * @param {string} options.exchange - Имя exchange (по умолчанию EXCHANGE_NAME)
- * @param {Function} messageHandler - Асинхронная функция обработки сообщений (msg) => Promise
- * @returns {Promise<Object>} - Объект с методами { cancel(), restart(), consumerTag }
+ * @param queueName - Имя очереди
+ * @param routingKeys - Routing keys для привязки к exchange
+ * @param options - Опции consumer'а
+ * @param messageHandler - Асинхронная функция обработки сообщений (msg) => Promise
+ * @returns Объект с методами { cancel(), restart(), consumerTag }
  */
-export function createConsumer(queueName: string, routingKeys: Array<string>, options: {
-    prefetch: number;
-    queueTTL: number;
-    durable: boolean;
-    exchange: string;
-}, messageHandler: Function): Promise<any>;
+export declare function createConsumer(queueName: string, routingKeys: string[], options: CreateConsumerOptions, messageHandler: (eventData: unknown, msg: ConsumeMessage) => Promise<void>): Promise<ConsumerObject>;
+export {};
 //# sourceMappingURL=rabbitmqUtils.d.ts.map

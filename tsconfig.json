@@ -35,7 +35,9 @@
       "@chat3/config/*": ["packages-shared/config/src/*"]
     }
   },
-  "include": [],
+  "include": [
+    "."
+  ],
   "exclude": [
     "node_modules",
     "dist",

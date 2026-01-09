@@ -2,22 +2,30 @@
   "name": "@chat3/utils",
   "version": "0.0.24",
   "type": "module",
-  "main": "src/index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": "./src/index.js",
-    "./rabbitmqUtils.js": "./src/rabbitmqUtils.js",
-    "./counterUtils.js": "./src/counterUtils.js",
-    "./dialogReadTaskUtils.js": "./src/dialogReadTaskUtils.js",
-    "./eventUtils.js": "./src/eventUtils.js",
-    "./metaUtils.js": "./src/metaUtils.js",
-    "./responseUtils.js": "./src/responseUtils.js",
-    "./timestampUtils.js": "./src/timestampUtils.js",
-    "./topicUtils.js": "./src/topicUtils.js",
-    "./updateUtils.js": "./src/updateUtils.js",
-    "./userDialogUtils.js": "./src/userDialogUtils.js",
-    "./userTypeUtils.js": "./src/userTypeUtils.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./rabbitmqUtils.js": "./dist/rabbitmqUtils.js",
+    "./counterUtils.js": "./dist/counterUtils.js",
+    "./dialogReadTaskUtils.js": "./dist/dialogReadTaskUtils.js",
+    "./eventUtils.js": "./dist/eventUtils.js",
+    "./metaUtils.js": "./dist/metaUtils.js",
+    "./responseUtils.js": "./dist/responseUtils.js",
+    "./timestampUtils.js": "./dist/timestampUtils.js",
+    "./topicUtils.js": "./dist/topicUtils.js",
+    "./updateUtils.js": "./dist/updateUtils.js",
+    "./userDialogUtils.js": "./dist/userDialogUtils.js",
+    "./userTypeUtils.js": "./dist/userTypeUtils.js"
   },
   "private": true,
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "build:watch": "tsc --watch"
+  },
   "dependencies": {
     "amqplib": "^0.10.9",
     "@chat3/models": "*"

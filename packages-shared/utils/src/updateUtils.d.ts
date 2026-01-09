@@ -1,53 +1,86 @@
+import mongoose from 'mongoose';
+interface EventData {
+    dialog?: {
+        dialogId: string;
+        [key: string]: unknown;
+    };
+    member?: {
+        userId: string;
+        [key: string]: unknown;
+    };
+    message?: {
+        messageId: string;
+        [key: string]: unknown;
+    };
+    typing?: {
+        userId?: string;
+        expiresInMs?: number;
+        timestamp?: number;
+        userInfo?: unknown;
+        [key: string]: unknown;
+    };
+    context?: {
+        eventType?: string;
+        dialogId?: string;
+        entityId?: string;
+        messageId?: string;
+        includedSections?: string[];
+        updatedFields?: string[];
+        [key: string]: unknown;
+    };
+    user?: {
+        userId: string;
+        [key: string]: unknown;
+    };
+    userId?: string;
+    newStatus?: string;
+    oldStatus?: string;
+    reaction?: string;
+    oldReaction?: string;
+    reactionSet?: unknown;
+    [key: string]: unknown;
+}
 /**
  * Формирует DialogUpdate для всех участников диалога
  * Использует данные из event.data напрямую, без перезагрузки из БД
  */
-export function createDialogUpdate(tenantId: any, dialogId: any, eventId: any, eventType: any, eventData?: {}): Promise<void>;
+export declare function createDialogUpdate(tenantId: string, dialogId: string, eventId: string | mongoose.Types.ObjectId, eventType: string, eventData?: EventData): Promise<void>;
 /**
  * Формирует DialogMemberUpdate для конкретного участника диалога
  * Использует данные из event.data напрямую, без перезагрузки из БД
  */
-export function createDialogMemberUpdate(tenantId: any, dialogId: any, userId: any, eventId: any, eventType: any, eventData?: {}): Promise<void>;
+export declare function createDialogMemberUpdate(tenantId: string, dialogId: string, userId: string, eventId: string | mongoose.Types.ObjectId, eventType: string, eventData?: EventData): Promise<void>;
 /**
  * Формирует MessageUpdate для всех участников диалога
  * Использует данные из event.data напрямую, без перезагрузки из БД
  */
-export function createMessageUpdate(tenantId: any, dialogId: any, messageId: any, eventId: any, eventType: any, eventData?: {}): Promise<void>;
+export declare function createMessageUpdate(tenantId: string, dialogId: string, messageId: string, eventId: string | mongoose.Types.ObjectId, eventType: string, eventData?: EventData): Promise<void>;
 /**
  * Формирует TypingUpdate для всех участников диалога (кроме инициатора)
  * Использует данные из event.data напрямую, без перезагрузки из БД
  */
-export function createTypingUpdate(tenantId: any, dialogId: any, typingUserId: any, eventId: any, eventType: any, eventData?: {}): Promise<void>;
+export declare function createTypingUpdate(tenantId: string, dialogId: string, typingUserId: string, eventId: string | mongoose.Types.ObjectId, eventType: string, eventData?: EventData): Promise<void>;
 /**
  * Создает UserStatsUpdate - update со статистикой пользователя (dialogCount, unreadDialogsCount)
- * @param {string} tenantId - ID тенанта
- * @param {string} userId - ID пользователя
- * @param {string} sourceEventId - ID исходного события (message.create, dialog.member.add, dialog.member.update)
- * @param {string} sourceEventType - Тип исходного события
- * @param {string[]} updatedFields - Поля, которые изменились (например, ['user.stats.unreadDialogsCount'])
  */
-export function createUserStatsUpdate(tenantId: string, userId: string, sourceEventId: string, sourceEventType: string, updatedFields?: string[]): Promise<void>;
+export declare function createUserStatsUpdate(tenantId: string, userId: string, sourceEventId: string | mongoose.Types.ObjectId, sourceEventType: string, updatedFields?: string[]): Promise<void>;
 /**
  * Создает UserUpdate для события user.*
- * @param {string} tenantId - ID тенанта
- * @param {string} userId - ID пользователя
- * @param {string} eventId - ID события
- * @param {string} eventType - Тип события
- * @param {object} eventData - Данные события (содержит context, user)
  */
-export function createUserUpdate(tenantId: string, userId: string, eventId: string, eventType: string, eventData: object): Promise<void>;
+export declare function createUserUpdate(tenantId: string, userId: string, eventId: string | mongoose.Types.ObjectId, eventType: string, eventData: EventData): Promise<void>;
 /**
  * Определяет тип update из типа события
  */
-export function getUpdateTypeFromEventType(eventType: any): "DialogUpdate" | "DialogMemberUpdate" | "MessageUpdate" | "TypingUpdate" | "UserUpdate" | "UserStatsUpdate";
+export declare function getUpdateTypeFromEventType(eventType: string): string | null;
 /**
  * Определяет, нужно ли создавать update для события
  */
-export function shouldCreateUpdate(eventType: any): {
+export declare function shouldCreateUpdate(eventType: string): {
     dialog: boolean;
     dialogMember: boolean;
     message: boolean;
     typing: boolean;
     user: boolean;
 };
+export {};
 //# sourceMappingURL=updateUtils.d.ts.map

@@ -16,8 +16,8 @@ export default {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@chat3/models$': '<rootDir>/packages-shared/models/dist/index.js',
-    '^@chat3/utils$': '<rootDir>/packages-shared/utils/src/index.js',
-    '^@chat3/config$': '<rootDir>/packages-shared/config/src/index.ts',
+    '^@chat3/utils$': '<rootDir>/packages-shared/utils/dist/index.js',
+    '^@chat3/config$': '<rootDir>/packages-shared/config/dist/index.js',
   },
   testMatch: ['**/__tests__/**/*.test.{js,ts}', '**/*.test.{js,ts}'],
   testPathIgnorePatterns: ['/node_modules/', '/__tests__/setup.js', '/__tests__/globalSetup.js', '/__tests__/globalTeardown.js'],
