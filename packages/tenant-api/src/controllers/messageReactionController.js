@@ -7,7 +7,7 @@ import { buildReactionSet } from '@chat3/utils/userDialogUtils.js';
 const messageReactionController = {
   // Получить все реакции для сообщения
   async getMessageReactions(req, res) {
-    const routePath = '/:userId/dialogs/:dialogId/messages/:messageId/reactions';
+    const routePath = 'get /users/:userId/dialogs/:dialogId/messages/:messageId/reactions';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -83,7 +83,7 @@ const messageReactionController = {
 
   // Установить или снять реакцию (set/unset)
   async setOrUnsetReaction(req, res) {
-    const routePath = '/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action';
+    const routePath = 'post /users/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }

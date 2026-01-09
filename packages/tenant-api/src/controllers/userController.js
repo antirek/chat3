@@ -76,14 +76,22 @@ async function findUserIdsByMeta(metaFilters, tenantId) {
  * GET /api/users
  */
 export async function getUsers(req, res) {
+  const routePath = 'get /users/';
+  const log = (...args) => {
+    console.log(`[${routePath}]`, ...args);
+  }
+  log('>>>>> start');
+  
   try {
     // Парсим фильтры из query
     let parsedFilters = {};
     if (req.query.filter) {
       const rawFilter = String(req.query.filter);
+      log(`Парсинг фильтров: filter=${rawFilter}`);
       try {
         parsedFilters = parseFilters(rawFilter);
       } catch (error) {
+        log(`Ошибка парсинга фильтров: ${error.message}`);
         return res.status(400).json({
           error: 'Bad Request',
           message: `Invalid filter format. ${error.message}`
@@ -102,6 +110,7 @@ export async function getUsers(req, res) {
     const sort = req.query.sort ? JSON.parse(req.query.sort) : { createdAt: -1 };
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
+    log(`Получены параметры: page=${page}, limit=${limit}, sort=${JSON.stringify(sort)}, filter=${req.query.filter || 'нет'}`);
 
     // Добавляем фильтр по tenantId
     const andConditions = [{ tenantId: req.tenantId }];
@@ -112,8 +121,10 @@ export async function getUsers(req, res) {
     }
 
     if (metaFilters && Object.keys(metaFilters).length > 0) {
+      log(`Поиск пользователей по мета-фильтрам: metaFilters=${JSON.stringify(metaFilters)}`);
       const userIdsFromMeta = await findUserIdsByMeta(metaFilters, req.tenantId);
       if (!userIdsFromMeta || userIdsFromMeta.length === 0) {
+        log(`Нет пользователей, соответствующих мета-фильтрам`);
         return res.json({
           data: [],
           pagination: {
@@ -124,7 +135,7 @@ export async function getUsers(req, res) {
           }
         });
       }
-
+      log(`Найдено пользователей по мета-фильтрам: ${userIdsFromMeta.length}`);
       andConditions.push({ userId: { $in: userIdsFromMeta } });
     }
 
@@ -133,6 +144,7 @@ export async function getUsers(req, res) {
     const skip = (page - 1) * limit;
 
     // Подсчитываем общее количество
+    log(`Выполнение запроса пользователей: skip=${skip}, limit=${limit}`);
     const total = await User.countDocuments(finalFilter);
 
     // Получаем пользователей с пагинацией
@@ -141,16 +153,19 @@ export async function getUsers(req, res) {
       .skip(skip)
       .limit(limit)
       .lean();
+    log(`Найдено пользователей: ${users.length} из ${total}`);
 
     // Всегда вычисляем количество диалогов для каждого пользователя
     if (users.length > 0) {
       const userIds = users.map(user => user.userId);
+      log(`Получение статистики для ${userIds.length} пользователей`);
       
       // Получаем статистику из UserStats
       const userStatsList = await UserStats.find({
         tenantId: req.tenantId,
         userId: { $in: userIds }
       }).lean();
+      log(`Статистика получена для ${userStatsList.length} пользователей`);
 
       const statsByUser = new Map(
         userStatsList.map((stats) => [
@@ -185,6 +200,7 @@ export async function getUsers(req, res) {
       });
     }
 
+    log(`Отправка ответа: ${users.length} пользователей, страница: ${page}, лимит: ${limit}`);
     res.json({
       data: users.map(user => sanitizeResponse(user)),
       pagination: {
@@ -195,11 +211,14 @@ export async function getUsers(req, res) {
       }
     });
   } catch (error) {
+    log(`Ошибка обработки запроса:`, error.message);
     console.error('Error in getUsers:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
     });
+  } finally {
+    log('>>>>> end');
   }
 }
 
@@ -208,20 +227,31 @@ export async function getUsers(req, res) {
  * GET /api/users/:userId
  */
 export async function getUserById(req, res) {
+  const routePath = 'get /users/:userId';
+  const log = (...args) => {
+    console.log(`[${routePath}]`, ...args);
+  }
+  log('>>>>> start');
+  
   try {
     const { userId } = req.params;
+    log(`Получены параметры: userId=${userId}, tenantId=${req.tenantId}`);
 
+    log(`Поиск пользователя: userId=${userId}, tenantId=${req.tenantId}`);
     const user = await User.findOne({
       userId: userId,
       tenantId: req.tenantId
     }).lean();
 
     // Получаем метаданные пользователя (даже если пользователя нет в User модели)
+    log(`Получение метаданных пользователя: userId=${userId}`);
     const userMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
 
     if (!user) {
+      log(`Пользователь не найден в User модели: userId=${userId}`);
       // Fallback: если пользователя нет в User модели, но есть meta теги, возвращаем их
       if (userMeta && Object.keys(userMeta).length > 0) {
+        log(`Найдены мета-теги для пользователя: userId=${userId}`);
         // Получаем статистику из UserStats
         const userStats = await UserStats.findOne({
           tenantId: req.tenantId,
@@ -242,6 +272,7 @@ export async function getUserById(req, res) {
               totalMessagesCount: 0
             };
 
+        log(`Отправка ответа с мета-тегами: userId=${userId}`);
         return res.json({
           data: sanitizeResponse({
             userId: userId,
@@ -254,13 +285,16 @@ export async function getUserById(req, res) {
       }
       
       // Пользователя нет и мета-тегов нет
+      log(`Пользователь не найден и мета-тегов нет: userId=${userId}`);
       return res.status(404).json({
         error: 'Not Found',
         message: 'User not found'
       });
     }
+    log(`Пользователь найден: userId=${userId}`);
 
     // Получаем статистику из UserStats
+    log(`Получение статистики пользователя: userId=${userId}`);
     const userStats = await UserStats.findOne({
       tenantId: req.tenantId,
       userId: userId
@@ -287,15 +321,19 @@ export async function getUserById(req, res) {
       stats: stats
     };
 
+    log(`Отправка ответа: userId=${userId}`);
     res.json({
       data: sanitizeResponse(enrichedUser)
     });
   } catch (error) {
+    log(`Ошибка обработки запроса:`, error.message);
     console.error('Error in getUserById:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
     });
+  } finally {
+    log('>>>>> end');
   }
 }
 
@@ -304,16 +342,25 @@ export async function getUserById(req, res) {
  * POST /api/users
  */
 export async function createUser(req, res) {
+  const routePath = 'post /users/';
+  const log = (...args) => {
+    console.log(`[${routePath}]`, ...args);
+  }
+  log('>>>>> start');
+  
   try {
     const { userId, type } = req.body;
+    log(`Получены параметры: userId=${userId}, type=${type || 'user'}, tenantId=${req.tenantId}`);
 
     // Проверяем, что пользователь не существует
+    log(`Проверка существования пользователя: userId=${userId}`);
     const existingUser = await User.findOne({
       userId: userId,
       tenantId: req.tenantId
     });
 
     if (existingUser) {
+      log(`Пользователь уже существует: userId=${userId}`);
       return res.status(409).json({
         error: 'Conflict',
         message: 'User already exists'
@@ -321,16 +368,20 @@ export async function createUser(req, res) {
     }
 
     // Создаем пользователя
+    log(`Создание пользователя: userId=${userId}, type=${type || 'user'}`);
     const user = await User.create({
       userId: userId,
       tenantId: req.tenantId,
       type: type || 'user'
     });
+    log(`Пользователь создан: userId=${user.userId}`);
 
     // Получаем мета-теги пользователя
+    log(`Получение мета-тегов пользователя: userId=${userId}`);
     const userMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
 
     // Создаем событие user.add
+    log(`Создание события user.add: userId=${userId}`);
     const userSection = eventUtils.buildUserSection({
       userId: user.userId,
       type: user.type,
@@ -356,10 +407,12 @@ export async function createUser(req, res) {
       })
     });
 
+    log(`Отправка успешного ответа: userId=${userId}`);
     res.status(201).json({
       data: sanitizeResponse(user.toObject())
     });
   } catch (error) {
+    log(`Ошибка обработки запроса:`, error.message);
     console.error('Error in createUser:', error);
     
     if (error.code === 11000) {
@@ -373,6 +426,8 @@ export async function createUser(req, res) {
       error: 'Internal Server Error',
       message: error.message
     });
+  } finally {
+    log('>>>>> end');
   }
 }
 
@@ -381,21 +436,31 @@ export async function createUser(req, res) {
  * PUT /api/users/:userId
  */
 export async function updateUser(req, res) {
+  const routePath = 'put /users/:userId';
+  const log = (...args) => {
+    console.log(`[${routePath}]`, ...args);
+  }
+  log('>>>>> start');
+  
   try {
     const { userId } = req.params;
     const { type } = req.body;
+    log(`Получены параметры: userId=${userId}, type=${type || 'нет'}, tenantId=${req.tenantId}`);
 
+    log(`Поиск пользователя: userId=${userId}, tenantId=${req.tenantId}`);
     const user = await User.findOne({
       userId: userId,
       tenantId: req.tenantId
     });
 
     if (!user) {
+      log(`Пользователь не найден: userId=${userId}`);
       return res.status(404).json({
         error: 'Not Found',
         message: 'User not found'
       });
     }
+    log(`Пользователь найден: userId=${user.userId}, текущий type=${user.type}`);
 
     // Формируем объект обновления
     const updateData = {};
@@ -404,6 +469,7 @@ export async function updateUser(req, res) {
     }
 
     // Используем updateOne для явного обновления, затем загружаем обновленного пользователя
+    log(`Обновление пользователя: userId=${userId}, updateData=${JSON.stringify(updateData)}`);
     const updateResult = await User.updateOne(
       {
         userId: userId,
@@ -413,11 +479,13 @@ export async function updateUser(req, res) {
     );
 
     if (updateResult.matchedCount === 0) {
+      log(`Пользователь не найден при обновлении: userId=${userId}`);
       return res.status(404).json({
         error: 'Not Found',
         message: 'User not found'
       });
     }
+    log(`Пользователь обновлен: userId=${userId}, modifiedCount=${updateResult.modifiedCount}`);
 
     // Загружаем обновленного пользователя
     const updatedUser = await User.findOne({
@@ -426,6 +494,7 @@ export async function updateUser(req, res) {
     }).lean();
 
     if (!updatedUser) {
+      log(`Пользователь не найден после обновления: userId=${userId}`);
       return res.status(404).json({
         error: 'Not Found',
         message: 'User not found after update'
@@ -433,6 +502,7 @@ export async function updateUser(req, res) {
     }
 
     // Получаем мета-теги пользователя
+    log(`Получение мета-тегов пользователя: userId=${userId}`);
     const userMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
 
     // Создаем событие user.update
@@ -454,6 +524,7 @@ export async function updateUser(req, res) {
       updatedFields: updatedFields.length > 0 ? updatedFields : ['user']
     });
 
+    log(`Создание события user.update: userId=${userId}`);
     await eventUtils.createEvent({
       tenantId: req.tenantId,
       eventType: 'user.update',
@@ -467,15 +538,19 @@ export async function updateUser(req, res) {
       })
     });
 
+    log(`Отправка успешного ответа: userId=${userId}`);
     res.json({
       data: sanitizeResponse(updatedUser)
     });
   } catch (error) {
+    log(`Ошибка обработки запроса:`, error.message);
     console.error('Error in updateUser:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
     });
+  } finally {
+    log('>>>>> end');
   }
 }
 
@@ -484,25 +559,37 @@ export async function updateUser(req, res) {
  * DELETE /api/users/:userId
  */
 export async function deleteUser(req, res) {
+  const routePath = 'delete /users/:userId';
+  const log = (...args) => {
+    console.log(`[${routePath}]`, ...args);
+  }
+  log('>>>>> start');
+  
   try {
     const { userId } = req.params;
+    log(`Получены параметры: userId=${userId}, tenantId=${req.tenantId}`);
 
     // Получаем мета-теги пользователя перед удалением
+    log(`Получение мета-тегов пользователя перед удалением: userId=${userId}`);
     const userMeta = await metaUtils.getEntityMeta(req.tenantId, 'user', userId);
 
+    log(`Удаление пользователя: userId=${userId}`);
     const user = await User.findOneAndDelete({
       userId: userId,
       tenantId: req.tenantId
     });
 
     if (!user) {
+      log(`Пользователь не найден: userId=${userId}`);
       return res.status(404).json({
         error: 'Not Found',
         message: 'User not found'
       });
     }
+    log(`Пользователь найден и удален: userId=${user.userId}`);
 
     // Создаем событие user.remove
+    log(`Создание события user.remove: userId=${userId}`);
     const userSection = eventUtils.buildUserSection({
       userId: user.userId,
       type: user.type,
@@ -528,13 +615,17 @@ export async function deleteUser(req, res) {
       })
     });
 
+    log(`Отправка успешного ответа: userId=${userId}`);
     res.status(204).send();
   } catch (error) {
+    log(`Ошибка обработки запроса:`, error.message);
     console.error('Error in deleteUser:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
     });
+  } finally {
+    log('>>>>> end');
   }
 }
 

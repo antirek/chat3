@@ -16,7 +16,7 @@ import {
 const dialogMemberController = {
   // Add member to dialog
   async addDialogMember(req, res) {
-    const routePath = '/:dialogId/members/add';
+    const routePath = 'post /dialogs/:dialogId/members/add';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -194,7 +194,7 @@ const dialogMemberController = {
   },
 
   async getDialogMembers(req, res) {
-    const routePath = '/:dialogId/members';
+    const routePath = 'get /dialogs/:dialogId/members';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -380,7 +380,7 @@ const dialogMemberController = {
 
   // Remove member from dialog
   async removeDialogMember(req, res) {
-    const routePath = '/:dialogId/members/:userId/remove';
+    const routePath = 'post /dialogs/:dialogId/members/:userId/remove';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -543,7 +543,7 @@ const dialogMemberController = {
   },
 
   async setUnreadCount(req, res) {
-    const routePath = '/:dialogId/members/:userId/unread';
+    const routePath = 'patch /dialogs/:dialogId/members/:userId/unread';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }

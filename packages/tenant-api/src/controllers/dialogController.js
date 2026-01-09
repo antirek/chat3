@@ -18,7 +18,7 @@ import {
 export const dialogController = {
   // Get all dialogs for current tenant
   async getAll(req, res) {
-    const routePath = '/';
+    const routePath = 'get /dialogs/';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -519,7 +519,7 @@ export const dialogController = {
 
   // Get dialog by ID
   async getById(req, res) {
-    const routePath = '/:id';
+    const routePath = 'get /dialogs/:id';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -619,7 +619,7 @@ export const dialogController = {
 
   // Create new dialog
   async create(req, res) {
-    const routePath = '/';
+    const routePath = 'post /dialogs/';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -891,7 +891,7 @@ export const dialogController = {
 
   // Delete dialog
   async delete(req, res) {
-    const routePath = '/:id';
+    const routePath = 'delete /dialogs/:id';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }

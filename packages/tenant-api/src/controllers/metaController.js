@@ -7,7 +7,7 @@ import * as topicUtils from '@chat3/utils/topicUtils.js';
 const metaController = {
   // Get all meta for an entity
   async getMeta(req, res) {
-    const routePath = '/:entityType/:entityId';
+    const routePath = 'get /meta/:entityType/:entityId';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -59,7 +59,7 @@ const metaController = {
 
   // Set or update meta for an entity
   async setMeta(req, res) {
-    const routePath = '/:entityType/:entityId/:key';
+    const routePath = 'put /meta/:entityType/:entityId/:key';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -164,7 +164,7 @@ const metaController = {
 
   // Delete meta key for an entity
   async deleteMeta(req, res) {
-    const routePath = '/:entityType/:entityId/:key';
+    const routePath = 'delete /meta/:entityType/:entityId/:key';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }

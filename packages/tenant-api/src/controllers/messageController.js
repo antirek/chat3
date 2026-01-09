@@ -118,7 +118,7 @@ async function enrichMessagesWithMetaAndStatuses(messages, tenantId, dialogId = 
 const messageController = {
   // Get all messages with filtering and pagination
   async getAll(req, res) {
-    const routePath = '/';
+    const routePath = 'get /messages/';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -247,7 +247,7 @@ const messageController = {
   },
   // Get messages for a specific dialog
   async getDialogMessages(req, res) {
-    const routePath = '/:dialogId/messages';
+    const routePath = 'get /dialogs/:dialogId/messages';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -381,7 +381,7 @@ const messageController = {
 
   // Create new message in dialog
   async createMessage(req, res) {
-    const routePath = '/:dialogId/messages';
+    const routePath = 'post /dialogs/:dialogId/messages';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -831,7 +831,7 @@ const messageController = {
 
   // Get message by ID
   async getMessageById(req, res) {
-    const routePath = '/:messageId';
+    const routePath = 'get /messages/:messageId';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -917,7 +917,7 @@ const messageController = {
 
   // Update message content (only content can be changed)
   async updateMessageContent(req, res) {
-    const routePath = '/:messageId';
+    const routePath = 'put /messages/:messageId';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }

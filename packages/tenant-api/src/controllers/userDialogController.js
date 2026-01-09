@@ -32,11 +32,18 @@ import mongoose from 'mongoose';
 const userDialogController = {
   // Get user's dialogs with optional last message
   async getUserDialogs(req, res) {
+    const routePath = 'get /users/:userId/dialogs';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { userId } = req.params;
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
+      log(`Получены параметры: userId=${userId}, page=${page}, limit=${limit}, filter=${req.query.filter || 'нет'}`);
       const fetchMeta = (entityType, entityId) => metaUtils.getEntityMeta(
         req.tenantId,
         entityType,
@@ -1311,10 +1318,8 @@ const userDialogController = {
         })
       );
 
-      console.log('Returning dialogs:', finalDialogs.length, 'total:', total);
-      console.log('Dialog IDs used:', dialogIds);
-      console.log('Filter was applied:', dialogIds !== null);
-      console.log('Sort parameter:', req.query.sort);
+      log(`Всего диалогов: ${total}, найдено: ${finalDialogs.length}, страница: ${page}, лимит: ${limit}`);
+      log(`Отправка ответа: ${finalDialogs.length} диалогов`);
       res.json({
         data: sanitizeResponse(finalDialogs),
         pagination: {
@@ -1325,20 +1330,30 @@ const userDialogController = {
         }
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Get messages from a dialog in context of specific user
   async getUserDialogMessages(req, res) {
+    const routePath = 'get /users/:userId/dialogs/:dialogId/messages';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { userId, dialogId } = req.params;
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 50;
       const skip = (page - 1) * limit;
+      log(`Получены параметры: userId=${userId}, dialogId=${dialogId}, page=${page}, limit=${limit}`);
       const fetchMeta = (entityType, entityId) => metaUtils.getEntityMeta(
         req.tenantId,
         entityType,
@@ -1607,20 +1622,31 @@ const userDialogController = {
         }
       }
 
+      log(`Отправка ответа: ${sanitizedMessages.length} сообщений, страница: ${page}, лимит: ${limit}`);
       res.json(response);
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       console.error('Error in getUserDialogMessages:', error);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Get single message from dialog in context of specific user
   async getUserDialogMessage(req, res) {
+    const routePath = 'get /users/:userId/dialogs/:dialogId/messages/:messageId';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { userId, dialogId, messageId } = req.params;
+      log(`Получены параметры: userId=${userId}, dialogId=${dialogId}, messageId=${messageId}`);
       const fetchMeta = (entityType, entityId) => metaUtils.getEntityMeta(
         req.tenantId,
         entityType,
@@ -1628,6 +1654,7 @@ const userDialogController = {
       );
 
       // 1. Проверяем, что пользователь является участником диалога
+      log(`Проверка участника: userId=${userId}, dialogId=${dialogId}`);
       const member = await DialogMember.findOne({
         tenantId: req.tenantId,
         dialogId: dialogId,
@@ -1635,13 +1662,16 @@ const userDialogController = {
       });
 
       if (!member) {
+        log(`Пользователь не является участником: userId=${userId}, dialogId=${dialogId}`);
         return res.status(403).json({
           error: 'Forbidden',
           message: 'User is not a member of this dialog'
         });
       }
+      log(`Участник найден: userId=${userId}`);
 
       // 2. Получаем сообщение
+      log(`Поиск сообщения: messageId=${messageId}, dialogId=${dialogId}`);
       const message = await Message.findOne({
         tenantId: req.tenantId,
         dialogId: dialogId,
@@ -1728,13 +1758,17 @@ const userDialogController = {
         }
       }
 
+      log(`Отправка ответа: messageId=${messageId}`);
       res.json(response);
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       console.error('Error in getUserDialogMessage:', error);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
@@ -1759,16 +1793,24 @@ const userDialogController = {
    * @param {Object} res - Express response object
    */
   async getMessageStatuses(req, res) {
+    const routePath = 'get /users/:userId/dialogs/:dialogId/messages/:messageId/statuses';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { userId, dialogId, messageId } = req.params;
       const page = parseInt(req.query.page, 10) || 1;
       const limit = parseInt(req.query.limit, 10) || 50;
       const skip = (page - 1) * limit;
+      log(`Получены параметры: userId=${userId}, dialogId=${dialogId}, messageId=${messageId}, page=${page}, limit=${limit}`);
 
       // Нормализуем dialogId (в нижний регистр, как в модели)
       const normalizedDialogId = dialogId.toLowerCase().trim();
 
       // 1. Проверяем, что пользователь является участником диалога
+      log(`Проверка участника: userId=${userId}, dialogId=${normalizedDialogId}`);
       const member = await DialogMember.findOne({
         tenantId: req.tenantId,
         dialogId: normalizedDialogId,
@@ -1776,20 +1818,16 @@ const userDialogController = {
       });
 
       if (!member) {
-        console.log('getMessageStatuses: User not found in dialog', {
-          tenantId: req.tenantId,
-          dialogId: normalizedDialogId,
-          userId,
-          originalDialogId: dialogId
-        });
-        
+        log(`Пользователь не является участником: userId=${userId}, dialogId=${normalizedDialogId}`);
         return res.status(403).json({
           error: 'Forbidden',
           message: 'User is not a member of this dialog'
         });
       }
+      log(`Участник найден: userId=${userId}`);
 
       // 2. Проверяем, что сообщение существует
+      log(`Поиск сообщения: messageId=${messageId}, dialogId=${normalizedDialogId}`);
       const message = await Message.findOne({
         tenantId: req.tenantId,
         dialogId: normalizedDialogId,
@@ -1797,20 +1835,25 @@ const userDialogController = {
       }).lean();
 
       if (!message) {
+        log(`Сообщение не найдено: messageId=${messageId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Message not found'
         });
       }
+      log(`Сообщение найдено: messageId=${message.messageId}`);
 
       // 3. Получаем общее количество записей в истории статусов
+      log(`Подсчет общего количества статусов: messageId=${messageId}`);
       const total = await MessageStatus.countDocuments({
         tenantId: req.tenantId,
         messageId: messageId
       });
+      log(`Всего статусов: ${total}`);
 
       // 4. Получаем записи истории статусов с пагинацией
       // Сортируем по времени создания в порядке убывания (новые первыми)
+      log(`Получение статусов: skip=${skip}, limit=${limit}`);
       const statuses = await MessageStatus.find({
         tenantId: req.tenantId,
         messageId: messageId
@@ -1820,9 +1863,11 @@ const userDialogController = {
         .skip(skip)
         .limit(limit)
         .lean();
+      log(`Найдено статусов: ${statuses.length}`);
 
       const pages = Math.ceil(total / limit);
 
+      log(`Отправка ответа: ${statuses.length} статусов, страница: ${page}, лимит: ${limit}`);
       res.json({
         data: statuses,
         pagination: {
@@ -1833,11 +1878,14 @@ const userDialogController = {
         }
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       console.error('Error in getMessageStatuses:', error);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
@@ -1889,11 +1937,19 @@ const userDialogController = {
    * @param {Object} res - Express response object
    */
   async updateMessageStatus(req, res) {
+    const routePath = 'post /users/:userId/dialogs/:dialogId/messages/:messageId/status/:status';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { userId, dialogId, messageId, status } = req.params;
+      log(`Получены параметры: userId=${userId}, dialogId=${dialogId}, messageId=${messageId}, status=${status}`);
 
       // Basic validation
       if (!['unread', 'delivered', 'read'].includes(status)) {
+        log(`Ошибка валидации: неверный status=${status}`);
         return res.status(400).json({
           error: 'Bad Request',
           message: 'Invalid status. Must be one of: unread, delivered, read'
@@ -1901,6 +1957,7 @@ const userDialogController = {
       }
 
       // Check if message exists and belongs to dialog and tenant
+      log(`Поиск сообщения: messageId=${messageId}, dialogId=${dialogId}, tenantId=${req.tenantId}`);
       const message = await Message.findOne({
         messageId: messageId,
         dialogId: dialogId,
@@ -1908,21 +1965,26 @@ const userDialogController = {
       });
 
       if (!message) {
+        log(`Сообщение не найдено: messageId=${messageId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Message not found'
         });
       }
+      log(`Сообщение найдено: messageId=${message.messageId}`);
 
       // Получаем тип пользователя для заполнения поля userType
+      log(`Получение типа пользователя: userId=${userId}`);
       const user = await User.findOne({
         tenantId: req.tenantId,
         userId: userId
       }).select('type').lean();
       
       const userType = user?.type || null;
+      log(`Тип пользователя: userType=${userType || 'null'}`);
 
       // Получаем последний статус для определения oldStatus (для событий и счетчиков)
+      log(`Получение последнего статуса: messageId=${messageId}, userId=${userId}`);
       const lastStatus = await MessageStatus.findOne({
         messageId: messageId,
         userId: userId,
@@ -1932,6 +1994,7 @@ const userDialogController = {
         .lean();
 
       const oldStatus = lastStatus?.status || null;
+      log(`Последний статус: oldStatus=${oldStatus || 'null'}, новый статус: ${status}`);
 
       // Получаем старое значение unreadCount ПЕРЕД созданием MessageStatus
       // (post-save hook обновит счетчик при создании)
@@ -2025,6 +2088,7 @@ const userDialogController = {
 
       // Всегда создаем новую запись в истории статусов (не обновляем существующую)
       // КРИТИЧНО: Передаем sourceEventId через временное поле _sourceEventId
+      log(`Создание новой записи статуса: messageId=${messageId}, userId=${userId}, status=${status}`);
       const newStatusData = {
         messageId: messageId,
         userId: userId,
@@ -2040,6 +2104,7 @@ const userDialogController = {
       // post-save hook автоматически обновит счетчики непрочитанных сообщений
       const messageStatus = await MessageStatus.create([newStatusData]);
       const createdStatus = messageStatus[0];
+      log(`Запись статуса создана: statusId=${createdStatus._id}`);
 
       // Получаем обновленный UserDialogStats после создания MessageStatus
       // (post-save hook уже обновил счетчик)
@@ -2099,11 +2164,13 @@ const userDialogController = {
         // update-worker будет создавать UserUpdate на основе dialog.member.update событий
       }
 
+      log(`Отправка успешного ответа: messageId=${messageId}, userId=${userId}, status=${status}`);
       res.json({
         data: sanitizeResponse(createdStatus),
         message: 'Message status updated successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
 
       if (error.name === 'CastError') {
         return res.status(400).json({
@@ -2129,26 +2196,37 @@ const userDialogController = {
    * Возвращает топики с мета-тегами и количеством непрочитанных сообщений для пользователя
    */
   async getUserDialogTopics(req, res) {
+    const routePath = 'get /users/:userId/dialogs/:dialogId/topics';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { userId, dialogId } = req.params;
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       const skip = (page - 1) * limit;
+      log(`Получены параметры: userId=${userId}, dialogId=${dialogId}, page=${page}, limit=${limit}`);
 
       // Проверка существования диалога
+      log(`Поиск диалога: dialogId=${dialogId}, tenantId=${req.tenantId}`);
       const dialog = await Dialog.findOne({
         dialogId,
         tenantId: req.tenantId
       });
 
       if (!dialog) {
+        log(`Диалог не найден: dialogId=${dialogId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
         });
       }
+      log(`Диалог найден: dialogId=${dialog.dialogId}`);
 
       // Проверка, что пользователь является участником диалога
+      log(`Проверка участника: userId=${userId}, dialogId=${dialogId}`);
       const member = await DialogMember.findOne({
         tenantId: req.tenantId,
         dialogId,
@@ -2156,13 +2234,16 @@ const userDialogController = {
       });
 
       if (!member) {
+        log(`Пользователь не является участником: userId=${userId}, dialogId=${dialogId}`);
         return res.status(403).json({
           error: 'Forbidden',
           message: 'User is not a member of this dialog'
         });
       }
+      log(`Участник найден: userId=${userId}`);
 
       // Получаем список топиков с пагинацией
+      log(`Получение списка топиков: dialogId=${dialogId}, skip=${skip}, limit=${limit}`);
       const topics = await Topic.find({
         tenantId: req.tenantId,
         dialogId
@@ -2171,15 +2252,18 @@ const userDialogController = {
         .skip(skip)
         .limit(limit)
         .lean();
+      log(`Найдено топиков: ${topics.length}`);
 
       // Получаем общее количество топиков для пагинации
       const total = await Topic.countDocuments({
         tenantId: req.tenantId,
         dialogId
       });
+      log(`Всего топиков: ${total}`);
 
       // Получаем unreadCount для каждого топика из UserTopicStats
       const topicIds = topics.map(t => t.topicId);
+      log(`Получение статистики для ${topicIds.length} топиков: userId=${userId}`);
       const topicStats = await UserTopicStats.find({
         tenantId: req.tenantId,
         userId,
@@ -2194,6 +2278,7 @@ const userDialogController = {
       });
 
       // Обогащаем топики мета-тегами и unreadCount
+      log(`Обогащение топиков мета-тегами: ${topics.length} топиков`);
       const topicsWithContext = await Promise.all(
         topics.map(async (topic) => {
           const meta = await metaUtils.getEntityMeta(req.tenantId, 'topic', topic.topicId);
@@ -2206,7 +2291,9 @@ const userDialogController = {
           };
         })
       );
+      log(`Мета-теги получены для всех топиков`);
 
+      log(`Отправка ответа: ${topicsWithContext.length} топиков, страница: ${page}, лимит: ${limit}`);
       res.json({
         data: sanitizeResponse(topicsWithContext),
         pagination: {
@@ -2217,10 +2304,13 @@ const userDialogController = {
         }
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   }
 };

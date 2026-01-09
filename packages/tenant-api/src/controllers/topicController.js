@@ -10,36 +10,49 @@ export const topicController = {
    * Получение списка топиков диалога
    */
   async getDialogTopics(req, res) {
+    const routePath = 'get /dialogs/:dialogId/topics';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { dialogId } = req.params;
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
+      log(`Получены параметры: dialogId=${dialogId}, page=${page}, limit=${limit}`);
 
       // Проверка существования диалога
+      log(`Поиск диалога: dialogId=${dialogId}, tenantId=${req.tenantId}`);
       const dialog = await Dialog.findOne({
         dialogId,
         tenantId: req.tenantId
       });
 
       if (!dialog) {
+        log(`Диалог не найден: dialogId=${dialogId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
         });
       }
+      log(`Диалог найден: dialogId=${dialog.dialogId}`);
 
       // Проверка прав доступа - пользователь должен быть участником диалога
       // Для API ключей проверка не требуется (они имеют доступ ко всем диалогам)
       // Но можно добавить проверку через req.apiKey если нужно
 
       // Получаем список топиков
+      log(`Получение списка топиков: dialogId=${dialogId}, page=${page}, limit=${limit}`);
       const topics = await topicUtils.getDialogTopics(req.tenantId, dialogId, {
         page,
         limit,
         sort: { createdAt: 1 }
       });
+      log(`Найдено топиков: ${topics.length}`);
 
       // Обогащаем топики мета-тегами
+      log(`Обогащение топиков мета-тегами: ${topics.length} топиков`);
       const topicsWithMeta = await Promise.all(
         topics.map(async (topic) => {
           const meta = await metaUtils.getEntityMeta(req.tenantId, 'topic', topic.topicId);
@@ -49,12 +62,15 @@ export const topicController = {
           };
         })
       );
+      log(`Мета-теги получены для всех топиков`);
 
       const total = await Topic.countDocuments({
         tenantId: req.tenantId,
         dialogId
       });
+      log(`Всего топиков: ${total}, страница: ${page}, лимит: ${limit}`);
 
+      log(`Отправка ответа: ${topicsWithMeta.length} топиков`);
       res.json({
         data: sanitizeResponse(topicsWithMeta),
         pagination: {
@@ -65,10 +81,13 @@ export const topicController = {
         }
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
@@ -76,33 +95,47 @@ export const topicController = {
    * Создание нового топика
    */
   async createTopic(req, res) {
+    const routePath = 'post /dialogs/:dialogId/topics';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { dialogId } = req.params;
       const { meta: metaPayload } = req.body;
+      log(`Получены параметры: dialogId=${dialogId}, meta=${metaPayload ? 'есть' : 'нет'}`);
 
       // Проверка существования диалога
+      log(`Поиск диалога: dialogId=${dialogId}, tenantId=${req.tenantId}`);
       const dialog = await Dialog.findOne({
         dialogId,
         tenantId: req.tenantId
       });
 
       if (!dialog) {
+        log(`Диалог не найден: dialogId=${dialogId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
         });
       }
+      log(`Диалог найден: dialogId=${dialog.dialogId}`);
 
       // Определяем actorId для событий
       const actorId = req.apiKey?.name || 'system';
+      log(`ActorId для событий: ${actorId}`);
 
       // Создаем топик
+      log(`Создание топика: dialogId=${dialogId}`);
       const topic = await topicUtils.createTopic(req.tenantId, dialogId, {
         meta: metaPayload,
         createdBy: actorId
       });
+      log(`Топик создан: topicId=${topic.topicId}`);
 
       // Обновляем DialogStats.topicCount
+      log(`Обновление DialogStats.topicCount: dialogId=${dialogId}`);
       await updateDialogTopicCount(req.tenantId, dialogId, 1);
 
       // Получаем метаданные диалога для события
@@ -132,6 +165,7 @@ export const topicController = {
         updatedFields: ['topic']
       });
 
+      log(`Создание события dialog.topic.create: topicId=${topic.topicId}`);
       await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'dialog.topic.create',
@@ -149,6 +183,7 @@ export const topicController = {
       // Возвращаем созданный топик с мета-тегами
       const meta = topicMeta || {};
 
+      log(`Отправка успешного ответа: topicId=${topic.topicId}, dialogId=${dialogId}`);
       res.status(201).json({
         data: sanitizeResponse({
           ...topic.toObject(),
@@ -157,6 +192,7 @@ export const topicController = {
         message: 'Topic created successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       if (error.name === 'ValidationError') {
         return res.status(400).json({
           error: 'Validation Error',
@@ -168,6 +204,8 @@ export const topicController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
@@ -175,21 +213,34 @@ export const topicController = {
    * Получение топика по ID
    */
   async getTopic(req, res) {
+    const routePath = 'get /dialogs/:dialogId/topics/:topicId';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { dialogId, topicId } = req.params;
+      log(`Получены параметры: dialogId=${dialogId}, topicId=${topicId}`);
 
+      log(`Поиск топика: dialogId=${dialogId}, topicId=${topicId}`);
       const topic = await topicUtils.getTopicById(req.tenantId, dialogId, topicId);
 
       if (!topic) {
+        log(`Топик не найден: topicId=${topicId}, dialogId=${dialogId}`);
         return res.status(404).json({
           error: 'ERROR_NO_TOPIC',
           message: 'Topic not found'
         });
       }
+      log(`Топик найден: topicId=${topic.topicId}`);
 
       // Получаем метаданные топика
+      log(`Получение метаданных топика: topicId=${topicId}`);
       const meta = await metaUtils.getEntityMeta(req.tenantId, 'topic', topicId);
+      log(`Метаданные получены: keys=${Object.keys(meta).length}`);
 
+      log(`Отправка ответа: topicId=${topicId}`);
       res.json({
         data: sanitizeResponse({
           ...topic,
@@ -197,10 +248,13 @@ export const topicController = {
         })
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
@@ -208,38 +262,52 @@ export const topicController = {
    * Обновление топика (мета-теги)
    */
   async updateTopic(req, res) {
+    const routePath = 'patch /dialogs/:dialogId/topics/:topicId';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { dialogId, topicId } = req.params;
       const { meta: metaPayload } = req.body;
+      log(`Получены параметры: dialogId=${dialogId}, topicId=${topicId}, meta=${metaPayload ? 'есть' : 'нет'}`);
 
       // Определяем actorId для событий
       const actorId = req.apiKey?.name || 'system';
+      log(`ActorId для событий: ${actorId}`);
 
       // Обновляем топик
+      log(`Обновление топика: dialogId=${dialogId}, topicId=${topicId}`);
       const topic = await topicUtils.updateTopic(req.tenantId, dialogId, topicId, {
         meta: metaPayload,
         createdBy: actorId
       });
 
       if (!topic) {
+        log(`Топик не найден: topicId=${topicId}, dialogId=${dialogId}`);
         return res.status(404).json({
           error: 'ERROR_NO_TOPIC',
           message: 'Topic not found'
         });
       }
+      log(`Топик найден и обновлен: topicId=${topic.topicId}`);
 
       // Получаем метаданные диалога для события
+      log(`Получение диалога для события: dialogId=${dialogId}`);
       const dialog = await Dialog.findOne({
         dialogId,
         tenantId: req.tenantId
       });
 
       if (!dialog) {
+        log(`Диалог не найден: dialogId=${dialogId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
         });
       }
+      log(`Диалог найден: dialogId=${dialog.dialogId}`);
 
       const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialogId);
       const dialogSection = eventUtils.buildDialogSection({
@@ -267,6 +335,7 @@ export const topicController = {
         updatedFields: ['topic']
       });
 
+      log(`Создание события dialog.topic.update: topicId=${topicId}`);
       await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'dialog.topic.update',
@@ -282,6 +351,7 @@ export const topicController = {
       });
 
       // Возвращаем обновленный топик с мета-тегами
+      log(`Отправка успешного ответа: topicId=${topicId}, dialogId=${dialogId}`);
       res.json({
         data: sanitizeResponse({
           ...topic,
@@ -290,10 +360,13 @@ export const topicController = {
         message: 'Topic updated successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   }
 };

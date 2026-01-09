@@ -6,7 +6,7 @@ import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 
 export async function sendTyping(req, res) {
-  const routePath = '/:dialogId/member/:userId/typing';
+  const routePath = 'post /dialogs/:dialogId/member/:userId/typing';
   const log = (...args) => {
     console.log(`[${routePath}]`, ...args);
   }

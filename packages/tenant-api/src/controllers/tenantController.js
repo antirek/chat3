@@ -21,7 +21,7 @@ const formatTenantResponse = (tenant, meta = null) => {
 export const tenantController = {
   // Get all tenants (paginated)
   async getAll(req, res) {
-    const routePath = '/';
+    const routePath = 'get /tenants/';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -76,7 +76,7 @@ export const tenantController = {
 
   // Get tenant by tenantId
   async getById(req, res) {
-    const routePath = '/:id';
+    const routePath = 'get /tenants/:id';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -119,7 +119,7 @@ export const tenantController = {
 
   // Create new tenant
   async create(req, res) {
-    const routePath = '/';
+    const routePath = 'post /tenants/';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -248,7 +248,7 @@ export const tenantController = {
 
   // Delete tenant by tenantId
   async delete(req, res) {
-    const routePath = '/:id';
+    const routePath = 'delete /tenants/:id';
     const log = (...args) => {
       console.log(`[${routePath}]`, ...args);
     }
