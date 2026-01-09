@@ -2,14 +2,22 @@
   "name": "@chat3/models",
   "version": "0.0.24",
   "type": "module",
-  "main": "src/index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": "./src/index.js",
-    "./src/data/*": "./src/data/*.js",
-    "./src/operational/*": "./src/operational/*.js",
-    "./src/stats/*": "./src/stats/*.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./src/data/*": "./dist/data/*.js",
+    "./src/operational/*": "./dist/operational/*.js",
+    "./src/stats/*": "./dist/stats/*.js"
   },
   "private": true,
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch"
+  },
   "dependencies": {
     "mongoose": "^8.0.0"
   }

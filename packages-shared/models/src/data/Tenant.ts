@@ -1,0 +1,55 @@
+import mongoose from 'mongoose';
+import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+
+/**
+ * Генерирует уникальный tenantId в формате tnt_XXXXXXXX
+ * где XXXXXXXX - 8 символов (английские буквы + цифры)
+ */
+function generateTenantId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = 'tnt_';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// TypeScript интерфейс для документа Tenant
+export interface ITenant extends mongoose.Document {
+  tenantId: string;
+  createdAt: number;
+}
+
+const tenantSchema = new mongoose.Schema<ITenant>({
+  tenantId: {
+    type: String,
+    required: false, // Генерируется автоматически
+    unique: true,
+    trim: true,
+    lowercase: true,
+    maxlength: 20,
+    default: generateTenantId
+  },
+  createdAt: {
+    type: Number,
+    default: generateTimestamp,
+    description: 'Timestamp создания (микросекунды)'
+  }
+}, {
+  timestamps: false // Отключаем автоматические timestamps
+});
+
+// Pre-save hook для установки createdAt при создании
+tenantSchema.pre('save', function(next) {
+  if (this.isNew) {
+    this.createdAt = generateTimestamp();
+  }
+  next();
+});
+
+// Indexes
+// tenantId index is created automatically by unique: true
+
+const Tenant = mongoose.model<ITenant>('Tenant', tenantSchema);
+
+export default Tenant;

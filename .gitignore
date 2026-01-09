@@ -43,3 +43,6 @@ coverage/
 
 .playwright-mcp
 test-results
+
+tsconfig.tsbuildinfo
+
