@@ -241,7 +241,6 @@ describe('dialogMemberController', () => {
       expect(res.statusCode).toBe(201);
       
       // Проверяем, что пользователь создан
-      const { User } = await import('@chat3/models');
       const user = await User.findOne({ tenantId, userId: 'newuser' }).lean();
       expect(user).toBeTruthy();
       expect(user.type).toBe('bot');

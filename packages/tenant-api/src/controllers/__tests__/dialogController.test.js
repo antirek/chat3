@@ -1,5 +1,5 @@
 import { dialogController } from '../dialogController.js';
-import { Tenant, User, Dialog, DialogMember, Meta, Event } from '@chat3/models';
+import { Tenant, User, Dialog, DialogMember, Meta, Event, UserDialogStats } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
@@ -295,7 +295,6 @@ describe('dialogController.getAll - sorting modes', () => {
     ]);
 
     // Создаем UserDialogStats для сортировки по unreadCount
-    const { UserDialogStats } = await import('@chat3/models');
     await UserDialogStats.create([
       { tenantId, dialogId: dialogOne.dialogId, userId: 'alice', unreadCount: 2 },
       { tenantId, dialogId: dialogTwo.dialogId, userId: 'alice', unreadCount: 5 }

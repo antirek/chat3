@@ -147,7 +147,6 @@ export async function getUsers(req, res) {
       const userIds = users.map(user => user.userId);
       
       // Получаем статистику из UserStats
-      const { UserStats } = await import('@chat3/models');
       const userStatsList = await UserStats.find({
         tenantId: req.tenantId,
         userId: { $in: userIds }

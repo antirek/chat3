@@ -1,14 +1,31 @@
 export default {
   testEnvironment: 'node',
-  transform: {},
+  transform: {
+    '^.+\\.ts$': ['ts-jest', {
+      useESM: true,
+      tsconfig: {
+        module: 'ES2022',
+        moduleResolution: 'node'
+      }
+    }],
+    '^.+\\.js$': ['babel-jest', {
+      presets: [['@babel/preset-env', { targets: { node: 'current' } }]]
+    }]
+  },
+  extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@chat3/models$': '<rootDir>/packages-shared/models/src/index.js',
+    '^@chat3/utils$': '<rootDir>/packages-shared/utils/src/index.js',
+    '^@chat3/config$': '<rootDir>/packages-shared/config/src/index.js',
   },
-  testMatch: ['**/__tests__/**/*.test.js', '**/*.test.js'],
+  testMatch: ['**/__tests__/**/*.test.{js,ts}', '**/*.test.{js,ts}'],
   testPathIgnorePatterns: ['/node_modules/', '/__tests__/setup.js', '/__tests__/globalSetup.js', '/__tests__/globalTeardown.js'],
   collectCoverageFrom: [
-    'src/**/*.js',
-    '!src/**/*.test.js',
+    'src/**/*.{js,ts}',
+    'packages-shared/**/*.{js,ts}',
+    '!src/**/*.test.{js,ts}',
+    '!**/*.d.ts',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'text-summary', 'lcov', 'html'],

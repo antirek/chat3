@@ -1182,7 +1182,6 @@ describe('userDialogController', () => {
       });
 
       // Создаем статусы для сообщения
-      const { MessageStatus } = await import('@chat3/models');
       await MessageStatus.create([
         {
           tenantId,
@@ -1308,7 +1307,6 @@ describe('userDialogController', () => {
       });
 
       // Создаем статусы для сообщения
-      const { MessageStatus } = await import('@chat3/models');
       await MessageStatus.create([
         {
           tenantId,

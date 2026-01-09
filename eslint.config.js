@@ -1,13 +1,19 @@
 import js from '@eslint/js';
 import jest from 'eslint-plugin-jest';
+import tseslint from '@typescript-eslint/eslint-plugin';
+import tsparser from '@typescript-eslint/parser';
 
 export default [
   js.configs.recommended,
   {
-    files: ['**/*.js'],
+    files: ['**/*.js', '**/*.ts'],
     languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: 'module',
+      parser: tsparser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: 'module',
+        project: './tsconfig.json'
+      },
       globals: {
         console: 'readonly',
         process: 'readonly',
@@ -27,8 +33,11 @@ export default [
         URLSearchParams: 'readonly',
       },
     },
+    plugins: {
+      '@typescript-eslint': tseslint
+    },
     rules: {
-      // Запрещаем динамические импорты (import())
+      // Запрещаем динамические импорты (import()) для JS
       'no-restricted-syntax': [
         'error',
         {
@@ -37,19 +46,21 @@ export default [
         },
       ],
       // Разрешаем неиспользуемые переменные с префиксом _ (стандартная практика)
-      'no-unused-vars': [
+      'no-unused-vars': 'off', // Отключаем для JS, используем TypeScript правило
+      // TypeScript правила
+      '@typescript-eslint/no-unused-vars': [
         'error',
         {
           argsIgnorePattern: '^_',
           varsIgnorePattern: '^_',
-          caughtErrorsIgnorePattern: '^_',
-        },
-      ],
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ]
     },
   },
   // Конфигурация для тестовых файлов
   {
-    files: ['**/__tests__/**', '**/*.test.js', '**/*.spec.js'],
+    files: ['**/__tests__/**', '**/*.test.js', '**/*.test.ts', '**/*.spec.js', '**/*.spec.ts'],
     plugins: {
       jest,
     },
@@ -63,6 +74,7 @@ export default [
       'no-restricted-syntax': 'off',
       // В тестах разрешаем неиспользуемые переменные (могут быть для отладки или будущего использования)
       'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
     },
   },
   {
@@ -74,6 +86,7 @@ export default [
       'build/**',
       'packages/tenant-api-client/node_modules/**',
       'packages/tenant-api-client/coverage/**',
+      '**/*.d.ts',
     ],
   },
 ];

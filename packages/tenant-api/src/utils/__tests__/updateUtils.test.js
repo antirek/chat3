@@ -242,7 +242,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       });
 
       // Добавляем мета-теги диалогу (через Meta модель)
-      const { Meta } = await import('@chat3/models');
       await Meta.create({
         tenantId,
         entityType: 'dialog',
@@ -1385,7 +1384,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       });
 
       // Обновляем UserStats после добавления (симулируем работу контроллера)
-      const { UserStats } = await import('@chat3/models');
       const dialogCount = await DialogMember.countDocuments({ tenantId, userId });
       await UserStats.findOneAndUpdate(
         { tenantId, userId },
@@ -1477,7 +1475,6 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       });
 
       // Обновляем UserStats после удаления (симулируем работу контроллера)
-      const { UserStats } = await import('@chat3/models');
       const remainingDialogs = await DialogMember.countDocuments({ tenantId, userId });
       await UserStats.findOneAndUpdate(
         { tenantId, userId },

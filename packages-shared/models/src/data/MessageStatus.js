@@ -5,7 +5,7 @@ import {
   updateUnreadCount,
   finalizeCounterUpdateContext 
 } from '@chat3/utils/counterUtils.js';
-// Импорт Message больше не нужен, так как dialogId хранится в MessageStatus
+import { Message } from '../index.js';
 
 /**
  * MessageStatus - История изменений статусов сообщений
@@ -157,7 +157,6 @@ messageStatusSchema.post('save', async function(doc) {
           // КРИТИЧНО: Используем dialogId из документа (не нужно искать Message)
           if (doc.dialogId) {
             // Получаем topicId из сообщения для обновления счетчиков топика
-            const { Message } = await import('../../models/index.js');
             const message = await Message.findOne({
               messageId: doc.messageId,
               tenantId: doc.tenantId
@@ -219,7 +218,6 @@ messageStatusSchema.post('remove', async function(doc) {
     // Если удаляемый статус был 'read', нужно обновить unreadCount
     if (doc.status === 'read' && doc.dialogId) {
       // Получаем topicId из сообщения для обновления счетчиков топика
-      const { Message } = await import('../../models/index.js');
       const message = await Message.findOne({
         messageId: doc.messageId,
         tenantId: doc.tenantId

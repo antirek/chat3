@@ -297,7 +297,6 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
 
       // Создаем UserDialogStats вручную, так как recalculateUserStats не обновляет их
       // В реальной системе UserDialogStats обновляются автоматически через middleware
-      const { UserDialogStats } = await import('@chat3/models');
       await UserDialogStats.findOneAndUpdate(
         { tenantId, userId, dialogId },
         { $set: { unreadCount: 1 } },
