@@ -6,22 +6,33 @@ import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 
 export async function sendTyping(req, res) {
+  const routePath = '/:dialogId/member/:userId/typing';
+  const log = (...args) => {
+    console.log(`[${routePath}]`, ...args);
+  }
+  log('>>>>> start');
+  
   try {
     const { dialogId, userId } = req.params;
     const tenantId = req.tenantId;
+    log(`Получены параметры: dialogId=${dialogId}, userId=${userId}, tenantId=${tenantId}`);
 
+    log(`Поиск диалога: dialogId=${dialogId}, tenantId=${tenantId}`);
     const dialog = await Dialog.findOne({
       dialogId,
       tenantId
     }).select('dialogId').lean();
 
     if (!dialog) {
+      log(`Диалог не найден: dialogId=${dialogId}`);
       return res.status(404).json({
         error: 'Not Found',
         message: 'Dialog not found'
       });
     }
+    log(`Диалог найден: dialogId=${dialog.dialogId}`);
 
+    log(`Поиск участника: dialogId=${dialogId}, userId=${userId}`);
     const member = await DialogMember.findOne({
       dialogId,
       tenantId,
@@ -29,12 +40,15 @@ export async function sendTyping(req, res) {
     }).select('userId').lean();
 
     if (!member) {
+      log(`Участник не найден: userId=${userId}`);
       return res.status(404).json({
         error: 'Not Found',
         message: 'User is not a member of this dialog'
       });
     }
+    log(`Участник найден: userId=${userId}`);
 
+    log(`Получение данных пользователя: userId=${userId}`);
     const user = await User.findOne({
       userId,
       tenantId
@@ -88,6 +102,7 @@ export async function sendTyping(req, res) {
       updatedFields: ['typing']
     });
 
+    log(`Создание события dialog.typing: dialogId=${dialogId}, userId=${userId}`);
     await eventUtils.createEvent({
       tenantId,
       eventType: 'dialog.typing',
@@ -102,6 +117,7 @@ export async function sendTyping(req, res) {
       })
     });
 
+    log(`Отправка успешного ответа: dialogId=${dialogId}, userId=${userId}`);
     return res.status(202).json({
       message: 'Typing signal accepted',
       data: {
@@ -111,11 +127,14 @@ export async function sendTyping(req, res) {
       }
     });
   } catch (error) {
+    log(`Ошибка обработки запроса:`, error.message);
     console.error('Error in sendTyping:', error);
     return res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
     });
+  } finally {
+    log('>>>>> end');
   }
 }
 

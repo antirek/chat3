@@ -7,12 +7,20 @@ import * as topicUtils from '@chat3/utils/topicUtils.js';
 const metaController = {
   // Get all meta for an entity
   async getMeta(req, res) {
+    const routePath = '/:entityType/:entityId';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { entityType, entityId } = req.params;
+      log(`Получены параметры: entityType=${entityType}, entityId=${entityId}, tenantId=${req.tenantId}`);
 
       // Validate entityType
       const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'];
       if (!validEntityTypes.includes(entityType)) {
+        log(`Ошибка валидации: неверный entityType=${entityType}`);
         return res.status(400).json({
           error: 'Bad Request',
           message: `Invalid entityType. Must be one of: ${validEntityTypes.join(', ')}`
@@ -20,15 +28,20 @@ const metaController = {
       }
 
       // Optional: Verify entity exists (for dialog, message, dialogMember)
+      log(`Проверка существования сущности: entityType=${entityType}, entityId=${entityId}`);
       await verifyEntityExists(entityType, entityId, req.tenantId);
 
       // Get meta data
+      log(`Получение метаданных: entityType=${entityType}, entityId=${entityId}`);
       const meta = await metaUtils.getEntityMeta(req.tenantId, entityType, entityId);
+      log(`Метаданные получены: keys=${Object.keys(meta).length}`);
 
+      log(`Отправка ответа: ${Object.keys(meta).length} мета-тегов`);
       res.json({
         data: sanitizeResponse(meta)
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       if (error.statusCode === 404) {
         return res.status(404).json({
           error: 'Not Found',
@@ -39,22 +52,31 @@ const metaController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Set or update meta for an entity
   async setMeta(req, res) {
+    const routePath = '/:entityType/:entityId/:key';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       // Декодируем entityId из URL (на случай если пришло закодированное)
       const { entityType, entityId: rawEntityId, key } = req.params;
       const entityId = decodeURIComponent(rawEntityId || '');
       
-      console.log('setMeta: rawEntityId:', rawEntityId, 'decoded entityId:', entityId, 'entityType:', entityType);
       const { value, dataType = 'string' } = req.body;
+      log(`Получены параметры: entityType=${entityType}, entityId=${entityId}, key=${key}, dataType=${dataType}`);
 
       // Validate entityType
       const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'];
       if (!validEntityTypes.includes(entityType)) {
+        log(`Ошибка валидации: неверный entityType=${entityType}`);
         return res.status(400).json({
           error: 'Bad Request',
           message: `Invalid entityType. Must be one of: ${validEntityTypes.join(', ')}`
@@ -64,6 +86,7 @@ const metaController = {
       // Validate dataType
       const validDataTypes = ['string', 'number', 'boolean', 'object', 'array'];
       if (!validDataTypes.includes(dataType)) {
+        log(`Ошибка валидации: неверный dataType=${dataType}`);
         return res.status(400).json({
           error: 'Bad Request',
           message: `Invalid dataType. Must be one of: ${validDataTypes.join(', ')}`
@@ -71,9 +94,11 @@ const metaController = {
       }
 
       // Optional: Verify entity exists
+      log(`Проверка существования сущности: entityType=${entityType}, entityId=${entityId}`);
       await verifyEntityExists(entityType, entityId, req.tenantId);
 
       // Set meta
+      log(`Установка мета-тега: entityType=${entityType}, entityId=${entityId}, key=${key}, dataType=${dataType}`);
       const meta = await metaUtils.setEntityMeta(
         req.tenantId,
         entityType,
@@ -85,9 +110,11 @@ const metaController = {
           createdBy: req.apiKey?.name || 'api'
         }
       );
+      log(`Мета-тег установлен: key=${key}`);
 
       // Генерируем события при обновлении мета-тегов
       const actorId = req.userId || req.apiKey?.name || 'api';
+      log(`Создание события обновления: entityType=${entityType}, actorId=${actorId}`);
       if (entityType === 'dialog') {
         await createDialogUpdateEvent(req.tenantId, entityId, actorId);
       } else if (entityType === 'message') {
@@ -98,11 +125,13 @@ const metaController = {
         await createUserUpdateEvent(req.tenantId, entityId, actorId);
       }
 
+      log(`Отправка успешного ответа: entityType=${entityType}, entityId=${entityId}, key=${key}`);
       res.json({
         data: sanitizeResponse(meta),
         message: 'Meta set successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       console.error('Error in setMeta:', error);
       if (error.statusCode === 404) {
         return res.status(404).json({
@@ -128,17 +157,27 @@ const metaController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Delete meta key for an entity
   async deleteMeta(req, res) {
+    const routePath = '/:entityType/:entityId/:key';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { entityType, entityId, key } = req.params;
+      log(`Получены параметры: entityType=${entityType}, entityId=${entityId}, key=${key}, tenantId=${req.tenantId}`);
 
       // Validate entityType
       const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'];
       if (!validEntityTypes.includes(entityType)) {
+        log(`Ошибка валидации: неверный entityType=${entityType}`);
         return res.status(400).json({
           error: 'Bad Request',
           message: `Invalid entityType. Must be one of: ${validEntityTypes.join(', ')}`
@@ -146,9 +185,11 @@ const metaController = {
       }
 
       // Optional: Verify entity exists
+      log(`Проверка существования сущности: entityType=${entityType}, entityId=${entityId}`);
       await verifyEntityExists(entityType, entityId, req.tenantId);
 
       // Delete meta
+      log(`Удаление мета-тега: entityType=${entityType}, entityId=${entityId}, key=${key}`);
       const deleted = await metaUtils.deleteEntityMeta(
         req.tenantId,
         entityType,
@@ -157,14 +198,17 @@ const metaController = {
       );
 
       if (!deleted) {
+        log(`Мета-тег не найден: key=${key}, entityType=${entityType}, entityId=${entityId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: `Meta key '${key}' not found for ${entityType} ${entityId}`
         });
       }
+      log(`Мета-тег удален: key=${key}`);
 
       // Генерируем события при удалении мета-тегов
       const actorId = req.userId || req.apiKey?.name || 'api';
+      log(`Создание события обновления: entityType=${entityType}, actorId=${actorId}`);
       if (entityType === 'dialog') {
         await createDialogUpdateEvent(req.tenantId, entityId, actorId);
       } else if (entityType === 'message') {
@@ -175,10 +219,12 @@ const metaController = {
         await createTopicUpdateEvent(req.tenantId, entityId, actorId);
       }
 
+      log(`Отправка успешного ответа: entityType=${entityType}, entityId=${entityId}, key=${key}`);
       res.json({
         message: 'Meta deleted successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       if (error.statusCode === 404) {
         return res.status(404).json({
           error: 'Not Found',
@@ -189,6 +235,8 @@ const metaController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   }
 };

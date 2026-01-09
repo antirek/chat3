@@ -7,24 +7,34 @@ import { buildReactionSet } from '@chat3/utils/userDialogUtils.js';
 const messageReactionController = {
   // Получить все реакции для сообщения
   async getMessageReactions(req, res) {
+    const routePath = '/:userId/dialogs/:dialogId/messages/:messageId/reactions';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { messageId, userId: pathUserId } = req.params;
       const { reaction, userId: queryUserId } = req.query;
       // userId из пути имеет приоритет над query параметром
       const userId = pathUserId || queryUserId;
+      log(`Получены параметры: messageId=${messageId}, userId=${userId || 'нет'}, reaction=${reaction || 'нет'}`);
 
       // Проверяем, что сообщение существует и принадлежит tenant
+      log(`Поиск сообщения: messageId=${messageId}, tenantId=${req.tenantId}`);
       const message = await Message.findOne({
         messageId: messageId,
         tenantId: req.tenantId
       });
 
       if (!message) {
+        log(`Сообщение не найдено: messageId=${messageId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Message not found'
         });
       }
+      log(`Сообщение найдено: messageId=${message.messageId}`);
 
       // Формируем фильтр
       const filter = {
@@ -41,10 +51,13 @@ const messageReactionController = {
       }
 
       // Получаем реакции
+      log(`Поиск реакций: filter=${JSON.stringify(filter)}`);
       const reactions = await MessageReaction.find(filter)
         .select('-__v')
         .sort({ createdAt: -1 });
+      log(`Найдено реакций: ${reactions.length}`);
 
+      log(`Отправка ответа: ${reactions.length} реакций`);
       res.json({
         data: sanitizeResponse({
           reactions: reactions
@@ -52,6 +65,7 @@ const messageReactionController = {
         message: 'Message reactions retrieved successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       if (error.name === 'CastError') {
         return res.status(400).json({
           error: 'Bad Request',
@@ -62,18 +76,28 @@ const messageReactionController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Установить или снять реакцию (set/unset)
   async setOrUnsetReaction(req, res) {
+    const routePath = '/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { messageId, action, userId: pathUserId } = req.params;
       const { reaction } = req.body;
       // userId берется из пути запроса или из middleware
       const userId = pathUserId || req.userId;
+      log(`Получены параметры: messageId=${messageId}, action=${action}, userId=${userId}, reaction=${reaction || 'нет'}`);
 
       if (!userId) {
+        log(`Ошибка валидации: отсутствует userId`);
         return res.status(400).json({
           error: 'Bad Request',
           message: 'User ID is required'
@@ -81,6 +105,7 @@ const messageReactionController = {
       }
 
       if (!reaction) {
+        log(`Ошибка валидации: отсутствует reaction`);
         return res.status(400).json({
           error: 'Bad Request',
           message: 'Reaction is required'
@@ -88,19 +113,23 @@ const messageReactionController = {
       }
 
       // Проверяем, что сообщение существует и принадлежит tenant
+      log(`Поиск сообщения: messageId=${messageId}, tenantId=${req.tenantId}`);
       const message = await Message.findOne({
         messageId: messageId,
         tenantId: req.tenantId
       });
 
       if (!message) {
+        log(`Сообщение не найдено: messageId=${messageId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Message not found'
         });
       }
+      log(`Сообщение найдено: messageId=${message.messageId}`);
 
       if (action === 'set') {
+        log(`Установка реакции: messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
         // Устанавливаем реакцию
         const existingReaction = await MessageReaction.findOne({
           tenantId: req.tenantId,
@@ -111,6 +140,7 @@ const messageReactionController = {
 
         if (existingReaction) {
           // Реакция уже существует
+          log(`Реакция уже существует: messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
           return res.json({
             data: existingReaction,
             message: 'Reaction already exists'
@@ -118,6 +148,7 @@ const messageReactionController = {
         }
 
         // Создаем новую реакцию
+        log(`Создание новой реакции: messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
         const reactionDoc = new MessageReaction({
           tenantId: req.tenantId,
           messageId: messageId,
@@ -125,6 +156,7 @@ const messageReactionController = {
           reaction: reaction
         });
         await reactionDoc.save();
+        log(`Реакция создана: reactionId=${reactionDoc._id}`);
 
         // Получаем диалог и его метаданные для события
         const dialog = await Dialog.findOne({
@@ -173,6 +205,7 @@ const messageReactionController = {
           updatedFields: ['message.reaction']
         });
 
+        log(`Создание события message.reaction.update: messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
         await eventUtils.createEvent({
           tenantId: req.tenantId,
           eventType: 'message.reaction.update',
@@ -187,6 +220,7 @@ const messageReactionController = {
           })
         });
 
+        log(`Отправка успешного ответа: messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
         res.status(201).json({
           data: sanitizeResponse({
             reaction: reactionDoc
@@ -194,6 +228,7 @@ const messageReactionController = {
           message: 'Reaction set successfully'
         });
       } else if (action === 'unset') {
+        log(`Снятие реакции: messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
         // Снимаем реакцию
         const reactionToDelete = await MessageReaction.findOne({
           tenantId: req.tenantId,
@@ -203,6 +238,7 @@ const messageReactionController = {
         });
 
         if (!reactionToDelete) {
+          log(`Реакция не найдена: messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
           return res.status(404).json({
             error: 'Not Found',
             message: 'Reaction not found'
@@ -211,7 +247,9 @@ const messageReactionController = {
 
         // Удаляем реакцию
         // ВАЖНО: Используем метод на документе, чтобы сработал middleware post('remove')
+        log(`Удаление реакции: reactionId=${reactionToDelete._id}`);
         await reactionToDelete.deleteOne();
+        log(`Реакция удалена: reactionId=${reactionToDelete._id}`);
 
         // Получаем диалог и его метаданные для события
         const dialog = await Dialog.findOne({
@@ -260,6 +298,7 @@ const messageReactionController = {
           }
         });
 
+        log(`Создание события message.reaction.update (unset): messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
         await eventUtils.createEvent({
           tenantId: req.tenantId,
           eventType: 'message.reaction.update',
@@ -274,12 +313,14 @@ const messageReactionController = {
           })
         });
 
+        log(`Отправка успешного ответа: messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
         res.json({
           data: sanitizeResponse({}),
           message: 'Reaction unset successfully'
         });
       }
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       if (error.name === 'CastError') {
         return res.status(400).json({
           error: 'Bad Request',
@@ -296,6 +337,8 @@ const messageReactionController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   }
 };

@@ -18,10 +18,17 @@ import {
 export const dialogController = {
   // Get all dialogs for current tenant
   async getAll(req, res) {
+    const routePath = '/';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
+      log(`Получены параметры: page=${page}, limit=${limit}, filter=${req.query.filter || 'нет'}`);
 
       let dialogIds = null;
       let regularFilters = {};
@@ -125,6 +132,7 @@ export const dialogController = {
           }
           
         } catch (error) {
+          log(`Ошибка парсинга фильтров: ${error.message}`);
           return res.status(400).json({
             error: 'Bad Request',
             message: `Invalid filter format. ${error.message}. Examples: (meta.key,eq,value) or (meta.key,ne,value)&(meta.key2,in,[val1,val2])`
@@ -132,6 +140,7 @@ export const dialogController = {
         }
       }
 
+      log(`Построение запроса: tenantId=${req.tenantId}`);
       const query = { tenantId: req.tenantId };
       
       // Применяем обычные фильтры (например, dialogId) к query
@@ -143,6 +152,7 @@ export const dialogController = {
       if (dialogIds !== null) {
         if (dialogIds.length === 0) {
           // Нет диалогов с такими meta/member
+          log(`Нет диалогов, соответствующих фильтрам`);
           return res.json({
             data: sanitizeResponse([]),
             pagination: {
@@ -153,6 +163,7 @@ export const dialogController = {
             }
           });
         }
+        log(`Найдено диалогов по фильтрам: ${dialogIds.length}`);
         
         // Если также есть regularFilters.dialogId, делаем пересечение
         if (regularDialogId !== undefined) {
@@ -189,6 +200,7 @@ export const dialogController = {
       const isMemberSpecificSort = memberSortInfo !== null;
       const isCreatedAtSort = sortField && sortField.includes('createdAt');
       
+      log(`Выполнение запроса диалогов: sortField=${sortField || 'нет'}, skip=${skip}, limit=${limit}`);
       let dialogs;
       
       if (isCreatedAtSort) {
@@ -369,6 +381,8 @@ export const dialogController = {
           .populate('tenantId', 'name domain')
       }
 
+      log(`Найдено диалогов: ${dialogs.length}`);
+      
       // Добавляем метаданные для каждого диалога
       const dialogIdSet = new Set(
         dialogs
@@ -384,6 +398,8 @@ export const dialogController = {
           })
           .filter((id) => typeof id === 'string' && id.length > 0)
       );
+      
+      log(`Получение метаданных для ${dialogIdSet.size} диалогов`);
 
       let memberCounts = {};
 
@@ -478,7 +494,9 @@ export const dialogController = {
       );
 
       const total = await Dialog.countDocuments(query);
+      log(`Всего диалогов: ${total}, страница: ${page}, лимит: ${limit}`);
 
+      log(`Отправка ответа: ${dialogsWithMeta.length} диалогов`);
       res.json({
         data: dialogsWithMeta,
         pagination: {
@@ -489,30 +507,46 @@ export const dialogController = {
         }
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Get dialog by ID
   async getById(req, res) {
+    const routePath = '/:id';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
+      const { id } = req.params;
+      log(`Получены параметры: id=${id}, tenantId=${req.tenantId}`);
+      
+      log(`Поиск диалога: dialogId=${id}, tenantId=${req.tenantId}`);
       const dialog = await Dialog.findOne({
-        dialogId: req.params.id,
+        dialogId: id,
         tenantId: req.tenantId
       })
         .select('-__v')
         .populate('tenantId', 'name domain');
 
       if (!dialog) {
+        log(`Диалог не найден: id=${id}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
         });
       }
+      log(`Диалог найден: dialogId=${dialog.dialogId}`);
 
+      log(`Получение метаданных диалога: dialogId=${dialog.dialogId}`);
       // Получаем метаданные диалога
       const meta = await metaUtils.getEntityMeta(
         req.tenantId,
@@ -520,10 +554,12 @@ export const dialogController = {
         dialog.dialogId
       );
 
+      log(`Подсчет участников: dialogId=${dialog.dialogId}`);
       const memberCount = await DialogMember.countDocuments({
         tenantId: req.tenantId,
         dialogId: dialog.dialogId
       });
+      log(`Найдено участников: ${memberCount}`);
 
       // Получаем статистику диалога из DialogStats
       let stats = null;
@@ -555,6 +591,7 @@ export const dialogController = {
 
       const dialogObj = dialog.toObject();
 
+      log(`Отправка ответа: dialogId=${dialog.dialogId}, memberCount=${memberCount}`);
       res.json({
         data: sanitizeResponse({
           ...dialogObj,
@@ -564,6 +601,7 @@ export const dialogController = {
         })
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       if (error.name === 'CastError') {
         return res.status(400).json({
           error: 'Bad Request',
@@ -574,29 +612,43 @@ export const dialogController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Create new dialog
   async create(req, res) {
+    const routePath = '/';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { members, meta: metaPayload } = req.body;
+      const membersCount = Array.isArray(members) ? members.length : 0;
+      log(`Получены параметры: tenantId=${req.tenantId}, members=${membersCount}, meta=${metaPayload ? 'есть' : 'нет'}`);
 
       // Определяем actorId для событий (из API ключа или первого участника)
       let actorId = req.apiKey?.name || 'system';
       if (Array.isArray(members) && members.length > 0 && members[0].userId) {
         actorId = members[0].userId;
       }
+      log(`ActorId для событий: ${actorId}`);
 
+      log(`Создание диалога: tenantId=${req.tenantId}`);
       // Создаем диалог
       const dialog = await Dialog.create([{
         tenantId: req.tenantId
       }]);
 
       const createdDialog = dialog[0];
+      log(`Диалог создан: dialogId=${createdDialog.dialogId}`);
 
       // Создаем DialogStats сразу после создания диалога
       const memberCount = Array.isArray(members) ? members.length : 0;
+      log(`Создание DialogStats: dialogId=${createdDialog.dialogId}, memberCount=${memberCount}`);
       await updateDialogStats(
         req.tenantId,
         createdDialog.dialogId,
@@ -610,6 +662,7 @@ export const dialogController = {
 
       // Add meta data if provided (делаем это до обработки участников, чтобы метаданные были доступны)
       if (metaPayload && typeof metaPayload === 'object') {
+        log(`Добавление метаданных: dialogId=${createdDialog.dialogId}, keys=${Object.keys(metaPayload).length}`);
         for (const [key, value] of Object.entries(metaPayload)) {
           const metaOptions = {
             createdBy: actorId,
@@ -657,6 +710,7 @@ export const dialogController = {
 
       // Обрабатываем участников, если они предоставлены
       if (Array.isArray(members) && members.length > 0) {
+        log(`Обработка участников: dialogId=${createdDialog.dialogId}, count=${members.length}`);
         for (const memberData of members) {
           // Пропускаем дубликаты в одном запросе
           if (processedUserIds.has(memberData.userId)) {
@@ -803,6 +857,7 @@ export const dialogController = {
 
       const dialogObj = createdDialog.toObject();
 
+      log(`Отправка успешного ответа: dialogId=${createdDialog.dialogId}`);
       res.status(201).json({
         data: sanitizeResponse({
           ...dialogObj,
@@ -812,6 +867,7 @@ export const dialogController = {
         message: 'Dialog created successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       console.error('Error creating dialog:', error);
       
       if (error.name === 'ValidationError') {
@@ -828,24 +884,39 @@ export const dialogController = {
         error: 'Internal Server Error',
         message: errorMessage
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Delete dialog
   async delete(req, res) {
+    const routePath = '/:id';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
+      const { id } = req.params;
+      log(`Получены параметры: id=${id}, tenantId=${req.tenantId}`);
+      
+      log(`Удаление диалога: id=${id}, tenantId=${req.tenantId}`);
       const dialog = await Dialog.findOneAndDelete({
-        _id: req.params.id,
+        _id: id,
         tenantId: req.tenantId
       });
 
       if (!dialog) {
+        log(`Диалог не найден: id=${id}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
         });
       }
+      log(`Диалог найден и удален: dialogId=${dialog.dialogId}`);
 
+      log(`Получение метаданных для события: dialogId=${dialog.dialogId}`);
       // Получаем метаданные диалога для события
       const dialogMeta = await metaUtils.getEntityMeta(req.tenantId, 'dialog', dialog.dialogId);
       const dialogSection = eventUtils.buildDialogSection({
@@ -855,6 +926,7 @@ export const dialogController = {
         meta: dialogMeta || {}
       });
 
+      log(`Создание события dialog.delete: dialogId=${dialog.dialogId}`);
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.delete',
         dialogId: dialog.dialogId,
@@ -876,13 +948,16 @@ export const dialogController = {
         })
       });
 
+      log(`Удаление метаданных диалога: id=${id}`);
       // Удаляем все метаданные диалога
-      await Meta.deleteMany({ entityType: 'dialog', entityId: req.params.id });
+      await Meta.deleteMany({ entityType: 'dialog', entityId: id });
 
+      log(`Отправка успешного ответа: dialogId=${dialog.dialogId}`);
       res.json({
         message: 'Dialog deleted successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       if (error.name === 'CastError') {
         return res.status(400).json({
           error: 'Bad Request',
@@ -893,6 +968,8 @@ export const dialogController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   }
 };

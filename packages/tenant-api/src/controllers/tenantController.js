@@ -21,26 +21,39 @@ const formatTenantResponse = (tenant, meta = null) => {
 export const tenantController = {
   // Get all tenants (paginated)
   async getAll(req, res) {
+    const routePath = '/';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
+      log(`Получены параметры: page=${page}, limit=${limit}`);
 
+      log(`Поиск тенантов: skip=${skip}, limit=${limit}`);
       const tenants = await Tenant.find()
         .skip(skip)
         .limit(limit)
         .select('-__v -_id');
+      log(`Найдено тенантов: ${tenants.length}`);
 
       const total = await Tenant.countDocuments();
+      log(`Всего тенантов: ${total}`);
 
       // Получаем мета-теги для каждого тенанта
+      log(`Получение мета-тегов для ${tenants.length} тенантов`);
       const tenantsWithMeta = await Promise.all(
         tenants.map(async (tenant) => {
           const meta = await metaUtils.getEntityMeta(tenant.tenantId, 'tenant', tenant.tenantId);
           return formatTenantResponse(tenant, meta);
         })
       );
+      log(`Мета-теги получены для всех тенантов`);
 
+      log(`Отправка ответа: ${tenantsWithMeta.length} тенантов, страница: ${page}, лимит: ${limit}`);
       res.json({
         data: tenantsWithMeta,
         pagination: {
@@ -51,48 +64,74 @@ export const tenantController = {
         }
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Get tenant by tenantId
   async getById(req, res) {
+    const routePath = '/:id';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { id } = req.params;
+      log(`Получены параметры: id=${id}`);
       
       // Ищем по tenantId, а не по MongoDB _id
+      log(`Поиск тенанта: tenantId=${id}`);
       const tenant = await Tenant.findOne({ tenantId: id }).select('-__v -_id');
 
       if (!tenant) {
+        log(`Тенант не найден: tenantId=${id}`);
         return res.status(404).json({
           error: 'Not Found',
           message: `Tenant with tenantId "${id}" not found`
         });
       }
+      log(`Тенант найден: tenantId=${tenant.tenantId}`);
 
       // Получаем мета-теги тенанта
+      log(`Получение мета-тегов: tenantId=${tenant.tenantId}`);
       const meta = await metaUtils.getEntityMeta(tenant.tenantId, 'tenant', tenant.tenantId);
+      log(`Мета-теги получены: keys=${Object.keys(meta).length}`);
 
+      log(`Отправка ответа: tenantId=${tenant.tenantId}`);
       res.json({ data: formatTenantResponse(tenant, meta) });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Create new tenant
   async create(req, res) {
+    const routePath = '/';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     // Сохраняем исходный tenantId для обработки ошибок
     let attemptedTenantId = null;
     
     try {
       // Извлекаем мета-теги из тела запроса
       const { meta, ...tenantData } = req.body;
+      log(`Получены параметры: tenantId=${tenantData.tenantId || 'автогенерация'}, meta=${meta ? 'есть' : 'нет'}`);
 
       // Нормализуем tenantId если он указан (trim и lowercase, как в схеме)
       // Важно: проверяем не только truthy, но и пустую строку, null, undefined
@@ -125,10 +164,13 @@ export const tenantController = {
 
       // Создаем тенант
       // MongoDB проверит уникальность через unique index на tenantId
+      log(`Создание тенанта: tenantData=${JSON.stringify(tenantData)}`);
       const tenant = await Tenant.create(tenantData);
+      log(`Тенант создан: tenantId=${tenant.tenantId}`);
 
       // Сохраняем мета-теги в коллекцию Meta, если они были переданы
       if (meta && typeof meta === 'object') {
+        log(`Добавление мета-тегов: tenantId=${tenant.tenantId}, keys=${Object.keys(meta).length}`);
         const newTenantId = tenant.tenantId;
         // Для мета-тегов тенанта используем tenantId созданного тенанта
         // как для контекста (первый параметр), так и для entityId (третий параметр)
@@ -157,16 +199,19 @@ export const tenantController = {
             { createdBy }
           );
         }
+        log(`Мета-теги добавлены: tenantId=${tenant.tenantId}`);
       }
 
       // Формируем ответ с мета-тегами (если они были переданы)
       const responseMeta = meta && typeof meta === 'object' ? meta : {};
       
+      log(`Отправка успешного ответа: tenantId=${tenant.tenantId}`);
       res.status(201).json({
         data: formatTenantResponse(tenant, responseMeta),
         message: 'Tenant created successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       if (error.name === 'ValidationError') {
         return res.status(400).json({
           error: 'Validation Error',
@@ -196,40 +241,58 @@ export const tenantController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Delete tenant by tenantId
   async delete(req, res) {
+    const routePath = '/:id';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { id } = req.params;
+      log(`Получены параметры: id=${id}`);
       
       // Ищем и удаляем по tenantId, а не по MongoDB _id
+      log(`Удаление тенанта: tenantId=${id}`);
       const tenant = await Tenant.findOneAndDelete({ tenantId: id });
 
       if (!tenant) {
+        log(`Тенант не найден: tenantId=${id}`);
         return res.status(404).json({
           error: 'Not Found',
           message: `Tenant with tenantId "${id}" not found`
         });
       }
+      log(`Тенант найден и удален: tenantId=${tenant.tenantId}`);
 
       // Удаляем все мета-теги тенанта
+      log(`Удаление мета-тегов: tenantId=${tenant.tenantId}`);
       await Meta.deleteMany({ 
         tenantId: tenant.tenantId, 
         entityType: 'tenant', 
         entityId: tenant.tenantId 
       });
+      log(`Мета-теги удалены: tenantId=${tenant.tenantId}`);
 
+      log(`Отправка успешного ответа: tenantId=${tenant.tenantId}`);
       res.json({
         message: 'Tenant deleted successfully',
         tenantId: tenant.tenantId
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   }
 };

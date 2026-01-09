@@ -58,7 +58,6 @@ const dialogMemberController = {
       if (existingMember) {
         // Участник уже существует - просто возвращаем успешный ответ
         log(`Участник уже существует в диалоге: userId=${userId}`);
-        log('>>>>> end');
         return res.status(200).json({
           data: sanitizeResponse({
             userId,
@@ -176,7 +175,6 @@ const dialogMemberController = {
       }
 
       log(`Отправка успешного ответа: userId=${userId}, dialogId=${dialogId}`);
-      log('>>>>> end');
       res.status(201).json({
         data: sanitizeResponse({
           userId,
@@ -186,12 +184,13 @@ const dialogMemberController = {
       });
     } catch (error) {
       log(`Ошибка обработки запроса:`, error.message);
-      log('>>>>> end');
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
-    } 
+    } finally {
+      log('>>>>> end');
+    }
   },
 
   async getDialogMembers(req, res) {
@@ -214,7 +213,6 @@ const dialogMemberController = {
       const dialog = await Dialog.findOne({ tenantId: req.tenantId, dialogId }).select('dialogId').lean();
       if (!dialog) {
         log(`Диалог не найден: dialogId=${dialogId}`);
-        log('>>>>> end');
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
@@ -233,7 +231,6 @@ const dialogMemberController = {
           log(`Фильтры распарсены успешно`);
         } catch (error) {
           log(`Ошибка парсинга фильтров: ${error.message}`);
-          log('>>>>> end');
           return res.status(400).json({
             error: 'Bad Request',
             message: `Invalid filter format. ${error.message}`
@@ -276,7 +273,6 @@ const dialogMemberController = {
 
         if (userIds.length === 0) {
           log(`Нет участников, соответствующих мета-фильтрам`);
-          log('>>>>> end');
           return res.json({
             data: [],
             pagination: {
@@ -362,7 +358,6 @@ const dialogMemberController = {
       log(`Метаданные получены для всех участников`);
 
       log(`Отправка ответа: page=${page}, limit=${limit}, total=${total}, pages=${Math.ceil(total / limit)}`);
-      log('>>>>> end');
       return res.json({
         data: sanitizeResponse(membersWithMeta),
         pagination: {
@@ -374,11 +369,12 @@ const dialogMemberController = {
       });
     } catch (error) {
       log(`Ошибка обработки запроса:`, error.message);
-      log('>>>>> end');
       return res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
@@ -399,7 +395,6 @@ const dialogMemberController = {
       const dialog = await Dialog.findOne({ dialogId: dialogId, tenantId: req.tenantId });
       if (!dialog) {
         log(`Диалог не найден: dialogId=${dialogId}`);
-        log('>>>>> end');
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
@@ -533,17 +528,17 @@ const dialogMemberController = {
       }
 
       log(`Отправка успешного ответа: userId=${userId}, dialogId=${dialogId}`);
-      log('>>>>> end');
       res.json({
         message: 'Member removed from dialog successfully'
       });
     } catch (error) {
       log(`Ошибка обработки запроса:`, error.message);
-      log('>>>>> end');
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
@@ -564,7 +559,6 @@ const dialogMemberController = {
       const dialog = await Dialog.findOne({ dialogId, tenantId: req.tenantId });
       if (!dialog) {
         log(`Диалог не найден: dialogId=${dialogId}`);
-        log('>>>>> end');
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog not found'
@@ -582,7 +576,6 @@ const dialogMemberController = {
       const existingMember = await DialogMember.findOne(memberFilter).lean();
       if (!existingMember) {
         log(`Участник не найден: userId=${userId}`);
-        log('>>>>> end');
         return res.status(404).json({
           error: 'Not Found',
           message: 'Dialog member not found'
@@ -602,7 +595,6 @@ const dialogMemberController = {
 
       if (unreadCount > currentUnreadCount) {
         log(`Ошибка валидации: новый unreadCount (${unreadCount}) больше текущего (${currentUnreadCount})`);
-        log('>>>>> end');
         return res.status(400).json({
           error: 'Bad Request',
           message: 'Unread count cannot be greater than current unread count'
@@ -783,7 +775,6 @@ const dialogMemberController = {
       }
 
       log(`Отправка успешного ответа: userId=${userId}, dialogId=${dialogId}, unreadCount=${finalUnreadCount}`);
-      log('>>>>> end');
       return res.json({
         data: sanitizeResponse({
           userId: existingMember.userId,
@@ -797,11 +788,12 @@ const dialogMemberController = {
       });
     } catch (error) {
       log(`Ошибка обработки запроса:`, error.message);
-      log('>>>>> end');
       return res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   }
 };

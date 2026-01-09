@@ -118,16 +118,17 @@ async function enrichMessagesWithMetaAndStatuses(messages, tenantId, dialogId = 
 const messageController = {
   // Get all messages with filtering and pagination
   async getAll(req, res) {
+    const routePath = '/';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
-      console.log('=== getAll called ===');
-      console.log('tenantId:', req.tenantId);
-      console.log('query:', req.query);
-      
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
-
-      console.log('pagination:', { page, limit, skip });
+      log(`Получены параметры: page=${page}, limit=${limit}, filter=${req.query.filter || 'нет'}, sort=${req.query.sort || 'нет'}`);
 
       // Build base query
       let query = {
@@ -221,7 +222,9 @@ const messageController = {
       const messagesWithMeta = await enrichMessagesWithMetaAndStatuses(messages, req.tenantId);
 
       const total = await Message.countDocuments(query);
+      log(`Всего сообщений: ${total}, найдено: ${messagesWithMeta.length}, страница: ${page}, лимит: ${limit}`);
 
+      log(`Отправка ответа: ${messagesWithMeta.length} сообщений`);
       res.json({
         data: sanitizeResponse(messagesWithMeta),
         pagination: {
@@ -232,17 +235,27 @@ const messageController = {
         }
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       console.error('Error in getAll:', error);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
   // Get messages for a specific dialog
   async getDialogMessages(req, res) {
+    const routePath = '/:dialogId/messages';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { dialogId } = req.params;
+      log(`Получены параметры: dialogId=${dialogId}, page=${req.query.page || 'нет'}, limit=${req.query.limit || 'нет'}`);
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
@@ -322,19 +335,24 @@ const messageController = {
         }
       }
 
+      log(`Выполнение запроса сообщений: skip=${skip}, limit=${limit}, sort=${JSON.stringify(sortOptions)}`);
       const messages = await Message.find(query)
         .skip(skip)
         .limit(limit)
         .select('-__v')
         .populate('tenantId', 'name domain')
         .sort(sortOptions);
+      log(`Найдено сообщений: ${messages.length}`);
 
       // Add meta data and message statuses for each message
       // Передаем dialogId для батчинга топиков
+      log(`Обогащение сообщений метаданными и статусами: ${messages.length} сообщений`);
       const messagesWithMeta = await enrichMessagesWithMetaAndStatuses(messages, req.tenantId, dialog.dialogId);
 
       const total = await Message.countDocuments(query);
+      log(`Всего сообщений: ${total}, страница: ${page}, лимит: ${limit}`);
 
+      log(`Отправка ответа: ${messagesWithMeta.length} сообщений`);
       res.json({
         data: sanitizeResponse(messagesWithMeta),
         pagination: {
@@ -345,6 +363,7 @@ const messageController = {
         }
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       if (error.name === 'CastError') {
         return res.status(400).json({
           error: 'Bad Request',
@@ -355,14 +374,23 @@ const messageController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Create new message in dialog
   async createMessage(req, res) {
+    const routePath = '/:dialogId/messages';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { dialogId } = req.params;
       const { content, senderId, type = 'internal.text', meta, quotedMessageId, topicId } = req.body;
+      log(`Получены параметры: dialogId=${dialogId}, senderId=${senderId}, type=${type}, topicId=${topicId || 'нет'}, quotedMessageId=${quotedMessageId || 'нет'}`);
       // Нормализуем topicId: пустая строка становится null
       const normalizedTopicId = topicId && topicId.trim() ? topicId.trim() : null;
       const normalizedType = type;
@@ -372,6 +400,7 @@ const messageController = {
       const MEDIA_MESSAGE_TYPES = new Set(['internal.image', 'internal.file', 'internal.audio', 'internal.video', 'internal.sticker']);
 
       if (!senderId) {
+        log(`Ошибка валидации: отсутствует senderId`);
         return res.status(400).json({
           error: 'Bad Request',
           message: 'Missing required field: senderId'
@@ -379,6 +408,7 @@ const messageController = {
       }
 
       if (normalizedType === 'internal.text' && messageContent.trim().length === 0) {
+        log(`Ошибка валидации: пустой content для internal.text`);
         return res.status(400).json({
           error: 'Bad Request',
           message: 'content is required for internal.text messages'
@@ -765,6 +795,7 @@ const messageController = {
       
       // dialogId теперь уже строка в формате dlg_, не нужно преобразовывать
 
+      log(`Отправка успешного ответа: messageId=${messageObj.messageId}, dialogId=${dialogId}`);
       res.status(201).json({
         data: sanitizeResponse({
           ...messageObj,
@@ -776,6 +807,7 @@ const messageController = {
         message: 'Message created successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       if (error.name === 'CastError') {
         return res.status(400).json({
           error: 'Bad Request',
@@ -792,26 +824,39 @@ const messageController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Get message by ID
   async getMessageById(req, res) {
+    const routePath = '/:messageId';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { messageId } = req.params;
+      log(`Получены параметры: messageId=${messageId}, tenantId=${req.tenantId}`);
 
+      log(`Поиск сообщения: messageId=${messageId}, tenantId=${req.tenantId}`);
       const message = await Message.findOne({
         messageId: messageId,
         tenantId: req.tenantId
       });
 
       if (!message) {
+        log(`Сообщение не найдено: messageId=${messageId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Message not found'
         });
       }
+      log(`Сообщение найдено: messageId=${message.messageId}, dialogId=${message.dialogId}`);
 
+      log(`Получение метаданных сообщения: messageId=${message.messageId}`);
       // Получаем метаданные сообщения
       const meta = await metaUtils.getEntityMeta(
         req.tenantId,
@@ -827,6 +872,7 @@ const messageController = {
       const messageTopicId = message.topicId || messageObj.topicId || null;
       
       if (messageTopicId) {
+        log(`Получение топика: topicId=${messageTopicId}`);
         try {
           topic = await topicUtils.getTopicWithMeta(req.tenantId, message.dialogId, messageTopicId);
         } catch (error) {
@@ -835,6 +881,7 @@ const messageController = {
         }
       }
       
+      log(`Формирование статусов и реакций: messageId=${message.messageId}`);
       // Формируем матрицу статусов (исключая статусы отправителя сообщения)
       const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, message.messageId, messageObj.senderId);
       
@@ -845,6 +892,7 @@ const messageController = {
       
       // dialogId теперь уже строка в формате dlg_, не нужно преобразовывать
 
+      log(`Отправка ответа: messageId=${message.messageId}`);
       res.json({
         data: sanitizeResponse({
           ...messageObj,
@@ -857,34 +905,48 @@ const messageController = {
         })
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
   // Update message content (only content can be changed)
   async updateMessageContent(req, res) {
+    const routePath = '/:messageId';
+    const log = (...args) => {
+      console.log(`[${routePath}]`, ...args);
+    }
+    log('>>>>> start');
+    
     try {
       const { messageId } = req.params;
       const { content } = req.body;
+      log(`Получены параметры: messageId=${messageId}, content=${content ? 'есть' : 'нет'}`);
 
+      log(`Поиск сообщения: messageId=${messageId}, tenantId=${req.tenantId}`);
       const message = await Message.findOne({
         messageId,
         tenantId: req.tenantId
       });
 
       if (!message) {
+        log(`Сообщение не найдено: messageId=${messageId}`);
         return res.status(404).json({
           error: 'Not Found',
           message: 'Message not found'
         });
       }
+      log(`Сообщение найдено: messageId=${message.messageId}, type=${message.type}`);
 
       const newContent = typeof content === 'string' ? content : '';
 
       if (message.type === 'internal.text' && newContent.trim().length === 0) {
+        log(`Ошибка валидации: пустой content для internal.text`);
         return res.status(400).json({
           error: 'Bad Request',
           message: 'content is required for internal.text messages'
@@ -893,6 +955,7 @@ const messageController = {
 
       const oldContent = message.content;
       if (oldContent === newContent) {
+        log(`Содержимое не изменилось: messageId=${message.messageId}`);
         // Ничего не меняем, но возвращаем текущее состояние
         const meta = await metaUtils.getEntityMeta(
           req.tenantId,
@@ -922,9 +985,12 @@ const messageController = {
         });
       }
 
+      log(`Обновление содержимого сообщения: messageId=${message.messageId}`);
       message.content = newContent;
       await message.save();
+      log(`Сообщение обновлено: messageId=${message.messageId}`);
 
+      log(`Установка мета-тега editedAt: messageId=${message.messageId}`);
       // Отмечаем сообщение как отредактированное через мета-тег editedAt
       await metaUtils.setEntityMeta(
         req.tenantId,
@@ -944,6 +1010,7 @@ const messageController = {
         message.messageId
       );
 
+      log(`Получение диалога для события: dialogId=${message.dialogId}`);
       // Получаем диалог и его метаданные для события
       const dialog = await Dialog.findOne({
         dialogId: message.dialogId,
@@ -997,6 +1064,7 @@ const messageController = {
         updatedFields: ['message.content']
       });
 
+      log(`Создание события message.update: messageId=${message.messageId}`);
       await eventUtils.createEvent({
         tenantId: req.tenantId,
         eventType: 'message.update',
@@ -1029,6 +1097,7 @@ const messageController = {
 
       const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
 
+      log(`Отправка успешного ответа: messageId=${message.messageId}`);
       res.json({
         data: sanitizeResponse({
           ...messageObj,
@@ -1040,10 +1109,13 @@ const messageController = {
         message: 'Message content updated successfully'
       });
     } catch (error) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
