@@ -55,32 +55,36 @@ export {
 };
 
 // Export TypeScript interfaces - Data models
-export type { ITenant } from './data/Tenant.js';
-export type { IUser } from './data/User.js';
-export type { IDialog } from './data/Dialog.js';
-export type { IMessage } from './data/Message.js';
-export type { IMeta } from './data/Meta.js';
-export type { IApiKey, IApiKeyModel } from './data/ApiKey.js';
-export type { IMessageStatus } from './data/MessageStatus.js';
-export type { IDialogMember } from './data/DialogMember.js';
-export type { IMessageReaction } from './data/MessageReaction.js';
-export type { ITopic } from './data/Topic.js';
+export type { ITenant } from './data/Tenant';
+export type { IUser } from './data/User';
+export type { IDialog } from './data/Dialog';
+export type { IMessage } from './data/Message';
+export type { IMeta } from './data/Meta';
+export type { IApiKey, IApiKeyModel } from './data/ApiKey';
+export type { IMessageStatus } from './data/MessageStatus';
+export type { IDialogMember } from './data/DialogMember';
+export type { IMessageReaction } from './data/MessageReaction';
+export type { ITopic } from './data/Topic';
 
 // Export TypeScript interfaces - Operational models
-export type { IEvent, EventType } from './operational/Event.js';
-export type { EntityType, ActorType } from './operational/Event.js';
-export type { IUpdate } from './operational/Update.js';
-export type { IDialogReadTask, DialogReadTaskStatus } from './operational/DialogReadTask.js';
-export type { ICounterHistory, CounterType, CounterEntityType, CounterOperation, CounterActorType } from './operational/CounterHistory.js';
+import type { IEvent, EventType, EntityType, ActorType } from './operational/Event';
+import type { IUpdate } from './operational/Update';
+import type { IDialogReadTask, DialogReadTaskStatus } from './operational/DialogReadTask';
+import type { ICounterHistory, CounterType, CounterEntityType, CounterOperation, CounterActorType } from './operational/CounterHistory';
+
+export type { IEvent, EventType, EntityType, ActorType };
+export type { IUpdate };
+export type { IDialogReadTask, DialogReadTaskStatus };
+export type { ICounterHistory, CounterType, CounterEntityType, CounterOperation, CounterActorType };
 
 // Export TypeScript interfaces - Stats models
-export type { IUserStats } from './stats/UserStats.js';
-export type { IUserDialogStats } from './stats/UserDialogStats.js';
-export type { IUserDialogActivity } from './stats/UserDialogActivity.js';
-export type { IMessageReactionStats } from './stats/MessageReactionStats.js';
-export type { IMessageStatusStats, MessageStatusType } from './stats/MessageStatusStats.js';
-export type { IUserTopicStats } from './stats/UserTopicStats.js';
-export type { IDialogStats } from './stats/DialogStats.js';
+export type { IUserStats } from './stats/UserStats';
+export type { IUserDialogStats } from './stats/UserDialogStats';
+export type { IUserDialogActivity } from './stats/UserDialogActivity';
+export type { IMessageReactionStats } from './stats/MessageReactionStats';
+export type { IMessageStatusStats, MessageStatusType } from './stats/MessageStatusStats';
+export type { IUserTopicStats } from './stats/UserTopicStats';
+export type { IDialogStats } from './stats/DialogStats';
 
 // Export TypeScript interfaces - Journals
-export type { IApiJournal, HttpMethod } from './journals/ApiJournal.js';
+export type { IApiJournal, HttpMethod } from './journals/ApiJournal';
