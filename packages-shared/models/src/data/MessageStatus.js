@@ -150,6 +150,7 @@ messageStatusSchema.post('save', async function(doc) {
           doc.userId,
           'user'
         );
+        console.log(`✅ MessageStatusStats updated: ${doc.tenantId}/${doc.messageId}/${doc.status} (+1)`);
         
         // Обновляем unreadCount если статус изменился на 'read'
         if (oldStatus !== 'read' && doc.status === 'read') {
@@ -189,9 +190,61 @@ messageStatusSchema.post('save', async function(doc) {
         }
       }
     } catch (error) {
-      console.error('Error updating counters in post-save:', error);
+      console.error('❌ Error updating counters in post-save:', error);
       // Не прерываем сохранение из-за ошибки счетчиков
     }
+  }
+});
+
+/**
+ * Middleware для обновления счетчиков при удалении статуса
+ * 
+ * ВАЖНО: MessageStatus - это история, обычно статусы не удаляются.
+ * Но если статус удаляется, нужно обновить MessageStatusStats.
+ */
+messageStatusSchema.post('remove', async function(doc) {
+  try {
+    // Уменьшаем счетчик статуса
+    await updateStatusCount(
+      doc.tenantId,
+      doc.messageId,
+      doc.status,
+      -1, // delta
+      'message.status.update',
+      doc.userId,
+      'user'
+    );
+    console.log(`✅ MessageStatusStats updated: ${doc.tenantId}/${doc.messageId}/${doc.status} (-1)`);
+    
+    // Если удаляемый статус был 'read', нужно обновить unreadCount
+    if (doc.status === 'read' && doc.dialogId) {
+      // Получаем topicId из сообщения для обновления счетчиков топика
+      const { Message } = await import('../../models/index.js');
+      const message = await Message.findOne({
+        messageId: doc.messageId,
+        tenantId: doc.tenantId
+      }).select('topicId').lean();
+      
+      const topicId = message?.topicId || null;
+      
+      // Увеличиваем unreadCount (так как статус 'read' удален)
+      await updateUnreadCount(
+        doc.tenantId,
+        doc.userId,
+        doc.dialogId,
+        1, // delta (увеличиваем при удалении статуса 'read')
+        'message.status.update',
+        null, // sourceEventId
+        doc.messageId,
+        doc.userId,
+        'user',
+        topicId
+      );
+      console.log(`✅ UserDialogStats.unreadCount updated: ${doc.tenantId}/${doc.userId}/${doc.dialogId} (+1)`);
+    }
+  } catch (error) {
+    console.error('❌ Error updating counters in post-remove:', error);
+    throw error; // Пробрасываем ошибку, чтобы увидеть её в логах
   }
 });
 

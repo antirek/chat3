@@ -73,8 +73,10 @@ messageReactionSchema.post('save', async function(doc) {
         doc.userId,
         'user'
       );
+      console.log(`✅ MessageReactionStats updated: ${doc.tenantId}/${doc.messageId}/${doc.reaction} (+1)`);
     } catch (error) {
-      console.error('Error updating reaction counters in post-save:', error);
+      console.error('❌ Error updating reaction counters in post-save:', error);
+      throw error; // Пробрасываем ошибку, чтобы увидеть её в логах
     }
   }
 });
@@ -91,8 +93,10 @@ messageReactionSchema.post('remove', async function(doc) {
       doc.userId,
       'user'
     );
+    console.log(`✅ MessageReactionStats updated: ${doc.tenantId}/${doc.messageId}/${doc.reaction} (-1)`);
   } catch (error) {
-    console.error('Error updating reaction counters in post-remove:', error);
+    console.error('❌ Error updating reaction counters in post-remove:', error);
+    throw error; // Пробрасываем ошибку, чтобы увидеть её в логах
   }
 });
 

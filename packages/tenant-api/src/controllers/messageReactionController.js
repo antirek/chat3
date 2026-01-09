@@ -210,7 +210,8 @@ const messageReactionController = {
         }
 
         // Удаляем реакцию
-        await MessageReaction.deleteOne({ _id: reactionToDelete._id });
+        // ВАЖНО: Используем метод на документе, чтобы сработал middleware post('remove')
+        await reactionToDelete.deleteOne();
 
         // Получаем диалог и его метаданные для события
         const dialog = await Dialog.findOne({
