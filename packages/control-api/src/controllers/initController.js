@@ -81,7 +81,7 @@ export const initController = {
       // 4. Запустить seed скрипт автоматически
       try {
         console.log('🌱 Запуск seed скрипта...');
-        const seedScript = 'node src/scripts/seed.js';
+        const seedScript = 'node packages/control-api/scripts/seed.js';
         
         // Запускаем seed в фоне (не ждем завершения)
         // Ошибки логируются, но не добавляются в results.errors, так как ответ уже будет отправлен
@@ -127,7 +127,7 @@ export const initController = {
   async seed(req, res) {
     try {
       // Запускаем seed скрипт асинхронно
-      const seedScript = 'node src/scripts/seed.js';
+      const seedScript = 'node packages/control-api/scripts/seed.js';
       
       // Отправляем ответ сразу, чтобы клиент не ждал
       res.status(202).json({
