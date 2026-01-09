@@ -14,8 +14,9 @@ const execAsync = promisify(exec);
 // Получаем абсолютный путь к seed.js относительно корня проекта
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// От packages/control-api/src/controllers/ поднимаемся на 3 уровня вверх к корню проекта
-const projectRoot = resolve(__dirname, '../../../');
+// От packages/control-api/src/controllers/ поднимаемся на 4 уровня вверх к корню проекта
+// controllers -> src -> control-api -> packages -> корень
+const projectRoot = resolve(__dirname, '../../../../');
 const seedScriptPath = resolve(projectRoot, 'packages/control-api/scripts/seed.js');
 
 export const initController = {
