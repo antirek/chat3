@@ -6,7 +6,11 @@
   "private": true,
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test:e2e": "playwright test src/tests",
+    "test:e2e:ui": "playwright test src/tests --ui",
+    "test:e2e:members": "playwright test src/tests/user-dialogs-members-modal.spec.js",
+    "test:e2e:add-member": "playwright test src/tests/add-member-modal.spec.js"
   },
   "dependencies": {
     "express": "^4.18.2"
