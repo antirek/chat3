@@ -4,28 +4,54 @@
 
 Chat3 - это система управления чатами с поддержкой мультитенантности, событийно-ориентированной архитектуры и интеграции через RabbitMQ.
 
+Проект организован как **монорепозиторий** с использованием **npm workspaces**, что позволяет управлять несколькими пакетами в едином репозитории.
+
+## Структура монорепозитория
+
+Проект использует npm workspaces для организации кода:
+
+```
+chat3/
+├── packages/                    # Приложения и сервисы
+│   ├── tenant-api/             # @chat3/tenant-api - основной API сервер
+│   ├── controlo-api/           # @chat3/controlo-api - API управления системой
+│   ├── controlo-gateway/       # @chat3/controlo-gateway - шлюз с тестовыми интерфейсами
+│   ├── controlo-ui/            # @chat3/controlo-ui - E2E тесты и UI
+│   ├── update-worker/          # @chat3/update-worker - обработчик событий
+│   ├── dialog-read-worker/     # @chat3/dialog-read-worker - обработчик задач чтения
+│   └── tenant-api-client/      # @chottodev/chat3-tenant-api-client - публичный клиент
+├── packages-shared/            # Общие библиотеки
+│   ├── models/                 # @chat3/models - модели данных (Mongoose)
+│   └── utils/                  # @chat3/utils - утилиты и вспомогательные функции
+├── package.json                # Корневой package.json с workspaces
+└── tsconfig.json               # Общая конфигурация TypeScript
+```
+
+### Workspaces
+
+- **`packages/*`** - приложения и сервисы (API серверы, workers, клиенты)
+- **`packages-shared/*`** - общие библиотеки, используемые другими пакетами
+
 ## Компоненты системы
 
 ```mermaid
 graph TB
-    subgraph "Gateway Server"
-        Gateway[Gateway Server]
-        ControlAPI[Control API]
-        APITest[API Test Suite]
+    subgraph "Application Packages"
+        Gateway[@chat3/controlo-gateway]
+        ControlAPI[@chat3/controlo-api]
+        TenantAPI[@chat3/tenant-api]
+        UpdateWorker[@chat3/update-worker]
+        DialogReadWorker[@chat3/dialog-read-worker]
+        Client[@chottodev/chat3-tenant-api-client]
     end
     
-    subgraph "Tenant API Server"
-        TenantAPI[Tenant API Server]
-        Routes[API Routes]
-        Controllers[Controllers]
-        Validators[Validators]
+    subgraph "Shared Packages"
+        Models[@chat3/models]
+        Utils[@chat3/utils]
     end
     
     subgraph "Data Layer"
         MongoDB[(MongoDB)]
-        Models[Data Models]
-        Operational[Operational Models]
-        Journals[Journal Models]
     end
     
     subgraph "Message Queue"
@@ -34,80 +60,133 @@ graph TB
         UpdatesExchange[chat3_updates Exchange]
     end
     
-    subgraph "Workers"
-        UpdateWorker[Update Worker]
-        DialogReadWorker[Dialog Read Worker]
-    end
-    
-    subgraph "External Systems"
-        Consumers[External Consumers]
-    end
-    
     Gateway --> ControlAPI
-    Gateway --> APITest
     Gateway --> TenantAPI
     
-    TenantAPI --> Routes
-    Routes --> Controllers
-    Controllers --> Validators
-    Controllers --> Models
+    TenantAPI --> Models
+    TenantAPI --> Utils
+    ControlAPI --> Models
+    ControlAPI --> Utils
+    UpdateWorker --> Models
+    UpdateWorker --> Utils
+    DialogReadWorker --> Models
+    DialogReadWorker --> Utils
+    
     Models --> MongoDB
+    Utils --> RabbitMQ
     
-    Controllers --> EventUtils[Event Utils]
-    EventUtils --> EventsExchange
+    TenantAPI --> Utils
+    Utils --> EventsExchange
     EventsExchange --> UpdateWorker
-    UpdateWorker --> UpdateUtils[Update Utils]
-    UpdateUtils --> UpdatesExchange
-    UpdatesExchange --> Consumers
+    UpdateUtils[Update Utils] --> UpdatesExchange
     
-    Controllers --> MetaUtils[Meta Utils]
-    MetaUtils --> MongoDB
-    
-    DialogReadWorker --> MongoDB
-    DialogReadWorker --> Operational
+    Client -.->|HTTP| TenantAPI
 ```
 
-## Структура приложений
+## Пакеты и их зависимости
 
-### Gateway Server (`src/apps/gateway/`)
+### Application Packages
 
-Главный сервер, объединяющий:
-- **Control API** - API для управления системой (инициализация, события, обновления)
-- **API Test Suite** - Тестовые интерфейсы для разработки и отладки
-- Порт по умолчанию: 3001
-
-### Tenant API Server (`src/apps/tenant-api/`)
-
+#### `@chat3/tenant-api` - Tenant API Server
 Основной API сервер для работы с данными:
-- **Routes** - Маршруты API (`/api/tenants`, `/api/users`, `/api/dialogs`, `/api/messages`, `/api/meta`)
-- **Controllers** - Контроллеры для обработки запросов
-- **Validators** - Валидация запросов (Joi схемы)
-- **Utils** - Утилиты (eventUtils, metaUtils, updateUtils, userDialogUtils и др.)
-- Порт по умолчанию: 3000
+- **Путь**: `packages/tenant-api/`
+- **Зависимости**: `@chat3/models`, `@chat3/utils`
+- **Функциональность**:
+  - REST API endpoints (`/api/tenants`, `/api/users`, `/api/dialogs`, `/api/messages`, `/api/meta`, `/api/topics`)
+  - Controllers для обработки запросов
+  - Validators (Joi схемы) для валидации
+  - Middleware (аутентификация, идемпотентность, журналирование)
+- **Порт**: 3000 (по умолчанию)
 
-### Control API (`src/apps/control-api/`)
-
+#### `@chat3/controlo-api` - Control API
 API для управления системой:
-- Инициализация системы
-- Просмотр событий и обновлений
-- DB Explorer для отладки
+- **Путь**: `packages/controlo-api/`
+- **Зависимости**: `@chat3/models`, `@chat3/utils`
+- **Функциональность**:
+  - Инициализация системы (`/api/init`)
+  - Просмотр событий и обновлений (`/api/dialogs/{id}/events`)
+  - DB Explorer для отладки (`/api/db-explorer`)
 
-### Workers
+#### `@chat3/controlo-gateway` - Gateway Server
+Шлюз, объединяющий Control API и тестовые интерфейсы:
+- **Путь**: `packages/controlo-gateway/`
+- **Зависимости**: `@chat3/controlo-api`, `@chat3/models`, `@chat3/utils`
+- **Функциональность**:
+  - Объединяет Control API
+  - API Test Suite для разработки и отладки
+- **Порт**: 3001 (по умолчанию)
 
-1. **Update Worker** (`src/apps/update-worker/`)
-   - Обрабатывает события из RabbitMQ
-   - Создает персонализированные обновления для пользователей
-   - Публикует updates в RabbitMQ
+#### `@chat3/controlo-ui` - Controlo UI
+E2E тесты и UI интерфейсы:
+- **Путь**: `packages/controlo-ui/`
+- **Функциональность**:
+  - E2E тесты на Playwright
+  - HTML интерфейсы для тестирования
 
-2. **Dialog Read Worker** (`src/apps/dialog-read-worker/`)
-   - Обрабатывает задачи массового чтения диалогов
-   - Обновляет unreadCount для участников диалогов
+#### `@chat3/update-worker` - Update Worker
+Обрабатывает события и создает персонализированные обновления:
+- **Путь**: `packages/update-worker/`
+- **Зависимости**: `@chat3/models`, `@chat3/utils`
+- **Функциональность**:
+  - Подписка на exchange `chat3_events` (routing key: `#`)
+  - Обработка всех событий из RabbitMQ
+  - Создание персонализированных Updates для участников диалогов
+  - Публикация Updates в exchange `chat3_updates`
+
+#### `@chat3/dialog-read-worker` - Dialog Read Worker
+Обрабатывает задачи массового чтения диалогов:
+- **Путь**: `packages/dialog-read-worker/`
+- **Зависимости**: `@chat3/models`, `@chat3/utils`
+- **Функциональность**:
+  - Обработка задач из коллекции `DialogReadTask`
+  - Обновление `unreadCount` для участников диалогов
+  - Работа в фоновом режиме с опросом каждые 2 секунды
+
+#### `@chottodev/chat3-tenant-api-client` - Tenant API Client
+Публичный npm пакет - клиентская библиотека для работы с Tenant API:
+- **Путь**: `packages/tenant-api-client/`
+- **Публичный пакет**: да (публикуется в npm registry)
+- **Функциональность**:
+  - TypeScript/JavaScript клиент для Tenant API
+  - Методы для работы со всеми ресурсами API
+  - Поддержка мета-тегов, фильтрации, пагинации
+
+### Shared Packages
+
+#### `@chat3/models` - Models Package
+Модели данных Mongoose с TypeScript типами:
+- **Путь**: `packages-shared/models/`
+- **Зависимости**: `mongoose`
+- **Экспорты**:
+  - Data Models: `Tenant`, `User`, `Dialog`, `Message`, `DialogMember`, `MessageStatus`, `MessageReaction`, `Meta`, `ApiKey`, `Topic`
+  - Operational Models: `Event`, `Update`, `DialogReadTask`, `CounterHistory`
+  - Journal Models: `ApiJournal`
+  - Stats Models: `UserStats`, `UserDialogStats`, `DialogStats`, и др.
+  - TypeScript интерфейсы для всех моделей
+
+#### `@chat3/utils` - Utils Package
+Общие утилиты и вспомогательные функции:
+- **Путь**: `packages-shared/utils/`
+- **Зависимости**: `@chat3/models`, `mongoose`, `amqplib`
+- **Экспорты**:
+  - `databaseUtils` - подключение к MongoDB
+  - `rabbitmqUtils` - работа с RabbitMQ (подключение, публикация, подписка)
+  - `eventUtils` - создание и публикация событий
+  - `updateUtils` - создание персонализированных обновлений
+  - `metaUtils` - работа с мета-тегами
+  - `counterUtils` - работа со счетчиками и статистикой
+  - `timestampUtils` - генерация и работа с timestamps
+  - `topicUtils` - работа с топиками диалогов
+  - `userDialogUtils` - утилиты для работы с диалогами пользователей
+  - `userTypeUtils` - определение типов пользователей
+  - `dialogReadTaskUtils` - работа с задачами массового чтения
+  - `responseUtils` - утилиты для форматирования ответов
 
 ## Структура данных
 
 ### Модели данных (Data Models)
 
-Модели в папке `src/models/data/`:
+Модели в пакете `@chat3/models` (`packages-shared/models/src/data/`):
 
 - **Tenant** - Организации/тенанты
 - **User** - Пользователи системы
@@ -118,20 +197,44 @@ API для управления системой:
 - **MessageReaction** - Реакции на сообщения
 - **Meta** - Мета-теги для любых сущностей
 - **ApiKey** - API ключи для аутентификации
+- **Topic** - Топики диалогов
 
 ### Операционные модели (Operational Models)
 
-Модели в папке `src/models/operational/`:
+Модели в пакете `@chat3/models` (`packages-shared/models/src/operational/`):
 
 - **Event** - События системы
 - **Update** - Обновления для пользователей
 - **DialogReadTask** - Задачи массового чтения диалогов
+- **CounterHistory** - История изменений счетчиков
+
+### Статистические модели (Stats Models)
+
+Модели в пакете `@chat3/models` (`packages-shared/models/src/stats/`):
+
+- **UserStats** - Статистика пользователя
+- **UserDialogStats** - Статистика по диалогам пользователя
+- **UserDialogActivity** - Активность пользователя в диалогах
+- **MessageReactionStats** - Статистика реакций на сообщения
+- **MessageStatusStats** - Статистика статусов сообщений
+- **UserTopicStats** - Статистика по топикам пользователя
+- **DialogStats** - Статистика диалога
 
 ### Журналы (Journal Models)
 
-Модели в папке `src/models/journals/`:
+Модели в пакете `@chat3/models` (`packages-shared/models/src/journals/`):
 
 - **ApiJournal** - Журнал всех API запросов
+
+## TypeScript и сборка
+
+Все пакеты используют TypeScript для типизации:
+
+- **Исходный код**: `src/**/*.ts`
+- **Скомпилированный код**: `dist/**/*.js` и `dist/**/*.d.ts`
+- **Сборка**: каждый пакет имеет свой `tsconfig.json`, расширяющий корневой
+- **Скрипт сборки**: `npm run build` собирает все пакеты через workspaces
+- **Path mapping**: используется для импорта shared пакетов (`@chat3/models`, `@chat3/utils`)
 
 ## Поток данных
 
@@ -140,17 +243,20 @@ API для управления системой:
 ```mermaid
 sequenceDiagram
     participant Client
-    participant API
-    participant EventUtils
+    participant TenantAPI[@chat3/tenant-api]
+    participant Utils[@chat3/utils]
+    participant Models[@chat3/models]
     participant MongoDB
     participant RabbitMQ
     
-    Client->>API: POST /api/dialogs
-    API->>MongoDB: Создать Dialog
-    API->>EventUtils: createEvent()
-    EventUtils->>MongoDB: Сохранить Event
-    EventUtils->>RabbitMQ: publishEvent()
-    API->>Client: 201 Created
+    Client->>TenantAPI: POST /api/dialogs
+    TenantAPI->>Models: Dialog.create()
+    Models->>MongoDB: Сохранить Dialog
+    TenantAPI->>Utils: eventUtils.createEvent()
+    Utils->>Models: Event.create()
+    Models->>MongoDB: Сохранить Event
+    Utils->>RabbitMQ: publishEvent()
+    TenantAPI->>Client: 201 Created
 ```
 
 ### 2. Обработка события и создание обновлений
@@ -158,16 +264,19 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant RabbitMQ
-    participant UpdateWorker
-    participant UpdateUtils
+    participant UpdateWorker[@chat3/update-worker]
+    participant Utils[@chat3/utils]
+    participant Models[@chat3/models]
     participant MongoDB
     participant RabbitMQUpdates
     
     RabbitMQ->>UpdateWorker: Событие получено
-    UpdateWorker->>UpdateUtils: createDialogUpdate()
-    UpdateUtils->>MongoDB: Получить Dialog + Members
-    UpdateUtils->>MongoDB: Создать Update для каждого участника
-    UpdateUtils->>RabbitMQUpdates: publishUpdate()
+    UpdateWorker->>Utils: updateUtils.createDialogUpdate()
+    Utils->>Models: Dialog.find(), DialogMember.find()
+    Models->>MongoDB: Получить Dialog + Members
+    Utils->>Models: Update.create() для каждого участника
+    Models->>MongoDB: Создать Update записи
+    Utils->>RabbitMQUpdates: publishUpdate()
     RabbitMQUpdates->>External: Обновление доставлено
 ```
 
@@ -179,10 +288,12 @@ sequenceDiagram
     participant Consumer
     participant RabbitMQ
     participant MongoDB
+    participant Models[@chat3/models]
     
     Consumer->>RabbitMQ: Подписка на update.*.{type}.{userId}.*
     RabbitMQ->>Consumer: Update получен
-    Consumer->>MongoDB: Проверить Update (опционально)
+    Consumer->>Models: Update.findById() (опционально)
+    Models->>MongoDB: Проверить Update
     Consumer->>User: Отправить обновление
 ```
 
@@ -241,7 +352,7 @@ sequenceDiagram
 ## Мета-теги (Meta Tags)
 
 Система поддерживает мета-теги для любых сущностей:
-- **Entity Types**: dialog, message, user
+- **Entity Types**: dialog, message, user, dialogMember, topic
 - **Scope**: опциональный персональный scope для пользователей
 - **Приоритет**: scoped значения имеют приоритет над глобальными
 
@@ -261,7 +372,7 @@ sequenceDiagram
 Система использует микросекундные timestamps:
 - Формат: число (миллисекунды с дробной частью)
 - Пример: `1763551369397.6482`
-- Генерация через `generateTimestamp()`
+- Генерация через `generateTimestamp()` из `@chat3/utils/timestampUtils.js`
 
 ## Индексы MongoDB
 
@@ -277,10 +388,63 @@ sequenceDiagram
 
 1. **MongoDB** - база данных
 2. **RabbitMQ** - очередь сообщений
-3. **Tenant API Server** - основной API сервер (порт 3000)
-4. **Gateway Server** - шлюз с Control API и тестовыми интерфейсами (порт 3001)
-5. **Update Worker** - обработка событий и создание обновлений
-6. **Dialog Read Worker** (опционально) - обработка задач массового чтения
+3. **Tenant API Server** (`npm run start:tenant-api`) - основной API сервер (порт 3000)
+4. **Gateway Server** (`npm run start:controlo-gateway`) - шлюз с Control API и тестовыми интерфейсами (порт 3001) - опционально
+5. **Update Worker** (`npm run start:update-worker`) - обработка событий и создание обновлений - обязательно
+6. **Dialog Read Worker** (`npm run start:dialog-read-worker`) - обработка задач массового чтения - опционально
 
 **Примечание:** Gateway Server и Tenant API Server могут работать на разных портах и хостах. Gateway Server использует переменную окружения `TENANT_API_URL` для подключения к Tenant API.
 
+## Разработка
+
+### Установка зависимостей
+
+```bash
+npm install
+```
+
+Установит зависимости для всех пакетов в workspaces.
+
+### Сборка
+
+```bash
+npm run build
+```
+
+Соберет все TypeScript пакеты. Также можно собирать отдельные пакеты:
+
+```bash
+npm run build --workspace=@chat3/tenant-api
+npm run build --workspace=@chat3/models
+```
+
+### Запуск в режиме разработки
+
+```bash
+npm run dev  # Запускает tenant-api в watch режиме
+```
+
+Или отдельные пакеты:
+
+```bash
+npm run start:tenant-api
+npm run start:controlo-gateway
+npm run start:update-worker
+```
+
+### Тестирование
+
+```bash
+npm test  # Запускает все тесты
+npm run test:watch  # Watch режим
+npm run test:coverage  # С покрытием
+```
+
+### Публикация клиентского пакета
+
+```bash
+npm run publish:client  # Публикация текущей версии
+npm run publish:client:patch  # С увеличением patch версии
+npm run publish:client:minor  # С увеличением minor версии
+npm run publish:client:major  # С увеличением major версии
+```
