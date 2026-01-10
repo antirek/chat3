@@ -36,25 +36,25 @@ chat3/
 
 ```mermaid
 graph TB
-    subgraph "Application Packages"
-        Gateway[@chat3/controlo-gateway]
-        ControlAPI[@chat3/controlo-api]
-        TenantAPI[@chat3/tenant-api]
-        UpdateWorker[@chat3/update-worker]
-        DialogReadWorker[@chat3/dialog-read-worker]
-        Client[@chottodev/chat3-tenant-api-client]
+    subgraph AppPackages[Application Packages]
+        Gateway[controlo-gateway]
+        ControlAPI[controlo-api]
+        TenantAPI[tenant-api]
+        UpdateWorker[update-worker]
+        DialogReadWorker[dialog-read-worker]
+        Client[tenant-api-client]
     end
     
-    subgraph "Shared Packages"
-        Models[@chat3/models]
-        Utils[@chat3/utils]
+    subgraph SharedPackages[Shared Packages]
+        Models[models]
+        Utils[utils]
     end
     
-    subgraph "Data Layer"
+    subgraph DataLayer[Data Layer]
         MongoDB[(MongoDB)]
     end
     
-    subgraph "Message Queue"
+    subgraph MessageQueue[Message Queue]
         RabbitMQ[RabbitMQ]
         EventsExchange[chat3_events Exchange]
         UpdatesExchange[chat3_updates Exchange]
@@ -82,6 +82,8 @@ graph TB
     
     Client -.->|HTTP| TenantAPI
 ```
+
+> **Примечание:** На диаграмме показаны упрощенные имена пакетов. Полные имена: `controlo-gateway` = `@chat3/controlo-gateway`, `tenant-api` = `@chat3/tenant-api`, `models` = `@chat3/models`, `utils` = `@chat3/utils`, `tenant-api-client` = `@chottodev/chat3-tenant-api-client` и т.д.
 
 ## Пакеты и их зависимости
 
@@ -243,9 +245,9 @@ E2E тесты и UI интерфейсы:
 ```mermaid
 sequenceDiagram
     participant Client
-    participant TenantAPI[@chat3/tenant-api]
-    participant Utils[@chat3/utils]
-    participant Models[@chat3/models]
+    participant TenantAPI as "@chat3/tenant-api"
+    participant Utils as "@chat3/utils"
+    participant Models as "@chat3/models"
     participant MongoDB
     participant RabbitMQ
     
@@ -264,9 +266,9 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant RabbitMQ
-    participant UpdateWorker[@chat3/update-worker]
-    participant Utils[@chat3/utils]
-    participant Models[@chat3/models]
+    participant UpdateWorker as "@chat3/update-worker"
+    participant Utils as "@chat3/utils"
+    participant Models as "@chat3/models"
     participant MongoDB
     participant RabbitMQUpdates
     
@@ -288,7 +290,7 @@ sequenceDiagram
     participant Consumer
     participant RabbitMQ
     participant MongoDB
-    participant Models[@chat3/models]
+    participant Models as "@chat3/models"
     
     Consumer->>RabbitMQ: Подписка на update.*.{type}.{userId}.*
     RabbitMQ->>Consumer: Update получен
