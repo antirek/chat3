@@ -1,18 +1,22 @@
 import connectDB from '@chat3/config';
 import { DialogReadTask } from '@chat3/models';
+import type { IDialogReadTask } from '@chat3/models';
 import { runDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import type { Document } from 'mongoose';
+
+type DialogReadTaskDocument = Document & IDialogReadTask;
 
 const POLL_INTERVAL_MS = parseInt(process.env.DIALOG_READ_TASK_POLL_MS || '2000', 10);
 const BATCH_SIZE = parseInt(process.env.DIALOG_READ_BATCH_SIZE || '200', 10);
 
 let shouldStop = false;
-let currentTask = null;
+let currentTask: DialogReadTaskDocument | null = null;
 
 /**
  * Получение следующей задачи из очереди
  */
-async function fetchNextTask() {
+async function fetchNextTask(): Promise<DialogReadTaskDocument | null> {
   return DialogReadTask.findOneAndUpdate(
     { status: 'pending' },
     {
@@ -30,12 +34,12 @@ async function fetchNextTask() {
 /**
  * Обработка задачи
  */
-async function processTask(task) {
+async function processTask(task: DialogReadTaskDocument): Promise<void> {
   try {
     console.log(`🧹 Running dialog read task ${task._id} for ${task.dialogId}/${task.userId}`);
     await runDialogReadTask(task, { batchSize: BATCH_SIZE });
     console.log(`✅ Task ${task._id} completed`);
-  } catch (error) {
+  } catch (error: any) {
     console.error(`❌ Task ${task._id} failed:`, error.message);
     task.status = 'failed';
     task.error = error.message;
@@ -47,14 +51,14 @@ async function processTask(task) {
 /**
  * Задержка между опросами
  */
-async function delay(ms) {
+async function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
  * Основной цикл воркера
  */
-async function workerLoop() {
+async function workerLoop(): Promise<void> {
   while (!shouldStop) {
     try {
       const task = await fetchNextTask();
@@ -67,7 +71,7 @@ async function workerLoop() {
       currentTask = task;
       await processTask(task);
       currentTask = null;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error in worker loop:', error);
       // Продолжаем работу после ошибки
       await delay(POLL_INTERVAL_MS);
@@ -78,7 +82,7 @@ async function workerLoop() {
 /**
  * Запуск воркера
  */
-async function startWorker() {
+async function startWorker(): Promise<void> {
   try {
     console.log('🚀 Starting Dialog Read Worker...\n');
 
@@ -92,7 +96,7 @@ async function startWorker() {
 
     // Запускаем основной цикл
     await workerLoop();
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Failed to start worker:', error);
     process.exit(1);
   }
@@ -101,7 +105,7 @@ async function startWorker() {
 /**
  * Graceful shutdown
  */
-async function shutdown() {
+async function shutdown(): Promise<void> {
   console.log('\n\n🛑 Shutting down worker...');
   
   shouldStop = true;
@@ -126,15 +130,14 @@ process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
 // Обработка необработанных ошибок
-process.on('unhandledRejection', (error) => {
+process.on('unhandledRejection', (error: any) => {
   console.error('❌ Unhandled promise rejection:', error);
 });
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', (error: Error) => {
   console.error('❌ Uncaught exception:', error);
   shutdown();
 });
 
 // Запускаем воркер
 startWorker();
-

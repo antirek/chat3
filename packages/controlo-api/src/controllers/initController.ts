@@ -8,6 +8,7 @@ import { promisify } from 'util';
 import { recalculateUserStats } from '@chat3/utils/counterUtils.js';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
+import { Request, Response } from 'express';
 
 const execAsync = promisify(exec);
 
@@ -21,14 +22,15 @@ const seedScriptPath = resolve(projectRoot, 'packages/controlo-api/scripts/seed.
 
 export const initController = {
   // Инициализация: удаление всех данных, создание tenant и API ключа
-  async initialize(req, res) {
+  async initialize(req: Request, res: Response): Promise<void> {
     try {
       await connectDB();
 
       const results = {
-        tenant: null,
-        apiKey: null,
-        errors: []
+        tenant: null as { tenantId: string; created: boolean } | null,
+        apiKey: null as { key: string; name: string; created: boolean } | null,
+        seed: null as { started: boolean; note: string } | null,
+        errors: [] as string[]
       };
 
       // 1. Удалить все данные
@@ -46,7 +48,7 @@ export const initController = {
         await ApiKey.deleteMany({});
         await Tenant.deleteMany({});
         console.log('✅ Все данные удалены');
-      } catch (error) {
+      } catch (error: any) {
         results.errors.push(`Data deletion error: ${error.message}`);
         console.error('❌ Ошибка при удалении данных:', error);
       }
@@ -61,7 +63,7 @@ export const initController = {
           created: true
         };
         console.log(`✅ Создан tenant: ${tenant.tenantId}`);
-      } catch (error) {
+      } catch (error: any) {
         results.errors.push(`Tenant creation error: ${error.message}`);
         console.error('❌ Ошибка при создании tenant:', error);
       }
@@ -83,7 +85,7 @@ export const initController = {
           created: true
         };
         console.log(`✅ Создан API ключ: ${apiKey.key.substring(0, 20)}...`);
-      } catch (error) {
+      } catch (error: any) {
         results.errors.push(`API key creation error: ${error.message}`);
         console.error('❌ Ошибка при создании API ключа:', error);
       }
@@ -110,7 +112,7 @@ export const initController = {
           started: true,
           note: 'Seed script is running in background. Check server logs for progress.'
         };
-      } catch (error) {
+      } catch (error: any) {
         // Ошибки запуска seed добавляем в results.errors, так как они происходят до отправки ответа
         results.errors.push(`Seed script start error: ${error.message}`);
         console.error('❌ Ошибка при запуске seed:', error);
@@ -124,7 +126,7 @@ export const initController = {
           ? 'Initialization completed with some errors' 
           : 'Initialization completed successfully. Seed script is running in background.'
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Критическая ошибка инициализации:', error);
       res.status(500).json({
         error: 'Internal Server Error',
@@ -134,7 +136,7 @@ export const initController = {
   },
 
   // Запуск seed скрипта
-  async seed(req, res) {
+  async seed(req: Request, res: Response): Promise<void> {
     try {
       // Запускаем seed скрипт асинхронно
       const seedScript = `node ${seedScriptPath}`;
@@ -158,7 +160,7 @@ export const initController = {
         .catch((error) => {
           console.error('❌ Seed script error:', error);
         });
-    } catch (error) {
+    } catch (error: any) {
       // Если ошибка произошла до отправки ответа
       if (!res.headersSent) {
         res.status(500).json({
@@ -172,7 +174,7 @@ export const initController = {
   },
 
   // Пересчет счетчиков для всех пользователей
-  async recalculateUserStats(req, res) {
+  async recalculateUserStats(req: Request, res: Response): Promise<void> {
     try {
       await connectDB();
 
@@ -182,7 +184,7 @@ export const initController = {
         tenantsProcessed: 0,
         usersProcessed: 0,
         usersWithErrors: 0,
-        errors: []
+        errors: [] as string[]
       };
 
       // Отправляем ответ сразу, чтобы клиент не ждал
@@ -209,7 +211,7 @@ export const initController = {
                 await recalculateUserStats(tenant.tenantId, user.userId);
                 results.usersProcessed++;
                 console.log(`✅ Recalculated stats for user ${user.userId} in tenant ${tenant.tenantId}`);
-              } catch (error) {
+              } catch (error: any) {
                 results.usersWithErrors++;
                 results.errors.push(`Error recalculating stats for user ${user.userId} in tenant ${tenant.tenantId}: ${error.message}`);
                 console.error(`❌ Error recalculating stats for user ${user.userId}:`, error);
@@ -218,11 +220,11 @@ export const initController = {
           }
 
           console.log(`✅ Recalculate user stats completed: ${results.usersProcessed} users processed, ${results.usersWithErrors} errors`);
-        } catch (error) {
+        } catch (error: any) {
           console.error('❌ Error in recalculate user stats background task:', error);
         }
       })();
-    } catch (error) {
+    } catch (error: any) {
       // Если ошибка произошла до отправки ответа
       if (!res.headersSent) {
         res.status(500).json({
@@ -235,4 +237,3 @@ export const initController = {
     }
   }
 };
-

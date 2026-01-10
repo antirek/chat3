@@ -1,7 +1,7 @@
-import express from 'express';
+import express, { Router } from 'express';
 import { initController } from '../controllers/initController.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 /**
  * @swagger
@@ -167,4 +167,3 @@ router.post('/seed', initController.seed);
 router.post('/recalculate-stats', initController.recalculateUserStats);
 
 export default router;
-

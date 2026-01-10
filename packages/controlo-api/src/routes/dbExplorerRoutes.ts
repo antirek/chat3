@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Router } from 'express';
 import {
   getModels,
   getModelData,
@@ -8,7 +8,7 @@ import {
   deleteModelItem
 } from '../controllers/dbExplorerController.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 /**
  * @swagger
@@ -168,4 +168,3 @@ router.put('/models/:modelName/:id', updateModelItem);
 router.delete('/models/:modelName/:id', deleteModelItem);
 
 export default router;
-

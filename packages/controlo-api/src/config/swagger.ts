@@ -35,12 +35,11 @@ const swaggerOptions = {
     ]
   },
   apis: [
-    './routes/*.js',
-    './controllers/*.js'
+    './dist/routes/*.js',
+    './dist/controllers/*.js'
   ]
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
 export default swaggerSpec;
-

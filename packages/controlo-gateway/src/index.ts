@@ -3,16 +3,19 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import pkg from '../../../package.json' assert { type: 'json' };
-
+import { readFileSync } from 'fs';
 import connectDB from '@chat3/config';
-import initRoutes from '@chat3/controlo-api/src/routes/initRoutes.js';
-import eventsRoutes from '@chat3/controlo-api/src/routes/eventsRoutes.js';
-import dbExplorerRoutes from '@chat3/controlo-api/src/routes/dbExplorerRoutes.js';
-import swaggerSpec from '@chat3/controlo-api/src/config/swagger.js';
+import initRoutes from '@chat3/controlo-api/dist/routes/initRoutes.js';
+import eventsRoutes from '@chat3/controlo-api/dist/routes/eventsRoutes.js';
+import dbExplorerRoutes from '@chat3/controlo-api/dist/routes/dbExplorerRoutes.js';
+import swaggerSpec from '@chat3/controlo-api/dist/config/swagger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Read package.json for version
+const packageJsonPath = join(__dirname, '../../../package.json');
+const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 
 const app = express();
 
@@ -180,4 +183,3 @@ const startServer = async () => {
 };
 
 startServer();
-

@@ -1,18 +1,20 @@
 import { Dialog, Message, Event, Update } from '@chat3/models';
+import { Request, Response } from 'express';
 
 export const eventsController = {
   // Get events for a dialog
-  async getDialogEvents(req, res) {
+  async getDialogEvents(req: Request, res: Response): Promise<void> {
     try {
       const { dialogId } = req.params;
-      const tenantId = req.query.tenantId || req.headers['x-tenant-id'];
-      const limit = parseInt(req.query.limit) || 100;
+      const tenantId = (req.query.tenantId as string) || req.headers['x-tenant-id'] as string;
+      const limit = parseInt(req.query.limit as string) || 100;
 
       if (!tenantId) {
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Bad Request',
           message: 'tenantId is required (query parameter or X-Tenant-Id header)'
         });
+        return;
       }
 
       // Проверяем, существует ли диалог
@@ -22,10 +24,11 @@ export const eventsController = {
       }).lean();
 
       if (!dialog) {
-        return res.status(404).json({
+        res.status(404).json({
           error: 'Not Found',
           message: `Dialog with ID ${dialogId} not found`
         });
+        return;
       }
 
       // Получаем все события, связанные с этим диалогом
@@ -52,7 +55,6 @@ export const eventsController = {
               ...event,
               updatesCount
             };
-          // eslint-disable-next-line no-unused-vars
           } catch (err) {
             return {
               ...event,
@@ -65,7 +67,7 @@ export const eventsController = {
       res.json({
         data: eventsWithUpdates
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
@@ -74,17 +76,18 @@ export const eventsController = {
   },
 
   // Get updates for a dialog
-  async getDialogUpdates(req, res) {
+  async getDialogUpdates(req: Request, res: Response): Promise<void> {
     try {
       const { dialogId } = req.params;
-      const tenantId = req.query.tenantId || req.headers['x-tenant-id'];
-      const limit = parseInt(req.query.limit) || 100;
+      const tenantId = (req.query.tenantId as string) || req.headers['x-tenant-id'] as string;
+      const limit = parseInt(req.query.limit as string) || 100;
 
       if (!tenantId) {
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Bad Request',
           message: 'tenantId is required (query parameter or X-Tenant-Id header)'
         });
+        return;
       }
 
       // Проверяем, существует ли диалог
@@ -94,10 +97,11 @@ export const eventsController = {
       }).lean();
 
       if (!dialog) {
-        return res.status(404).json({
+        res.status(404).json({
           error: 'Not Found',
           message: `Dialog with ID ${dialogId} not found`
         });
+        return;
       }
 
       // Получаем все обновления для этого диалога
@@ -123,15 +127,24 @@ export const eventsController = {
 
       // Выбираем нужные поля и преобразуем eventId в строку для корректной сериализации JSON
       const updatesWithStringEventId = updates.map(update => {
-        let eventIdStr = null;
-        if (update.eventId) {
-          // Если eventId есть, преобразуем в строку
-          if (typeof update.eventId === 'object' && update.eventId.toString) {
-            eventIdStr = update.eventId.toString();
+        const eventId = update.eventId;
+        
+        // Преобразуем eventId в строку
+        let eventIdStr: string | null = null;
+        if (eventId) {
+          if (typeof eventId === 'object') {
+            // Если это объект (ObjectId), используем toString
+            try {
+              eventIdStr = (eventId as { toString: () => string }).toString();
+            } catch {
+              eventIdStr = null;
+            }
           } else {
-            eventIdStr = String(update.eventId);
+            // Иначе преобразуем в строку
+            eventIdStr = String(eventId);
           }
         }
+        
         return {
           userId: update.userId,
           eventType: update.eventType,
@@ -147,7 +160,7 @@ export const eventsController = {
       res.json({
         data: updatesWithStringEventId
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
@@ -156,17 +169,18 @@ export const eventsController = {
   },
 
   // Get events for a message
-  async getMessageEvents(req, res) {
+  async getMessageEvents(req: Request, res: Response): Promise<void> {
     try {
       const { messageId } = req.params;
-      const tenantId = req.query.tenantId || req.headers['x-tenant-id'];
-      const limit = parseInt(req.query.limit) || 100;
+      const tenantId = (req.query.tenantId as string) || req.headers['x-tenant-id'] as string;
+      const limit = parseInt(req.query.limit as string) || 100;
 
       if (!tenantId) {
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Bad Request',
           message: 'tenantId is required (query parameter or X-Tenant-Id header)'
         });
+        return;
       }
 
       // Получаем все события, связанные с этим сообщением
@@ -193,7 +207,6 @@ export const eventsController = {
               ...event,
               updatesCount
             };
-          // eslint-disable-next-line no-unused-vars
           } catch (err) {
             return {
               ...event,
@@ -206,7 +219,7 @@ export const eventsController = {
       res.json({
         data: eventsWithUpdates
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
@@ -215,17 +228,18 @@ export const eventsController = {
   },
 
   // Get updates for a message
-  async getMessageUpdates(req, res) {
+  async getMessageUpdates(req: Request, res: Response): Promise<void> {
     try {
       const { messageId } = req.params;
-      const tenantId = req.query.tenantId || req.headers['x-tenant-id'];
-      const limit = parseInt(req.query.limit) || 100;
+      const tenantId = (req.query.tenantId as string) || req.headers['x-tenant-id'] as string;
+      const limit = parseInt(req.query.limit as string) || 100;
 
       if (!tenantId) {
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Bad Request',
           message: 'tenantId is required (query parameter or X-Tenant-Id header)'
         });
+        return;
       }
 
       // Проверяем, существует ли сообщение
@@ -235,10 +249,11 @@ export const eventsController = {
       }).lean();
 
       if (!message) {
-        return res.status(404).json({
+        res.status(404).json({
           error: 'Not Found',
           message: `Message with ID ${messageId} not found`
         });
+        return;
       }
 
       // Получаем все обновления для этого сообщения
@@ -261,7 +276,7 @@ export const eventsController = {
       res.json({
         data: updatesWithStringEventId
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
@@ -270,22 +285,23 @@ export const eventsController = {
   },
 
   // Get all events with pagination
-  async getAllEvents(req, res) {
+  async getAllEvents(req: Request, res: Response): Promise<void> {
     try {
-      const tenantId = req.query.tenantId || req.headers['x-tenant-id'];
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 50;
+      const tenantId = (req.query.tenantId as string) || req.headers['x-tenant-id'] as string;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
       const skip = (page - 1) * limit;
 
       if (!tenantId) {
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Bad Request',
           message: 'tenantId is required (query parameter or X-Tenant-Id header)'
         });
+        return;
       }
 
       // Build filter
-      const filter = { tenantId };
+      const filter: any = { tenantId };
       
       // Optional filters
       if (req.query.eventType) {
@@ -323,7 +339,6 @@ export const eventsController = {
               ...event,
               updatesCount
             };
-          // eslint-disable-next-line no-unused-vars
           } catch (err) {
             return {
               ...event,
@@ -344,7 +359,7 @@ export const eventsController = {
           pages
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
@@ -353,22 +368,23 @@ export const eventsController = {
   },
 
   // Get all updates with pagination
-  async getAllUpdates(req, res) {
+  async getAllUpdates(req: Request, res: Response): Promise<void> {
     try {
-      const tenantId = req.query.tenantId || req.headers['x-tenant-id'];
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 50;
+      const tenantId = (req.query.tenantId as string) || req.headers['x-tenant-id'] as string;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
       const skip = (page - 1) * limit;
 
       if (!tenantId) {
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Bad Request',
           message: 'tenantId is required (query parameter or X-Tenant-Id header)'
         });
+        return;
       }
 
       // Build filter
-      const filter = { tenantId };
+      const filter: any = { tenantId };
       
       // Optional filters
       if (req.query.userId) {
@@ -418,7 +434,7 @@ export const eventsController = {
           pages
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
@@ -426,4 +442,3 @@ export const eventsController = {
     }
   }
 };
-

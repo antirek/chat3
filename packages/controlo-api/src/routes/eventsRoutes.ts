@@ -1,7 +1,7 @@
-import express from 'express';
+import express, { Router } from 'express';
 import { eventsController } from '../controllers/eventsController.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 /**
  * @swagger
@@ -366,4 +366,3 @@ router.get('/events', eventsController.getAllEvents);
 router.get('/updates', eventsController.getAllUpdates);
 
 export default router;
-

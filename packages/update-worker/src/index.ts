@@ -9,13 +9,29 @@ import {
 
 const WORKER_QUEUE = 'update_worker_queue';
 
-let consumer = null;
+interface ConsumerObject {
+  consumerTag: string;
+  cancel: () => Promise<void>;
+  restart: () => Promise<void>;
+}
 
+let consumer: ConsumerObject | null = null;
+
+interface EventData {
+  _id: any;
+  tenantId: string;
+  eventType: string;
+  entityType: string;
+  entityId: string;
+  actorId?: string;
+  data?: any; // Гибкий тип, так как структура data зависит от типа события
+  [key: string]: any;
+}
 
 /**
  * Обработка события из RabbitMQ
  */
-async function processEvent(eventData) {
+async function processEvent(eventData: EventData): Promise<void> {
   try {
     const { 
       _id: eventId,
@@ -160,7 +176,7 @@ async function processEvent(eventData) {
       console.log(`ℹ️ Event ${eventType} does not require update creation`);
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error processing event:', error);
     console.error('   Event data:', JSON.stringify(eventData, null, 2));
     // Не выбрасываем ошибку, чтобы не завершать процесс
@@ -172,7 +188,7 @@ async function processEvent(eventData) {
 /**
  * Запуск воркера
  */
-async function startWorker() {
+async function startWorker(): Promise<void> {
   try {
     console.log('🚀 Starting Update Worker...\n');
 
@@ -206,7 +222,7 @@ async function startWorker() {
     console.log('✅ Update Worker is running');
     console.log('   Press Ctrl+C to stop\n');
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Failed to start worker:', error);
     process.exit(1);
   }
@@ -215,7 +231,7 @@ async function startWorker() {
 /**
  * Graceful shutdown
  */
-async function shutdown() {
+async function shutdown(): Promise<void> {
   console.log('\n\n🛑 Shutting down worker...');
   
   try {
@@ -228,7 +244,7 @@ async function shutdown() {
     // Закрываем RabbitMQ connection (закроет все consumer'ы)
     // closeRabbitMQ() уже выводит сообщение о закрытии
     await rabbitmqUtils.closeRabbitMQ();
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error during shutdown:', error);
   }
   
@@ -240,13 +256,13 @@ process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
 // Обработка необработанных ошибок
-process.on('unhandledRejection', (error) => {
+process.on('unhandledRejection', (error: any) => {
   console.error('❌ Unhandled promise rejection:', error);
   // Не завершаем процесс, только логируем ошибку
   // Это позволяет воркеру продолжать работу даже при ошибках в отдельных событиях
 });
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', (error: Error) => {
   console.error('❌ Uncaught exception:', error);
   // Для критических ошибок все еще завершаем процесс
   // Но это должно происходить только в крайних случаях
@@ -256,4 +272,3 @@ process.on('uncaughtException', (error) => {
 
 // Запускаем воркер
 startWorker();
-
