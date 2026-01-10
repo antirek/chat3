@@ -14,7 +14,7 @@ if [ ! -f "Dockerfile" ]; then
     exit 1
 fi
 
-IMAGE=antirek/mms3:0.0.24
+IMAGE=antirek/mms3:0.0.25
 
 
 echo "📦 Building..."
