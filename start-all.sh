@@ -19,6 +19,9 @@ export MONGODB_URI="${MONGODB_URI:-mongodb://localhost:27017/chat3}"
 # Окружение
 export NODE_ENV="${NODE_ENV:-development}"
 
+# build
+npm run build
+
 # Запуск сервера
 npm run start:all
 
