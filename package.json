@@ -25,6 +25,10 @@
     "test:e2e:add-member": "playwright test packages/controlo-ui/src/tests/add-member-modal.spec.js",
     "build": "npm run build --workspaces --if-present",
     "build:watch": "npm run build:watch --workspaces --if-present",
+    "publish:client": "npm run build --workspace=@chottodev/chat3-tenant-api-client && (cd packages/tenant-api-client && npm publish)",
+    "publish:client:patch": "npm run build --workspace=@chottodev/chat3-tenant-api-client && (cd packages/tenant-api-client && npm version patch && npm publish)",
+    "publish:client:minor": "npm run build --workspace=@chottodev/chat3-tenant-api-client && (cd packages/tenant-api-client && npm version minor && npm publish)",
+    "publish:client:major": "npm run build --workspace=@chottodev/chat3-tenant-api-client && (cd packages/tenant-api-client && npm version major && npm publish)",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },

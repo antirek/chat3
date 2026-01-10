@@ -1,5 +1,5 @@
 {
-  "name": "@chat3/tenant-api-client",
+  "name": "@chottodev/chat3-tenant-api-client",
   "version": "0.0.25",
   "description": "TypeScript/JavaScript client library for Chat3 Tenant API",
   "main": "dist/Chat3Client.js",
