@@ -1,4 +1,4 @@
-import connectDB from '@chat3/config';
+import connectDB from '@chat3/utils/databaseUtils.js';
 import { Tenant, User, Dialog, Message, Meta, DialogMember, 
   MessageStatus, Event, MessageReaction, Update,
   UserStats, UserDialogStats, UserDialogActivity,

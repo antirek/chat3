@@ -22,7 +22,7 @@ let testApiKey;
  */
 async function startTestServer() {
   // Динамически импортируем ES modules из основного проекта
-  const { default: connectDB } = await import('@chat3/config');
+  const { default: connectDB } = await import('@chat3/utils/databaseUtils.js');
   const rabbitmqUtils = await import('@chat3/utils/rabbitmqUtils.js');
   const tenantRoutes = (await import('@chat3/tenant-api/dist/routes/tenantRoutes.js')).default;
   const userRoutes = (await import('@chat3/tenant-api/dist/routes/userRoutes.js')).default;

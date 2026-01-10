@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
-import connectDB from '@chat3/config';
+import connectDB from '@chat3/utils/databaseUtils.js';
 import swaggerSpec from './config/swagger.js';
 import * as rabbitmqUtils from '@chat3/utils/rabbitmqUtils.js';
 import tenantRoutes from './routes/tenantRoutes.js';

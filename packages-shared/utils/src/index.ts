@@ -1,4 +1,5 @@
 export * from './counterUtils.js';
+export * from './databaseUtils.js';
 export * from './dialogReadTaskUtils.js';
 export * from './eventUtils.js';
 export * from './metaUtils.js';

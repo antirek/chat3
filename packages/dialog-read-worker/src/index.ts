@@ -1,4 +1,4 @@
-import connectDB from '@chat3/config';
+import connectDB from '@chat3/utils/databaseUtils.js';
 import { DialogReadTask } from '@chat3/models';
 import type { IDialogReadTask } from '@chat3/models';
 import { runDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';

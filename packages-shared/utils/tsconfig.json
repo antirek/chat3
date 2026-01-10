@@ -10,7 +10,6 @@
       "@chat3/models/*": ["../models/dist/models/src/*"],
       "@chat3/utils": ["./dist/index"],
       "@chat3/utils/*": ["./dist/*"],
-      "@chat3/config": ["../config/dist/index"]
     }
   },
   "include": ["src/**/*.ts"],

@@ -4,7 +4,7 @@ import swaggerUi from 'swagger-ui-express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
-import connectDB from '@chat3/config';
+import connectDB from '@chat3/utils/databaseUtils.js';
 import initRoutes from '@chat3/controlo-api/dist/routes/initRoutes.js';
 import eventsRoutes from '@chat3/controlo-api/dist/routes/eventsRoutes.js';
 import dbExplorerRoutes from '@chat3/controlo-api/dist/routes/dbExplorerRoutes.js';

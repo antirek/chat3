@@ -19,7 +19,6 @@ export default {
     '^@chat3/models/(.*)$': '<rootDir>/packages-shared/models/dist/$1.js',
     '^@chat3/utils$': '<rootDir>/packages-shared/utils/dist/index.js',
     '^@chat3/utils/(.*)\\.js$': '<rootDir>/packages-shared/utils/dist/$1.js',
-    '^@chat3/config$': '<rootDir>/packages-shared/config/dist/index.js',
   },
   testMatch: ['**/__tests__/**/*.test.{js,ts}', '**/*.test.{js,ts}'],
   testPathIgnorePatterns: ['/node_modules/', '/__tests__/setup.js', '/__tests__/globalSetup.js', '/__tests__/globalTeardown.js'],

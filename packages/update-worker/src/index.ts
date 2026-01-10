@@ -1,4 +1,4 @@
-import connectDB from '@chat3/config';
+import connectDB from '@chat3/utils/databaseUtils.js';
 import * as updateUtils from '@chat3/utils/updateUtils.js';
 import * as rabbitmqUtils from '@chat3/utils/rabbitmqUtils.js';
 import {

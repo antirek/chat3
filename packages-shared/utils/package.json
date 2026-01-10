@@ -11,6 +11,7 @@
     },
     "./rabbitmqUtils.js": "./dist/rabbitmqUtils.js",
     "./counterUtils.js": "./dist/counterUtils.js",
+    "./databaseUtils.js": "./dist/databaseUtils.js",
     "./dialogReadTaskUtils.js": "./dist/dialogReadTaskUtils.js",
     "./eventUtils.js": "./dist/eventUtils.js",
     "./metaUtils.js": "./dist/metaUtils.js",
@@ -28,6 +29,7 @@
   },
   "dependencies": {
     "amqplib": "^0.10.9",
+    "mongoose": "^8.0.0",
     "@chat3/models": "*"
   }
 }

@@ -2,7 +2,7 @@ import {
   Tenant, ApiKey, User, Dialog, Message, Meta, DialogMember, 
   MessageStatus, Event, MessageReaction, Update 
 } from '@chat3/models';
-import connectDB from '@chat3/config';
+import connectDB from '@chat3/utils/databaseUtils.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { recalculateUserStats } from '@chat3/utils/counterUtils.js';

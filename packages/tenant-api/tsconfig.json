@@ -9,9 +9,7 @@
       "@chat3/models": ["../../packages-shared/models/dist/index.js"],
       "@chat3/models/*": ["../../packages-shared/models/dist/*.js"],
       "@chat3/utils": ["../../packages-shared/utils/dist/index.js"],
-      "@chat3/utils/*": ["../../packages-shared/utils/dist/*.js"],
-      "@chat3/config": ["../../packages-shared/config/dist/index.js"],
-      "@chat3/config/*": ["../../packages-shared/config/dist/*.js"]
+      "@chat3/utils/*": ["../../packages-shared/utils/dist/*.js"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.js"],
