@@ -10,7 +10,7 @@
  * 2. Запустите тесты: npm test -- Chat3Client.integration.test.js
  */
 
-const { Chat3Client } = require('../Chat3Client.js');
+const { Chat3Client } = require('../../dist/Chat3Client.js');
 
 // Использовать реальный API или тестовый сервер
 const USE_REAL_API = process.env.USE_REAL_API === 'true';

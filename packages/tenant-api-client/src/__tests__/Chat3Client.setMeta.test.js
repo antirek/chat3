@@ -24,7 +24,7 @@ jest.mock('axios', () => ({
   create: jest.fn(() => mockAxiosInstance)
 }));
 
-const { Chat3Client } = require('../Chat3Client.js');
+const { Chat3Client } = require('../../dist/Chat3Client.js');
 
 describe('Chat3Client.setMeta', () => {
   let client;
