@@ -52,7 +52,10 @@
               v-model="tenantId"
               @change="checkForChanges"
             >
-              <option value="tnt_default">Загрузка...</option>
+              <template v-if="tenantsList.length === 0">
+                <option v-if="!hasApiKey" value="tnt_default">tnt_default</option>
+                <option v-else value="tnt_default">Загрузка...</option>
+              </template>
               <option
                 v-for="tenant in tenantsList"
                 :key="tenant.tenantId"
@@ -190,6 +193,10 @@ const controlApiDocsUrl = computed(() => {
   return `${configStore.config.CONTROL_APP_URL}/api-docs`;
 });
 
+const hasApiKey = computed(() => {
+  return apiKey.value.trim().length > 0;
+});
+
 // Функции
 async function loadTenants() {
   const key = apiKey.value.trim();
@@ -267,20 +274,56 @@ async function applyCredentials() {
 watch(apiKey, async (newValue) => {
   if (newValue.trim()) {
     await loadTenants();
+    // Устанавливаем сохраненный tenantId после загрузки списка
+    const savedTenantId = localStorage.getItem('tenantId') || 'tnt_default';
+    if (tenantsList.value.length > 0) {
+      if (tenantsList.value.find((t) => t.tenantId === savedTenantId)) {
+        tenantId.value = savedTenantId;
+      }
+    }
   } else {
     tenantsList.value = [];
   }
 });
 
-onMounted(() => {
+onMounted(async () => {
+  // Загружаем credentials из localStorage
   credentialsStore.loadFromStorage();
+
+  // Если есть API Key, загружаем тенантов
   if (apiKey.value.trim()) {
-    loadTenants().then(() => {
-      const savedTenantId = localStorage.getItem('tenantId') || 'tnt_default';
+    await loadTenants();
+
+    // Устанавливаем сохраненный tenantId после загрузки списка
+    const savedTenantId = localStorage.getItem('tenantId') || 'tnt_default';
+    if (tenantsList.value.length > 0) {
+      // Если сохраненный tenantId есть в списке, устанавливаем его
       if (tenantsList.value.find((t) => t.tenantId === savedTenantId)) {
         tenantId.value = savedTenantId;
+      } else {
+        // Если тенанта нет в списке, но он был сохранен, добавляем его в начало
+        tenantId.value = savedTenantId;
       }
-    });
+    } else {
+      // Если список пустой, устанавливаем дефолт
+      tenantId.value = savedTenantId;
+    }
+  } else {
+    // Если нет API Key, устанавливаем дефолт
+    tenantId.value = 'tnt_default';
+  }
+
+  // Проверяем, применены ли текущие значения (при загрузке страницы)
+  // Выполняется после загрузки тенантов, чтобы tenantId был правильно установлен
+  const savedApiKey = localStorage.getItem('apiKey') || '';
+  const savedTenantId = localStorage.getItem('tenantId') || 'tnt_default';
+
+  if (
+    apiKey.value.trim() === savedApiKey &&
+    tenantId.value === savedTenantId &&
+    apiKey.value.trim()
+  ) {
+    credentialsApplied.value = true;
   }
 });
 </script>
@@ -306,9 +349,9 @@ onMounted(() => {
   gap: 40px;
 }
 
-.header-left {
+/* .header-left {
   flex: 1;
-}
+} */
 
 .header h1 {
   font-size: 24px;
