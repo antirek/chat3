@@ -145,10 +145,27 @@ services:
     env_file:
       - .env
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${CONTROLO_UI_NODE_ENV:-production}
+      - CONTROLO_UI_NODE_ENV=${CONTROLO_UI_NODE_ENV:-production}
       - PORT=3003
       - CONTROL_APP_URL=http://localhost:3003
-    command: npm run start:controlo-ui
+    # Для разработки: монтируем исходники и запускаем Vite dev server
+    # Для production: используем собранные файлы из dist
+    volumes:
+      - ./packages/controlo-ui/src:/app/packages/controlo-ui/src
+      - ./packages/controlo-ui/vite.config.ts:/app/packages/controlo-ui/vite.config.ts
+      - ./packages/controlo-ui/tsconfig.json:/app/packages/controlo-ui/tsconfig.json
+      - ./packages/controlo-ui/index.html:/app/packages/controlo-ui/index.html
+      - ./packages/controlo-ui/package.json:/app/packages/controlo-ui/package.json
+      - controlo_ui_node_modules:/app/packages/controlo-ui/node_modules
+    command: >
+      sh -c "
+      if [ \"$$CONTROLO_UI_NODE_ENV\" = \"development\" ]; then
+        cd /app/packages/controlo-ui && npm run dev
+      else
+        npm run start:controlo-ui
+      fi
+      "
     depends_on:
       tenant-api:
         condition: service_started
@@ -167,6 +184,8 @@ volumes:
   rabbitmq_data:
     driver: local
   gateway_node_modules:
+    driver: local
+  controlo_ui_node_modules:
     driver: local
 
 networks:
