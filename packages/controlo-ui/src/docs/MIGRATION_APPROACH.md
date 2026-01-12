@@ -47,7 +47,7 @@
 1. ✅ `api-test.html` → Главная страница (навигация) → `AppLayout.vue`
 2. ✅ `api-test-tenants.html` → `TenantsPage.vue` (полностью реализовано)
 3. ✅ `api-test-users.html` → `UsersPage.vue` (полностью реализовано)
-4. ⏳ `api-test-messages.html` → `MessagesPage.vue` (заглушка)
+4. ✅ `api-test-messages.html` → `MessagesPage.vue` (полностью реализовано)
 
 ### Приоритет 2: Средние страницы
 5. ⏳ `api-test-dialogs.html` → `DialogsMessagesPage.vue` (заглушка)
