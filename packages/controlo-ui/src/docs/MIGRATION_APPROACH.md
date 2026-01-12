@@ -44,19 +44,19 @@
 ## Порядок переноса страниц
 
 ### Приоритет 1: Простые страницы (для понимания паттернов)
-1. ✅ `api-test.html` → Главная страница (навигация)
-2. ✅ `api-test-tenants.html` → `TenantsPage.vue`
-3. ✅ `api-test-users.html` → `UsersPage.vue`
-4. ✅ `api-test-messages.html` → `MessagesPage.vue`
+1. ✅ `api-test.html` → Главная страница (навигация) → `AppLayout.vue`
+2. ✅ `api-test-tenants.html` → `TenantsPage.vue` (полностью реализовано)
+3. ✅ `api-test-users.html` → `UsersPage.vue` (полностью реализовано)
+4. ⏳ `api-test-messages.html` → `MessagesPage.vue` (заглушка)
 
 ### Приоритет 2: Средние страницы
-5. ✅ `api-test-dialogs.html` → `DialogsMessagesPage.vue`
-6. ✅ `api-test-init.html` → `InitPage.vue`
-7. ✅ `api-test-events-updates.html` → `EventsUpdatesPage.vue`
+5. ⏳ `api-test-dialogs.html` → `DialogsMessagesPage.vue` (заглушка)
+6. ⏳ `api-test-init.html` → `InitPage.vue` (заглушка)
+7. ⏳ `api-test-events-updates.html` → `EventsUpdatesPage.vue` (заглушка)
 
 ### Приоритет 3: Сложные страницы
-8. ✅ `api-test-user-dialogs.html` → `UserDialogsPage.vue` (3 колонки)
-9. ✅ `api-test-db-explorer.html` → `DbExplorerPage.vue` (специфичная логика)
+8. ⏳ `api-test-user-dialogs.html` → `UserDialogsPage.vue` (заглушка, 3 колонки)
+9. ⏳ `api-test-db-explorer.html` → `DbExplorerPage.vue` (заглушка, специфичная логика)
 
 ## Шаблон переноса
 
