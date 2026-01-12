@@ -2,20 +2,30 @@
   "name": "@chat3/controlo-ui",
   "version": "0.0.26",
   "type": "module",
-  "main": "src/index.js",
   "private": true,
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
-    "test:e2e": "playwright test src/tests",
-    "test:e2e:ui": "playwright test src/tests --ui",
-    "test:e2e:members": "playwright test src/tests/user-dialogs-members-modal.spec.js",
-    "test:e2e:add-member": "playwright test src/tests/add-member-modal.spec.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "tsx server/index.ts",
+    "start": "npm run server",
+    "test:e2e": "playwright test tests",
+    "test:e2e:ui": "playwright test tests --ui",
+    "test:e2e:members": "playwright test tests/user-dialogs-members-modal.spec.ts",
+    "test:e2e:add-member": "playwright test tests/add-member-modal.spec.ts"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0",
+    "pinia": "^2.1.7",
+    "axios": "^1.6.7",
+    "express": "^4.18.2",
+    "tsx": "^4.7.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.57.0"
+    "@vitejs/plugin-vue": "^5.0.4",
+    "@playwright/test": "^1.57.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.6"
   }
 }

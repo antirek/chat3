@@ -133,6 +133,34 @@ services:
     networks:
       - chat3-network
 
+  # Controlo UI (Vue 3 приложение)
+  controlo-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat3-controlo-ui
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - CONTROL_APP_URL=http://localhost:3003
+    command: npm run start:controlo-ui
+    depends_on:
+      tenant-api:
+        condition: service_started
+    networks:
+      - chat3-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3003/config.js', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 volumes:
   mongodb_data:
     driver: local

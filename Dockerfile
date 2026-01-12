@@ -31,6 +31,9 @@ RUN npm run build --workspace=@chat3/tenant-api && \
     npm run build --workspace=@chat3/update-worker && \
     npm run build --workspace=@chat3/dialog-read-worker
 
+# Собираем controlo-ui (Vite build для Vue приложения)
+RUN npm run build --workspace=@chat3/controlo-ui
+
 # Финальный образ
 FROM node:20-alpine AS runner
 
@@ -50,6 +53,7 @@ COPY --from=base --chown=chat3user:nodejs /app/packages/controlo-gateway/dist ./
 COPY --from=base --chown=chat3user:nodejs /app/packages/controlo-api/dist ./packages/controlo-api/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/update-worker/dist ./packages/update-worker/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/dialog-read-worker/dist ./packages/dialog-read-worker/dist
+COPY --from=base --chown=chat3user:nodejs /app/packages/controlo-ui/dist ./packages/controlo-ui/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-shared/models/dist ./packages-shared/models/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-shared/utils/dist ./packages-shared/utils/dist
 
