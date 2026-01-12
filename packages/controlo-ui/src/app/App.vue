@@ -1,11 +1,11 @@
 <template>
   <div id="app">
-    <router-view />
+    <AppLayout />
   </div>
 </template>
 
 <script setup lang="ts">
-// Корневой компонент приложения
+import { AppLayout } from '@/widgets/app-layout';
 </script>
 
 <style>

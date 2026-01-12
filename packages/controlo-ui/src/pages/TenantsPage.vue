@@ -1,16 +1,16 @@
 <template>
   <div class="tenants-page">
-    <div class="header">
-      <div class="header-left">
+    <div class="page-header">
+      <div class="page-header-left">
         <h1>🏢 Тенанты</h1>
         <button class="btn-success btn-small" @click="showCreateModal">➕ Создать тенант</button>
       </div>
-      <div class="header-right">
+      <div class="page-header-right">
         <button class="btn-primary btn-small" @click="showUrlModal">URL</button>
       </div>
     </div>
 
-    <div class="container">
+    <div class="page-container">
       <div class="filter-panel">
         <div class="form-section">
           <label for="tenantFilterInput">
@@ -374,15 +374,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, toRef } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
+import { useCredentialsStore } from '@/app/stores/credentials';
 
 // Конфигурация
 const configStore = useConfigStore();
+const credentialsStore = useCredentialsStore();
 
-// Состояние
-const apiKey = ref('');
-const tenantId = ref('tnt_default');
+// Используем credentials из store (toRef для правильной типизации)
+const apiKey = toRef(credentialsStore, 'apiKey');
+const tenantId = toRef(credentialsStore, 'tenantId');
 const currentPage = ref(1);
 const currentLimit = ref(20);
 const totalPages = ref(1);
@@ -452,8 +454,7 @@ function setApiKeyFromExternal(extApiKey: string, extTenantId?: string) {
     return;
   }
 
-  apiKey.value = extApiKey;
-  tenantId.value = extTenantId || 'tnt_default';
+  credentialsStore.setCredentials(extApiKey, extTenantId);
 
   console.log('API Key set from external:', apiKey.value);
   console.log('Tenant ID set from external:', tenantId.value);
@@ -491,12 +492,9 @@ async function loadTenants(page = currentPage.value, limit = currentLimit.value)
     sortObj[currentSort.value.field] = currentSort.value.order;
     params.append('sort', JSON.stringify(sortObj));
 
-    const baseUrl = configStore.config.TENANT_API_URL || '/api';
-    const response = await fetch(`${baseUrl}/tenants?${params.toString()}`, {
-      headers: {
-        'X-API-Key': key,
-        'X-Tenant-ID': tenantId.value,
-      },
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+    const response = await fetch(`${baseUrl}/api/tenants?${params.toString()}`, {
+      headers: credentialsStore.getHeaders(),
     });
 
     if (!response.ok) {
@@ -642,14 +640,17 @@ async function createTenant() {
 
   try {
     const key = getApiKey();
-    const baseUrl = configStore.config.TENANT_API_URL || '/api';
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
 
-    const response = await fetch(`${baseUrl}/tenants`, {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-API-Key': key,
+    };
+    // При создании тенанта не отправляем X-Tenant-ID
+
+    const response = await fetch(`${baseUrl}/api/tenants`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': key,
-      },
+      headers,
       body: JSON.stringify(tenantData),
     });
 
@@ -696,13 +697,10 @@ function closeMetaModal() {
 async function loadMetaTags(tenantIdValue: string) {
   try {
     const key = getApiKey();
-    const baseUrl = configStore.config.TENANT_API_URL || '/api';
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
 
-    const response = await fetch(`${baseUrl}/meta/tenant/${tenantIdValue}`, {
-      headers: {
-        'X-API-Key': key,
-        'X-Tenant-ID': tenantId.value,
-      },
+    const response = await fetch(`${baseUrl}/api/meta/tenant/${tenantIdValue}`, {
+      headers: credentialsStore.getHeaders(),
     });
 
     if (!response.ok) {
@@ -736,14 +734,13 @@ async function addMetaTag() {
 
   try {
     const apiKeyValue = getApiKey();
-    const baseUrl = configStore.config.TENANT_API_URL || '/api';
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
 
-    const response = await fetch(`${baseUrl}/meta/tenant/${tenantIdValue}/${key}`, {
+    const response = await fetch(`${baseUrl}/api/meta/tenant/${tenantIdValue}/${key}`, {
       method: 'PUT',
       headers: {
+        ...credentialsStore.getHeaders(),
         'Content-Type': 'application/json',
-        'X-API-Key': apiKeyValue,
-        'X-Tenant-ID': tenantId.value,
       },
       body: JSON.stringify({ value }),
     });
@@ -770,14 +767,11 @@ async function deleteMetaTag(key: string) {
 
   try {
     const apiKeyValue = getApiKey();
-    const baseUrl = configStore.config.TENANT_API_URL || '/api';
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
 
-    const response = await fetch(`${baseUrl}/meta/tenant/${metaTenantId.value}/${key}`, {
+    const response = await fetch(`${baseUrl}/api/meta/tenant/${metaTenantId.value}/${key}`, {
       method: 'DELETE',
-      headers: {
-        'X-API-Key': apiKeyValue,
-        'X-Tenant-ID': tenantId.value,
-      },
+      headers: credentialsStore.getHeaders(),
     });
 
     if (!response.ok) {
@@ -796,16 +790,13 @@ async function deleteMetaTag(key: string) {
 async function showInfoModal(tenantIdParam: string) {
   try {
     const key = getApiKey();
-    const baseUrl = configStore.config.TENANT_API_URL || '/api';
-    const url = `${baseUrl}/tenants/${tenantIdParam}`;
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+    const url = `${baseUrl}/api/tenants/${tenantIdParam}`;
 
     infoUrl.value = url;
 
     const tenantResponse = await fetch(url, {
-      headers: {
-        'X-API-Key': key,
-        'X-Tenant-ID': tenantId.value,
-      },
+      headers: credentialsStore.getHeaders(),
     });
 
     const responseData = await tenantResponse.json();
@@ -876,14 +867,11 @@ async function deleteTenant(tenantIdParam: string) {
 
   try {
     const key = getApiKey();
-    const baseUrl = configStore.config.TENANT_API_URL || '/api';
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
 
-    const response = await fetch(`${baseUrl}/tenants/${tenantIdParam}`, {
+    const response = await fetch(`${baseUrl}/api/tenants/${tenantIdParam}`, {
       method: 'DELETE',
-      headers: {
-        'X-API-Key': key,
-        'X-Tenant-ID': tenantId.value,
-      },
+      headers: credentialsStore.getHeaders(),
     });
 
     if (!response.ok) {
@@ -939,7 +927,7 @@ function generateApiUrl() {
   params.append('sort', JSON.stringify(sortObj));
 
   const baseUrl = configStore.config.TENANT_API_URL || '/api';
-  return `${baseUrl}/tenants?${params.toString()}`;
+  return `${baseUrl}/api/tenants?${params.toString()}`;
 }
 
 function showUrlModal() {
@@ -973,12 +961,22 @@ watch(currentPage, (newValue) => {
 
 // Инициализация
 onMounted(() => {
+  // Загружаем credentials из store (они уже загружены из localStorage при создании store)
+  credentialsStore.loadFromStorage();
+
+  // Проверяем URL параметры (для обратной совместимости с iframe)
   const params = getUrlParams();
   if (params.apiKey) {
     setApiKeyFromExternal(params.apiKey, params.tenantId);
+  } else {
+    // Если нет URL параметров, но есть API Key в store, загружаем тенантов
+    const key = getApiKey();
+    if (key) {
+      loadTenants(1);
+    }
   }
 
-  // Обработка сообщений от родительского окна
+  // Обработка сообщений от родительского окна (для обратной совместимости)
   window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'setApiCredentials') {
       setApiKeyFromExternal(event.data.apiKey, event.data.tenantId);
@@ -1011,15 +1009,13 @@ onMounted(() => {
 }
 
 .tenants-page {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f5f5f5;
-  height: 100vh;
-  overflow: hidden;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-.header {
+.page-header {
   background: #f8f9fa;
   padding: 15px 20px;
   border-bottom: 1px solid #e9ecef;
@@ -1032,25 +1028,25 @@ onMounted(() => {
   min-height: 59px;
 }
 
-.header-left {
+.page-header-left {
   display: flex;
   align-items: center;
   gap: 15px;
 }
 
-.header-right {
+.page-header-right {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-h1 {
+.page-header h1 {
   font-size: 16px;
   color: #495057;
   font-weight: 600;
 }
 
-.container {
+.page-container {
   flex: 1;
   display: flex;
   flex-direction: column;
