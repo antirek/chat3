@@ -56,7 +56,7 @@
 
 ### Приоритет 3: Сложные страницы
 8. ✅ `api-test-user-dialogs.html` → `UserDialogsPage.vue` (полностью реализовано)
-9. ⏳ `api-test-db-explorer.html` → `DbExplorerPage.vue` (заглушка, специфичная логика)
+9. ✅ `api-test-db-explorer.html` → `DbExplorerPage.vue` (полностью реализовано)
 
 ## Шаблон переноса
 
