@@ -12,8 +12,11 @@ const app = express();
 // Get URLs from environment variables or use defaults
 // CONTROL_APP_URL для внутренних запросов Express (target для прокси)
 const CONTROL_APP_URL_INTERNAL = process.env.CONTROL_API_TARGET || 'http://gateway:3001';
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const IS_DOCKER = process.env.DOCKER === 'true'; // Флаг для определения, запущен ли в Docker
+
 // TENANT_API_URL: в Docker используем имя сервиса, в dev - localhost
-const TENANT_API_URL = process.env.TENANT_API_URL || (process.env.DOCKER === 'true' ? 'http://tenant-api:3000' : 'http://localhost:3000');
+const TENANT_API_URL = process.env.TENANT_API_URL || (IS_DOCKER ? 'http://tenant-api:3000' : 'http://localhost:3000');
 const RABBITMQ_MANAGEMENT_URL = process.env.RABBITMQ_MANAGEMENT_URL || 'http://localhost:15672';
 const PROJECT_NAME = process.env.MMS3_PROJECT_NAME || 'chat3';
 const APP_VERSION = pkg.version || '0.0.0';
@@ -22,18 +25,16 @@ const APP_VERSION = pkg.version || '0.0.0';
 const CLIENT_CONTROL_APP_URL = process.env.CLIENT_CONTROL_APP_URL || 'http://localhost:3001';
 
 // Extract port from URL for server listening
-// Приоритет: PORT > порт из CONTROL_APP_URL > 3003
+// Приоритет: PORT > порт из CLIENT_CONTROL_APP_URL > 3003
 let PORT = process.env.PORT;
 if (!PORT) {
   try {
-    PORT = new URL(CONTROL_APP_URL).port;
+    PORT = new URL(CLIENT_CONTROL_APP_URL).port;
   } catch {
     // ignore
   }
 }
 PORT = PORT || '3003';
-const NODE_ENV = process.env.NODE_ENV || 'development';
-const IS_DOCKER = process.env.DOCKER === 'true'; // Флаг для определения, запущен ли в Docker
 
 // Прокси для control-api endpoints (должен быть перед статикой)
 app.use('/api/init', createProxyMiddleware({
@@ -77,7 +78,7 @@ app.use('/api', createProxyMiddleware({
   target: TENANT_API_URL,
   changeOrigin: true,
   pathRewrite: { '^/api': '/api' },
-  onProxyReq: (proxyReq, req, res) => {
+  onProxyReq: (proxyReq, req) => {
     console.log(`Proxying ${req.method} ${req.url} to ${TENANT_API_URL}${req.url}`);
   },
   onError: (err, req, res) => {
@@ -85,6 +86,28 @@ app.use('/api', createProxyMiddleware({
     res.status(500).json({ error: 'Proxy error', message: err.message });
   },
 }));
+
+// Health check endpoint - must be before static files
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Chat3 UI Server is running',
+    timestamp: new Date().toISOString(),
+    environment: NODE_ENV,
+    version: APP_VERSION,
+    endpoints: {
+      main: `http://localhost:${PORT}`,
+      apiDocs: `${CLIENT_CONTROL_APP_URL}/api-docs`,
+      tenantApi: TENANT_API_URL,
+      controlApi: CLIENT_CONTROL_APP_URL,
+    },
+    services: {
+      ui: 'running',
+      tenantApi: TENANT_API_URL,
+      controlApi: CLIENT_CONTROL_APP_URL,
+    }
+  });
+});
 
 // Dynamic config.js endpoint - must be before static files
 app.get('/config.js', (req, res) => {
@@ -125,10 +148,10 @@ if (NODE_ENV === 'production') {
   const distPath = join(__dirname, '../dist');
   app.use(express.static(distPath));
 
-  // Все остальные маршруты (кроме /api/*) отдаем index.html для SPA
+  // Все остальные маршруты (кроме /api/*, /health, /config.js) отдаем index.html для SPA
   app.get('*', (req, res, next) => {
-    // Пропускаем /api/* запросы - они должны обрабатываться прокси
-    if (req.path.startsWith('/api')) {
+    // Пропускаем /api/*, /health, /config.js - они обрабатываются отдельными маршрутами
+    if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/config.js') {
       return next();
     }
     res.sendFile(join(distPath, 'index.html'));
