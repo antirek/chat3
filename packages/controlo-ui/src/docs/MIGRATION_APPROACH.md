@@ -52,7 +52,7 @@
 ### Приоритет 2: Средние страницы
 5. ✅ `api-test-dialogs.html` → `DialogsMessagesPage.vue` (полностью реализовано)
 6. ⏳ `api-test-init.html` → `InitPage.vue` (заглушка)
-7. ⏳ `api-test-events-updates.html` → `EventsUpdatesPage.vue` (заглушка)
+7. ✅ `api-test-events-updates.html` → `EventsUpdatesPage.vue` (полностью реализовано)
 
 ### Приоритет 3: Сложные страницы
 8. ✅ `api-test-user-dialogs.html` → `UserDialogsPage.vue` (полностью реализовано)
