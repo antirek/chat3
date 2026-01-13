@@ -58,6 +58,13 @@ export default [
       ]
     },
   },
+  // Конфигурация для роутера (разрешаем динамические импорты для code splitting)
+  {
+    files: ['**/router/**', '**/router/**/*.ts', '**/router/**/*.js', 'packages/controlo-ui/src/app/router/**'],
+    rules: {
+      'no-restricted-syntax': 'off', // Разрешаем динамические импорты в роутере (стандартная практика Vue Router)
+    },
+  },
   // Конфигурация для тестовых файлов
   {
     files: ['**/__tests__/**', '**/*.test.js', '**/*.test.ts', '**/*.spec.js', '**/*.spec.ts'],
