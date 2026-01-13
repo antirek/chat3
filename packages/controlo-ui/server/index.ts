@@ -1,4 +1,5 @@
 import express from 'express';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import pkg from '../../../package.json' with { type: 'json' };
@@ -9,11 +10,16 @@ const __dirname = dirname(__filename);
 const app = express();
 
 // Get URLs from environment variables or use defaults
-const CONTROL_APP_URL = process.env.CONTROL_APP_URL || 'http://localhost:3003';
-const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
+// CONTROL_APP_URL для внутренних запросов Express (target для прокси)
+const CONTROL_APP_URL_INTERNAL = process.env.CONTROL_API_TARGET || 'http://gateway:3001';
+// TENANT_API_URL: в Docker используем имя сервиса, в dev - localhost
+const TENANT_API_URL = process.env.TENANT_API_URL || (process.env.DOCKER === 'true' ? 'http://tenant-api:3000' : 'http://localhost:3000');
 const RABBITMQ_MANAGEMENT_URL = process.env.RABBITMQ_MANAGEMENT_URL || 'http://localhost:15672';
 const PROJECT_NAME = process.env.MMS3_PROJECT_NAME || 'chat3';
 const APP_VERSION = pkg.version || '0.0.0';
+
+// CONTROL_APP_URL для клиента (браузера) - должен быть доступен извне Docker
+const CLIENT_CONTROL_APP_URL = process.env.CLIENT_CONTROL_APP_URL || 'http://localhost:3001';
 
 // Extract port from URL for server listening
 // Приоритет: PORT > порт из CONTROL_APP_URL > 3003
@@ -27,15 +33,69 @@ if (!PORT) {
 }
 PORT = PORT || '3003';
 const NODE_ENV = process.env.NODE_ENV || 'development';
+const IS_DOCKER = process.env.DOCKER === 'true'; // Флаг для определения, запущен ли в Docker
+
+// Прокси для control-api endpoints (должен быть перед статикой)
+app.use('/api/init', createProxyMiddleware({
+  target: CONTROL_APP_URL_INTERNAL,
+  changeOrigin: true,
+  pathRewrite: { '^/api/init': '/api/init' },
+}));
+
+app.use('/api/db-explorer', createProxyMiddleware({
+  target: CONTROL_APP_URL_INTERNAL,
+  changeOrigin: true,
+  pathRewrite: { '^/api/db-explorer': '/api/db-explorer' },
+}));
+
+// Прокси для events endpoints
+app.use('/api/dialogs', (req, res, next) => {
+  if (req.path.includes('/events') || req.path.includes('/updates')) {
+    createProxyMiddleware({
+      target: CONTROL_APP_URL_INTERNAL,
+      changeOrigin: true,
+    })(req, res, next);
+  } else {
+    next(); // Пропускаем дальше для tenant-api
+  }
+});
+
+app.use('/api/messages', (req, res, next) => {
+  if (req.path.includes('/events') || req.path.includes('/updates')) {
+    createProxyMiddleware({
+      target: CONTROL_APP_URL_INTERNAL,
+      changeOrigin: true,
+    })(req, res, next);
+  } else {
+    next(); // Пропускаем дальше для tenant-api
+  }
+});
+
+// Прокси для всех остальных /api/* запросов к tenant-api (должен быть после control-api прокси)
+console.log(`Setting up tenant-api proxy to: ${TENANT_API_URL}`);
+app.use('/api', createProxyMiddleware({
+  target: TENANT_API_URL,
+  changeOrigin: true,
+  pathRewrite: { '^/api': '/api' },
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`Proxying ${req.method} ${req.url} to ${TENANT_API_URL}${req.url}`);
+  },
+  onError: (err, req, res) => {
+    console.error('Proxy error:', err);
+    res.status(500).json({ error: 'Proxy error', message: err.message });
+  },
+}));
 
 // Dynamic config.js endpoint - must be before static files
 app.get('/config.js', (req, res) => {
   res.type('application/javascript');
 
   // Safely escape URLs for JavaScript
+  // Для клиента (браузера) используем внешние URL (localhost), а не внутренние Docker адреса
+  const CLIENT_TENANT_API_URL = process.env.CLIENT_TENANT_API_URL || 'http://localhost:3000';
   const config = {
-    TENANT_API_URL: TENANT_API_URL,
-    CONTROL_APP_URL: CONTROL_APP_URL,
+    TENANT_API_URL: CLIENT_TENANT_API_URL, // Для клиента используем внешний URL
+    CONTROL_APP_URL: CLIENT_CONTROL_APP_URL, // Для клиента используем CLIENT_CONTROL_APP_URL
     RABBITMQ_MANAGEMENT_URL: RABBITMQ_MANAGEMENT_URL,
     PROJECT_NAME: PROJECT_NAME,
     APP_VERSION: APP_VERSION,
@@ -60,22 +120,28 @@ window.CHAT3_CONFIG = {
 });
 
 // В production режиме отдаем статику из dist
+// ВАЖНО: статика должна быть ПОСЛЕ прокси, чтобы /api/* запросы не отдавались как статика
 if (NODE_ENV === 'production') {
   const distPath = join(__dirname, '../dist');
   app.use(express.static(distPath));
 
-  // Все остальные маршруты отдаем index.html для SPA
-  app.get('*', (req, res) => {
+  // Все остальные маршруты (кроме /api/*) отдаем index.html для SPA
+  app.get('*', (req, res, next) => {
+    // Пропускаем /api/* запросы - они должны обрабатываться прокси
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
     res.sendFile(join(distPath, 'index.html'));
   });
 }
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`\n🧪 API Test is running on ${CONTROL_APP_URL}`);
-  console.log(`📄 Main page: ${CONTROL_APP_URL}`);
+  console.log(`\n🧪 API Test is running on ${CLIENT_CONTROL_APP_URL}`);
+  console.log(`📄 Main page: ${CLIENT_CONTROL_APP_URL}`);
   console.log(`\n💡 Configure API endpoints:`);
   console.log(`   Tenant API: ${TENANT_API_URL}`);
-  console.log(`   Control App: ${CONTROL_APP_URL}`);
+  console.log(`   Control App (client-facing): ${CLIENT_CONTROL_APP_URL}`);
+  console.log(`   Control App (internal proxy target): ${CONTROL_APP_URL_INTERNAL}`);
   console.log(`   Mode: ${NODE_ENV}\n`);
 });

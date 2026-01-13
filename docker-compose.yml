@@ -148,7 +148,12 @@ services:
       - NODE_ENV=${CONTROLO_UI_NODE_ENV:-production}
       - CONTROLO_UI_NODE_ENV=${CONTROLO_UI_NODE_ENV:-production}
       - PORT=3003
-      - CONTROL_APP_URL=http://localhost:3003
+      - CONTROL_API_TARGET=http://gateway:3001 # Internal target for Express proxy
+      - CLIENT_CONTROL_APP_URL=http://localhost:3001 # Client-facing URL for config.js
+      - CONTROL_APP_URL=http://localhost:3001 # For consistency, points to gateway
+      - TENANT_API_URL=http://tenant-api:3000 # Internal Docker network URL for tenant-api (for Express proxy)
+      - CLIENT_TENANT_API_URL=http://localhost:3000 # Client-facing URL for tenant-api (for config.js)
+      - DOCKER=true # Flag to indicate running in Docker
     # Для разработки: монтируем исходники и запускаем Vite dev server
     # Для production: используем собранные файлы из dist
     volumes:

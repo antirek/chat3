@@ -55,7 +55,7 @@
 7. ⏳ `api-test-events-updates.html` → `EventsUpdatesPage.vue` (заглушка)
 
 ### Приоритет 3: Сложные страницы
-8. ⏳ `api-test-user-dialogs.html` → `UserDialogsPage.vue` (заглушка, 3 колонки)
+8. ✅ `api-test-user-dialogs.html` → `UserDialogsPage.vue` (полностью реализовано)
 9. ⏳ `api-test-db-explorer.html` → `DbExplorerPage.vue` (заглушка, специфичная логика)
 
 ## Шаблон переноса

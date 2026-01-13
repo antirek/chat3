@@ -12,7 +12,8 @@ const packageJson = JSON.parse(
 // Функция для генерации config.js
 function generateConfigJs() {
   const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
-  const CONTROL_APP_URL = process.env.CONTROL_APP_URL || 'http://localhost:3003';
+  // CONTROL_APP_URL должен указывать на control-api (gateway), а не на UI сервер
+  const CONTROL_APP_URL = process.env.CONTROL_APP_URL || 'http://localhost:3001';
   const RABBITMQ_MANAGEMENT_URL = process.env.RABBITMQ_MANAGEMENT_URL || 'http://localhost:15672';
   const PROJECT_NAME = process.env.MMS3_PROJECT_NAME || 'chat3';
   const APP_VERSION = packageJson.version || '0.0.0';
@@ -64,6 +65,34 @@ export default defineConfig({
   server: {
     port: 3003,
     proxy: {
+      // Прокси для control-api endpoints (init, db-explorer) - должны быть первыми
+      '/api/init': {
+        target: process.env.CONTROL_APP_URL || 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/api/db-explorer': {
+        target: process.env.CONTROL_APP_URL || 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      // Прокси для events endpoints в dialogs - должны быть перед общим /api/dialogs
+      '^/api/dialogs/.*/events': {
+        target: process.env.CONTROL_APP_URL || 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '^/api/dialogs/.*/updates': {
+        target: process.env.CONTROL_APP_URL || 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      // Прокси для events endpoints в messages - должны быть перед общим /api/messages
+      '^/api/messages/.*/events': {
+        target: process.env.CONTROL_APP_URL || 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '^/api/messages/.*/updates': {
+        target: process.env.CONTROL_APP_URL || 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      // Прокси для всех остальных /api/* запросов к tenant-api (должен быть последним)
       '/api': {
         target: process.env.TENANT_API_URL || 'http://localhost:3000',
         changeOrigin: true,
