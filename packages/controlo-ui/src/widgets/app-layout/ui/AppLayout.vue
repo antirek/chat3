@@ -548,7 +548,8 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   background: white;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Скроллбар для sidebar */
