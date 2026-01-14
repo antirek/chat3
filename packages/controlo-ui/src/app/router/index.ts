@@ -35,7 +35,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/db-explorer',
     name: 'db-explorer',
-    component: () => import('@/pages/DbExplorerPage.vue'),
+    component: () => import('@/pages/db-explorer'),
   },
   {
     path: '/events-updates',
