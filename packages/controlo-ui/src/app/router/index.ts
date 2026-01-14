@@ -40,7 +40,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/events-updates',
     name: 'events-updates',
-    component: () => import('@/pages/EventsUpdatesPage.vue'),
+    component: () => import('@/pages/events-updates'),
   },
   {
     path: '/init',
