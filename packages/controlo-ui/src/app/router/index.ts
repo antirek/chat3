@@ -45,7 +45,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/init',
     name: 'init',
-    component: () => import('@/pages/InitPage.vue'),
+    component: () => import('@/pages/init'),
   },
 ];
 
