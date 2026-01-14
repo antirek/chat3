@@ -7,8 +7,11 @@ export const useCredentialsStore = defineStore('credentials', () => {
 
   // Загрузка из localStorage
   function loadFromStorage() {
-    const savedApiKey = localStorage.getItem('apiKey');
-    const savedTenantId = localStorage.getItem('tenantId') || 'tnt_default';
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+    const savedApiKey = window.localStorage.getItem('apiKey');
+    const savedTenantId = window.localStorage.getItem('tenantId') || 'tnt_default';
 
     if (savedApiKey) {
       apiKey.value = savedApiKey;
@@ -18,10 +21,13 @@ export const useCredentialsStore = defineStore('credentials', () => {
 
   // Сохранение в localStorage
   function saveToStorage() {
-    if (apiKey.value.trim()) {
-      localStorage.setItem('apiKey', apiKey.value.trim());
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
     }
-    localStorage.setItem('tenantId', tenantId.value || 'tnt_default');
+    if (apiKey.value.trim()) {
+      window.localStorage.setItem('apiKey', apiKey.value.trim());
+    }
+    window.localStorage.setItem('tenantId', tenantId.value || 'tnt_default');
   }
 
   // Установка credentials
