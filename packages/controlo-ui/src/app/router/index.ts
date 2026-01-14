@@ -25,7 +25,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/dialogs-messages',
     name: 'dialogs-messages',
-    component: () => import('@/pages/DialogsMessagesPage.vue'),
+    component: () => import('@/pages/dialogs-messages'),
   },
   {
     path: '/user-dialogs',
