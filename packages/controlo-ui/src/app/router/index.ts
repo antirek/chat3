@@ -15,7 +15,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/users',
     name: 'users',
-    component: () => import('@/pages/UsersPage.vue'),
+    component: () => import('@/pages/users'),
   },
   {
     path: '/messages',
