@@ -66,11 +66,15 @@ const emit = defineEmits<{
 const selectedMembers = ref([...props.selectedMembers]);
 
 watch(() => props.selectedMembers, (val) => {
-  selectedMembers.value = [...val];
+  if (JSON.stringify(val) !== JSON.stringify(selectedMembers.value)) {
+    selectedMembers.value = [...val];
+  }
 }, { deep: true });
 
-watch(selectedMembers, (val) => {
-  emit('update:selectedMembers', [...val]);
+watch(selectedMembers, (val, oldVal) => {
+  if (JSON.stringify(val) !== JSON.stringify(oldVal)) {
+    emit('update:selectedMembers', [...val]);
+  }
 }, { deep: true });
 
 function close() {
