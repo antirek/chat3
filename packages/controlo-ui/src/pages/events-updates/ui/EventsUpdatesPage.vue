@@ -104,14 +104,11 @@
 
 <script setup lang="ts">
 import { useEventsUpdatesPage } from '../model/useEventsUpdatesPage';
-import EventFilterPanel from './EventFilterPanel.vue';
-import UpdateFilterPanel from './UpdateFilterPanel.vue';
-import EventPagination from './EventPagination.vue';
-import UpdatePagination from './UpdatePagination.vue';
+import { EventFilterPanel, UpdateFilterPanel } from './filters';
+import { EventPagination, UpdatePagination } from './pagination';
 import { EventTable } from '@/entities/event/ui';
 import { UpdateTable } from '@/entities/update/ui';
-import UrlModal from './UrlModal.vue';
-import JsonModal from './JsonModal.vue';
+import { UrlModal, JsonModal } from './modals';
 
 const {
   // События
