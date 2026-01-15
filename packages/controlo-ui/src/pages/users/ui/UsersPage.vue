@@ -21,64 +21,21 @@
         @apply="applyUserFilter"
       />
 
-      <div class="pagination" v-if="totalUsers > 0" id="pagination">
-        <div class="pagination-info" id="paginationInfo">
-          Показано {{ paginationStart }}-{{ paginationEnd }} из {{ totalUsers }} пользователей
-        </div>
-        <div class="pagination-controls">
-          <button
-            class="btn-secondary btn-small"
-            @click="goToFirstPage"
-            :disabled="currentPage <= 1"
-          >
-            ⏮ Первая
-          </button>
-          <button
-            class="btn-secondary btn-small"
-            @click="goToPreviousPage"
-            :disabled="currentPage <= 1"
-          >
-            ◀ Предыдущая
-          </button>
-          <span style="font-size: 12px; margin: 0 8px;">Страница</span>
-          <input
-            type="number"
-            id="currentPageInput"
-            v-model.number="currentPageInput"
-            :min="1"
-            :max="totalPages"
-            @change="goToPage(currentPageInput)"
-          />
-          <span style="font-size: 12px; margin: 0 8px;">из</span>
-          <span id="totalPages" style="font-size: 12px;">{{ totalPages }}</span>
-          <button
-            class="btn-secondary btn-small"
-            @click="goToNextPage"
-            :disabled="currentPage >= totalPages"
-          >
-            Следующая ▶
-          </button>
-          <button
-            class="btn-secondary btn-small"
-            @click="goToLastPage"
-            :disabled="currentPage >= totalPages"
-          >
-            Последняя ⏭
-          </button>
-          <span style="font-size: 12px; margin-left: 12px;">Показать:</span>
-          <select
-            id="pageLimit"
-            v-model.number="currentLimit"
-            @change="changeLimit(currentLimit)"
-            style="padding: 4px 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px;"
-          >
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="50">50</option>
-            <option :value="100">100</option>
-          </select>
-        </div>
-      </div>
+      <UsersPagination
+        :current-page="currentPage"
+        :current-page-input="currentPageInput"
+        :total-pages="totalPages"
+        :total="totalUsers"
+        :pagination-start="paginationStart"
+        :pagination-end="paginationEnd"
+        :current-limit="currentLimit"
+        @first="goToFirstPage"
+        @prev="goToPreviousPage"
+        @next="goToNextPage"
+        @last="goToLastPage"
+        @go-to-page="goToPage"
+        @change-limit="changeLimit"
+      />
 
       <UserTable
         :users="users"
@@ -148,6 +105,7 @@ import { useUsersPage } from '../model/useUsersPage';
 import UserFilterPanel from './UserFilterPanel.vue';
 import { UserTable } from './tables';
 import { UserInfoModal, UserMetaModal, UserUrlModal, CreateUserModal, EditUserModal } from './modals';
+import { UsersPagination } from './pagination';
 
 const {
   // State
@@ -325,77 +283,5 @@ button:disabled {
   padding: 4px 10px;
   font-size: 11px;
   margin-right: 5px;
-}
-
-.pagination {
-  padding: 15px 20px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.pagination-info {
-  font-size: 11px;
-  color: #666;
-  margin-left: 10px;
-}
-
-.pagination-controls {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.pagination-controls button,
-.pagination-controls button.btn-secondary,
-.pagination-controls button.btn-small {
-  padding: 5px 10px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  color: #333;
-  margin-right: 0;
-}
-
-.pagination-controls button:hover:not(:disabled),
-.pagination-controls button.btn-secondary:hover:not(:disabled) {
-  background: #e9ecef;
-  color: #333;
-}
-
-.pagination-controls button:disabled,
-.pagination-controls button.btn-secondary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pagination-controls input {
-  width: 60px;
-  padding: 4px 8px;
-  border: 1px solid #667eea;
-  border-radius: 4px;
-  font-size: 12px;
-  text-align: center;
-  background: #667eea;
-  color: white;
-}
-
-.pagination-controls span {
-  font-size: 11px;
-  color: #666;
-}
-
-.pagination-controls select {
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 12px;
-  background: white;
 }
 </style>
