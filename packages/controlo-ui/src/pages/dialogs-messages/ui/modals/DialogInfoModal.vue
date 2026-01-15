@@ -1,93 +1,25 @@
 <template>
-  <div v-if="isOpen" class="modal" @click.self="close">
-    <div class="modal-content" @click.stop>
-      <div class="modal-header">
-        <h2 class="modal-title">{{ title }}</h2>
-        <span class="close" @click="close">&times;</span>
-      </div>
-      <div class="modal-body" v-html="content"></div>
-    </div>
-  </div>
+  <BaseModal :is-open="isOpen" :title="title" max-width="600px" @close="close">
+    <div v-html="content"></div>
+  </BaseModal>
 </template>
 
 <script setup lang="ts">
+import { BaseModal } from '@/shared/ui';
+
 interface Props {
   isOpen: boolean;
   title: string;
   content: string;
 }
 
-interface Emits {
-  (e: 'close'): void;
-}
-
 defineProps<Props>();
-const emit = defineEmits<Emits>();
+const emit = defineEmits<{ (e: 'close'): void }>();
 
 function close() {
   emit('close');
 }
 </script>
-
-<style scoped>
-.modal {
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-content {
-  background-color: #fefefe;
-  margin: 5% auto;
-  padding: 20px;
-  border: none;
-  border-radius: 8px;
-  width: 80%;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.modal-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.close {
-  font-size: 28px;
-  font-weight: bold;
-  color: #aaa;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.close:hover {
-  color: #000;
-}
-
-.modal-body {
-  color: #333;
-  font-size: 13px;
-}
-</style>
 
 <style>
 /* Стили для динамически вставляемого контента через v-html (не scoped) */

@@ -226,7 +226,8 @@
 
 <script setup lang="ts">
 import { useDialogsMessagesPage } from '../model/useDialogsMessagesPage';
-import { DialogTable, DialogInfoModal, CreateDialogModal } from '@/entities/dialog/ui';
+import { DialogTable } from './tables';
+import { DialogInfoModal, CreateDialogModal } from './modals';
 import { MessagesTableSimple } from '@/entities/message/ui';
 
 const {
