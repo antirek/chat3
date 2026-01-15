@@ -96,12 +96,10 @@
 
 <script setup lang="ts">
 import { useDbExplorerPage } from '../model/useDbExplorerPage';
-import ModelsPanel from './ModelsPanel.vue';
-import DataTable from './DataTable.vue';
-import DataPagination from './DataPagination.vue';
-import ItemModal from './ItemModal.vue';
-import DataModal from './DataModal.vue';
-import DateRangeModal from './DateRangeModal.vue';
+import { ModelsPanel } from './panels';
+import { DataTable } from './tables';
+import { DataPagination } from './pagination';
+import { ItemModal, DataModal, DateRangeModal } from './modals';
 
 const {
   // Models
