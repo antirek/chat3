@@ -57,15 +57,17 @@ export function useEventsUpdatesPage() {
   const jsonModalContent = ref('');
 
   // Computed
+  const eventsTotal = computed(() => eventsPagination.totalPages.value * eventsPagination.currentLimit.value);
   const eventsPaginationInfo = computed(() => {
-    const total = eventsPagination.totalPages.value * eventsPagination.currentLimit.value;
+    const total = eventsTotal.value;
     const start = (eventsPagination.currentPage.value - 1) * eventsPagination.currentLimit.value + 1;
     const end = Math.min(eventsPagination.currentPage.value * eventsPagination.currentLimit.value, total);
     return `${start}-${end} из ${total}`;
   });
 
+  const updatesTotal = computed(() => updatesPagination.totalPages.value * updatesPagination.currentLimit.value);
   const updatesPaginationInfo = computed(() => {
-    const total = updatesPagination.totalPages.value * updatesPagination.currentLimit.value;
+    const total = updatesTotal.value;
     const start = (updatesPagination.currentPage.value - 1) * updatesPagination.currentLimit.value + 1;
     const end = Math.min(updatesPagination.currentPage.value * updatesPagination.currentLimit.value, total);
     return `${start}-${end} из ${total}`;
@@ -388,6 +390,7 @@ export function useEventsUpdatesPage() {
     currentEventsPageInput: eventsPagination.currentPageInput,
     eventsTotalPages: eventsPagination.totalPages,
     currentEventsLimit: eventsPagination.currentLimit,
+    eventsTotal,
     eventsPaginationInfo,
     currentEventsFilter,
     eventsFilterInput,
@@ -401,6 +404,7 @@ export function useEventsUpdatesPage() {
     currentUpdatesPageInput: updatesPagination.currentPageInput,
     updatesTotalPages: updatesPagination.totalPages,
     currentUpdatesLimit: updatesPagination.currentLimit,
+    updatesTotal,
     updatesPaginationInfo,
     currentUpdatesFilter,
     updatesFilterInput,

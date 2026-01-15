@@ -25,6 +25,7 @@
             :current-page="currentEventsPage"
             :current-page-input="currentEventsPageInput"
             :total-pages="eventsTotalPages"
+            :total="eventsTotal"
             v-model:current-limit="currentEventsLimit"
             :go-to-page="(page) => goToPage('events', page)"
             :change-limit="() => changeLimit('events')"
@@ -67,6 +68,7 @@
             :current-page="currentUpdatesPage"
             :current-page-input="currentUpdatesPageInput"
             :total-pages="updatesTotalPages"
+            :total="updatesTotal"
             v-model:current-limit="currentUpdatesLimit"
             :go-to-page="(page) => goToPage('updates', page)"
             :change-limit="() => changeLimit('updates')"
@@ -118,6 +120,7 @@ const {
   currentEventsPageInput,
   eventsTotalPages,
   currentEventsLimit,
+  eventsTotal,
   eventsPaginationInfo,
   eventsFilterInput,
   eventsFilterApplied,
@@ -130,6 +133,7 @@ const {
   currentUpdatesPageInput,
   updatesTotalPages,
   currentUpdatesLimit,
+  updatesTotal,
   updatesPaginationInfo,
   updatesFilterInput,
   updatesFilterApplied,

@@ -774,7 +774,10 @@ export function useDbExplorerPage() {
     goToNextPage: pagination.goToNextPage,
     goToLastPage: pagination.goToLastPage,
     goToPage: pagination.goToPage,
-    changeLimit: () => {
+    changeLimit: (newLimit?: number) => {
+      if (newLimit !== undefined) {
+        pagination.currentLimit.value = newLimit;
+      }
       pagination.changeLimit(pagination.currentLimit.value);
       loadModelData();
     },
