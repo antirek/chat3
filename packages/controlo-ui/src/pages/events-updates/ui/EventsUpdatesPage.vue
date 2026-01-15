@@ -14,9 +14,7 @@
           </div>
           <EventFilterPanel
             :filter-input="eventsFilterInput"
-            :filter-applied="eventsFilterApplied"
             @update:filter-input="eventsFilterInput = $event"
-            @set-filter-example="(field, value) => setFilterExample('events', field, value)"
             @clear="clearFilter('events')"
             @apply="applyFilter('events')"
           />
@@ -57,9 +55,7 @@
           </div>
           <UpdateFilterPanel
             :filter-input="updatesFilterInput"
-            :filter-applied="updatesFilterApplied"
             @update:filter-input="updatesFilterInput = $event"
-            @set-filter-example="(field, value) => setFilterExample('updates', field, value)"
             @clear="clearFilter('updates')"
             @apply="applyFilter('updates')"
           />
