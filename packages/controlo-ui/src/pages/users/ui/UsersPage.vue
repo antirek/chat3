@@ -102,7 +102,7 @@
 
 <script setup lang="ts">
 import { useUsersPage } from '../model/useUsersPage';
-import UserFilterPanel from './UserFilterPanel.vue';
+import { UserFilterPanel } from './filters';
 import { UserTable } from './tables';
 import { UserInfoModal, UserMetaModal, UserUrlModal, CreateUserModal, EditUserModal } from './modals';
 import { UsersPagination } from './pagination';
