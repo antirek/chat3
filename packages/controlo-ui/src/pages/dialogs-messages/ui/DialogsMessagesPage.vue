@@ -89,21 +89,14 @@
           </div>
         </div>
 
-        <div class="pagination" id="dialogsPagination" v-show="showDialogsPagination">
-          <button @click="changePage(currentPage - 1)" :disabled="currentPage <= 1">← Предыдущая</button>
-          <button
-            v-for="pageNum in visibleDialogPages"
-            :key="pageNum"
-            :class="{ active: pageNum === currentPage }"
-            @click="changePage(pageNum)"
-          >
-            {{ pageNum }}
-          </button>
-          <button @click="changePage(currentPage + 1)" :disabled="currentPage >= totalPages">
-            Следующая →
-          </button>
-          <span>Страница {{ currentPage }} из {{ totalPages }} (всего {{ totalDialogs }} диалогов)</span>
-        </div>
+        <DialogsPagination
+          :show="showDialogsPagination"
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          :total="totalDialogs"
+          :visible-pages="visibleDialogPages"
+          @change="changePage"
+        />
 
         <DialogTable
           :dialogs="dialogs"
@@ -167,26 +160,14 @@
           </div>
         </div>
 
-        <div class="pagination" id="messagesPagination" v-show="showMessagesPagination">
-          <button @click="changeMessagePage(currentMessagePage - 1)" :disabled="currentMessagePage <= 1">
-            ← Предыдущая
-          </button>
-          <button
-            v-for="pageNum in visibleMessagePages"
-            :key="pageNum"
-            :class="{ active: pageNum === currentMessagePage }"
-            @click="changeMessagePage(pageNum)"
-          >
-            {{ pageNum }}
-          </button>
-          <button
-            @click="changeMessagePage(currentMessagePage + 1)"
-            :disabled="currentMessagePage >= totalMessagePages"
-          >
-            Следующая →
-          </button>
-          <span>Страница {{ currentMessagePage }} из {{ totalMessagePages }} (всего {{ totalMessages }} сообщений)</span>
-        </div>
+        <MessagesPagination
+          :show="showMessagesPagination"
+          :current-page="currentMessagePage"
+          :total-pages="totalMessagePages"
+          :total="totalMessages"
+          :visible-pages="visibleMessagePages"
+          @change="changeMessagePage"
+        />
 
         <MessagesTableSimple
           :messages="messages"
@@ -235,9 +216,9 @@
 
 <script setup lang="ts">
 import { useDialogsMessagesPage } from '../model/useDialogsMessagesPage';
-import { DialogTable } from './tables';
+import { DialogTable, MessagesTableSimple } from './tables';
 import { DialogInfoModal, CreateDialogModal, UrlModal } from './modals';
-import { MessagesTableSimple } from './tables';
+import { DialogsPagination, MessagesPagination } from './pagination';
 
 const {
   // Диалоги
@@ -489,46 +470,6 @@ const {
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 15px;
-  gap: 5px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.pagination button {
-  padding: 5px 10px;
-  border: 1px solid #ced4da;
-  background: white;
-  cursor: pointer;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.pagination button:hover:not(:disabled) {
-  background: #e9ecef;
-}
-
-.pagination button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pagination button.active {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
-}
-
-.pagination span {
-  margin-left: 15px;
-  color: #6c757d;
-  font-size: 12px;
 }
 
 .panel-content {
