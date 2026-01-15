@@ -20,33 +20,15 @@
         @apply="applyMessageFilter"
       />
 
-      <div class="pagination" id="messagesPagination">
-        <div class="pagination-controls">
-          <button
-            @click="goToPreviousPage"
-            :disabled="currentPage <= 1"
-          >
-            ← Предыдущая
-          </button>
-          <button
-            v-for="pageNum in visiblePages"
-            :key="pageNum"
-            :class="{ active: pageNum === currentPage }"
-            @click="goToPage(pageNum)"
-          >
-            {{ pageNum }}
-          </button>
-          <button
-            @click="goToNextPage"
-            :disabled="currentPage >= totalPages"
-          >
-            Следующая →
-          </button>
-        </div>
-        <span class="pagination-info">
-          Страница {{ currentPage }} из {{ totalPages }} (всего {{ totalMessages }} сообщений)
-        </span>
-      </div>
+      <MessagesPagination
+        :current-page="currentPage"
+        :current-page-input="currentPageInput"
+        :total-pages="totalPages"
+        :total="totalMessages"
+        :current-limit="currentLimit"
+        @go-to-page="goToPage"
+        @change-limit="changeLimit"
+      />
 
       <MessageTable
         :messages="messages"
@@ -102,6 +84,7 @@ import { useMessagesPage } from '../model/useMessagesPage';
 import MessageFilterPanel from './MessageFilterPanel.vue';
 import { MessageTable } from './tables';
 import { MessageInfoModal, MessageMetaModal, MessageUrlModal } from './modals';
+import { MessagesPagination } from './pagination';
 
 const {
   // State
@@ -140,6 +123,8 @@ const {
   goToPreviousPage,
   goToNextPage,
   goToPage,
+  changeLimit,
+  currentPageInput,
   getSortIndicator,
   toggleSort,
   getDialogName,
@@ -236,55 +221,5 @@ button:disabled {
   padding: 4px 10px;
   font-size: 11px;
   margin-right: 5px;
-}
-
-.pagination {
-  padding: 15px 20px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.pagination-info {
-  font-size: 11px;
-  color: #666;
-  margin-left: 10px;
-}
-
-.pagination-controls {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.pagination button {
-  padding: 5px 10px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  color: #333;
-  margin-right: 0;
-}
-
-.pagination button:hover:not(:disabled) {
-  background: #e9ecef;
-  color: #333;
-}
-
-.pagination button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pagination button.active {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
 }
 </style>

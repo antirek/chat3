@@ -575,6 +575,11 @@ export function useMessagesPage() {
         loadMessages(page);
       }
     },
+    changeLimit: (newLimit: number) => {
+      pagination.currentLimit.value = newLimit;
+      pagination.setPage(1);
+      loadMessages(1);
+    },
     getSortIndicator,
     toggleSort,
     getDialogName,
