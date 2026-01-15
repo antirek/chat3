@@ -371,6 +371,7 @@
       :status-matrix="statusMatrix"
       :loading="loadingStatusMatrix"
       :error="statusMatrixError"
+      :url="statusMatrixUrl"
       @close="closeStatusMatrixModal"
     />
 
@@ -380,6 +381,7 @@
       :statuses="statuses"
       :loading="loadingStatuses"
       :error="statusesError"
+      :url="statusesUrl"
       :total="totalStatuses"
       :current-page="currentStatusesPage"
       :total-pages="totalStatusesPages"
@@ -861,6 +863,8 @@ const {
   statusMatrixError,
   loadingStatuses,
   statusesError,
+  statusesUrl,
+  statusMatrixUrl,
   totalStatuses,
   statusMatrix,
   statuses,

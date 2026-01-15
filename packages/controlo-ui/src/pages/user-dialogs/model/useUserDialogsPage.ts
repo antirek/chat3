@@ -184,6 +184,8 @@ export function useUserDialogsPage() {
   const currentMessageIdForSetStatus = ref<string | null>(null);
   const setStatusResult = ref('');
   const currentMessageIdForStatuses = ref<string | null>(null);
+  const statusesUrl = ref('');
+  const statusMatrixUrl = ref('');
   const statusMatrix = ref<any[]>([]);
   const statuses = ref<any[]>([]);
   const currentStatusesPage = ref(1);
@@ -1512,12 +1514,8 @@ export function useUserDialogsPage() {
     await nextTick();
     
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
-    const url = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}`;
+    statusMatrixUrl.value = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}`;
     
-    const urlElement = document.getElementById('statusMatrixUrl');
-    if (urlElement) {
-      urlElement.textContent = url;
-    }
     loadingStatusMatrix.value = true;
     statusMatrixError.value = null;
     
@@ -1575,12 +1573,8 @@ export function useUserDialogsPage() {
     await nextTick();
     
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
-    const url = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}/statuses?page=${currentStatusesPage.value}&limit=${currentStatusesLimit.value}`;
+    statusesUrl.value = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}/statuses?page=${currentStatusesPage.value}&limit=${currentStatusesLimit.value}`;
     
-    const urlElement = document.getElementById('statusesUrl');
-    if (urlElement) {
-      urlElement.textContent = url;
-    }
     await loadStatuses(messageId, currentStatusesPage.value, currentStatusesLimit.value);
   }
 
@@ -1602,12 +1596,7 @@ export function useUserDialogsPage() {
     await nextTick();
     
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
-    const url = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}/statuses?page=${page}&limit=${limit}`;
-    
-    const urlElement = document.getElementById('statusesUrl');
-    if (urlElement) {
-      urlElement.textContent = url;
-    }
+    statusesUrl.value = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}/statuses?page=${page}&limit=${limit}`;
     
     try {
       const response = await fetch(
@@ -1664,20 +1653,7 @@ export function useUserDialogsPage() {
     
     await nextTick();
     
-    let url = `/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}/status/`;
-    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
-    const fullUrl = `${baseUrl}${url}{status}`;
-    
-    const urlElement = document.getElementById('setStatusUrl');
-    if (urlElement) {
-      urlElement.textContent = fullUrl;
-    }
-    
-    const resultDiv = document.getElementById('setStatusResult');
-    if (resultDiv) {
-      resultDiv.style.display = 'none';
-      resultDiv.innerHTML = '';
-    }
+    setStatusResult.value = '';
   }
 
   function closeSetStatusModal() {
@@ -1692,11 +1668,7 @@ export function useUserDialogsPage() {
       return;
     }
     
-    const resultDiv = document.getElementById('setStatusResult');
-    if (resultDiv) {
-      resultDiv.style.display = 'block';
-      resultDiv.innerHTML = '<div class="loading">Установка статуса...</div>';
-    }
+    setStatusResult.value = 'Установка статуса...';
     
     try {
       const url = `/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${currentMessageIdForSetStatus.value}/status/${status}`;
@@ -1714,15 +1686,7 @@ export function useUserDialogsPage() {
       const data = await response.json();
       console.log('Status set successfully:', data);
       
-      if (resultDiv) {
-        resultDiv.innerHTML = `
-          <div style="padding: 15px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724;">
-            <strong>✓ Статус успешно установлен!</strong><br>
-            Статус: <strong>${status}</strong><br>
-            <small style="color: #666;">Сообщение обновлено</small>
-          </div>
-        `;
-      }
+      setStatusResult.value = `✓ Статус успешно установлен!\nСтатус: **${status}**\nСообщение обновлено`;
       
       if (currentDialogId.value) {
         setTimeout(() => {
@@ -1735,14 +1699,7 @@ export function useUserDialogsPage() {
       }, 2000);
     } catch (error) {
       console.error('Error setting status:', error);
-      if (resultDiv) {
-        resultDiv.innerHTML = `
-          <div style="padding: 15px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;">
-            <strong>✗ Ошибка при установке статуса</strong><br>
-            ${error instanceof Error ? error.message : 'Unknown error'}
-          </div>
-        `;
-      }
+      setStatusResult.value = `✗ Ошибка: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
   }
 
@@ -2886,10 +2843,12 @@ export function useUserDialogsPage() {
     statusMatrixError,
     loadingStatuses,
     statusesError,
+    statusesUrl,
     totalStatuses,
     currentMessageIdForSetStatus,
     setStatusResult,
     currentMessageIdForStatuses,
+    statusMatrixUrl,
     statusMatrix,
     statuses,
     currentStatusesPage,

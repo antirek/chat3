@@ -1,88 +1,53 @@
 <template>
-  <div v-if="isOpen" class="modal" @click.self="close">
-    <div class="modal-content width-60" @click.stop>
-      <div class="modal-header">
-        <h2 class="modal-title">{{ title }}</h2>
-        <span class="close" @click="close">&times;</span>
-      </div>
-      <div class="modal-body">
-        <div class="meta-list">
-          <div v-if="loading" class="loading">Загрузка meta тегов...</div>
-          <template v-else>
-            <h3 style="margin-bottom: 15px; font-size: 14px;">Текущие Meta теги:</h3>
-            <div v-if="Object.keys(metaTags).length === 0" class="no-data">
-              Meta теги отсутствуют
-            </div>
-            <table v-else style="width: 100%; border-collapse: collapse;">
-              <thead>
-                <tr style="border-bottom: 2px solid #dee2e6; background: #f8f9fa;">
-                  <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057;">Key</th>
-                  <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057;">Value</th>
-                  <th style="text-align: left; padding: 10px; font-weight: 600; color: #495057;">Действия</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(value, key) in metaTags"
-                  :key="key"
-                  style="border-bottom: 1px solid #e9ecef;"
-                >
-                  <td style="padding: 10px;">
-                    <strong>{{ key }}</strong>
-                  </td>
-                  <td style="padding: 10px;">
-                    {{ JSON.stringify(value) }}
-                  </td>
-                  <td style="padding: 10px;">
-                    <button
-                      type="button"
-                      class="btn-danger btn-small"
-                      @click="deleteTag(key)"
-                    >
-                      🗑️ Удалить
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </template>
+  <BaseModal :is-open="isOpen" :title="title" max-width="800px" @close="close">
+    <div class="meta-list">
+      <div v-if="loading" class="loading">Загрузка meta тегов...</div>
+      <template v-else>
+        <h3 style="margin-bottom: 15px; font-size: 14px;">Текущие Meta теги:</h3>
+        <div v-if="Object.keys(metaTags).length === 0" class="no-data">
+          Meta теги отсутствуют
         </div>
+        <table v-else class="meta-table">
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Value</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(value, key) in metaTags" :key="key">
+              <td><strong>{{ key }}</strong></td>
+              <td>{{ JSON.stringify(value) }}</td>
+              <td>
+                <button type="button" class="btn-danger btn-small" @click="deleteTag(String(key))">
+                  🗑️ Удалить
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
+    </div>
 
-        <div class="meta-section">
-          <h3>Добавить Meta тег</h3>
-          <div class="meta-tag-row">
-            <input
-              type="text"
-              v-model="newKey"
-              :placeholder="keyPlaceholder"
-            />
-            <input
-              type="text"
-              v-model="newValue"
-              :placeholder="valuePlaceholder"
-            />
-            <button
-              type="button"
-              class="btn-success btn-add-meta-tag"
-              @click="addTag"
-            >
-              ➕ Добавить
-            </button>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button type="button" class="btn-secondary" @click="close">
-            Закрыть
-          </button>
-        </div>
+    <div class="meta-section">
+      <h3>Добавить Meta тег</h3>
+      <div class="meta-tag-row">
+        <input type="text" v-model="newKey" :placeholder="keyPlaceholder" />
+        <input type="text" v-model="newValue" :placeholder="valuePlaceholder" />
+        <button type="button" class="btn-success" @click="addTag">➕ Добавить</button>
       </div>
     </div>
-  </div>
+
+    <template #footer>
+      <button type="button" class="btn-secondary" @click="close">Закрыть</button>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { BaseModal } from '@/shared/ui';
 
 interface Props {
   isOpen: boolean;
@@ -93,18 +58,16 @@ interface Props {
   valuePlaceholder?: string;
 }
 
-interface Emits {
-  (e: 'close'): void;
-  (e: 'add-tag', key: string, value: string): void;
-  (e: 'delete-tag', key: string): void;
-}
-
 const props = withDefaults(defineProps<Props>(), {
   keyPlaceholder: 'key (например: type)',
   valuePlaceholder: 'value (например: "internal" или {"foo": "bar"})',
 });
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<{
+  (e: 'close'): void;
+  (e: 'add-tag', key: string, value: string): void;
+  (e: 'delete-tag', key: string): void;
+}>();
 
 const newKey = ref('');
 const newValue = ref('');
@@ -129,70 +92,6 @@ function deleteTag(key: string) {
 </script>
 
 <style scoped>
-.modal {
-  display: block;
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-}
-
-.modal-content {
-  background-color: #fefefe;
-  margin: 3% auto;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 1200px;
-  max-height: 90vh;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-.width-60 {
-  width: 60% !important;
-  max-width: 800px;
-}
-
-.modal-header {
-  background: #f8f9fa;
-  padding: 20px;
-  border-bottom: 1px solid #e9ecef;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-title {
-  margin: 0;
-  color: #333;
-  font-size: 18px;
-}
-
-.close {
-  color: #aaa;
-  font-size: 28px;
-  font-weight: bold;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.close:hover,
-.close:focus {
-  color: #000;
-  text-decoration: none;
-}
-
-.modal-body {
-  padding: 20px;
-  max-height: calc(90vh - 100px);
-  overflow-y: auto;
-}
-
 .loading,
 .no-data {
   padding: 20px;
@@ -202,6 +101,31 @@ function deleteTag(key: string) {
 
 .meta-list {
   margin-bottom: 20px;
+}
+
+.meta-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.meta-table th,
+.meta-table td {
+  text-align: left;
+  padding: 10px;
+}
+
+.meta-table thead tr {
+  border-bottom: 2px solid #dee2e6;
+  background: #f8f9fa;
+}
+
+.meta-table th {
+  font-weight: 600;
+  color: #495057;
+}
+
+.meta-table tbody tr {
+  border-bottom: 1px solid #e9ecef;
 }
 
 .meta-section {
@@ -219,7 +143,6 @@ function deleteTag(key: string) {
 .meta-tag-row {
   display: flex;
   gap: 8px;
-  margin-bottom: 10px;
   align-items: center;
 }
 
@@ -235,10 +158,10 @@ function deleteTag(key: string) {
   background: #28a745;
   color: white;
   border: none;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .btn-success:hover {
@@ -262,38 +185,16 @@ function deleteTag(key: string) {
 .btn-small {
   padding: 4px 5px;
   font-size: 11px;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.btn-add-meta-tag {
-  padding: 6px 12px;
-  font-size: 12px;
-  line-height: 1;
-  height: auto;
-  border-radius: 4px;
-}
-
-.form-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.form-actions button {
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  background: white;
-  transition: all 0.2s;
 }
 
 .btn-secondary {
   background: #6c757d;
   color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
 }
 
 .btn-secondary:hover {
