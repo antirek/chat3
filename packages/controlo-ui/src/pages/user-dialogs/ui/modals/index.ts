@@ -11,3 +11,4 @@ export { default as AddMemberModal } from './AddMemberModal.vue';
 export { default as MemberMetaModal } from './MemberMetaModal.vue';
 export { default as AddTopicModal } from './AddTopicModal.vue';
 export { default as TopicMetaModal } from './TopicMetaModal.vue';
+export { default as UrlModal } from './UrlModal.vue';

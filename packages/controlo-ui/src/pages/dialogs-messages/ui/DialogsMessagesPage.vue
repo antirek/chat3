@@ -221,13 +221,22 @@
       @create="createDialog"
       @update:selected-members="selectedMembers = $event"
     />
+    
+    <UrlModal
+      :is-open="showUrlModal"
+      :title="urlModalTitle"
+      :url="urlModalUrl"
+      :copy-button-text="urlCopyButtonText"
+      @close="closeUrlModal"
+      @copy="copyUrlToClipboard"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useDialogsMessagesPage } from '../model/useDialogsMessagesPage';
 import { DialogTable } from './tables';
-import { DialogInfoModal, CreateDialogModal } from './modals';
+import { DialogInfoModal, CreateDialogModal, UrlModal } from './modals';
 import { MessagesTableSimple } from './tables';
 
 const {
@@ -298,6 +307,13 @@ const {
   showDialogInfo,
   showMessageInfo,
   closeModal,
+  // URL модалка
+  showUrlModal,
+  urlModalTitle,
+  urlModalUrl,
+  urlCopyButtonText,
+  closeUrlModal,
+  copyUrlToClipboard,
 } = useDialogsMessagesPage();
 </script>
 

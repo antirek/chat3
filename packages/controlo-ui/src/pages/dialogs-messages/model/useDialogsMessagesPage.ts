@@ -65,10 +65,16 @@ export function useDialogsMessagesPage() {
   // Модальные окна
   const infoModal = useModal();
   const createDialogModal = useModal();
+  const urlModal = useModal();
   const modalTitle = ref('Информация');
   const modalBody = ref('');
   const modalUrl = ref('');
   const currentModalJsonForCopy = ref<string | null>(null);
+  
+  // URL модалка
+  const urlModalTitle = ref('');
+  const urlModalUrl = ref('');
+  const urlCopyButtonText = ref('📋 Скопировать URL');
 
   // Создание диалога
   const usersForDialog = ref<any[]>([]);
@@ -467,30 +473,10 @@ export function useDialogsMessagesPage() {
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
     const completeUrl = `${baseUrl}${fullUrl}`;
 
-    showModal(
-      'Текущий URL запроса сообщений',
-      `
-    <div class="url-info">
-      <h4>API Endpoint:</h4>
-      <div class="url-display">${escapeHtml(fullUrl)}</div>
-      
-      <h4>Параметры:</h4>
-      <div class="params-list">
-        <div><strong>page:</strong> ${messagesPagination.currentPage.value}</div>
-        <div><strong>limit:</strong> 10</div>
-        ${currentMessageFilter.value ? `<div><strong>filter:</strong> ${escapeHtml(currentMessageFilter.value)}</div>` : ''}
-        ${currentMessageSort.value ? `<div><strong>sort:</strong> ${escapeHtml(currentMessageSort.value)}</div>` : ''}
-      </div>
-      
-      <h4>Полный URL для копирования:</h4>
-      <div class="url-copy">
-        <input type="text" value="${escapeHtml(completeUrl)}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
-        <button onclick="copyToClipboard('${escapeHtml(completeUrl)}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
-      </div>
-    </div>
-  `,
-      completeUrl,
-    );
+    urlModalTitle.value = 'Текущий URL запроса сообщений';
+    urlModalUrl.value = completeUrl;
+    urlCopyButtonText.value = '📋 Скопировать URL';
+    urlModal.open();
   }
 
   function showCurrentUrl() {
@@ -516,30 +502,26 @@ export function useDialogsMessagesPage() {
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
     const completeUrl = `${baseUrl}${fullUrl}`;
 
-    showModal(
-      'Текущий URL запроса диалогов',
-      `
-    <div class="url-info">
-      <h4>API Endpoint:</h4>
-      <div class="url-display">${escapeHtml(fullUrl)}</div>
-      
-      <h4>Параметры:</h4>
-      <div class="params-list">
-        <div><strong>page:</strong> ${dialogsPagination.currentPage.value}</div>
-        <div><strong>limit:</strong> 10</div>
-        ${currentFilter.value ? `<div><strong>filter:</strong> ${escapeHtml(currentFilter.value)}</div>` : ''}
-        ${currentAdditionalFilter.value ? `<div><strong>additional filter:</strong> ${escapeHtml(currentAdditionalFilter.value)}</div>` : ''}
-        ${currentSort.value ? `<div><strong>sort:</strong> ${escapeHtml(currentSort.value)}</div>` : ''}
-      </div>
-      
-      <h4>Полный URL для копирования:</h4>
-      <div class="url-copy">
-        <input type="text" value="${escapeHtml(completeUrl)}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
-        <button onclick="copyToClipboard('${escapeHtml(completeUrl)}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
-      </div>
-    </div>
-  `,
-      completeUrl,
+    urlModalTitle.value = 'Текущий URL запроса диалогов';
+    urlModalUrl.value = completeUrl;
+    urlCopyButtonText.value = '📋 Скопировать URL';
+    urlModal.open();
+  }
+  
+  function copyUrlToClipboard() {
+    navigator.clipboard.writeText(urlModalUrl.value).then(
+      () => {
+        urlCopyButtonText.value = '✅ Скопировано!';
+        setTimeout(() => {
+          urlCopyButtonText.value = '📋 Скопировать URL';
+        }, 2000);
+      },
+      () => {
+        urlCopyButtonText.value = '❌ Ошибка';
+        setTimeout(() => {
+          urlCopyButtonText.value = '📋 Скопировать URL';
+        }, 2000);
+      },
     );
   }
 
@@ -881,5 +863,12 @@ export function useDialogsMessagesPage() {
     showMessageInfo,
     closeModal: infoModal.close,
     copyJsonToClipboardFromModal,
+    // URL модалка
+    showUrlModal: urlModal.isOpen,
+    urlModalTitle,
+    urlModalUrl,
+    urlCopyButtonText,
+    closeUrlModal: urlModal.close,
+    copyUrlToClipboard,
   };
 }

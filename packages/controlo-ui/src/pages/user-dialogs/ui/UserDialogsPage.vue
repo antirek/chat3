@@ -482,6 +482,15 @@
       @update:new-key="newTopicMetaKey = $event"
       @update:new-value="newTopicMetaValue = $event"
     />
+
+    <UrlModal
+      :is-open="showUrlModal"
+      :title="urlModalTitle"
+      :url="urlModalUrl"
+      :copy-button-text="urlCopyButtonText"
+      @close="closeUrlModal"
+      @copy="copyUrlToClipboard"
+    />
   </div>
 </template>
 
@@ -502,6 +511,7 @@ import {
   MemberMetaModal,
   AddTopicModal,
   TopicMetaModal,
+  UrlModal,
 } from './modals';
 import { FilterPanel, type FilterExample } from './filters';
 import { Pagination, UsersPagination } from './pagination';
@@ -941,6 +951,13 @@ const {
   removeMemberFromPanel,
   showMembersUrlModal,
   showTopicsUrlModal,
+  // URL модалка
+  showUrlModal,
+  urlModalTitle,
+  urlModalUrl,
+  urlCopyButtonText,
+  closeUrlModal,
+  copyUrlToClipboard,
 } = pageData;
 
 // Инициализация

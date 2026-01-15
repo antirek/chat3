@@ -145,6 +145,12 @@ export function useUserDialogsPage() {
   const memberMetaModal = useModal();
   const messageMetaModal = useModal();
   const topicMetaModal = useModal();
+  const urlModal = useModal();
+
+  // URL модалка - данные
+  const urlModalTitle = ref('');
+  const urlModalUrl = ref('');
+  const urlCopyButtonText = ref('📋 Скопировать URL');
 
   // Модальные окна - данные
   const modalTitle = ref('Информация');
@@ -974,7 +980,10 @@ export function useUserDialogsPage() {
 
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
     const url = `${baseUrl}/api/users?${params.toString()}`;
-    showModal('URL запроса пользователей', `<div class="url-display">${escapeHtml(url)}</div>`, url);
+    urlModalTitle.value = 'URL запроса пользователей';
+    urlModalUrl.value = url;
+    urlCopyButtonText.value = '📋 Скопировать URL';
+    urlModal.open();
   }
 
   async function showCurrentUrl() {
@@ -997,25 +1006,10 @@ export function useUserDialogsPage() {
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
     const fullUrlWithOrigin = `${baseUrl}${fullUrl}`;
     
-    showModal('Текущий URL запроса', `
-      <div class="url-info">
-        <h4>API Endpoint:</h4>
-        <div class="url-display">${escapeHtml(fullUrl)}</div>
-        
-        <h4>Параметры:</h4>
-        <div class="params-list">
-          <div><strong>page:</strong> ${dialogsPagination.currentPage.value}</div>
-          <div><strong>limit:</strong> 10</div>
-          ${dialogsFilter.currentFilter.value ? `<div><strong>filter:</strong> ${escapeHtml(dialogsFilter.currentFilter.value)}</div>` : ''}
-        </div>
-        
-        <h4>Полный URL для копирования:</h4>
-        <div class="url-copy">
-          <input type="text" value="${escapeHtml(fullUrlWithOrigin)}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
-          <button onclick="copyToClipboardFromModal('${escapeHtml(fullUrlWithOrigin)}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Копировать</button>
-        </div>
-      </div>
-    `);
+    urlModalTitle.value = 'Текущий URL запроса диалогов';
+    urlModalUrl.value = fullUrlWithOrigin;
+    urlCopyButtonText.value = '📋 Скопировать URL';
+    urlModal.open();
   }
 
   async function showCurrentMessageUrl() {
@@ -1032,7 +1026,27 @@ export function useUserDialogsPage() {
 
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
     const fullUrl = `${baseUrl}${url}`;
-    showModal('URL запроса сообщений', `<div class="url-display">${escapeHtml(fullUrl)}</div>`, fullUrl);
+    urlModalTitle.value = 'URL запроса сообщений';
+    urlModalUrl.value = fullUrl;
+    urlCopyButtonText.value = '📋 Скопировать URL';
+    urlModal.open();
+  }
+  
+  function copyUrlToClipboard() {
+    navigator.clipboard.writeText(urlModalUrl.value).then(
+      () => {
+        urlCopyButtonText.value = '✅ Скопировано!';
+        setTimeout(() => {
+          urlCopyButtonText.value = '📋 Скопировать URL';
+        }, 2000);
+      },
+      () => {
+        urlCopyButtonText.value = '❌ Ошибка';
+        setTimeout(() => {
+          urlCopyButtonText.value = '📋 Скопировать URL';
+        }, 2000);
+      },
+    );
   }
 
   async function showDialogInfo(dialogId: string) {
@@ -2610,15 +2624,10 @@ export function useUserDialogsPage() {
     }
     
     const url = generateMembersApiUrl(currentDialogId.value);
-    showModal('URL запроса участников', `
-      <div class="url-info">
-        <h4>Полный URL для копирования:</h4>
-        <div class="url-copy">
-          <input type="text" id="membersUrlInput" value="${escapeHtml(url)}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
-          <button onclick="copyToClipboardFromModal('${escapeHtml(url)}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; display: block; margin-left: auto; margin-right: 0;">📋 Копировать</button>
-        </div>
-      </div>
-    `);
+    urlModalTitle.value = 'URL запроса участников';
+    urlModalUrl.value = url;
+    urlCopyButtonText.value = '📋 Скопировать URL';
+    urlModal.open();
   }
 
   async function showTopicsUrlModal() {
@@ -2635,15 +2644,10 @@ export function useUserDialogsPage() {
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
     const url = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/topics?page=${topicsPagination.currentPage.value}&limit=10`;
     
-    showModal('URL запроса топиков', `
-      <div class="url-info">
-        <h4>Полный URL для копирования:</h4>
-        <div class="url-copy">
-          <input type="text" id="topicsUrlInput" value="${escapeHtml(url)}" readonly onclick="this.select()" style="width: 100%; padding: 8px; font-family: monospace; font-size: 12px;">
-          <button onclick="copyToClipboardFromModal('${escapeHtml(url)}')" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; display: block; margin-left: auto; margin-right: 0;">📋 Копировать</button>
-        </div>
-      </div>
-    `);
+    urlModalTitle.value = 'URL запроса топиков';
+    urlModalUrl.value = url;
+    urlCopyButtonText.value = '📋 Скопировать URL';
+    urlModal.open();
   }
 
   // Lifecycle
@@ -2938,5 +2942,12 @@ export function useUserDialogsPage() {
     generateMembersApiUrl,
     showMembersUrlModal,
     showTopicsUrlModal,
+    // URL модалка
+    showUrlModal: urlModal.isOpen,
+    urlModalTitle,
+    urlModalUrl,
+    urlCopyButtonText,
+    closeUrlModal: urlModal.close,
+    copyUrlToClipboard,
   };
 }
