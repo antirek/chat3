@@ -146,14 +146,8 @@
 <script setup lang="ts">
 import { useUsersPage } from '../model/useUsersPage';
 import UserFilterPanel from './UserFilterPanel.vue';
-import {
-  CreateUserModal,
-  EditUserModal,
-  UserMetaModal,
-  UserInfoModal,
-  UserUrlModal,
-  UserTable,
-} from '@/entities/user/ui';
+import { UserTable } from './tables';
+import { UserInfoModal, UserMetaModal, UserUrlModal, CreateUserModal, EditUserModal } from './modals';
 
 const {
   // State
