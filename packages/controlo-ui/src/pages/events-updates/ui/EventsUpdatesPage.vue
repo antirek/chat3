@@ -106,8 +106,7 @@
 import { useEventsUpdatesPage } from '../model/useEventsUpdatesPage';
 import { EventFilterPanel, UpdateFilterPanel } from './filters';
 import { EventPagination, UpdatePagination } from './pagination';
-import { EventTable } from '@/entities/event/ui';
-import { UpdateTable } from '@/entities/update/ui';
+import { EventTable, UpdateTable } from './tables';
 import { UrlModal, JsonModal } from './modals';
 
 const {
