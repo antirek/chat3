@@ -40,7 +40,7 @@
         {{ hint }}
       </small>
     </div>
-    <div class="form-actions">
+    <div v-if="showActions" class="form-actions">
       <button class="btn-primary" type="button" @click="apply">Применить</button>
     </div>
   </div>
@@ -69,6 +69,7 @@ export interface BaseFilterProps {
   hint?: string;
   examples?: FilterExample[];
   containerStyle?: string;
+  showActions?: boolean;
 }
 
 const props = withDefaults(defineProps<BaseFilterProps>(), {
@@ -79,6 +80,7 @@ const props = withDefaults(defineProps<BaseFilterProps>(), {
   hint: '',
   examples: () => [],
   containerStyle: '',
+  showActions: true,
 });
 
 const emit = defineEmits<{
@@ -94,7 +96,11 @@ function onInput(e: Event) {
 }
 
 function onExampleChange(e: Event) {
-  emit('update:selectedExample', (e.target as HTMLSelectElement).value);
+  const value = (e.target as HTMLSelectElement).value;
+  emit('update:selectedExample', value);
+  if (value && value !== 'custom') {
+    emit('update:filterValue', value);
+  }
   emit('select-example');
 }
 

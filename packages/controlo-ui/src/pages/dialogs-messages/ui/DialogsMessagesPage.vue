@@ -13,81 +13,15 @@
           </div>
         </div>
 
-        <div class="filter-panel" id="combinedForm">
-          <div class="form-section">
-            <label>🔍 Фильтр:</label>
-            <select id="filterExample" v-model="selectedFilterExample" @change="updateFilterInput">
-              <option value="">Выберите пример фильтра</option>
-              <option value="(meta.channelType,eq,whatsapp)">meta. Тип канала = whatsapp</option>
-              <option value="(meta.channelType,ne,telegram)">meta. Тип канала ≠ telegram</option>
-              <option value="(meta.type,eq,internal)">meta. Тип диалога = internal</option>
-              <option value="(meta.type,ne,external)">meta. Тип диалога ≠ external</option>
-              <option value="(meta.securityLevel,eq,high)">meta. Уровень безопасности = high</option>
-              <option value="(meta.securityLevel,in,[high,medium])">meta. Уровень безопасности в [high,medium]</option>
-              <option value="(meta.maxParticipants,gt,50)">meta. Макс. участников > 50</option>
-              <option value="(meta.maxParticipants,gte,100)">meta. Макс. участников ≥ 100</option>
-              <option value="(meta.channelType,regex,^whats)">meta. Тип канала начинается с 'whats'</option>
-              <option value="(meta.channelType,eq,whatsapp)&(meta.securityLevel,in,[high,medium])">meta. WhatsApp + высокий/средний уровень безопасности</option>
-              <option value="(meta.type,eq,internal)&(meta.maxParticipants,eq,50)">meta. Внутренний + 50 участников</option>
-              <option value="(meta.channelType,eq,telegram)&(meta.securityLevel,eq,high)">meta. Telegram + высокий уровень безопасности</option>
-              <option value="(member,eq,carl)">👤 Диалоги с Carl</option>
-              <option value="(member,eq,marta)">👤 Диалоги с Marta</option>
-              <option value="(member,eq,sara)">👤 Диалоги с Sara</option>
-              <option value="(member,eq,kirk)">👤 Диалоги с Kirk</option>
-              <option value="(member,eq,john)">👤 Диалоги с John</option>
-              <option value="(member,in,[carl,marta])">👥 Диалоги с Carl или Marta</option>
-              <option value="(member,in,[sara,kirk,john])">👥 Диалоги с Sara, Kirk или John</option>
-              <option value="(member,all,[carl,marta])">👥 Диалоги с Carl И Marta (оба участника)</option>
-              <option value="(member,all,[carl,sara,kirk])">👥 Диалоги с Carl, Sara И Kirk (все трое)</option>
-              <option value="(member,eq,carl)&(meta.channelType,eq,whatsapp)">👤 Carl + WhatsApp</option>
-              <option value="(member,eq,marta)&(meta.type,eq,internal)">👤 Marta + Внутренний</option>
-              <option value="(member,eq,sara)&(meta.securityLevel,eq,high)">👤 Sara + Высокий уровень безопасности</option>
-              <option value="(member,in,[carl,marta])&(meta.channelType,eq,telegram)">👥 Carl/Marta + Telegram</option>
-              <option value="(member,eq,kirk)&(meta.maxParticipants,gte,50)">👤 Kirk + ≥50 участников</option>
-              <option value="(member,eq,john)&(meta.channelType,eq,whatsapp)&(meta.securityLevel,eq,high)">👤 John + WhatsApp + Высокий уровень</option>
-              <option value="(member,all,[carl,marta])&(meta.type,eq,internal)&(meta.maxParticipants,eq,50)">👥 Carl+Marta + Внутренний + 50 участников</option>
-              <option value="(member,in,[sara,kirk])&(meta.channelType,in,[whatsapp,telegram])&(meta.securityLevel,in,[high,medium])">👥 Sara/Kirk + WhatsApp/Telegram + Высокий/Средний уровень</option>
-              <option value="(member[carl].unreadCount,gte,4)&(meta.channelType,eq,whatsapp)">📬 Carl ≥4 непрочитанных + WhatsApp</option>
-              <option value="(member[carl].unreadCount,eq,0)&(meta.type,eq,internal)">📬 Carl 0 непрочитанных + Внутренний</option>
-              <option value="(member[carl].unreadCount,gte,2)&(meta.securityLevel,eq,high)">📬 Carl ≥2 непрочитанных + Высокий уровень</option>
-              <option value="custom">Пользовательский фильтр</option>
-            </select>
-            <div class="input-with-clear">
-              <input type="text" id="filterValue" v-model="filterValue" placeholder="Введите или выберите фильтр" />
-              <button class="clear-field" @click="clearAll" title="Очистить фильтр">✕</button>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <label>🔄 Сортировка:</label>
-            <select id="sortExample" v-model="selectedSortExample" @change="updateSortInput">
-              <option value="">Выберите пример сортировки</option>
-              <option value="(createdAt,desc)">🕒 Создание диалога (новые сверху)</option>
-              <option value="(createdAt,asc)">🕒 Создание диалога (старые сверху)</option>
-              <option value="(member[carl].unreadCount,desc)">📬 Непрочитанные Carl (больше сверху)</option>
-              <option value="(member[carl].unreadCount,asc)">📬 Непрочитанные Carl (меньше сверху)</option>
-              <option value="(member[marta].unreadCount,desc)">📬 Непрочитанные Marta (больше сверху)</option>
-              <option value="(member[marta].unreadCount,asc)">📬 Непрочитанные Marta (меньше сверху)</option>
-              <option value="(member[sara].unreadCount,desc)">📬 Непрочитанные Sara (больше сверху)</option>
-              <option value="(member[sara].unreadCount,asc)">📬 Непрочитанные Sara (меньше сверху)</option>
-              <option value="(member[kirk].unreadCount,desc)">📬 Непрочитанные Kirk (больше сверху)</option>
-              <option value="(member[kirk].unreadCount,asc)">📬 Непрочитанные Kirk (меньше сверху)</option>
-              <option value="(member[john].unreadCount,desc)">📬 Непрочитанные John (больше сверху)</option>
-              <option value="(member[john].unreadCount,asc)">📬 Непрочитанные John (меньше сверху)</option>
-              <option value="custom">Пользовательская сортировка</option>
-            </select>
-            <div class="input-with-clear">
-              <input type="text" id="sortValue" v-model="sortValue" placeholder="Введите или выберите сортировку" />
-              <button class="clear-field" @click="clearAll" title="Очистить сортировку">✕</button>
-            </div>
-          </div>
-
-          <div class="form-actions">
-            <button class="btn-primary" @click="applyCombined" :disabled="applying">
-              {{ applying ? 'Применяется...' : applyButtonText }}
-            </button>
-          </div>
-        </div>
+        <DialogFilterPanel
+          v-model:filter-value="filterValue"
+          v-model:selected-filter-example="selectedFilterExample"
+          v-model:sort-value="sortValue"
+          v-model:selected-sort-example="selectedSortExample"
+          :applying="applying"
+          :button-text="applyButtonText"
+          @apply="applyCombined"
+        />
 
         <DialogsPagination
           :show="showDialogsPagination"
@@ -131,34 +65,13 @@
           </div>
         </div>
 
-        <div class="filter-panel" id="messageFilterForm" v-show="currentDialogId">
-          <div class="form-section">
-            <label>🔍 Фильтр:</label>
-            <select id="messageFilterExample" v-model="selectedMessageFilterExample" @change="updateMessageFilterInput">
-              <option value="">Выберите пример фильтра</option>
-              <option value="(content,regex,встретимся)">📝 Содержит "встретимся"</option>
-              <option value="(content,regex,спасибо)">📝 Содержит "спасибо"</option>
-              <option value="(content,regex,привет)">📝 Содержит "привет"</option>
-              <option value="(type,eq,internal.text)">📝 Тип = internal.text</option>
-              <option value="(type,eq,system)">📝 Тип = system</option>
-              <option value="(senderId,eq,carl)">👤 Отправитель = carl</option>
-              <option value="(senderId,eq,sara)">👤 Отправитель = sara</option>
-              <option value="custom">✏️ Пользовательский фильтр</option>
-            </select>
-            <div class="input-with-clear">
-              <input
-                type="text"
-                id="messageFilterValue"
-                v-model="messageFilterValue"
-                placeholder="Введите или выберите фильтр"
-              />
-              <button class="clear-field" @click="clearMessageFilter" title="Очистить фильтр">✕</button>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn-primary" @click="applyMessageFilter">Применить</button>
-          </div>
-        </div>
+        <MessageFilterPanel
+          v-show="currentDialogId"
+          v-model:filter-value="messageFilterValue"
+          v-model:selected-example="selectedMessageFilterExample"
+          @clear="clearMessageFilter"
+          @apply="applyMessageFilter"
+        />
 
         <MessagesPagination
           :show="showMessagesPagination"
@@ -219,6 +132,7 @@ import { useDialogsMessagesPage } from '../model/useDialogsMessagesPage';
 import { DialogTable, MessagesTableSimple } from './tables';
 import { DialogInfoModal, CreateDialogModal, UrlModal } from './modals';
 import { DialogsPagination, MessagesPagination } from './pagination';
+import { DialogFilterPanel, MessageFilterPanel } from './filters';
 
 const {
   // Диалоги
@@ -262,9 +176,6 @@ const {
   usersLoaded,
   selectedMembers,
   // Функции
-  updateFilterInput,
-  updateSortInput,
-  clearAll,
   applyCombined,
   changePage,
   formatUpdatedAt,
@@ -276,7 +187,6 @@ const {
   getDialogSortIndicator,
   toggleMessageSort,
   getMessageSortIndicator,
-  updateMessageFilterInput,
   applyMessageFilter,
   clearMessageFilter,
   showCurrentMessageUrl,
