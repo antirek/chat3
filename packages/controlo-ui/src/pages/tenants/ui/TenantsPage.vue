@@ -142,13 +142,8 @@
 <script setup lang="ts">
 import { useTenantsPage } from '../model/useTenantsPage';
 import TenantFilterPanel from './TenantFilterPanel.vue';
-import {
-  CreateTenantModal,
-  TenantMetaModal,
-  TenantInfoModal,
-  TenantUrlModal,
-  TenantTable,
-} from '@/entities/tenant/ui';
+import { TenantTable } from './tables';
+import { TenantInfoModal, TenantMetaModal, TenantUrlModal, CreateTenantModal } from './modals';
 
 const {
   // State
