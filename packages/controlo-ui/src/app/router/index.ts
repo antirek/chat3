@@ -30,7 +30,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/user-dialogs',
     name: 'user-dialogs',
-    component: () => import('@/pages/UserDialogsPage.vue'),
+    component: () => import('@/pages/user-dialogs'),
   },
   {
     path: '/db-explorer',
