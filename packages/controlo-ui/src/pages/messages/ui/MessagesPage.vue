@@ -100,12 +100,8 @@
 <script setup lang="ts">
 import { useMessagesPage } from '../model/useMessagesPage';
 import MessageFilterPanel from './MessageFilterPanel.vue';
-import {
-  MessageTable,
-  MessageInfoModal,
-  MessageMetaModal,
-  MessageUrlModal,
-} from '@/entities/message/ui';
+import { MessageTable } from './tables';
+import { MessageInfoModal, MessageMetaModal, MessageUrlModal } from './modals';
 
 const {
   // State

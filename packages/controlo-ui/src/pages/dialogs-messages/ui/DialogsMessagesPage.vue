@@ -228,7 +228,7 @@
 import { useDialogsMessagesPage } from '../model/useDialogsMessagesPage';
 import { DialogTable } from './tables';
 import { DialogInfoModal, CreateDialogModal } from './modals';
-import { MessagesTableSimple } from '@/entities/message/ui';
+import { MessagesTableSimple } from './tables';
 
 const {
   // Диалоги
