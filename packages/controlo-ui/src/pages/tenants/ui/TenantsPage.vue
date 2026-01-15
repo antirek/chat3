@@ -21,64 +21,21 @@
         @apply="applyTenantFilter"
       />
 
-      <div class="pagination" v-if="totalTenants > 0" id="pagination">
-        <div class="pagination-info" id="paginationInfo">
-          Показано {{ paginationStart }}-{{ paginationEnd }} из {{ totalTenants }} тенантов
-        </div>
-        <div class="pagination-controls">
-          <button
-            class="btn-secondary btn-small"
-            @click="goToFirstPage"
-            :disabled="currentPage <= 1"
-          >
-            ⏮ Первая
-          </button>
-          <button
-            class="btn-secondary btn-small"
-            @click="goToPreviousPage"
-            :disabled="currentPage <= 1"
-          >
-            ◀ Предыдущая
-          </button>
-          <span style="font-size: 12px; margin: 0 8px;">Страница</span>
-          <input
-            type="number"
-            id="currentPageInput"
-            v-model.number="currentPageInput"
-            :min="1"
-            :max="totalPages"
-            @change="goToPage(currentPageInput)"
-          />
-          <span style="font-size: 12px; margin: 0 8px;">из</span>
-          <span id="totalPages" style="font-size: 12px;">{{ totalPages }}</span>
-          <button
-            class="btn-secondary btn-small"
-            @click="goToNextPage"
-            :disabled="currentPage >= totalPages"
-          >
-            Следующая ▶
-          </button>
-          <button
-            class="btn-secondary btn-small"
-            @click="goToLastPage"
-            :disabled="currentPage >= totalPages"
-          >
-            Последняя ⏭
-          </button>
-          <span style="font-size: 12px; margin-left: 12px;">Показать:</span>
-          <select
-            id="pageLimit"
-            v-model.number="currentLimit"
-            @change="changeLimit(currentLimit)"
-            style="padding: 4px 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px;"
-          >
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="50">50</option>
-            <option :value="100">100</option>
-          </select>
-        </div>
-      </div>
+      <TenantsPagination
+        :current-page="currentPage"
+        :current-page-input="currentPageInput"
+        :total-pages="totalPages"
+        :total="totalTenants"
+        :pagination-start="paginationStart"
+        :pagination-end="paginationEnd"
+        :current-limit="currentLimit"
+        @first="goToFirstPage"
+        @prev="goToPreviousPage"
+        @next="goToNextPage"
+        @last="goToLastPage"
+        @go-to-page="goToPage"
+        @change-limit="changeLimit"
+      />
 
       <TenantTable
         :tenants="tenants"
@@ -144,6 +101,7 @@ import { useTenantsPage } from '../model/useTenantsPage';
 import TenantFilterPanel from './TenantFilterPanel.vue';
 import { TenantTable } from './tables';
 import { TenantInfoModal, TenantMetaModal, TenantUrlModal, CreateTenantModal } from './modals';
+import { TenantsPagination } from './pagination';
 
 const {
   // State
@@ -529,35 +487,6 @@ tr:hover {
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
-}
-
-.pagination {
-  padding: 15px 20px;
-  border-top: 1px solid #e9ecef;
-  background: #f8f9fa;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.pagination-info {
-  font-size: 13px;
-  color: #6c757d;
-}
-
-.pagination-controls {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.pagination-controls input {
-  width: 60px;
-  padding: 4px 8px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 12px;
-  text-align: center;
 }
 
 .badge {
