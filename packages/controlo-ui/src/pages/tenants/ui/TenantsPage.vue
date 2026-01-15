@@ -98,7 +98,7 @@
 
 <script setup lang="ts">
 import { useTenantsPage } from '../model/useTenantsPage';
-import TenantFilterPanel from './TenantFilterPanel.vue';
+import { TenantFilterPanel } from './filters';
 import { TenantTable } from './tables';
 import { TenantInfoModal, TenantMetaModal, TenantUrlModal, CreateTenantModal } from './modals';
 import { TenantsPagination } from './pagination';
