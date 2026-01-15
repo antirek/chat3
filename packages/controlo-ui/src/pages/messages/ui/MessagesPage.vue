@@ -81,7 +81,7 @@
 
 <script setup lang="ts">
 import { useMessagesPage } from '../model/useMessagesPage';
-import MessageFilterPanel from './MessageFilterPanel.vue';
+import { MessageFilterPanel } from './filters';
 import { MessageTable } from './tables';
 import { MessageInfoModal, MessageMetaModal, MessageUrlModal } from './modals';
 import { MessagesPagination } from './pagination';
