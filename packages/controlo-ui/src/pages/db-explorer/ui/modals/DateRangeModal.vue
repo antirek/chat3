@@ -29,15 +29,15 @@
       </div>
     </div>
     <template #footer>
-      <button type="button" class="btn-secondary" @click="close">Отмена</button>
-      <button type="button" class="btn-primary" @click="$emit('apply')">Применить</button>
+      <BaseButton variant="secondary" @click="close">Отмена</BaseButton>
+      <BaseButton variant="success" @click="$emit('apply')">Применить</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Day { date: number; fullDate: Date; isCurrentMonth: boolean; }
 interface Props {
@@ -84,6 +84,4 @@ function close() { emit('close'); }
 .calendar-day.other-month { color: #ced4da; }
 .calendar-day.selected, .calendar-day.range-start, .calendar-day.range-end { background: #667eea; color: white; }
 .calendar-day.in-range { background: #e7f3ff; }
-.btn-primary { padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; }
-.btn-secondary { padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; }
 </style>

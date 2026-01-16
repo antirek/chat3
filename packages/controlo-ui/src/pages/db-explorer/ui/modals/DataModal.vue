@@ -2,13 +2,13 @@
   <BaseModal :is-open="isOpen" title="Просмотр поля data" max-width="800px" @close="$emit('close')">
     <pre class="json-viewer">{{ content }}</pre>
     <template #footer>
-      <button type="button" class="btn-secondary" @click="$emit('close')">Закрыть</button>
+      <BaseButton variant="secondary" @click="$emit('close')">Закрыть</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Props { isOpen: boolean; content: string; }
 defineProps<Props>();
@@ -28,5 +28,4 @@ defineEmits<{ (e: 'close'): void; }>();
   word-break: break-all;
   margin: 0;
 }
-.btn-secondary { padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; }
 </style>

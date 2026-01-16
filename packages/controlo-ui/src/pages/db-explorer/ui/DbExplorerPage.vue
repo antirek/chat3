@@ -16,7 +16,7 @@
           <span>{{ currentModel || 'Выберите модель' }}</span>
         </template>
         <template #header-right>
-          <button v-if="currentModel" class="btn btn-primary btn-small" @click="showCreateModal">➕ Создать</button>
+          <BaseButton v-if="currentModel" variant="success" @click="showCreateModal">➕ Создать</BaseButton>
         </template>
         <DataTable
           :current-model="currentModel"
@@ -95,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { BasePanel } from '@/shared/ui';
+import { BasePanel, BaseButton } from '@/shared/ui';
 import { useDbExplorerPage } from '../model/useDbExplorerPage';
 import { ModelsPanel } from './panels';
 import { DataTable } from './tables';
@@ -197,31 +197,5 @@ const {
   gap: 1px;
   background: #ddd;
   overflow: hidden;
-}
-
-
-
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: #667eea;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #5568d3;
-}
-
-.btn-small {
-  padding: 6px 12px;
-  font-size: 12px;
 }
 </style>

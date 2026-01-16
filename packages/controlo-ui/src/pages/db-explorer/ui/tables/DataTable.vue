@@ -14,11 +14,11 @@
       <template #empty>
         <div v-if="hasActiveFilters" class="empty">
           <div>Нет данных, соответствующих фильтрам</div>
-          <button class="empty-refresh-btn" @click="$emit('refresh')">🔄 Обновить</button>
+          <BaseButton variant="primary" @click="$emit('refresh')">🔄 Обновить</BaseButton>
         </div>
         <div v-else class="empty">
           <div>Нет данных</div>
-          <button class="empty-refresh-btn" @click="$emit('refresh')">🔄 Обновить</button>
+          <BaseButton variant="primary" @click="$emit('refresh')">🔄 Обновить</BaseButton>
         </div>
       </template>
       <template #header>
@@ -73,14 +73,14 @@
             >
               {{ formatDateValue(item[key]) }}
             </span>
-            <button
+            <BaseButton
               v-else-if="key === 'data' && typeof item[key] === 'object'"
-              class="btn btn-secondary btn-small data-view-btn"
+              variant="secondary"
               @click="$emit('show-data-modal', item[key])"
               title="Просмотр data"
             >
               📄 data
-            </button>
+            </BaseButton>
             <span v-else-if="typeof item[key] === 'object'" style="color: #6c757d;">[Object]</span>
             <span v-else-if="typeof item[key] === 'string' && item[key].length > 50">
               {{ item[key].substring(0, 50) }}...
@@ -88,9 +88,9 @@
             <span v-else>{{ String(item[key]) }}</span>
           </td>
           <td class="action-buttons">
-            <button class="btn btn-secondary btn-small" @click="$emit('view-item', getItemId(item, index))" title="Просмотр">👁️</button>
-            <button class="btn btn-secondary btn-small" @click="$emit('edit-item', getItemId(item, index))" title="Редактировать">✏️</button>
-            <button class="btn btn-danger btn-small" @click="$emit('delete-item', getItemId(item, index))" title="Удалить">🗑️</button>
+            <BaseButton variant="primary" @click="$emit('view-item', getItemId(item, index))" title="Просмотр">👁️</BaseButton>
+            <BaseButton variant="secondary" @click="$emit('edit-item', getItemId(item, index))" title="Редактировать">✏️</BaseButton>
+            <BaseButton variant="danger" @click="$emit('delete-item', getItemId(item, index))" title="Удалить">🗑️</BaseButton>
           </td>
         </template>
       </BaseTable>
@@ -98,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseTable } from '@/shared/ui';
+import { BaseTable, BaseButton } from '@/shared/ui';
 
 interface Props {
   currentModel: string | null;
@@ -207,48 +207,6 @@ function handleFilter(key: string, value: string) {
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background: #5a6268;
-}
-
-.btn-danger {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #c82333;
-}
-
-.btn-small {
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.data-view-btn {
-  background: #667eea;
-  color: white;
-}
-
-.data-view-btn:hover {
-  background: #5568d3;
-}
-
 .action-buttons {
   display: flex;
   gap: 5px;
@@ -278,18 +236,4 @@ function handleFilter(key: string, value: string) {
   gap: 15px;
 }
 
-.empty-refresh-btn {
-  padding: 6px 12px;
-  font-size: 12px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.empty-refresh-btn:hover {
-  background: #5568d3;
-}
 </style>
