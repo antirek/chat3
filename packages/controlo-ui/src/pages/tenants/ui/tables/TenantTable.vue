@@ -26,24 +26,27 @@
         <td><strong>{{ (item as Tenant).tenantId || '-' }}</strong></td>
         <td>{{ formatTimestamp((item as Tenant).createdAt) }}</td>
         <td>
-          <button
-            class="btn-primary btn-small"
+          <BaseButton
+            variant="primary"
+            size="small"
             @click="showInfo((item as Tenant).tenantId)"
           >
             📋 Инфо
-          </button>
-          <button
-            class="btn-success btn-small"
+          </BaseButton>
+          <BaseButton
+            variant="success"
+            size="small"
             @click="showMeta((item as Tenant).tenantId)"
           >
             🏷️ Мета
-          </button>
-          <button
-            class="btn-danger btn-small"
+          </BaseButton>
+          <BaseButton
+            variant="danger"
+            size="small"
             @click="deleteTenant((item as Tenant).tenantId)"
           >
             🗑️ Удалить
-          </button>
+          </BaseButton>
         </td>
       </template>
     </BaseTable>
@@ -51,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseTable } from '@/shared/ui';
+import { BaseTable, BaseButton } from '@/shared/ui';
 
 interface Tenant {
   tenantId: string;
@@ -101,52 +104,4 @@ function deleteTenant(tenantId: string) {
   color: #667eea;
 }
 
-button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #667eea;
-  color: white;
-  border: none;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #5a6fd8;
-}
-
-.btn-success {
-  background: #48bb78;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  background: #38a169;
-}
-
-.btn-danger {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #c82333;
-}
-
-.btn-small {
-  padding: 4px 10px;
-  font-size: 11px;
-  margin-right: 5px;
-}
 </style>

@@ -93,7 +93,7 @@ const buttonStyle = computed(() => {
 
 .base-button--small {
   padding: 3px 6px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: normal;
   margin: 1px;
 }

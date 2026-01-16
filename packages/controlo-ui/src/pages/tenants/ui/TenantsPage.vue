@@ -3,10 +3,10 @@
     <BasePanel>
       <template #header-left>
         <span>🏢 Тенанты</span>
-        <button class="btn-success btn-small" @click="showCreateModal">➕ Создать тенант</button>
+        <BaseButton variant="success" @click="showCreateModal">➕ Создать тенант</BaseButton>
       </template>
       <template #header-right>
-        <button class="btn-primary btn-small" @click="showUrlModal">URL</button>
+        <BaseButton variant="url" @click="showUrlModal">URL</BaseButton>
       </template>
       <TenantFilterPanel
         :filter-input="filterInput"
@@ -94,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { BasePanel } from '@/shared/ui';
+import { BasePanel, BaseButton } from '@/shared/ui';
 import { useTenantsPage } from '../model/useTenantsPage';
 import { TenantFilterPanel } from './filters';
 import { TenantTable } from './tables';
@@ -189,64 +189,6 @@ const {
   align-items: center;
 }
 
-button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #667eea;
-  color: white;
-  border: none;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #5a6fd8;
-}
-
-.btn-success {
-  background: #48bb78;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  background: #38a169;
-}
-
-.btn-danger {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #c82333;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-  border: none;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #5a6268;
-}
-
-.btn-small {
-  padding: 4px 10px;
-  font-size: 11px;
-  margin-right: 5px;
-}
 
 .content {
   flex: 1;
