@@ -563,7 +563,7 @@ const dialogMemberController = {
     
     try {
       const { dialogId, userId } = req.params;
-      // eslint-disable-next-line no-unused-vars
+       
       const { unreadCount, lastSeenAt, reason } = req.body;
       log(`Получены параметры: dialogId=${dialogId}, userId=${userId}, unreadCount=${unreadCount}, lastSeenAt=${lastSeenAt}`);
 

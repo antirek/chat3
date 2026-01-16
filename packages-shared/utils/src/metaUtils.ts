@@ -36,7 +36,7 @@ export async function getEntityMeta(
 }
 
 // Получить все метаданные для сущности в виде массива с полной информацией
-// eslint-disable-next-line no-unused-vars
+ 
 export async function getEntityMetaFull(
   tenantId: string, 
   entityType: EntityType, 
@@ -101,7 +101,7 @@ export async function setEntityMeta(
 }
 
 // Удалить метаданные
-// eslint-disable-next-line no-unused-vars
+ 
 export async function deleteEntityMeta(
   tenantId: string, 
   entityType: EntityType, 
@@ -124,7 +124,7 @@ export async function deleteEntityMeta(
 }
 
 // Получить конкретное значение метаданных
-// eslint-disable-next-line no-unused-vars
+ 
 export async function getEntityMetaValue(
   tenantId: string, 
   entityType: EntityType, 
@@ -149,7 +149,7 @@ export async function getEntityMetaValue(
 }
 
 // Построить MongoDB query для фильтрации по метаданным
-// eslint-disable-next-line no-unused-vars
+ 
 export async function buildMetaQuery(
   tenantId: string, 
   entityType: EntityType, 
@@ -241,7 +241,7 @@ export async function buildMetaQuery(
           } else {
             // Для других типов (dialog, user и т.д.) entityId уже строки в Meta коллекции
             // Просто добавляем все entityId из Meta, которые не имеют этого ключа
-            // eslint-disable-next-line no-unused-vars
+             
             const withKeyIds = new Set(allWithKey.map(r => String(r.entityId)));
             // Для других типов просто не добавляем пустые значения
             // Эта логика может быть расширена при необходимости

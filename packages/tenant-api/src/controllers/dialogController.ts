@@ -1,4 +1,4 @@
-// eslint-disable-next-line no-unused-vars
+ 
 import { Dialog, Meta, DialogMember,
   UserDialogStats, UserDialogActivity, DialogStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
@@ -443,7 +443,7 @@ export const dialogController = {
 
           // Для агрегации dialog уже является объектом, для обычного запроса - Mongoose документ
           const dialogObj = dialog.toObject ? dialog.toObject() : dialog;
-          // eslint-disable-next-line no-unused-vars
+           
           const { members, ...dialogWithoutMembers } = dialogObj;
           
           // Вычисляем общую статистику по диалогу

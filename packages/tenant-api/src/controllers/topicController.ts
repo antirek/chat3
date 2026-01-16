@@ -1,4 +1,4 @@
-import { Topic, Dialog, DialogMember, Event } from '@chat3/models';
+import { Topic, Dialog } from '@chat3/models';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
