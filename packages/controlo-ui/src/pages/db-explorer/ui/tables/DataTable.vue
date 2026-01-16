@@ -1,98 +1,105 @@
 <template>
   <div class="data-panel-content">
     <div v-if="!currentModel" class="empty">Выберите модель из списка слева</div>
-    <div v-else-if="loading" class="loading">Загрузка данных...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
-    <div v-else-if="filteredData.length === 0 && hasActiveFilters" class="empty">
-      <div>Нет данных, соответствующих фильтрам</div>
-      <button class="empty-refresh-btn" @click="$emit('refresh')">🔄 Обновить</button>
-    </div>
-    <div v-else-if="filteredData.length === 0" class="empty">
-      <div>Нет данных</div>
-      <button class="empty-refresh-btn" @click="$emit('refresh')">🔄 Обновить</button>
-    </div>
-    <div v-else class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th v-for="key in tableKeys" :key="key">{{ key }}</th>
-            <th>Действия</th>
-          </tr>
-          <tr class="filter-row">
-            <td v-for="key in tableKeys" :key="key">
-              <input
-                v-if="key === 'isActive'"
-                type="text"
-                class="filter-input"
-                :value="filters[key] || ''"
-                @keypress.enter="handleFilter(key, ($event.target as HTMLInputElement).value)"
-                @blur="handleFilter(key, ($event.target as HTMLInputElement).value)"
-                placeholder="true/false"
-              />
-              <select
-                v-else-if="key === 'createdAt' && (currentModel === 'ApiJournal' || currentModel === 'DialogReadTask')"
-                class="filter-select date-filter-select"
-                :value="filters[`${key}_type`] || ''"
-                @change="handleDateFilterChange(key, ($event.target as HTMLSelectElement).value)"
-              >
-                <option value="">Все</option>
-                <option value="today">Сегодня</option>
-                <option value="yesterday">Вчера</option>
-                <option value="last7days">Последние 7 дней</option>
-                <option value="last30days">Последние 30 дней</option>
-                <option value="custom">Выбрать</option>
-              </select>
-              <input
-                v-else
-                type="text"
-                class="filter-input"
-                :value="filters[key] || ''"
-                @keypress.enter="handleFilter(key, ($event.target as HTMLInputElement).value)"
-                @blur="handleFilter(key, ($event.target as HTMLInputElement).value)"
-                placeholder="Фильтр..."
-              />
-            </td>
-            <td></td>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(item, index) in filteredData" :key="getItemId(item, index)">
-            <td v-for="key in tableKeys" :key="key">
-              <span v-if="item[key] === null || item[key] === undefined" style="color: #999;">null</span>
-              <span
-                v-else-if="dateFields.includes(key)"
-                :title="String(item[key])"
-                style="cursor: help;"
-              >
-                {{ formatDateValue(item[key]) }}
-              </span>
-              <button
-                v-else-if="key === 'data' && typeof item[key] === 'object'"
-                class="btn btn-secondary btn-small data-view-btn"
-                @click="$emit('show-data-modal', item[key])"
-                title="Просмотр data"
-              >
-                📄 data
-              </button>
-              <span v-else-if="typeof item[key] === 'object'" style="color: #6c757d;">[Object]</span>
-              <span v-else-if="typeof item[key] === 'string' && item[key].length > 50">
-                {{ item[key].substring(0, 50) }}...
-              </span>
-              <span v-else>{{ String(item[key]) }}</span>
-            </td>
-            <td class="action-buttons">
-              <button class="btn btn-secondary btn-small" @click="$emit('view-item', getItemId(item, index))" title="Просмотр">👁️</button>
-              <button class="btn btn-secondary btn-small" @click="$emit('edit-item', getItemId(item, index))" title="Редактировать">✏️</button>
-              <button class="btn btn-danger btn-small" @click="$emit('delete-item', getItemId(item, index))" title="Удалить">🗑️</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <BaseTable
+      v-else
+      class="data-table"
+      :items="filteredData"
+      :loading="loading"
+      :error="error"
+      :get-item-key="(item, index) => getItemId(item, index)"
+      loading-text="Загрузка данных..."
+      empty-text="Нет данных"
+    >
+      <template #empty>
+        <div v-if="hasActiveFilters" class="empty">
+          <div>Нет данных, соответствующих фильтрам</div>
+          <button class="empty-refresh-btn" @click="$emit('refresh')">🔄 Обновить</button>
+        </div>
+        <div v-else class="empty">
+          <div>Нет данных</div>
+          <button class="empty-refresh-btn" @click="$emit('refresh')">🔄 Обновить</button>
+        </div>
+      </template>
+      <template #header>
+        <tr>
+          <th v-for="key in tableKeys" :key="key">{{ key }}</th>
+          <th>Действия</th>
+        </tr>
+        <tr v-if="filteredData.length > 0" class="filter-row">
+          <td v-for="key in tableKeys" :key="key">
+            <input
+              v-if="key === 'isActive'"
+              type="text"
+              class="filter-input"
+              :value="filters[key] || ''"
+              @keypress.enter="handleFilter(key, ($event.target as HTMLInputElement).value)"
+              @blur="handleFilter(key, ($event.target as HTMLInputElement).value)"
+              placeholder="true/false"
+            />
+            <select
+              v-else-if="key === 'createdAt' && (currentModel === 'ApiJournal' || currentModel === 'DialogReadTask')"
+              class="filter-select date-filter-select"
+              :value="filters[`${key}_type`] || ''"
+              @change="handleDateFilterChange(key, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">Все</option>
+              <option value="today">Сегодня</option>
+              <option value="yesterday">Вчера</option>
+              <option value="last7days">Последние 7 дней</option>
+              <option value="last30days">Последние 30 дней</option>
+              <option value="custom">Выбрать</option>
+            </select>
+            <input
+              v-else
+              type="text"
+              class="filter-input"
+              :value="filters[key] || ''"
+              @keypress.enter="handleFilter(key, ($event.target as HTMLInputElement).value)"
+              @blur="handleFilter(key, ($event.target as HTMLInputElement).value)"
+              placeholder="Фильтр..."
+            />
+          </td>
+          <td></td>
+        </tr>
+      </template>
+        <template #row="{ item, index }">
+          <td v-for="key in tableKeys" :key="key">
+            <span v-if="item[key] === null || item[key] === undefined" style="color: #999;">null</span>
+            <span
+              v-else-if="dateFields.includes(key)"
+              :title="String(item[key])"
+              style="cursor: help;"
+            >
+              {{ formatDateValue(item[key]) }}
+            </span>
+            <button
+              v-else-if="key === 'data' && typeof item[key] === 'object'"
+              class="btn btn-secondary btn-small data-view-btn"
+              @click="$emit('show-data-modal', item[key])"
+              title="Просмотр data"
+            >
+              📄 data
+            </button>
+            <span v-else-if="typeof item[key] === 'object'" style="color: #6c757d;">[Object]</span>
+            <span v-else-if="typeof item[key] === 'string' && item[key].length > 50">
+              {{ item[key].substring(0, 50) }}...
+            </span>
+            <span v-else>{{ String(item[key]) }}</span>
+          </td>
+          <td class="action-buttons">
+            <button class="btn btn-secondary btn-small" @click="$emit('view-item', getItemId(item, index))" title="Просмотр">👁️</button>
+            <button class="btn btn-secondary btn-small" @click="$emit('edit-item', getItemId(item, index))" title="Редактировать">✏️</button>
+            <button class="btn btn-danger btn-small" @click="$emit('delete-item', getItemId(item, index))" title="Удалить">🗑️</button>
+          </td>
+        </template>
+      </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import { BaseTable } from '@/shared/ui';
+
 interface Props {
   currentModel: string | null;
   loading: boolean;
@@ -127,53 +134,49 @@ function handleFilter(key: string, value: string) {
 <style scoped>
 .data-panel-content {
   flex: 1;
-  overflow: auto;
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
-.table-container {
-  overflow-x: auto;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  font-size: 12px;
-}
-
-th,
-td {
-  padding: 8px;
-  text-align: left;
-  border-bottom: 1px solid #e9ecef;
-}
-
-th {
-  background: #f8f9fa;
-  font-weight: 600;
-  color: #495057;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  font-size: 11px;
-}
-
-td {
-  font-size: 12px;
-}
-
-tr:hover {
+:deep(.filter-row) {
   background: #f8f9fa;
 }
 
-.filter-row {
-  background: #f8f9fa;
-}
-
-.filter-row td {
+:deep(.filter-row td) {
   padding: 8px;
   border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+}
+
+/* Убираем нижнюю границу у первой строки заголовков, чтобы не было двойной границы */
+:deep(thead tr:first-child th) {
+  border-bottom: none;
+}
+
+/* Добавляем границу только у строки фильтров */
+:deep(thead tr:last-child td) {
+  border-bottom: 2px solid #e9ecef;
+}
+
+/* Убираем любые отступы между строками в thead */
+:deep(thead tr) {
+  margin: 0;
+  border-spacing: 0;
+}
+
+:deep(thead tr th),
+:deep(thead tr td) {
+  margin: 0;
+  border-spacing: 0;
+}
+
+:deep(.data-table.base-table-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .filter-input {
