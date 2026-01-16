@@ -166,6 +166,7 @@ export const dialogController = {
               pages: 0
             }
           });
+          return;
         }
         log(`Найдено диалогов по фильтрам: ${dialogIds.length}`);
         
@@ -187,6 +188,7 @@ export const dialogController = {
                 pages: 0
               }
             });
+            return;
           }
         }
         
@@ -883,6 +885,7 @@ export const dialogController = {
           message: error.message,
           details: error.errors
         });
+        return;
       }
       
       // Более детальное сообщение об ошибке

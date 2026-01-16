@@ -445,6 +445,7 @@ const messageController = {
           error: 'Not Found',
           message: 'Dialog not found'
         });
+        return;
       }
 
       // Валидация topicId, если указан
@@ -824,12 +825,14 @@ const messageController = {
           error: 'Bad Request',
           message: 'Invalid dialog ID'
         });
+        return;
       }
       if (error.name === 'ValidationError') {
         res.status(400).json({
           error: 'Bad Request',
           message: error.message
         });
+        return;
       }
       res.status(500).json({
         error: 'Internal Server Error',
