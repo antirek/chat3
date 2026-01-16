@@ -2,83 +2,75 @@
   <div class="events-updates-page">
     <div class="container">
       <!-- Колонка События -->
-      <div class="events-panel">
-        <div class="panel">
-          <div class="panel-header">
-            <div class="header-left">
-              <span>События</span>
-            </div>
-            <div class="header-right">
-              <button class="btn btn-url" @click="showUrlModal('events')">URL</button>
-            </div>
-          </div>
-          <EventFilterPanel
-            :filter-input="eventsFilterInput"
-            @update:filter-input="eventsFilterInput = $event"
-            @clear="clearFilter('events')"
-            @apply="applyFilter('events')"
-          />
-          <EventPagination
-            :pagination-info="eventsPaginationInfo"
-            :current-page="currentEventsPage"
-            :current-page-input="currentEventsPageInput"
-            :total-pages="eventsTotalPages"
-            :total="eventsTotal"
-            v-model:current-limit="currentEventsLimit"
-            :go-to-page="(page) => goToPage('events', page)"
-            :change-limit="() => changeLimit('events')"
-          />
-          <EventTable
-            :events="events"
-            :loading="loadingEvents"
-            :error="eventsError"
-            :selected-event-id="selectedEventId"
-            :format-timestamp="formatTimestamp"
-            :sort-events="sortEvents"
-            :select-event="selectEvent"
-            :show-event-updates="showEventUpdates"
-            :show-event-json="showEventJson"
-          />
-        </div>
-      </div>
+      <BasePanel width="50%">
+        <template #header-left>
+          <span>События</span>
+        </template>
+        <template #header-right>
+          <button class="btn btn-url" @click="showUrlModal('events')">URL</button>
+        </template>
+        <EventFilterPanel
+          :filter-input="eventsFilterInput"
+          @update:filter-input="eventsFilterInput = $event"
+          @clear="clearFilter('events')"
+          @apply="applyFilter('events')"
+        />
+        <EventPagination
+          :pagination-info="eventsPaginationInfo"
+          :current-page="currentEventsPage"
+          :current-page-input="currentEventsPageInput"
+          :total-pages="eventsTotalPages"
+          :total="eventsTotal"
+          v-model:current-limit="currentEventsLimit"
+          :go-to-page="(page) => goToPage('events', page)"
+          :change-limit="() => changeLimit('events')"
+        />
+        <EventTable
+          :events="events"
+          :loading="loadingEvents"
+          :error="eventsError"
+          :selected-event-id="selectedEventId"
+          :format-timestamp="formatTimestamp"
+          :sort-events="sortEvents"
+          :select-event="selectEvent"
+          :show-event-updates="showEventUpdates"
+          :show-event-json="showEventJson"
+        />
+      </BasePanel>
 
       <!-- Колонка Updates -->
-      <div class="updates-panel">
-        <div class="panel">
-          <div class="panel-header">
-            <div class="header-left">
-              <span>Updates</span>
-            </div>
-            <div class="header-right">
-              <button class="btn btn-url" @click="showUrlModal('updates')">URL</button>
-            </div>
-          </div>
-          <UpdateFilterPanel
-            :filter-input="updatesFilterInput"
-            @update:filter-input="updatesFilterInput = $event"
-            @clear="clearFilter('updates')"
-            @apply="applyFilter('updates')"
-          />
-          <UpdatePagination
-            :pagination-info="updatesPaginationInfo"
-            :current-page="currentUpdatesPage"
-            :current-page-input="currentUpdatesPageInput"
-            :total-pages="updatesTotalPages"
-            :total="updatesTotal"
-            v-model:current-limit="currentUpdatesLimit"
-            :go-to-page="(page) => goToPage('updates', page)"
-            :change-limit="() => changeLimit('updates')"
-          />
-          <UpdateTable
-            :updates="updates"
-            :loading="loadingUpdates"
-            :error="updatesError"
-            :format-timestamp="formatTimestamp"
-            :sort-updates="sortUpdates"
-            :show-update-json="showUpdateJson"
-          />
-        </div>
-      </div>
+      <BasePanel width="50%">
+        <template #header-left>
+          <span>Updates</span>
+        </template>
+        <template #header-right>
+          <button class="btn btn-url" @click="showUrlModal('updates')">URL</button>
+        </template>
+        <UpdateFilterPanel
+          :filter-input="updatesFilterInput"
+          @update:filter-input="updatesFilterInput = $event"
+          @clear="clearFilter('updates')"
+          @apply="applyFilter('updates')"
+        />
+        <UpdatePagination
+          :pagination-info="updatesPaginationInfo"
+          :current-page="currentUpdatesPage"
+          :current-page-input="currentUpdatesPageInput"
+          :total-pages="updatesTotalPages"
+          :total="updatesTotal"
+          v-model:current-limit="currentUpdatesLimit"
+          :go-to-page="(page) => goToPage('updates', page)"
+          :change-limit="() => changeLimit('updates')"
+        />
+        <UpdateTable
+          :updates="updates"
+          :loading="loadingUpdates"
+          :error="updatesError"
+          :format-timestamp="formatTimestamp"
+          :sort-updates="sortUpdates"
+          :show-update-json="showUpdateJson"
+        />
+      </BasePanel>
     </div>
 
     <!-- Модальное окно для URL -->
@@ -101,6 +93,7 @@
 </template>
 
 <script setup lang="ts">
+import { BasePanel } from '@/shared/ui';
 import { useEventsUpdatesPage } from '../model/useEventsUpdatesPage';
 import { EventFilterPanel, UpdateFilterPanel } from './filters';
 import { EventPagination, UpdatePagination } from './pagination';
@@ -182,50 +175,6 @@ const {
   gap: 1px;
   background: #ddd;
   overflow: hidden;
-}
-
-.events-panel {
-  width: 50%;
-  min-width: 400px;
-}
-
-.updates-panel {
-  width: 50%;
-  min-width: 400px;
-}
-
-.panel {
-  background: white;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.panel-header {
-  background: #f8f9fa;
-  padding: 15px 20px;
-  border-bottom: 1px solid #e9ecef;
-  font-weight: 600;
-  color: #495057;
-  font-size: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 59px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .btn {

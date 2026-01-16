@@ -3,14 +3,12 @@
     <div class="container">
       <!-- Диалоги -->
       <BasePanel width="50%" min-width="350px">
-        <template #header>
-          <div class="header-left">
-            <span>💬 Диалоги</span>
-            <button @click="showAddDialogModal" class="url-button" title="Создать диалог">➕ Добавить</button>
-          </div>
-          <div class="header-right">
-            <button @click="showCurrentUrl" class="url-button" title="Показать URL запроса">🔗 URL</button>
-          </div>
+        <template #header-left>
+          <span>💬 Диалоги</span>
+          <button @click="showAddDialogModal" class="url-button" title="Создать диалог">➕ Добавить</button>
+        </template>
+        <template #header-right>
+          <button @click="showCurrentUrl" class="url-button" title="Показать URL запроса">🔗 URL</button>
         </template>
 
         <DialogFilterPanel
@@ -57,20 +55,18 @@
 
       <!-- Сообщения -->
       <BasePanel width="50%" min-width="350px">
-        <template #header>
-          <div class="header-left">
-            <span>📝 Сообщения</span>
-          </div>
-          <div class="header-right">
-            <button
-              @click="showCurrentMessageUrl"
-              class="url-button"
-              title="Показать URL запроса"
-              v-show="currentDialogId"
-            >
-              🔗 URL
-            </button>
-          </div>
+        <template #header-left>
+          <span>📝 Сообщения</span>
+        </template>
+        <template #header-right>
+          <button
+            @click="showCurrentMessageUrl"
+            class="url-button"
+            title="Показать URL запроса"
+            v-show="currentDialogId"
+          >
+            🔗 URL
+          </button>
         </template>
 
         <MessageFilterPanel

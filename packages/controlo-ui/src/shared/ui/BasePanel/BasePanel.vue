@@ -1,6 +1,6 @@
 <template>
   <div class="base-panel" :style="panelStyle">
-    <div v-if="$slots.header" class="base-panel-header">
+    <div v-if="$slots.header || $slots['header-left'] || $slots['header-right']" class="base-panel-header">
       <slot name="header">
         <div class="header-left">
           <slot name="header-left"></slot>
