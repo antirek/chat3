@@ -27,7 +27,7 @@
           @clear="clearUserFilter"
           @apply="applyUserFilter"
         />
-        <UsersPagination
+        <ExtendedPagination
           :current-page="currentUserPage"
           :current-page-input="currentUserPageInput"
           :total-pages="totalUserPages"
@@ -84,15 +84,21 @@
           @clear="clearFilter"
           @apply="applyFilter"
         />
-        <Pagination
+        <ExtendedPagination
           v-show="showDialogsPagination"
           :current-page="currentDialogPage"
+          :current-page-input="currentDialogPageInput"
           :total-pages="totalDialogPages"
           :total="totalDialogs"
-          :info-text="`Страница ${currentDialogPage} из ${totalDialogPages} (всего ${totalDialogs} диалогов)`"
-          :visible-pages="visibleDialogPages"
-          :show-page-numbers="true"
-          @change="changeDialogPage"
+          :pagination-start="dialogPaginationStart"
+          :pagination-end="dialogPaginationEnd"
+          :limit="currentDialogLimit"
+          @first="goToDialogsFirstPage"
+          @prev="goToDialogsPreviousPage"
+          @next="goToDialogsNextPage"
+          @last="goToDialogsLastPage"
+          @go-to-page="goToDialogsPage"
+          @change-limit="changeDialogLimit"
         />
         <DialogsTable
           :dialogs="dialogs"
@@ -209,16 +215,22 @@
           @apply="applyMessageFilter"
         />
         <!-- Сообщения -->
-        <Pagination
+        <ExtendedPagination
           v-show="currentViewMode === 'messages' && showMessagesPagination"
           :current-page="currentMessagePage"
+          :current-page-input="currentMessagePageInput"
           :total-pages="totalMessagePages"
           :total="totalMessages"
-          :info-text="`Страница ${currentMessagePage} из ${totalMessagePages} (всего ${totalMessages} сообщений)`"
-          :visible-pages="visibleMessagePages"
-          :show-page-numbers="true"
+          :pagination-start="messagePaginationStart"
+          :pagination-end="messagePaginationEnd"
+          :limit="currentMessageLimit"
           container-style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;"
-          @change="changeMessagePage"
+          @first="goToMessagesFirstPage"
+          @prev="goToMessagesPreviousPage"
+          @next="goToMessagesNextPage"
+          @last="goToMessagesLastPage"
+          @go-to-page="goToMessagesPage"
+          @change-limit="changeMessageLimit"
         />
         <div class="panel-content" id="messagesList" v-show="currentViewMode === 'messages'">
           <MessagesTable
@@ -244,13 +256,22 @@
             :error="topicsError"
             @show-meta="(topicId) => currentDialogId && showTopicMetaModal(currentDialogId, topicId)"
           />
-          <Pagination
+          <ExtendedPagination
             v-if="totalTopicsPages > 1"
             :current-page="currentTopicsPage"
+            :current-page-input="currentTopicsPageInput"
             :total-pages="totalTopicsPages"
-            :info-text="`Страница ${currentTopicsPage} из ${totalTopicsPages}`"
+            :total="totalTopics"
+            :pagination-start="topicsPaginationStart"
+            :pagination-end="topicsPaginationEnd"
+            :limit="currentTopicsLimit"
             container-style="margin-top: 15px; padding: 0 20px;"
-            @change="(page: number) => currentDialogId && loadDialogTopics(currentDialogId, page)"
+            @first="goToTopicsFirstPage"
+            @prev="goToTopicsPreviousPage"
+            @next="goToTopicsNextPage"
+            @last="goToTopicsLastPage"
+            @go-to-page="goToTopicsPage"
+            @change-limit="changeTopicsLimit"
           />
         </div>
 
@@ -276,16 +297,22 @@
             />
             
             <!-- Пагинация участников -->
-            <Pagination
+            <ExtendedPagination
               v-show="totalMembers > 0"
               :current-page="currentMemberPage"
+              :current-page-input="currentMemberPageInput"
               :total-pages="totalMemberPages"
               :total="totalMembers"
-              :info-text="`Страница ${currentMemberPage} из ${totalMemberPages} (всего ${totalMembers} участников)`"
-              :visible-pages="visibleMemberPages"
-              :show-page-numbers="true"
+              :pagination-start="memberPaginationStart"
+              :pagination-end="memberPaginationEnd"
+              :limit="currentMemberLimit"
               container-style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;"
-              @change="changeMemberPage"
+              @first="goToMembersFirstPage"
+              @prev="goToMembersPreviousPage"
+              @next="goToMembersNextPage"
+              @last="goToMembersLastPage"
+              @go-to-page="goToMembersPage"
+              @change-limit="changeMemberLimit"
             />
             
             <!-- Таблица участников -->
@@ -520,7 +547,7 @@ import {
   messageFilterExamples,
   memberFilterExamples,
 } from './filters';
-import { Pagination, UsersPagination } from './pagination';
+import { ExtendedPagination } from './pagination';
 import { UsersTable, DialogsTable, MessagesTable, TopicsTable, MembersTable } from './tables';
 
 // Используем composable
@@ -554,8 +581,12 @@ const {
   visibleDialogPages,
   // Dialogs Pagination
   currentDialogPage,
+  currentDialogPageInput,
+  currentDialogLimit,
   totalDialogPages,
   totalDialogs,
+  dialogPaginationStart,
+  dialogPaginationEnd,
   // Dialogs Filter
   filterValue,
   selectedFilterExample,
@@ -567,8 +598,12 @@ const {
   visibleMessagePages,
   // Messages Pagination
   currentMessagePage,
+  currentMessagePageInput,
+  currentMessageLimit,
   totalMessagePages,
   totalMessages,
+  messagePaginationStart,
+  messagePaginationEnd,
   // Messages Filter
   messageFilterInput,
   selectedMessageFilterExample,
@@ -579,8 +614,12 @@ const {
   visibleMemberPages,
   // Members Pagination
   currentMemberPage,
+  currentMemberPageInput,
+  currentMemberLimit,
   totalMemberPages,
   totalMembers,
+  memberPaginationStart,
+  memberPaginationEnd,
   // Members Filter
   memberFilterInput,
   selectedMemberFilterExample,
@@ -590,7 +629,12 @@ const {
   topics,
   // Topics Pagination
   currentTopicsPage,
+  currentTopicsPageInput,
+  currentTopicsLimit,
   totalTopicsPages,
+  totalTopics,
+  topicsPaginationStart,
+  topicsPaginationEnd,
   // View Mode
   currentViewMode,
   // Modals - flags
@@ -626,6 +670,13 @@ const {
   selectFilterExample,
   clearFilter,
   applyFilter,
+  // Dialogs Pagination Functions
+  goToDialogsFirstPage,
+  goToDialogsPreviousPage,
+  goToDialogsNextPage,
+  goToDialogsLastPage,
+  goToDialogsPage,
+  changeDialogLimit,
   changeDialogPage,
   selectDialog,
   selectDialogMembers,
@@ -634,13 +685,35 @@ const {
   selectMessageFilterExample,
   clearMessageFilter,
   applyMessageFilter,
+  // Messages Pagination Functions
+  goToMessagesFirstPage,
+  goToMessagesPreviousPage,
+  goToMessagesNextPage,
+  goToMessagesLastPage,
+  goToMessagesPage,
+  changeMessageLimit,
   changeMessagePage,
   loadDialogMembers,
   selectMemberFilterExamplePanel,
   clearMemberFilterFieldPanel,
   applyMemberFilterPanel,
+  // Members Pagination Functions
+  goToMembersFirstPage,
+  goToMembersPreviousPage,
+  goToMembersNextPage,
+  goToMembersLastPage,
+  goToMembersPage,
+  changeMemberLimit,
   changeMemberPage,
   loadDialogTopics,
+  // Topics Pagination Functions
+  goToTopicsFirstPage,
+  goToTopicsPreviousPage,
+  goToTopicsNextPage,
+  goToTopicsLastPage,
+  goToTopicsPage,
+  changeTopicsLimit,
+  changeTopicsPage,
   formatLastSeen,
   formatMessageTime,
   shortenDialogId,

@@ -15,10 +15,10 @@
     >
       <template #header>
         <tr>
-          <th>User ID</th>
-          <th style="text-align: center; width: 80px;" title="Общее количество диалогов">💬 Диалоги</th>
-          <th style="text-align: center; width: 80px;" title="Диалоги с непрочитанными сообщениями">🔔 Непрочитано</th>
-          <th>Действия</th>
+          <th>👤 User ID</th>
+          <th title="Общее количество диалогов">💬 Диалоги</th>
+          <th title="Диалоги с непрочитанными сообщениями">🔔 Непроч.</th>
+          <th>⚡ Действия</th>
         </tr>
       </template>
       <template #row="{ item }">
@@ -77,7 +77,7 @@ function handleRowClick(item: User) {
 </script>
 
 <style scoped>
-.panel-content {
+/* .panel-content {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -90,12 +90,12 @@ function handleRowClick(item: User) {
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
+} */
 
-.actions-column {
+/* .actions-column {
   padding: 0;
   font-size: 0;
-}
+} */
 
 .info-button {
   padding: 4px 6px;

@@ -87,7 +87,12 @@ defineEmits<{
 function formatMessageTime(createdAt: string | number): string {
   if (!createdAt) return '-';
   try {
-    const date = new Date(createdAt);
+    // Конвертируем строку в число, если это timestamp
+    const ts = typeof createdAt === 'string' ? parseFloat(createdAt) : createdAt;
+    if (isNaN(ts)) return '-';
+    const date = new Date(ts);
+    // Проверяем, что дата валидна
+    if (isNaN(date.getTime())) return '-';
     return date.toLocaleString('ru-RU');
   } catch {
     return '-';

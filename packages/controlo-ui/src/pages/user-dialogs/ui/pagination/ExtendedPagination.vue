@@ -7,6 +7,7 @@
     :pagination-start="paginationStart"
     :pagination-end="paginationEnd"
     :limit="limit"
+    :container-style="containerStyle"
     @first="$emit('first')"
     @prev="$emit('prev')"
     @next="$emit('next')"
@@ -27,9 +28,12 @@ interface Props {
   paginationStart: number;
   paginationEnd: number;
   limit: number;
+  containerStyle?: string;
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+  containerStyle: '',
+});
 
 defineEmits<{
   (e: 'first'): void;

@@ -52,10 +52,10 @@ export function useUserDialogsPage() {
   const dialogsPagination = usePagination({
     initialPage: 1,
     initialLimit: 10,
-    onPageChange: (page) => {
+    onPageChange: (page, limit) => {
       // Предотвращаем рекурсию
       if (!isLoadingDialogsInternal.value && currentUserId.value) {
-        loadUserDialogs(currentUserId.value, page);
+        loadUserDialogs(currentUserId.value, page, limit);
       }
     },
   });
@@ -75,10 +75,10 @@ export function useUserDialogsPage() {
   const messagesPagination = usePagination({
     initialPage: 1,
     initialLimit: 10,
-    onPageChange: (page) => {
+    onPageChange: (page, limit) => {
       // Предотвращаем рекурсию
       if (!isLoadingMessagesInternal.value && currentDialogId.value) {
-        loadDialogMessages(currentDialogId.value, page);
+        loadDialogMessages(currentDialogId.value, page, limit);
       }
     },
   });
@@ -98,10 +98,10 @@ export function useUserDialogsPage() {
   const membersPagination = usePagination({
     initialPage: 1,
     initialLimit: 10,
-    onPageChange: (page) => {
+    onPageChange: (page, limit) => {
       // Предотвращаем рекурсию
       if (!isLoadingMembersInternal.value && currentDialogId.value) {
-        loadDialogMembers(currentDialogId.value, page);
+        loadDialogMembers(currentDialogId.value, page, limit);
       }
     },
   });
@@ -120,9 +120,9 @@ export function useUserDialogsPage() {
   const topicsPagination = usePagination({
     initialPage: 1,
     initialLimit: 20,
-    onPageChange: (page) => {
+    onPageChange: (page, limit) => {
       if (currentDialogId.value) {
-        loadDialogTopics(currentDialogId.value, page);
+        loadDialogTopics(currentDialogId.value, page, limit);
       }
     },
   });
@@ -435,7 +435,7 @@ export function useUserDialogsPage() {
   }
 
   // Функции для диалогов
-  async function loadUserDialogs(userId: string, page = 1) {
+  async function loadUserDialogs(userId: string, page = 1, limit?: number) {
     // Предотвращаем рекурсию
     if (isLoadingDialogsInternal.value) {
       return;
@@ -450,7 +450,8 @@ export function useUserDialogsPage() {
       loadingDialogs.value = true;
       dialogsError.value = null;
 
-      let url = `/api/users/${userId}/dialogs?page=${page}&limit=10`;
+      const currentLimit = limit || dialogsPagination.currentLimit.value;
+      let url = `/api/users/${userId}/dialogs?page=${page}&limit=${currentLimit}`;
 
       if (dialogsFilter.currentFilter.value) {
         url += `&filter=${encodeURIComponent(dialogsFilter.currentFilter.value)}`;
@@ -552,7 +553,7 @@ export function useUserDialogsPage() {
   }
 
   // Функции для сообщений
-  async function loadDialogMessages(dialogId: string, page = 1) {
+  async function loadDialogMessages(dialogId: string, page = 1, limit?: number) {
     // Предотвращаем рекурсию
     if (isLoadingMessagesInternal.value) {
       return;
@@ -567,7 +568,8 @@ export function useUserDialogsPage() {
       loadingMessages.value = true;
       messagesError.value = null;
 
-      let url = `/api/users/${currentUserId.value}/dialogs/${dialogId}/messages?page=${page}&limit=10`;
+      const currentLimit = limit || messagesPagination.currentLimit.value;
+      let url = `/api/users/${currentUserId.value}/dialogs/${dialogId}/messages?page=${page}&limit=${currentLimit}`;
 
       if (messagesFilter.currentFilter.value) {
         url += `&filter=${encodeURIComponent(messagesFilter.currentFilter.value)}`;
@@ -634,7 +636,7 @@ export function useUserDialogsPage() {
   }
 
   // Функции для участников
-  async function loadDialogMembers(dialogId: string, page = 1) {
+  async function loadDialogMembers(dialogId: string, page = 1, limit?: number) {
     // Предотвращаем рекурсию
     if (isLoadingMembersInternal.value) {
       return;
@@ -649,9 +651,10 @@ export function useUserDialogsPage() {
       loadingMembers.value = true;
       membersError.value = null;
 
+      const currentLimit = limit || membersPagination.currentLimit.value;
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '10',
+        limit: currentLimit.toString(),
         sort: '(joinedAt,asc)',
       });
 
@@ -728,7 +731,7 @@ export function useUserDialogsPage() {
   }
 
   // Функции для топиков
-  async function loadDialogTopics(dialogId: string, page = 1) {
+  async function loadDialogTopics(dialogId: string, page = 1, limit?: number) {
     try {
       if (!dialogId || !currentUserId.value) {
         return;
@@ -737,7 +740,8 @@ export function useUserDialogsPage() {
       loadingTopics.value = true;
       topicsError.value = null;
 
-      const url = `/api/users/${currentUserId.value}/dialogs/${dialogId}/topics?page=${page}&limit=20`;
+      const currentLimit = limit || topicsPagination.currentLimit.value;
+      const url = `/api/users/${currentUserId.value}/dialogs/${dialogId}/topics?page=${page}&limit=${currentLimit}`;
 
       const response = await fetch(url, {
         headers: credentialsStore.getHeaders(),
@@ -2685,8 +2689,12 @@ export function useUserDialogsPage() {
     visibleDialogPages,
     // Dialogs Pagination
     currentDialogPage: dialogsPagination.currentPage,
+    currentDialogPageInput: dialogsPagination.currentPageInput,
+    currentDialogLimit: dialogsPagination.currentLimit,
     totalDialogPages: dialogsPagination.totalPages,
     totalDialogs: dialogsPagination.totalItems,
+    dialogPaginationStart: dialogsPagination.paginationStart,
+    dialogPaginationEnd: dialogsPagination.paginationEnd,
     // Dialogs Filter
     filterValue: dialogsFilter.filterInput,
     selectedFilterExample: dialogsFilter.selectedFilterExample,
@@ -2699,8 +2707,12 @@ export function useUserDialogsPage() {
     visibleMessagePages,
     // Messages Pagination
     currentMessagePage: messagesPagination.currentPage,
+    currentMessagePageInput: messagesPagination.currentPageInput,
+    currentMessageLimit: messagesPagination.currentLimit,
     totalMessagePages: messagesPagination.totalPages,
     totalMessages: messagesPagination.totalItems,
+    messagePaginationStart: messagesPagination.paginationStart,
+    messagePaginationEnd: messagesPagination.paginationEnd,
     // Messages Filter
     messageFilterInput: messagesFilter.filterInput,
     selectedMessageFilterExample: messagesFilter.selectedFilterExample,
@@ -2712,8 +2724,12 @@ export function useUserDialogsPage() {
     visibleMemberPages,
     // Members Pagination
     currentMemberPage: membersPagination.currentPage,
+    currentMemberPageInput: membersPagination.currentPageInput,
+    currentMemberLimit: membersPagination.currentLimit,
     totalMemberPages: membersPagination.totalPages,
     totalMembers: membersPagination.totalItems,
+    memberPaginationStart: membersPagination.paginationStart,
+    memberPaginationEnd: membersPagination.paginationEnd,
     // Members Filter
     memberFilterInput: membersFilter.filterInput,
     selectedMemberFilterExample: membersFilter.selectedFilterExample,
@@ -2724,7 +2740,12 @@ export function useUserDialogsPage() {
     topics,
     // Topics Pagination
     currentTopicsPage: topicsPagination.currentPage,
+    currentTopicsPageInput: topicsPagination.currentPageInput,
+    currentTopicsLimit: topicsPagination.currentLimit,
     totalTopicsPages: topicsPagination.totalPages,
+    totalTopics: topicsPagination.totalItems,
+    topicsPaginationStart: topicsPagination.paginationStart,
+    topicsPaginationEnd: topicsPagination.paginationEnd,
     // View Mode
     currentViewMode,
     // Modals - flags
@@ -2762,6 +2783,13 @@ export function useUserDialogsPage() {
     selectFilterExample,
     clearFilter,
     applyFilter,
+    // Dialogs Pagination Functions
+    goToDialogsFirstPage: dialogsPagination.goToFirstPage,
+    goToDialogsPreviousPage: dialogsPagination.goToPreviousPage,
+    goToDialogsNextPage: dialogsPagination.goToNextPage,
+    goToDialogsLastPage: dialogsPagination.goToLastPage,
+    goToDialogsPage: dialogsPagination.goToPage,
+    changeDialogLimit: dialogsPagination.changeLimit,
     changeDialogPage,
     selectDialog,
     selectDialogMembers,
@@ -2770,13 +2798,35 @@ export function useUserDialogsPage() {
     selectMessageFilterExample,
     clearMessageFilter,
     applyMessageFilter,
+    // Messages Pagination Functions
+    goToMessagesFirstPage: messagesPagination.goToFirstPage,
+    goToMessagesPreviousPage: messagesPagination.goToPreviousPage,
+    goToMessagesNextPage: messagesPagination.goToNextPage,
+    goToMessagesLastPage: messagesPagination.goToLastPage,
+    goToMessagesPage: messagesPagination.goToPage,
+    changeMessageLimit: messagesPagination.changeLimit,
     changeMessagePage,
     loadDialogMembers,
     selectMemberFilterExamplePanel,
     clearMemberFilterFieldPanel,
     applyMemberFilterPanel,
+    // Members Pagination Functions
+    goToMembersFirstPage: membersPagination.goToFirstPage,
+    goToMembersPreviousPage: membersPagination.goToPreviousPage,
+    goToMembersNextPage: membersPagination.goToNextPage,
+    goToMembersLastPage: membersPagination.goToLastPage,
+    goToMembersPage: membersPagination.goToPage,
+    changeMemberLimit: membersPagination.changeLimit,
     changeMemberPage,
     loadDialogTopics,
+    // Topics Pagination Functions
+    goToTopicsFirstPage: topicsPagination.goToFirstPage,
+    goToTopicsPreviousPage: topicsPagination.goToPreviousPage,
+    goToTopicsNextPage: topicsPagination.goToNextPage,
+    goToTopicsLastPage: topicsPagination.goToLastPage,
+    goToTopicsPage: topicsPagination.goToPage,
+    changeTopicsLimit: topicsPagination.changeLimit,
+    changeTopicsPage: topicsPagination.goToPage,
     formatLastSeen,
     formatMessageTime,
     shortenDialogId,

@@ -17,16 +17,16 @@
     >
       <template #header>
         <tr>
-          <th>Dialog ID</th>
-          <th>Unread</th>
+          <th>👥 Dialog ID</th>
+          <th style="text-align: center;">🔔 Непроч.</th>
           <th style="text-align: center;">📌 Топики</th>
-          <th>Последний просмотр</th>
-          <th>Действия</th>
+          <th>👁‍🗨 Последний просмотр</th>
+          <th>⚡ Действия</th>
         </tr>
       </template>
       <template #row="{ item }">
         <td>{{ shortenDialogId(item.dialogId) }}</td>
-        <td>{{ item.context?.unreadCount || 0 }}</td>
+        <td style="text-align: center;">{{ item.context?.unreadCount || 0 }}</td>
         <td style="text-align: center;">
           <span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #495057;">
             {{ item.stats?.topicCount || 0 }}
@@ -86,7 +86,12 @@ function shortenDialogId(dialogId: string): string {
 function formatLastSeen(lastSeenAt?: string | number): string {
   if (!lastSeenAt) return '-';
   try {
-    const date = new Date(lastSeenAt);
+    // Конвертируем строку в число, если это timestamp
+    const ts = typeof lastSeenAt === 'string' ? parseFloat(lastSeenAt) : lastSeenAt;
+    if (isNaN(ts)) return '-';
+    const date = new Date(ts);
+    // Проверяем, что дата валидна
+    if (isNaN(date.getTime())) return '-';
     return date.toLocaleString('ru-RU');
   } catch {
     return '-';
