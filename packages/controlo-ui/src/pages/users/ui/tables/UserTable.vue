@@ -1,89 +1,87 @@
 <template>
-  <div class="content" id="usersList">
-    <div v-if="loading" class="loading">Загрузка...</div>
-    <div v-else-if="error" class="error">Ошибка загрузки: {{ error }}</div>
-    <div v-else-if="users.length === 0" class="no-data">Пользователи не найдены</div>
-    <table v-else>
-      <thead>
-        <tr>
-          <th @click="toggleSort('userId')" style="cursor: pointer;">
-            User ID
-            <span class="sort-indicator">{{ getSortIndicator('userId') }}</span>
-          </th>
-          <th @click="toggleSort('type')" style="cursor: pointer;">
-            Тип
-            <span class="sort-indicator">{{ getSortIndicator('type') }}</span>
-          </th>
-          <th @click="toggleSort('createdAt')" style="cursor: pointer;">
-            Создан
-            <span class="sort-indicator">{{ getSortIndicator('createdAt') }}</span>
-          </th>
-          <th style="text-align: center; width: 80px;" title="Общее количество диалогов">💬 Диалоги</th>
-          <th style="text-align: center; width: 80px;" title="Диалоги с непрочитанными сообщениями">🔔 Непрочитано</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="user in users" :key="user.userId">
-          <td><strong>{{ user.userId || '-' }}</strong></td>
-          <td>
-            <span style="background: #e3f2fd; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">
-              {{ user.type || 'user' }}
-            </span>
-          </td>
-          <td>{{ formatTimestamp(user.createdAt) }}</td>
-          <td style="text-align: center;">
-            <span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #495057;">
-              {{ user.dialogCount !== undefined ? user.dialogCount : '-' }}
-            </span>
-          </td>
-          <td style="text-align: center;">
-            <span
-              :style="{
-                background: (user.unreadDialogsCount || 0) > 0 ? '#fff3cd' : '#f0f0f0',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                fontWeight: '600',
-                color: (user.unreadDialogsCount || 0) > 0 ? '#856404' : '#495057',
-              }"
-            >
-              {{ user.unreadDialogsCount !== undefined ? user.unreadDialogsCount : '-' }}
-            </span>
-          </td>
-          <td>
-            <button
-              class="btn-primary btn-small"
-              @click="showInfo(user.userId)"
-            >
-              ℹ️ Инфо
-            </button>
-            <button
-              class="btn-success btn-small"
-              @click="showMeta(user.userId)"
-            >
-              🏷️ Мета
-            </button>
-            <button
-              class="btn-primary btn-small"
-              @click="showEdit(user.userId)"
-            >
-              ✏️ Изменить Тип
-            </button>
-            <button
-              class="btn-danger btn-small"
-              @click="deleteUser(user.userId)"
-            >
-              🗑️ Удалить
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <div id="usersList">
+    <BaseTable
+      :items="users"
+      :loading="loading"
+      :error="error"
+      loading-text="Загрузка..."
+      empty-text="Пользователи не найдены"
+      :get-item-key="(user) => user.userId"
+    >
+    <template #header>
+      <tr>
+        <th @click="toggleSort('userId')" style="cursor: pointer;">
+          User ID
+          <span class="sort-indicator">{{ getSortIndicator('userId') }}</span>
+        </th>
+        <th @click="toggleSort('type')" style="cursor: pointer;">
+          Тип
+          <span class="sort-indicator">{{ getSortIndicator('type') }}</span>
+        </th>
+        <th @click="toggleSort('createdAt')" style="cursor: pointer;">
+          Создан
+          <span class="sort-indicator">{{ getSortIndicator('createdAt') }}</span>
+        </th>
+        <th style="text-align: center; width: 80px;" title="Общее количество диалогов">💬 Диалоги</th>
+        <th style="text-align: center; width: 80px;" title="Диалоги с непрочитанными сообщениями">🔔 Непрочитано</th>
+        <th>Действия</th>
+      </tr>
+    </template>
+
+    <template #row="{ item }">
+      <td><strong>{{ (item as User).userId || '-' }}</strong></td>
+      <td>
+        <span class="type-badge">
+          {{ (item as User).type || 'user' }}
+        </span>
+      </td>
+      <td>{{ formatTimestamp((item as User).createdAt) }}</td>
+      <td style="text-align: center;">
+        <span class="dialog-count-badge">
+          {{ (item as User).dialogCount !== undefined ? (item as User).dialogCount : '-' }}
+        </span>
+      </td>
+      <td style="text-align: center;">
+        <span
+          :class="['unread-count-badge', { 'has-unread': ((item as User).unreadDialogsCount || 0) > 0 }]"
+        >
+          {{ (item as User).unreadDialogsCount !== undefined ? (item as User).unreadDialogsCount : '-' }}
+        </span>
+      </td>
+      <td>
+        <button
+          class="btn-primary btn-small"
+          @click="showInfo((item as User).userId)"
+        >
+          ℹ️ Инфо
+        </button>
+        <button
+          class="btn-success btn-small"
+          @click="showMeta((item as User).userId)"
+        >
+          🏷️ Мета
+        </button>
+        <button
+          class="btn-primary btn-small"
+          @click="showEdit((item as User).userId)"
+        >
+          ✏️ Изменить Тип
+        </button>
+        <button
+          class="btn-danger btn-small"
+          @click="deleteUser((item as User).userId)"
+        >
+          🗑️ Удалить
+        </button>
+      </td>
+    </template>
+    </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import { BaseTable } from '@/shared/ui';
+
 interface User {
   userId: string;
   type?: string;
@@ -133,72 +131,50 @@ function deleteUser(userId: string) {
 </script>
 
 <style scoped>
-.content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-thead {
-  background: #f8f9fa;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-th {
-  padding: 12px 15px;
-  text-align: left;
-  font-weight: 600;
-  color: #495057;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid #e9ecef;
+:deep(th[style*='cursor: pointer']) {
   cursor: pointer;
   user-select: none;
 }
 
-th:hover {
+:deep(th[style*='cursor: pointer']:hover) {
   background: #e9ecef;
 }
 
-td {
-  padding: 12px 15px;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 13px;
-}
-
-tr:hover {
-  background: #f8f9fa;
-}
-
-.no-data {
-  text-align: center;
-  padding: 40px;
-  color: #6c757d;
-  font-size: 14px;
-}
-
-.loading {
-  text-align: center;
-  padding: 40px;
+.sort-indicator {
+  margin-left: 5px;
+  font-size: 10px;
   color: #667eea;
-  font-size: 14px;
 }
 
-.error {
-  background: #f8d7da;
-  color: #721c24;
-  padding: 15px;
-  border-radius: 6px;
-  margin: 15px;
-  font-size: 13px;
+.type-badge {
+  background: #e3f2fd;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.dialog-count-badge {
+  background: #f0f0f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.unread-count-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f0f0f0;
+  color: #495057;
+}
+
+.unread-count-badge.has-unread {
+  background: #fff3cd;
+  color: #856404;
 }
 
 button {
@@ -248,11 +224,5 @@ button:disabled {
   padding: 4px 10px;
   font-size: 11px;
   margin-right: 5px;
-}
-
-.sort-indicator {
-  margin-left: 5px;
-  font-size: 10px;
-  color: #667eea;
 }
 </style>
