@@ -5,10 +5,10 @@
       <BasePanel width="50%" min-width="350px">
         <template #header-left>
           <span>💬 Диалоги</span>
-          <button @click="showAddDialogModal" class="url-button" title="Создать диалог">➕ Добавить</button>
+          <BaseButton variant="success" @click="showAddDialogModal" title="Создать диалог">➕ Добавить</BaseButton>
         </template>
         <template #header-right>
-          <button @click="showCurrentUrl" class="url-button" title="Показать URL запроса">🔗 URL</button>
+          <BaseButton variant="url" @click="showCurrentUrl" title="Показать URL запроса">🔗 URL</BaseButton>
         </template>
 
         <DialogFilterPanel
@@ -59,14 +59,14 @@
           <span>📝 Сообщения</span>
         </template>
         <template #header-right>
-          <button
+          <BaseButton
+            variant="url"
             @click="showCurrentMessageUrl"
-            class="url-button"
             title="Показать URL запроса"
             v-show="currentDialogId"
           >
             🔗 URL
-          </button>
+          </BaseButton>
         </template>
 
         <MessageFilterPanel
@@ -140,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { BasePanel } from '@/shared/ui';
+import { BasePanel, BaseButton } from '@/shared/ui';
 import { useDialogsMessagesPage } from '../model/useDialogsMessagesPage';
 import { DialogTable, MessagesTableSimple } from './tables';
 import { DialogInfoModal, CreateDialogModal, UrlModal } from './modals';
@@ -269,21 +269,6 @@ const {
   min-height: 0;
 }
 
-.url-button {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: normal;
-  transition: background-color 0.2s;
-}
-
-.url-button:hover {
-  background: #5a6fd8;
-}
 
 .form-section {
   margin-bottom: 12px;
@@ -350,45 +335,6 @@ const {
   justify-content: flex-end;
 }
 
-.btn-primary {
-  padding: 6px 12px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #5a6fd8;
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.info-button {
-  padding: 4px 10px;
-  font-size: 11px;
-  border: 1px solid #8ba0f5;
-  background: #8ba0f5;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-  max-height: 25px;
-  min-width: 69px;
-}
-
-.info-button:hover {
-  background: #7c8ff0;
-  border-color: #7c8ff0;
-}
 
 .sort-indicator {
   margin-left: 5px;

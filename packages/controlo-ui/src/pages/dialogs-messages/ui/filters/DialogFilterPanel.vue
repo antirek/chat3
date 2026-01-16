@@ -31,16 +31,16 @@
     </div>
 
     <div class="form-actions">
-      <button class="btn-primary" @click="apply" :disabled="applying">
+      <BaseButton variant="primary" @click="apply" :disabled="applying">
         {{ applying ? 'Применяется...' : buttonText }}
-      </button>
+      </BaseButton>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { BaseFilter } from '@/shared/ui';
+import { BaseFilter, BaseButton } from '@/shared/ui';
 import { dialogFilterExamples, dialogSortExamples } from './examples';
 
 interface Props {
@@ -169,24 +169,5 @@ function apply() {
   justify-content: flex-end;
 }
 
-.btn-primary {
-  padding: 8px 16px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #5a6fd8;
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
 </style>
 

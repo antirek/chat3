@@ -32,9 +32,9 @@
         <td>{{ formatUpdatedAt((item as Dialog).createdAt) }}</td>
         <td>{{ formatMembers((item as Dialog).members) }}</td>
         <td>
-          <button class="info-button" @click.stop="showInfo((item as Dialog).dialogId)">
+          <BaseButton variant="primary" size="small" @click.stop="showInfo((item as Dialog).dialogId)">
             ℹ️ Инфо
-          </button>
+          </BaseButton>
         </td>
       </template>
     </BaseTable>
@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseTable } from '@/shared/ui';
+import { BaseTable, BaseButton } from '@/shared/ui';
 
 interface Dialog {
   dialogId: string;
@@ -104,22 +104,4 @@ function showInfo(dialogId: string) {
   font-weight: bold;
 }
 
-.info-button {
-  padding: 4px 10px;
-  font-size: 11px;
-  border: 1px solid #8ba0f5;
-  background: #8ba0f5;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-  max-height: 25px;
-  min-width: 69px;
-}
-
-.info-button:hover {
-  background: #7c8ff0;
-  border-color: #7c8ff0;
-}
 </style>
