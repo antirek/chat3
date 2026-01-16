@@ -1,16 +1,13 @@
 <template>
   <div class="tenants-page">
-    <div class="page-header">
-      <div class="page-header-left">
-        <h1>🏢 Тенанты</h1>
+    <BasePanel>
+      <template #header-left>
+        <span>🏢 Тенанты</span>
         <button class="btn-success btn-small" @click="showCreateModal">➕ Создать тенант</button>
-      </div>
-      <div class="page-header-right">
+      </template>
+      <template #header-right>
         <button class="btn-primary btn-small" @click="showUrlModal">URL</button>
-      </div>
-    </div>
-
-    <div class="page-container">
+      </template>
       <TenantFilterPanel
         :filter-input="filterInput"
         :selected-filter-example="selectedFilterExample"
@@ -48,7 +45,7 @@
         @show-meta="showMetaModal"
         @delete="deleteTenant"
       />
-    </div>
+    </BasePanel>
 
     <CreateTenantModal
       :is-open="showCreateModalFlag"
@@ -97,6 +94,7 @@
 </template>
 
 <script setup lang="ts">
+import { BasePanel } from '@/shared/ui';
 import { useTenantsPage } from '../model/useTenantsPage';
 import { TenantFilterPanel } from './filters';
 import { TenantTable } from './tables';
@@ -181,44 +179,6 @@ const {
   overflow: hidden;
 }
 
-.page-header {
-  background: #f8f9fa;
-  padding: 15px 20px;
-  border-bottom: 1px solid #e9ecef;
-  font-weight: 600;
-  color: #495057;
-  font-size: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 59px;
-}
-
-.page-header-left {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.page-header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.page-header h1 {
-  font-size: 16px;
-  color: #495057;
-  font-weight: 600;
-}
-
-.page-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: white;
-  overflow: hidden;
-}
 
 .controls {
   padding: 15px 20px;
