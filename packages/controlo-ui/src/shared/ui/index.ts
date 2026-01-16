@@ -4,3 +4,4 @@ export type { BasePaginationProps, BasePaginationExtendedProps } from './BasePag
 export { BaseFilter } from './BaseFilter';
 export type { BaseFilterProps, FilterExample, FilterOption } from './BaseFilter';
 export { BaseTable } from './BaseTable';
+export { BasePanel } from './BasePanel';

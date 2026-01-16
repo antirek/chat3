@@ -115,7 +115,7 @@ function apply() {
 
 <style scoped>
 .filter-panel {
-  padding: 15px 20px;
+  padding: 15px;
   border-bottom: 1px solid #e9ecef;
   background: #f8f9fa;
 }
@@ -209,5 +209,11 @@ function apply() {
 
 .btn-primary:hover {
   background: #5568d3;
+}
+
+.sort-indicator {
+  margin-left: 5px;
+  font-size: 10px;
+  color: #667eea;
 }
 </style>

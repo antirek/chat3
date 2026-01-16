@@ -2,8 +2,8 @@
   <div class="dialogs-messages-page">
     <div class="container">
       <!-- Диалоги -->
-      <div class="panel dialogs-panel">
-        <div class="panel-header">
+      <BasePanel width="50%" min-width="350px">
+        <template #header>
           <div class="header-left">
             <span>💬 Диалоги</span>
             <button @click="showAddDialogModal" class="url-button" title="Создать диалог">➕ Добавить</button>
@@ -11,7 +11,7 @@
           <div class="header-right">
             <button @click="showCurrentUrl" class="url-button" title="Показать URL запроса">🔗 URL</button>
           </div>
-        </div>
+        </template>
 
         <DialogFilterPanel
           v-model:filter-value="filterValue"
@@ -53,11 +53,11 @@
           @select-dialog="selectDialog"
           @show-info="showDialogInfo"
         />
-      </div>
+      </BasePanel>
 
       <!-- Сообщения -->
-      <div class="panel messages-panel">
-        <div class="panel-header">
+      <BasePanel width="50%" min-width="350px">
+        <template #header>
           <div class="header-left">
             <span>📝 Сообщения</span>
           </div>
@@ -71,7 +71,7 @@
               🔗 URL
             </button>
           </div>
-        </div>
+        </template>
 
         <MessageFilterPanel
           v-show="currentDialogId"
@@ -109,7 +109,7 @@
           :format-timestamp="formatMessageTime"
           :show-info="showMessageInfo"
         />
-      </div>
+      </BasePanel>
     </div>
 
     <DialogInfoModal
@@ -144,6 +144,7 @@
 </template>
 
 <script setup lang="ts">
+import { BasePanel } from '@/shared/ui';
 import { useDialogsMessagesPage } from '../model/useDialogsMessagesPage';
 import { DialogTable, MessagesTableSimple } from './tables';
 import { DialogInfoModal, CreateDialogModal, UrlModal } from './modals';
@@ -272,57 +273,6 @@ const {
   min-height: 0;
 }
 
-.dialogs-panel {
-  width: 50%;
-  min-width: 350px;
-}
-
-.messages-panel {
-  width: 50%;
-  min-width: 350px;
-}
-
-.panel {
-  background: white;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  height: 100%;
-}
-
-.dialogs-panel > *:last-child,
-.messages-panel > *:last-child {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-header {
-  background: #f8f9fa;
-  padding: 15px 20px;
-  border-bottom: 1px solid #e9ecef;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 600;
-  color: #495057;
-  font-size: 16px;
-  min-height: 59px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .url-button {
   background: #667eea;
   color: white;
@@ -337,12 +287,6 @@ const {
 
 .url-button:hover {
   background: #5a6fd8;
-}
-
-.filter-panel {
-  padding: 15px;
-  border-bottom: 1px solid #e9ecef;
-  background: #f8f9fa;
 }
 
 .form-section {
@@ -429,66 +373,6 @@ const {
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-thead {
-  background: #f8f9fa;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-th {
-  padding: 10px 12px;
-  text-align: left;
-  font-weight: 600;
-  color: #495057;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid #e9ecef;
-}
-
-th[style*='cursor: pointer'] {
-  cursor: pointer;
-  user-select: none;
-}
-
-th[style*='cursor: pointer']:hover {
-  background: #e9ecef;
-}
-
-td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 12px;
-}
-
-tr:hover {
-  background: #f8f9fa;
-}
-
-.dialog-row {
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.dialog-row:hover {
-  background: #f0f0f0 !important;
-}
-
-.dialog-row-selected {
-  background: #e3f2fd !important;
-}
-
-.dialog-row-selected:hover {
-  background: #d1e7ff !important;
 }
 
 .info-button {

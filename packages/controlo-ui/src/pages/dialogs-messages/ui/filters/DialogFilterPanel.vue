@@ -107,9 +107,9 @@ function apply() {
 
 <style scoped>
 .filter-panel {
-  padding: 15px 20px;
+  padding: 15px;
   border-bottom: 1px solid #e9ecef;
-  background: #ffffff;
+  background: #f8f9fa;
 }
 
 .form-section {
