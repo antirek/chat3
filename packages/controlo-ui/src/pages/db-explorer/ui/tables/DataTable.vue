@@ -105,7 +105,7 @@ interface Props {
   loading: boolean;
   error: string | null;
   filteredData: any[];
-  hasActiveFilters: boolean;
+  hasActiveFilters?: boolean;
   tableKeys: string[];
   filters: Record<string, any>;
   dateFields: string[];
@@ -123,7 +123,9 @@ interface Emits {
   (e: 'delete-item', id: string): void;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  hasActiveFilters: false,
+});
 const emit = defineEmits<Emits>();
 
 function handleFilter(key: string, value: string) {

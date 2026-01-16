@@ -11,13 +11,13 @@
       />
 
       <!-- Правая панель: данные модели -->
-      <div class="data-panel">
-        <div class="data-panel-header">
-          <div class="data-panel-title">{{ currentModel || 'Выберите модель' }}</div>
-          <div v-if="currentModel" class="data-panel-actions">
-            <button class="btn btn-primary btn-small" @click="showCreateModal">➕ Создать</button>
-          </div>
-        </div>
+      <BasePanel>
+        <template #header-left>
+          <span>{{ currentModel || 'Выберите модель' }}</span>
+        </template>
+        <template #header-right>
+          <button v-if="currentModel" class="btn btn-primary btn-small" @click="showCreateModal">➕ Создать</button>
+        </template>
         <DataTable
           :current-model="currentModel"
           :loading="loadingData"
@@ -52,7 +52,7 @@
           :go-to-page="goToPage"
           :change-limit="changeLimit"
         />
-      </div>
+      </BasePanel>
     </div>
 
     <!-- Модальное окно для просмотра/редактирования -->
@@ -95,6 +95,7 @@
 </template>
 
 <script setup lang="ts">
+import { BasePanel } from '@/shared/ui';
 import { useDbExplorerPage } from '../model/useDbExplorerPage';
 import { ModelsPanel } from './panels';
 import { DataTable } from './tables';
@@ -198,35 +199,10 @@ const {
   overflow: hidden;
 }
 
-.data-panel {
+:deep(.base-panel) {
   flex: 1;
-  background: white;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 
-.data-panel-header {
-  background: #f8f9fa;
-  padding: 15px 20px;
-  border-bottom: 1px solid #e9ecef;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-height: 52px;
-}
-
-.data-panel-title {
-  font-weight: 600;
-  color: #495057;
-  font-size: 16px;
-}
-
-.data-panel-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
 
 .btn {
   padding: 8px 16px;

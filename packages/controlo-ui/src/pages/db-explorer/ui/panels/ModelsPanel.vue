@@ -50,18 +50,20 @@ defineEmits<Emits>();
 }
 
 .models-panel-header {
+  display: flex;
   background: #f8f9fa;
   padding: 15px 20px;
   border-bottom: 1px solid #e9ecef;
   font-weight: 600;
   color: #495057;
   font-size: 16px;
+  min-height: 59px;
+  align-items: center;
 }
 
 .models-list {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 0;
 }
 
 .model-category {
