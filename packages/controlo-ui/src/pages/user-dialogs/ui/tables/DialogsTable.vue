@@ -108,12 +108,6 @@ function formatLastSeen(lastSeenAt?: string | number): string {
   min-height: 0;
 }
 
-:deep(.dialogs-table.base-table-container) {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
 
 .placeholder {
   padding: 40px 20px;

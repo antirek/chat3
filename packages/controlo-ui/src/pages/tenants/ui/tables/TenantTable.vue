@@ -94,14 +94,6 @@ function deleteTenant(tenantId: string) {
 </script>
 
 <style scoped>
-:deep(th[style*='cursor: pointer']) {
-  cursor: pointer;
-  user-select: none;
-}
-
-:deep(th[style*='cursor: pointer']:hover) {
-  background: #e9ecef;
-}
 
 .sort-indicator {
   margin-left: 5px;

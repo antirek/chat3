@@ -76,21 +76,7 @@ defineProps<Props>();
   min-height: 0;
 }
 
-:deep(.messages-table.base-table-container) {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
 
-:deep(th[style*='cursor: pointer']) {
-  cursor: pointer;
-  user-select: none;
-}
-
-:deep(th[style*='cursor: pointer']:hover) {
-  background: #e9ecef;
-}
 
 .message-content {
   max-width: 100%;

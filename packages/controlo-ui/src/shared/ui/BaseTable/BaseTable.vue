@@ -193,6 +193,15 @@ function handleRowClick(item: any, index: number) {
   border-bottom: 2px solid #e9ecef;
 }
 
+:deep(th[style*='cursor: pointer']) {
+  cursor: pointer;
+  user-select: none;
+}
+
+:deep(th[style*='cursor: pointer']:hover) {
+  background: #e9ecef;
+}
+
 :deep(td) {
   padding: 5px 10px;
   border-bottom: 1px solid #e9ecef;

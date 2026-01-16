@@ -72,13 +72,6 @@ function shortenTopicId(topicId: string): string {
   min-height: 0;
 }
 
-:deep(.topics-table.base-table-container) {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 .actions-column {
   white-space: nowrap;
 }

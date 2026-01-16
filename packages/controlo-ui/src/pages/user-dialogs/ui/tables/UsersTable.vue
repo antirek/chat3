@@ -77,26 +77,6 @@ function handleRowClick(item: User) {
 </script>
 
 <style scoped>
-/* .panel-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
-}
-
-:deep(.users-table.base-table-container) {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-} */
-
-/* .actions-column {
-  padding: 0;
-  font-size: 0;
-} */
-
 .info-button {
   padding: 4px 6px;
   font-size: 11px;

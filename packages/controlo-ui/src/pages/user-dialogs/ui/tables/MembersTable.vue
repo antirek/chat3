@@ -74,12 +74,6 @@ defineEmits<{
   min-height: 0;
 }
 
-:deep(.members-table.base-table-container) {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
 
 .user-cell {
   font-weight: 500;

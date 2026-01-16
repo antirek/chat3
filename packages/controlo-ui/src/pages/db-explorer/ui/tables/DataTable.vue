@@ -172,12 +172,6 @@ function handleFilter(key: string, value: string) {
   border-spacing: 0;
 }
 
-:deep(.data-table.base-table-container) {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
 
 .filter-input {
   padding: 6px 10px;
