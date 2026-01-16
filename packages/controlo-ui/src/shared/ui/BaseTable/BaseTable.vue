@@ -158,7 +158,7 @@ function handleRowClick(item: any, index: number) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 0;
   min-height: 0;
 }
@@ -166,6 +166,7 @@ function handleRowClick(item: any, index: number) {
 .table-wrapper {
   flex: 1;
   overflow-x: auto;
+  overflow-y: auto;
   min-height: 0;
 }
 

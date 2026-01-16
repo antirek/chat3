@@ -1,2 +1,1 @@
-export { default as DialogsPagination } from './DialogsPagination.vue';
-export { default as MessagesPagination } from './MessagesPagination.vue';
+export { default as ExtendedPagination } from './ExtendedPagination.vue';

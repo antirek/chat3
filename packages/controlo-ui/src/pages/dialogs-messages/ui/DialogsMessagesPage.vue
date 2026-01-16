@@ -23,13 +23,21 @@
           @apply="applyCombined"
         />
 
-        <DialogsPagination
+        <ExtendedPagination
           :show="showDialogsPagination"
           :current-page="currentPage"
+          :current-page-input="currentPageInput"
           :total-pages="totalPages"
           :total="totalDialogs"
-          :visible-pages="visibleDialogPages"
-          @change="changePage"
+          :pagination-start="dialogPaginationStart"
+          :pagination-end="dialogPaginationEnd"
+          :limit="currentDialogLimit"
+          @first="goToDialogsFirstPage"
+          @prev="goToDialogsPreviousPage"
+          @next="goToDialogsNextPage"
+          @last="goToDialogsLastPage"
+          @go-to-page="goToDialogsPage"
+          @change-limit="changeDialogLimit"
         />
 
         <DialogTable
@@ -73,13 +81,21 @@
           @apply="applyMessageFilter"
         />
 
-        <MessagesPagination
+        <ExtendedPagination
           :show="showMessagesPagination"
           :current-page="currentMessagePage"
+          :current-page-input="currentMessagePageInput"
           :total-pages="totalMessagePages"
           :total="totalMessages"
-          :visible-pages="visibleMessagePages"
-          @change="changeMessagePage"
+          :pagination-start="messagePaginationStart"
+          :pagination-end="messagePaginationEnd"
+          :limit="currentMessageLimit"
+          @first="goToMessagesFirstPage"
+          @prev="goToMessagesPreviousPage"
+          @next="goToMessagesNextPage"
+          @last="goToMessagesLastPage"
+          @go-to-page="goToMessagesPage"
+          @change-limit="changeMessageLimit"
         />
 
         <MessagesTableSimple
@@ -131,7 +147,7 @@
 import { useDialogsMessagesPage } from '../model/useDialogsMessagesPage';
 import { DialogTable, MessagesTableSimple } from './tables';
 import { DialogInfoModal, CreateDialogModal, UrlModal } from './modals';
-import { DialogsPagination, MessagesPagination } from './pagination';
+import { ExtendedPagination } from './pagination';
 import { DialogFilterPanel, MessageFilterPanel } from './filters';
 
 const {
@@ -140,8 +156,12 @@ const {
   loadingDialogs,
   dialogsError,
   currentPage,
+  currentPageInput,
+  currentDialogLimit,
   totalPages,
   totalDialogs,
+  dialogPaginationStart,
+  dialogPaginationEnd,
   visibleDialogPages,
   currentSort,
   filterValue,
@@ -157,8 +177,12 @@ const {
   messagesError,
   currentDialogId,
   currentMessagePage,
+  currentMessagePageInput,
+  currentMessageLimit,
   totalMessagePages,
   totalMessages,
+  messagePaginationStart,
+  messagePaginationEnd,
   visibleMessagePages,
   currentMessageSort,
   messageFilterValue,
@@ -177,10 +201,24 @@ const {
   selectedMembers,
   // Функции
   applyCombined,
+  // Dialogs Pagination Functions
+  goToDialogsFirstPage,
+  goToDialogsPreviousPage,
+  goToDialogsNextPage,
+  goToDialogsLastPage,
+  goToDialogsPage,
+  changeDialogLimit,
   changePage,
   formatUpdatedAt,
   formatMembers,
   selectDialog,
+  // Messages Pagination Functions
+  goToMessagesFirstPage,
+  goToMessagesPreviousPage,
+  goToMessagesNextPage,
+  goToMessagesLastPage,
+  goToMessagesPage,
+  changeMessageLimit,
   changeMessagePage,
   formatMessageTime,
   toggleSort,
@@ -230,6 +268,8 @@ const {
   flex: 1;
   gap: 1px;
   background: #ddd;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .dialogs-panel {
@@ -247,6 +287,15 @@ const {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
+}
+
+.dialogs-panel > *:last-child,
+.messages-panel > *:last-child {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-header {
@@ -382,11 +431,6 @@ const {
   cursor: not-allowed;
 }
 
-.panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
 
 table {
   width: 100%;

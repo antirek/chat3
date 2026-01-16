@@ -1,8 +1,9 @@
 <template>
-  <div id="messagesList">
+  <div class="messages-content">
     <div v-if="!currentDialogId" class="placeholder">Выберите диалог</div>
     <BaseTable
       v-else
+      class="messages-table"
       :items="messages"
       :loading="loading"
       :error="error"
@@ -67,6 +68,21 @@ defineProps<Props>();
 </script>
 
 <style scoped>
+.messages-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+:deep(.messages-table.base-table-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 :deep(th[style*='cursor: pointer']) {
   cursor: pointer;
   user-select: none;

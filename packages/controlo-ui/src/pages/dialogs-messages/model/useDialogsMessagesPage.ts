@@ -33,10 +33,10 @@ export function useDialogsMessagesPage() {
   // Пагинация для диалогов
   const dialogsPagination = usePagination({
     initialPage: 1,
-    initialLimit: 10,
-    onPageChange: (page) => {
+    initialLimit: 20,
+    onPageChange: (page, limit) => {
       const filterVal = filterValue.value.trim();
-      loadDialogsWithFilter(filterVal || '', page, currentSort.value);
+      loadDialogsWithFilter(filterVal || '', page, currentSort.value, limit);
     },
   });
 
@@ -54,10 +54,10 @@ export function useDialogsMessagesPage() {
   // Пагинация для сообщений
   const messagesPagination = usePagination({
     initialPage: 1,
-    initialLimit: 10,
-    onPageChange: (page) => {
+    initialLimit: 20,
+    onPageChange: (page, limit) => {
       if (currentDialogId.value) {
-        loadDialogMessages(currentDialogId.value, page);
+        loadDialogMessages(currentDialogId.value, page, limit);
       }
     },
   });
@@ -198,7 +198,7 @@ export function useDialogsMessagesPage() {
     }
   }
 
-  async function loadDialogsWithFilter(filter: string, page = 1, sort: string | null = null) {
+  async function loadDialogsWithFilter(filter: string, page = 1, sort: string | null = null, limit?: number) {
     loadingDialogs.value = true;
     dialogsError.value = null;
 
@@ -208,7 +208,8 @@ export function useDialogsMessagesPage() {
         throw new Error('API Key не указан');
       }
 
-      let url = `/api/dialogs?filter=${encodeURIComponent(filter)}&page=${page}&limit=10`;
+      const currentLimit = limit || dialogsPagination.currentLimit.value;
+      let url = `/api/dialogs?filter=${encodeURIComponent(filter)}&page=${page}&limit=${currentLimit}`;
       const sortParam = sort || currentSort.value;
       if (sortParam) {
         url += `&sort=${encodeURIComponent(sortParam)}`;
@@ -289,7 +290,7 @@ export function useDialogsMessagesPage() {
     loadDialogMessages(dialogId, 1);
   }
 
-  async function loadDialogMessages(dialogId: string, page = 1) {
+  async function loadDialogMessages(dialogId: string, page = 1, limit?: number) {
     loadingMessages.value = true;
     messagesError.value = null;
 
@@ -299,7 +300,8 @@ export function useDialogsMessagesPage() {
         throw new Error('API Key не указан');
       }
 
-      let url = `/api/dialogs/${dialogId}/messages?page=${page}&limit=10`;
+      const currentLimit = limit || messagesPagination.currentLimit.value;
+      let url = `/api/dialogs/${dialogId}/messages?page=${page}&limit=${currentLimit}`;
       if (currentMessageSort.value) {
         url += `&sort=${encodeURIComponent(currentMessageSort.value)}`;
       }
@@ -794,9 +796,12 @@ export function useDialogsMessagesPage() {
     loadingDialogs,
     dialogsError,
     currentPage: dialogsPagination.currentPage,
+    currentPageInput: dialogsPagination.currentPageInput,
+    currentDialogLimit: dialogsPagination.currentLimit,
     totalPages: dialogsPagination.totalPages,
     totalDialogs: dialogsPagination.totalItems,
-    currentPageInput: dialogsPagination.currentPageInput,
+    dialogPaginationStart: dialogsPagination.paginationStart,
+    dialogPaginationEnd: dialogsPagination.paginationEnd,
     visibleDialogPages,
     currentFilter,
     currentAdditionalFilter,
@@ -814,9 +819,12 @@ export function useDialogsMessagesPage() {
     messagesError,
     currentDialogId,
     currentMessagePage: messagesPagination.currentPage,
+    currentMessagePageInput: messagesPagination.currentPageInput,
+    currentMessageLimit: messagesPagination.currentLimit,
     totalMessagePages: messagesPagination.totalPages,
     totalMessages: messagesPagination.totalItems,
-    currentMessagePageInput: messagesPagination.currentPageInput,
+    messagePaginationStart: messagesPagination.paginationStart,
+    messagePaginationEnd: messagesPagination.paginationEnd,
     visibleMessagePages,
     currentMessageFilter,
     currentMessageSort,
@@ -840,10 +848,24 @@ export function useDialogsMessagesPage() {
     updateSortInput,
     clearAll,
     applyCombined,
+    // Dialogs Pagination Functions
+    goToDialogsFirstPage: dialogsPagination.goToFirstPage,
+    goToDialogsPreviousPage: dialogsPagination.goToPreviousPage,
+    goToDialogsNextPage: dialogsPagination.goToNextPage,
+    goToDialogsLastPage: dialogsPagination.goToLastPage,
+    goToDialogsPage: dialogsPagination.goToPage,
+    changeDialogLimit: dialogsPagination.changeLimit,
     changePage,
     formatUpdatedAt,
     formatMembers,
     selectDialog,
+    // Messages Pagination Functions
+    goToMessagesFirstPage: messagesPagination.goToFirstPage,
+    goToMessagesPreviousPage: messagesPagination.goToPreviousPage,
+    goToMessagesNextPage: messagesPagination.goToNextPage,
+    goToMessagesLastPage: messagesPagination.goToLastPage,
+    goToMessagesPage: messagesPagination.goToPage,
+    changeMessageLimit: messagesPagination.changeLimit,
     changeMessagePage,
     formatMessageTime,
     toggleSort,

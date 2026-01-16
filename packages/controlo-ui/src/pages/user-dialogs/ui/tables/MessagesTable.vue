@@ -14,11 +14,11 @@
     >
       <template #header>
         <tr>
-          <th>Отправитель</th>
-          <th>Время</th>
-          <th>Содержимое</th>
-          <th>Статус</th>
-          <th>Инфо</th>
+          <th style="text-align: center;">👤 Отправитель</th>
+          <th style="text-align: center;">🕒<br> Время</th>
+          <th style="text-align: center;">💬<br> Содержимое</th>
+          <th style="text-align: center;">📊 Статус</th>
+          <th style="text-align: center;">ℹ️<br> Инфо</th>
         </tr>
       </template>
       <template #row="{ item }">

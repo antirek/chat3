@@ -1,6 +1,7 @@
 <template>
-  <div id="dialogsList">
+  <div class="panel-content">
     <BaseTable
+      class="dialogs-table"
       :items="dialogs"
       :loading="loading"
       :error="error"
@@ -83,6 +84,21 @@ function showInfo(dialogId: string) {
 </script>
 
 <style scoped>
+.panel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+:deep(.dialogs-table.base-table-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 :deep(th[style*='cursor: pointer']) {
   cursor: pointer;
   user-select: none;
