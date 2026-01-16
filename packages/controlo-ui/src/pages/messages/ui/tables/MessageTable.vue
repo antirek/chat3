@@ -32,12 +32,12 @@
         <td class="message-content">{{ (item as Message).content }}</td>
         <td>{{ (item as Message).type }}</td>
         <td>
-          <button class="info-button" @click="showInfo((item as Message).messageId)">
+          <BaseButton variant="primary" size="small" @click="showInfo((item as Message).messageId)">
             ℹ️ Инфо
-          </button>
-          <button class="btn-success btn-small" @click="showMeta((item as Message).messageId)">
+          </BaseButton>
+          <BaseButton variant="success" size="small" @click="showMeta((item as Message).messageId)">
             🏷️ Мета
-          </button>
+          </BaseButton>
         </td>
       </template>
     </BaseTable>
@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseTable } from '@/shared/ui';
+import { BaseTable, BaseButton } from '@/shared/ui';
 
 interface Message {
   messageId: string;
@@ -104,47 +104,5 @@ defineProps<Props>();
   color: #666;
 }
 
-.info-button {
-  padding: 4px 10px;
-  font-size: 11px;
-  border: 1px solid #8ba0f5;
-  background: #8ba0f5;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-  max-height: 25px;
-  min-width: 69px;
-  margin-right: 6px;
-}
 
-.info-button:hover {
-  background: #7c8ff0;
-  border-color: #7c8ff0;
-}
-
-button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-success {
-  background: #48bb78;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  background: #38a169;
-}
-
-.btn-small {
-  padding: 4px 10px;
-  font-size: 11px;
-}
 </style>

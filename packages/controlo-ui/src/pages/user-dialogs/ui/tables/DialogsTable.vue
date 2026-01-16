@@ -35,7 +35,7 @@
         <td>{{ formatLastSeen(item.context?.lastSeenAt) }}</td>
         <td class="actions-column">
           <BaseButton variant="primary" size="small" @click.stop="$emit('show-info', item.dialogId)">ℹ️ Инфо</BaseButton>
-          <BaseButton variant="primary" size="small" @click.stop="$emit('show-events', item.dialogId)">📋 События</BaseButton>
+          <BaseButton variant="events" size="small" @click.stop="$emit('show-events', item.dialogId)">📋 События</BaseButton>
           <BaseButton variant="success" size="small" @click.stop="$emit('show-meta', item.dialogId)">🏷️ Мета</BaseButton>
         </td>
       </template>

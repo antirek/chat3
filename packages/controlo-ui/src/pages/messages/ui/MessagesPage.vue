@@ -5,7 +5,7 @@
         <span>📝 Сообщения</span>
       </template>
       <template #header-right>
-        <button class="btn-primary btn-small" @click="showUrlModal">🔗 URL</button>
+        <BaseButton variant="url" @click="showUrlModal">🔗 URL</BaseButton>
       </template>
       <MessageFilterPanel
         :filter-input="filterInput"
@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { BasePanel } from '@/shared/ui';
+import { BasePanel, BaseButton } from '@/shared/ui';
 import { useMessagesPage } from '../model/useMessagesPage';
 import { MessageFilterPanel } from './filters';
 import { MessageTable } from './tables';
@@ -151,34 +151,4 @@ const {
   overflow: hidden;
 }
 
-button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #667eea;
-  color: white;
-  border: none;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #5a6fd8;
-}
-
-.btn-small {
-  padding: 4px 10px;
-  font-size: 11px;
-  margin-right: 5px;
-}
 </style>
