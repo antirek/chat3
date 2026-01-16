@@ -17,27 +17,27 @@
             <tr v-for="tag in metaTags" :key="tag.key">
               <td><strong>{{ tag.key }}</strong></td>
               <td>{{ JSON.stringify(tag.value) }}</td>
-              <td><button type="button" class="btn-danger btn-small" @click="removeMetaTag(tag.key)">🗑️</button></td>
+              <td><BaseButton type="button" variant="danger" size="small" @click="removeMetaTag(tag.key)">🗑️</BaseButton></td>
             </tr>
           </tbody>
         </table>
         <div class="meta-tag-row">
           <input type="text" v-model="localMetaKey" placeholder="key (например: company)" />
           <input type="text" v-model="localMetaValue" placeholder="value (например: My Company)" />
-          <button type="button" class="btn-success btn-small" @click="addMetaTag">➕ Добавить</button>
+          <BaseButton type="button" variant="success" size="small" @click="addMetaTag">➕ Добавить</BaseButton>
         </div>
       </div>
     </form>
     <template #footer>
-      <button type="button" class="btn-secondary" @click="close">Отмена</button>
-      <button type="button" class="btn-success" @click="handleSubmit">Создать</button>
+      <BaseButton variant="secondary" @click="close">Отмена</BaseButton>
+      <BaseButton variant="success" @click="handleSubmit">Создать</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Props {
   isOpen: boolean;
@@ -88,11 +88,4 @@ th { padding: 6px; font-size: 11px; text-align: left; font-weight: 600; border-b
 td { padding: 6px; font-size: 12px; border-bottom: 1px solid #e9ecef; }
 .meta-tag-row { display: flex; gap: 8px; align-items: center; }
 .meta-tag-row input { flex: 1; padding: 6px 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px; }
-.btn-danger { background: #dc3545; color: white; border: none; padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; }
-.btn-danger:hover { background: #c82333; }
-.btn-success { background: #48bb78; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; cursor: pointer; font-weight: 500; }
-.btn-success:hover { background: #38a169; }
-.btn-small { padding: 4px 10px; font-size: 11px; }
-.btn-secondary { padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; }
-.btn-secondary:hover { background: #5a6268; }
 </style>

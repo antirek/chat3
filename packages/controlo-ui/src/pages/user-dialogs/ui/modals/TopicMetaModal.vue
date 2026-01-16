@@ -13,7 +13,7 @@
             <tr v-for="(value, key) in metaTags" :key="key">
               <td><strong>{{ key }}</strong></td>
               <td>{{ JSON.stringify(value) }}</td>
-              <td><button type="button" class="btn-danger btn-small" @click="$emit('delete-tag', String(key))">🗑️ Удалить</button></td>
+              <td><BaseButton type="button" variant="danger" size="small" @click="$emit('delete-tag', String(key))">🗑️ Удалить</BaseButton></td>
             </tr>
           </tbody>
         </table>
@@ -25,18 +25,18 @@
       <div class="meta-row">
         <input type="text" :value="newKey" @input="$emit('update:newKey', ($event.target as HTMLInputElement).value)" placeholder="key" />
         <input type="text" :value="newValue" @input="$emit('update:newValue', ($event.target as HTMLInputElement).value)" placeholder="value" />
-        <button type="button" class="btn-success" @click="$emit('add-tag')">➕ Добавить</button>
+        <BaseButton type="button" variant="success" @click="$emit('add-tag')">➕ Добавить</BaseButton>
       </div>
     </div>
 
     <template #footer>
-      <button type="button" class="btn-secondary" @click="$emit('close')">Закрыть</button>
+      <BaseButton variant="secondary" @click="$emit('close')">Закрыть</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Props { isOpen: boolean; metaTags: Record<string, unknown>; loading: boolean; newKey: string; newValue: string; }
 
@@ -57,8 +57,4 @@ defineEmits<{
 .meta-row { display: flex; gap: 10px; align-items: center; }
 .meta-row input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
 .loading, .no-data { padding: 20px; text-align: center; color: #6c757d; }
-.btn-danger { background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; }
-.btn-small { padding: 4px 8px; font-size: 12px; }
-.btn-success { padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
-.btn-secondary { padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
 </style>

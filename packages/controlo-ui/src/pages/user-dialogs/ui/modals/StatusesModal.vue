@@ -27,15 +27,15 @@
     <div v-show="totalPages > 1" class="pagination-bar">
       <div class="pagination-info">Всего: {{ total }} | Страница {{ currentPage }} из {{ totalPages }}</div>
       <div class="pagination-controls">
-        <button v-if="currentPage > 1" @click="$emit('go-to-page', currentPage - 1)">◀</button>
-        <button v-if="currentPage < totalPages" @click="$emit('go-to-page', currentPage + 1)">▶</button>
+        <BaseButton v-if="currentPage > 1" variant="secondary" size="small" @click="$emit('go-to-page', currentPage - 1)">◀</BaseButton>
+        <BaseButton v-if="currentPage < totalPages" variant="secondary" size="small" @click="$emit('go-to-page', currentPage + 1)">▶</BaseButton>
       </div>
     </div>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Status { userId?: string; userType?: string; status?: string; createdAt?: string; updatedAt?: string; }
 interface Props {
@@ -58,7 +58,6 @@ code { font-family: monospace; font-size: 12px; }
 .pagination-bar { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 4px; }
 .pagination-info { font-size: 12px; color: #6c757d; }
 .pagination-controls { display: flex; gap: 5px; }
-.pagination-controls button { padding: 5px 10px; font-size: 12px; border: 1px solid #dee2e6; background: white; border-radius: 4px; cursor: pointer; }
 .loading, .error, .no-data { padding: 20px; text-align: center; color: #6c757d; }
 .error { color: #dc3545; }
 </style>

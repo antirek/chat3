@@ -5,15 +5,15 @@
     <div class="status-section">
       <p class="status-hint">Выберите статус для текущего пользователя:</p>
       <div class="status-buttons">
-        <button type="button" class="status-btn unread" @click="$emit('set-status', 'unread')">
+        <BaseButton color="#6c757d" @click="$emit('set-status', 'unread')">
           📤 Sent (unread)
-        </button>
-        <button type="button" class="status-btn delivered" @click="$emit('set-status', 'delivered')">
+        </BaseButton>
+        <BaseButton color="#17a2b8" @click="$emit('set-status', 'delivered')">
           📥 Received (delivered)
-        </button>
-        <button type="button" class="status-btn read" @click="$emit('set-status', 'read')">
+        </BaseButton>
+        <BaseButton color="#28a745" @click="$emit('set-status', 'read')">
           ✓ Read
-        </button>
+        </BaseButton>
       </div>
     </div>
 
@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Props {
   isOpen: boolean;
@@ -76,33 +76,6 @@ function formatResult(result: string): string {
   flex-wrap: wrap;
 }
 
-.status-btn {
-  color: white;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
-  transition: all 0.2s;
-}
-
-.status-btn:hover {
-  opacity: 0.9;
-  transform: scale(1.05);
-}
-
-.status-btn.unread {
-  background: #6c757d;
-}
-
-.status-btn.delivered {
-  background: #17a2b8;
-}
-
-.status-btn.read {
-  background: #28a745;
-}
 
 .result-message {
   margin-top: 20px;

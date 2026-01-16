@@ -25,21 +25,21 @@
           <div v-for="(metaTag, index) in metaTags" :key="index" class="meta-tag-row">
             <input type="text" :value="metaTag.key" @input="$emit('update-meta-key', index, ($event.target as HTMLInputElement).value)" placeholder="Ключ" />
             <input type="text" :value="metaTag.value" @input="$emit('update-meta-value', index, ($event.target as HTMLInputElement).value)" placeholder="Значение" />
-            <button type="button" class="btn-remove" @click="$emit('remove-meta-row', index)" v-show="metaTags.length > 1">✕</button>
+            <BaseButton type="button" variant="danger" size="small" @click="$emit('remove-meta-row', index)" v-show="metaTags.length > 1">✕</BaseButton>
           </div>
         </div>
-        <button type="button" class="btn-add" @click="$emit('add-meta-row')">➕ Добавить мета-тег</button>
+        <BaseButton type="button" variant="success" @click="$emit('add-meta-row')">➕ Добавить мета-тег</BaseButton>
       </div>
     </form>
     <template #footer>
-      <button type="button" class="btn-secondary" @click="$emit('close')">Отмена</button>
-      <button type="submit" class="btn-success" @click="$emit('submit')">Добавить</button>
+      <BaseButton variant="secondary" @click="$emit('close')">Отмена</BaseButton>
+      <BaseButton variant="success" @click="$emit('submit')">Добавить</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface User { userId: string; }
 interface MetaTag { key: string; value: string; }
@@ -61,8 +61,4 @@ defineEmits<{
 .meta-tags { margin-top: 10px; }
 .meta-tag-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
 .meta-tag-row input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-.btn-remove { padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; }
-.btn-add { margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
-.btn-success { padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
-.btn-secondary { padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
 </style>

@@ -16,15 +16,15 @@
       </div>
     </form>
     <template #footer>
-      <button type="button" class="btn-secondary" @click="close">Отмена</button>
-      <button type="button" class="btn-success" @click="handleSubmit">Создать</button>
+      <BaseButton variant="secondary" @click="close">Отмена</BaseButton>
+      <BaseButton variant="success" @click="handleSubmit">Создать</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Props {
   isOpen: boolean;
@@ -56,8 +56,4 @@ function handleSubmit() { emit('submit'); }
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; margin-bottom: 6px; font-weight: 500; color: #495057; font-size: 13px; }
 .form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px; }
-.btn-success { background: #48bb78; color: white; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; cursor: pointer; font-weight: 500; }
-.btn-success:hover { background: #38a169; }
-.btn-secondary { padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; }
-.btn-secondary:hover { background: #5a6268; }
 </style>

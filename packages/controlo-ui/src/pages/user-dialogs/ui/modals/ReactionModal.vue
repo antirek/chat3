@@ -38,13 +38,13 @@
     </div>
 
     <template #footer>
-      <button type="button" class="btn-secondary" @click="$emit('close')">Закрыть</button>
+      <BaseButton variant="secondary" @click="$emit('close')">Закрыть</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Reaction {
   reaction: string;
@@ -162,17 +162,4 @@ defineEmits<{
   transform: scale(1.1);
 }
 
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.btn-secondary:hover {
-  background: #5a6268;
-}
 </style>

@@ -18,9 +18,9 @@
             <td><strong>{{ key }}</strong></td>
             <td>{{ JSON.stringify(value) }}</td>
             <td>
-              <button class="btn-danger btn-small" @click="deleteTag(String(key))">
+              <BaseButton variant="danger" size="small" @click="deleteTag(String(key))">
                 🗑️ Удалить
-              </button>
+              </BaseButton>
             </td>
           </tr>
         </tbody>
@@ -31,18 +31,18 @@
       <div class="meta-tag-row">
         <input type="text" v-model="localMetaKey" placeholder="key (например: company)" />
         <input type="text" v-model="localMetaValue" placeholder="value (например: My Company)" />
-        <button class="btn-success btn-small" @click="addTag">➕ Добавить</button>
+        <BaseButton variant="success" size="small" @click="addTag">➕ Добавить</BaseButton>
       </div>
     </div>
     <template #footer>
-      <button type="button" class="btn-secondary" @click="close">Закрыть</button>
+      <BaseButton variant="secondary" @click="close">Закрыть</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Props {
   isOpen: boolean;
@@ -84,11 +84,4 @@ tr:hover { background: #f8f9fa; }
 .meta-section h3 { font-size: 14px; margin-bottom: 15px; color: #333; }
 .meta-tag-row { display: flex; gap: 8px; align-items: center; }
 .meta-tag-row input { flex: 1; padding: 6px 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px; }
-.btn-danger { background: #dc3545; color: white; border: none; padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; }
-.btn-danger:hover { background: #c82333; }
-.btn-success { background: #48bb78; color: white; border: none; padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; }
-.btn-success:hover { background: #38a169; }
-.btn-small { padding: 4px 10px; font-size: 11px; }
-.btn-secondary { padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; }
-.btn-secondary:hover { background: #5a6268; }
 </style>

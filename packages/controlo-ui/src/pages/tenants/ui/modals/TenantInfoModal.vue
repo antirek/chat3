@@ -3,14 +3,14 @@
     <div class="info-url">{{ url }}</div>
     <div class="json-viewer">{{ content }}</div>
     <template #footer>
-      <button type="button" class="btn-primary" @click="copy">{{ copyButtonText }}</button>
-      <button type="button" class="btn-secondary" @click="close">Закрыть</button>
+      <BaseButton variant="primary" @click="copy">{{ copyButtonText }}</BaseButton>
+      <BaseButton variant="secondary" @click="close">Закрыть</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Props {
   isOpen: boolean;
@@ -59,33 +59,4 @@ function copy() {
   word-wrap: break-word;
 }
 
-.btn-primary {
-  padding: 8px 16px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.btn-primary:hover {
-  background: #5a6fd8;
-}
-
-.btn-secondary {
-  padding: 8px 16px;
-  background: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.btn-secondary:hover {
-  background: #5a6268;
-}
 </style>

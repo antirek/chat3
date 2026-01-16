@@ -3,9 +3,9 @@
     <div class="form-section">
       <label>👥 Участники диалога:</label>
       <div style="margin-top: 5px;">
-        <button type="button" class="url-button" @click="loadUsers" style="margin-bottom: 10px;">
+        <BaseButton variant="url" @click="loadUsers" style="margin-bottom: 10px;">
           🔄 Загрузить пользователей
-        </button>
+        </BaseButton>
         <div v-if="loadingUsers" style="display: block; color: #6c757d; font-size: 12px;">Загрузка...</div>
         <div v-else-if="usersError" style="color: #dc3545; font-size: 12px;">{{ usersError }}</div>
         <div v-else-if="users.length === 0 && usersLoaded" class="no-data" style="padding: 20px;">
@@ -30,15 +30,15 @@
       </div>
     </div>
     <template #footer>
-      <button type="button" class="btn-primary" @click="create">✅ Создать диалог</button>
-      <button type="button" class="btn-cancel" @click="close">Отмена</button>
+      <BaseButton variant="success" @click="create">✅ Создать диалог</BaseButton>
+      <BaseButton variant="secondary" @click="close">Отмена</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface User {
   userId: string;
@@ -103,51 +103,6 @@ function create() {
   color: #495057;
 }
 
-.url-button {
-  padding: 6px 12px;
-  font-size: 12px;
-  border: 1px solid #ced4da;
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.url-button:hover {
-  background: #e9ecef;
-}
-
-.btn-primary {
-  padding: 6px 12px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #5a6fd8;
-}
-
-.btn-cancel {
-  padding: 6px 12px;
-  font-size: 12px;
-  border: 1px solid #ced4da;
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-cancel:hover {
-  background: #e9ecef;
-}
 
 .no-data {
   text-align: center;

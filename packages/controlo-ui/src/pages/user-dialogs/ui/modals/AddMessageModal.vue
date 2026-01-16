@@ -44,15 +44,15 @@
               <div v-for="(metaTag, index) in metaTags" :key="index" class="meta-tag-row">
                 <input type="text" :value="metaTag.key" placeholder="Ключ" @input="(e) => updateMetaTagKey(index, (e.target as HTMLInputElement).value)" />
                 <input type="text" :value="metaTag.value" placeholder="Значение" @input="(e) => updateMetaTagValue(index, (e.target as HTMLInputElement).value)" />
-                <button type="button" class="btn-remove" @click="removeMetaTag(index)" v-show="metaTags.length > 1">✕</button>
+                <BaseButton type="button" variant="danger" size="small" @click="removeMetaTag(index)" v-show="metaTags.length > 1">✕</BaseButton>
               </div>
             </div>
-            <button type="button" class="btn-add" @click="addMetaTag">➕ Добавить мета-тег</button>
+            <BaseButton type="button" variant="success" @click="addMetaTag">➕ Добавить мета-тег</BaseButton>
           </div>
           
           <div class="form-actions">
-            <button type="submit" class="btn-success">Добавить</button>
-            <button type="button" class="btn-secondary" @click="close">Отмена</button>
+            <BaseButton variant="success" @click="submit">Добавить</BaseButton>
+            <BaseButton variant="secondary" @click="close">Отмена</BaseButton>
           </div>
         </form>
       </div>
@@ -68,7 +68,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface MetaTag { key: string; value: string; }
 interface Topic { topicId: string; meta?: Record<string, any>; }
@@ -182,47 +182,10 @@ function submit() { emit('submit'); }
   flex: 1;
 }
 
-.btn-remove {
-  padding: 6px 12px;
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.btn-add {
-  padding: 6px 12px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
 .form-actions {
   display: flex;
   gap: 8px;
   margin-top: 15px;
-}
-
-.btn-success {
-  padding: 8px 16px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.btn-secondary {
-  padding: 8px 16px;
-  background: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
 }
 
 .payload-preview {

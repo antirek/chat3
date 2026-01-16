@@ -26,7 +26,7 @@
                 </td>
                 <td><code>{{ event.eventType || '-' }}</code></td>
                 <td>
-                  <button v-if="event.updatesCount > 0" class="updates-btn" @click.stop="$emit('load-updates', getEventId(event))">🔄 Обновления</button>
+                  <BaseButton v-if="event.updatesCount > 0" variant="primary" size="small" @click.stop="$emit('load-updates', getEventId(event))">🔄 Обновления</BaseButton>
                   <span v-else class="no-updates">{{ event.updatesCount === 0 ? 'Нет обновлений' : '-' }}</span>
                 </td>
               </tr>
@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Event {
   _id?: string; id?: string; eventType?: string; createdAt?: string;
@@ -96,8 +96,6 @@ defineEmits<{ (e: 'close'): void; (e: 'load-updates', eventId: string): void; }>
 .time-cell { color: #6c757d; font-size: 12px; }
 .actor-info { color: #6c757d; font-size: 11px; }
 code { font-family: monospace; font-size: 12px; font-weight: 500; }
-.updates-btn { padding: 5px 10px; font-size: 12px; background: #e7f3ff; color: #0066cc; border: 1px solid #b8daff; border-radius: 4px; cursor: pointer; }
-.updates-btn:hover { background: #cce5ff; }
 .no-updates { color: #999; font-size: 12px; }
 .loading, .error, .no-data { padding: 20px; text-align: center; color: #6c757d; }
 .error { color: #dc3545; }
