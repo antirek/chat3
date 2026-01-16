@@ -1,6 +1,7 @@
 <template>
-  <div id="events-content">
+  <div id="events-content" class="events-content-container">
     <BaseTable
+      class="events-table"
       :items="events"
       :loading="loading"
       :error="error"
@@ -85,6 +86,21 @@ function handleRowClick(event: Event, _index: number) {
 </script>
 
 <style scoped>
+.events-content-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+:deep(.events-table.base-table-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 :deep(th[style*='cursor: pointer']) {
   cursor: pointer;
   user-select: none;

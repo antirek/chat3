@@ -1,6 +1,7 @@
 <template>
-  <div id="messagesList">
+  <div id="messagesList" class="messages-list-container">
     <BaseTable
+      class="messages-table"
       :items="messages"
       :loading="loading"
       :error="error"
@@ -71,6 +72,21 @@ defineProps<Props>();
 </script>
 
 <style scoped>
+.messages-list-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+:deep(.messages-table.base-table-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 :deep(th[style*='cursor: pointer']) {
   cursor: pointer;
   user-select: none;

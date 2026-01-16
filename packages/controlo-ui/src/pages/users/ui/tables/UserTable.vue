@@ -1,6 +1,7 @@
 <template>
-  <div id="usersList">
+  <div id="usersList" class="users-list-container">
     <BaseTable
+      class="users-table"
       :items="users"
       :loading="loading"
       :error="error"
@@ -131,6 +132,21 @@ function deleteUser(userId: string) {
 </script>
 
 <style scoped>
+.users-list-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+:deep(.users-table.base-table-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 :deep(th[style*='cursor: pointer']) {
   cursor: pointer;
   user-select: none;

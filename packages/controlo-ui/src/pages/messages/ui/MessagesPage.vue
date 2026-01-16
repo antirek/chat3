@@ -190,6 +190,7 @@ const {
   flex-direction: column;
   background: white;
   overflow: hidden;
+  min-height: 0;
 }
 
 button {

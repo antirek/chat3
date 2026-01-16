@@ -1,6 +1,7 @@
 <template>
-  <div id="updates-content">
+  <div id="updates-content" class="updates-content-container">
     <BaseTable
+      class="updates-table"
       :items="updates"
       :loading="loading"
       :error="error"
@@ -74,6 +75,21 @@ defineProps<Props>();
 </script>
 
 <style scoped>
+.updates-content-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+:deep(.updates-table.base-table-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 :deep(th[style*='cursor: pointer']) {
   cursor: pointer;
   user-select: none;

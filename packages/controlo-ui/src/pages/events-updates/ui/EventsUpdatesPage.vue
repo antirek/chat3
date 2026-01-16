@@ -199,6 +199,8 @@ const {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .panel-header {
