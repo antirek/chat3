@@ -1,10 +1,14 @@
 <template>
-  <div class="content" id="messagesList">
-    <div v-if="loading" class="loading">Загрузка...</div>
-    <div v-else-if="error" class="error">Ошибка загрузки: {{ error }}</div>
-    <div v-else-if="messages.length === 0" class="no-data">Сообщения не найдены</div>
-    <table v-else>
-      <thead>
+  <div id="messagesList">
+    <BaseTable
+      :items="messages"
+      :loading="loading"
+      :error="error"
+      loading-text="Загрузка..."
+      empty-text="Сообщения не найдены"
+      :get-item-key="(message) => message.messageId"
+    >
+      <template #header>
         <tr>
           <th>ID сообщения</th>
           <th>Диалог</th>
@@ -17,30 +21,31 @@
           <th>Тип</th>
           <th>Действия</th>
         </tr>
-      </thead>
-      <tbody>
-        <tr v-for="message in messages" :key="message.messageId">
-          <td class="message-id">{{ message.messageId }}</td>
-          <td>{{ getDialogName(message.dialogId) }}</td>
-          <td>{{ message.senderId }}</td>
-          <td>{{ formatTimestamp(message.createdAt) }}</td>
-          <td class="message-content">{{ message.content }}</td>
-          <td>{{ message.type }}</td>
-          <td>
-            <button class="info-button" @click="showInfo(message.messageId)">
-              ℹ️ Инфо
-            </button>
-            <button class="btn-success btn-small" @click="showMeta(message.messageId)">
-              🏷️ Мета
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      </template>
+
+      <template #row="{ item }">
+        <td class="message-id">{{ (item as Message).messageId }}</td>
+        <td>{{ getDialogName((item as Message).dialogId) }}</td>
+        <td>{{ (item as Message).senderId }}</td>
+        <td>{{ formatTimestamp((item as Message).createdAt) }}</td>
+        <td class="message-content">{{ (item as Message).content }}</td>
+        <td>{{ (item as Message).type }}</td>
+        <td>
+          <button class="info-button" @click="showInfo((item as Message).messageId)">
+            ℹ️ Инфо
+          </button>
+          <button class="btn-success btn-small" @click="showMeta((item as Message).messageId)">
+            🏷️ Мета
+          </button>
+        </td>
+      </template>
+    </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import { BaseTable } from '@/shared/ui';
+
 interface Message {
   messageId: string;
   dialogId: string;
@@ -66,75 +71,19 @@ defineProps<Props>();
 </script>
 
 <style scoped>
-.content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-thead {
-  background: #f8f9fa;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-th {
-  padding: 12px 15px;
-  text-align: left;
-  font-weight: 600;
-  color: #495057;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid #e9ecef;
-}
-
-th[style*='cursor: pointer'] {
+:deep(th[style*='cursor: pointer']) {
   cursor: pointer;
   user-select: none;
 }
 
-th[style*='cursor: pointer']:hover {
+:deep(th[style*='cursor: pointer']:hover) {
   background: #e9ecef;
 }
 
-td {
-  padding: 12px 15px;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 13px;
-}
-
-tr:hover {
-  background: #f8f9fa;
-}
-
-.no-data {
-  text-align: center;
-  padding: 40px;
-  color: #6c757d;
-  font-size: 14px;
-}
-
-.loading {
-  text-align: center;
-  padding: 40px;
+.sort-indicator {
+  margin-left: 5px;
+  font-size: 10px;
   color: #667eea;
-  font-size: 14px;
-}
-
-.error {
-  background: #f8d7da;
-  color: #721c24;
-  padding: 15px;
-  border-radius: 6px;
-  margin: 15px;
-  font-size: 13px;
 }
 
 .message-content {
@@ -195,11 +144,5 @@ button {
 .btn-small {
   padding: 4px 10px;
   font-size: 11px;
-}
-
-.sort-indicator {
-  margin-left: 5px;
-  font-size: 10px;
-  color: #667eea;
 }
 </style>
