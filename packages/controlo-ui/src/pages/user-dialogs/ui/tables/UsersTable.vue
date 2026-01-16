@@ -1,55 +1,56 @@
 <template>
   <div class="panel-content">
-    <div v-if="loading" class="loading">Загрузка пользователей...</div>
-    <div v-else-if="error" class="error">Ошибка: {{ error }}</div>
-    <div v-else-if="users.length === 0" class="no-data">Пользователи не найдены</div>
-    <table v-else>
-      <thead>
+    <BaseTable
+      class="users-table"
+      :items="users"
+      :loading="loading"
+      :error="error"
+      :get-item-key="(item) => item.userId"
+      :selectable="true"
+      :selected-key="selectedUserId"
+      :get-row-class="() => 'user-row'"
+      loading-text="Загрузка пользователей..."
+      empty-text="Пользователи не найдены"
+      @row-click="handleRowClick"
+    >
+      <template #header>
         <tr>
           <th>User ID</th>
           <th style="text-align: center; width: 80px;" title="Общее количество диалогов">💬 Диалоги</th>
           <th style="text-align: center; width: 80px;" title="Диалоги с непрочитанными сообщениями">🔔 Непрочитано</th>
           <th>Действия</th>
         </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="user in users"
-          :key="user.userId"
-          @click="$emit('select', user.userId, user.displayName || user.userId)"
-          :class="['user-row', { 'user-row-selected': selectedUserId === user.userId }]"
-          :data-user-id="user.userId"
-          :title="`Диалогов: ${user.dialogCount || 0}, Непрочитано: ${user.unreadDialogsCount || 0}`"
-          style="cursor: pointer;"
-        >
-          <td>{{ user.userId }}</td>
-          <td style="text-align: center;">
-            <span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #495057;">
-              {{ user.dialogCount !== undefined ? user.dialogCount : '-' }}
-            </span>
-          </td>
-          <td style="text-align: center;">
-            <span :style="{
-              background: user.unreadDialogsCount > 0 ? '#fff3cd' : '#f0f0f0',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              fontWeight: '600',
-              color: user.unreadDialogsCount > 0 ? '#856404' : '#495057'
-            }">
-              {{ user.unreadDialogsCount !== undefined ? user.unreadDialogsCount : '-' }}
-            </span>
-          </td>
-          <td class="actions-column" @click.stop>
-            <button class="info-button" @click="$emit('show-info', user.userId)">ℹ️ Инфо</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      </template>
+      <template #row="{ item }">
+        <td>{{ item.userId }}</td>
+        <td style="text-align: center;">
+          <span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #495057;">
+            {{ item.dialogCount !== undefined ? item.dialogCount : '-' }}
+          </span>
+        </td>
+        <td style="text-align: center;">
+          <span :style="{
+            background: item.unreadDialogsCount > 0 ? '#fff3cd' : '#f0f0f0',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            fontWeight: '600',
+            color: item.unreadDialogsCount > 0 ? '#856404' : '#495057'
+          }">
+            {{ item.unreadDialogsCount !== undefined ? item.unreadDialogsCount : '-' }}
+          </span>
+        </td>
+        <td class="actions-column" @click.stop>
+          <button class="info-button" @click="$emit('show-info', item.userId)">ℹ️ Инфо</button>
+        </td>
+      </template>
+    </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import { BaseTable } from '@/shared/ui';
+
 interface User {
   userId: string;
   displayName?: string;
@@ -65,62 +66,30 @@ interface Props {
 }
 
 defineProps<Props>();
-defineEmits<{
+const emit = defineEmits<{
   (e: 'select', userId: string, displayName: string): void;
   (e: 'show-info', userId: string): void;
 }>();
+
+function handleRowClick(item: User) {
+  emit('select', item.userId, item.displayName || item.userId);
+}
 </script>
 
 <style scoped>
 .panel-content {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
-.loading,
-.error,
-.no-data {
-  padding: 40px 20px;
-  text-align: center;
-  color: #6c757d;
-}
-
-.error {
-  color: #dc3545;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th {
-  text-align: left;
-  padding: 12px 15px;
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
-  font-weight: 600;
-  color: #495057;
-  font-size: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-td {
-  padding: 10px 15px;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 13px;
-  color: #495057;
-}
-
-.user-row:hover {
-  background: #f8f9fa;
-}
-
-.user-row-selected {
-  background: #e3f2fd !important;
+:deep(.users-table.base-table-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .actions-column {

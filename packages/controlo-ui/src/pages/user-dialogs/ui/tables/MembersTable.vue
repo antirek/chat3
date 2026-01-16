@@ -1,10 +1,15 @@
 <template>
   <div class="members-content">
-    <div v-if="loading" class="loading">Загрузка участников...</div>
-    <div v-else-if="error" class="error">Ошибка: {{ error }}</div>
-    <div v-else-if="members.length === 0" class="no-data">Участников нет</div>
-    <table v-else>
-      <thead>
+    <BaseTable
+      class="members-table"
+      :items="members"
+      :loading="loading"
+      :error="error"
+      :get-item-key="(item) => item.userId"
+      loading-text="Загрузка участников..."
+      empty-text="Участников нет"
+    >
+      <template #header>
         <tr>
           <th>Пользователь</th>
           <th style="text-align: center;">Непрочитанные</th>
@@ -12,33 +17,33 @@
           <th>Мета</th>
           <th style="text-align: center;">Действия</th>
         </tr>
-      </thead>
-      <tbody>
-        <tr v-for="member in members" :key="member.userId">
-          <td class="user-cell">{{ member.userId }}</td>
-          <td style="text-align: center; color: #6c757d;">{{ member.unreadCount || 0 }}</td>
-          <td style="text-align: center;">
-            <span :style="{ color: member.isActive ? '#28a745' : '#dc3545' }">{{ member.isActive ? '✓' : '✗' }}</span>
-          </td>
-          <td class="meta-cell">
-            <div v-if="member.meta && Object.keys(member.meta).length > 0">
-              <div v-for="(value, key) in member.meta" :key="key">
-                <strong>{{ key }}:</strong> {{ value }}
-              </div>
+      </template>
+      <template #row="{ item }">
+        <td class="user-cell">{{ item.userId }}</td>
+        <td style="text-align: center; color: #6c757d;">{{ item.unreadCount || 0 }}</td>
+        <td style="text-align: center;">
+          <span :style="{ color: item.isActive ? '#28a745' : '#dc3545' }">{{ item.isActive ? '✓' : '✗' }}</span>
+        </td>
+        <td class="meta-cell">
+          <div v-if="item.meta && Object.keys(item.meta).length > 0">
+            <div v-for="(value, key) in item.meta" :key="key">
+              <strong>{{ key }}:</strong> {{ value }}
             </div>
-            <span v-else style="color: #adb5bd;">—</span>
-          </td>
-          <td style="text-align: center;">
-            <button class="btn-success btn-small" @click="$emit('show-meta', member.userId)">🏷️ Мета</button>
-            <button class="btn-danger btn-small" @click="$emit('remove', member.userId)">🗑️ Удалить</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+          </div>
+          <span v-else style="color: #adb5bd;">—</span>
+        </td>
+        <td style="text-align: center;">
+          <button class="btn-success btn-small" @click="$emit('show-meta', item.userId)">🏷️ Мета</button>
+          <button class="btn-danger btn-small" @click="$emit('remove', item.userId)">🗑️ Удалить</button>
+        </td>
+      </template>
+    </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import { BaseTable } from '@/shared/ui';
+
 interface Member {
   userId: string;
   unreadCount?: number;
@@ -63,44 +68,17 @@ defineEmits<{
 .members-content {
   padding: 0;
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
-.loading,
-.error,
-.no-data {
-  padding: 40px 20px;
-  text-align: center;
-  color: #6c757d;
-}
-
-.error {
-  color: #dc3545;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th {
-  text-align: left;
-  padding: 8px;
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
-  font-weight: 600;
-  color: #495057;
-  font-size: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-td {
-  padding: 8px;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 13px;
-  color: #495057;
+:deep(.members-table.base-table-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .user-cell {

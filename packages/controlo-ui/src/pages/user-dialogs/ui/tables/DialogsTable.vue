@@ -1,11 +1,21 @@
 <template>
   <div class="panel-content">
     <div v-if="!hasUser" class="placeholder">Выберите пользователя</div>
-    <div v-else-if="loading" class="loading">Загрузка диалогов...</div>
-    <div v-else-if="error" class="error">Ошибка: {{ error }}</div>
-    <div v-else-if="dialogs.length === 0" class="no-data">Диалоги не найдены</div>
-    <table v-else>
-      <thead>
+    <BaseTable
+      v-else
+      class="dialogs-table"
+      :items="dialogs"
+      :loading="loading"
+      :error="error"
+      :get-item-key="(item) => item.dialogId"
+      :selectable="true"
+      :selected-key="selectedDialogId"
+      :get-row-class="() => 'dialog-row'"
+      loading-text="Загрузка диалогов..."
+      empty-text="Диалоги не найдены"
+      @row-click="handleRowClick"
+    >
+      <template #header>
         <tr>
           <th>Dialog ID</th>
           <th>Unread</th>
@@ -13,35 +23,29 @@
           <th>Последний просмотр</th>
           <th>Действия</th>
         </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="dialog in dialogs"
-          :key="dialog.dialogId"
-          @click="$emit('select', dialog.dialogId)"
-          :class="['dialog-row', { 'dialog-row-selected': selectedDialogId === dialog.dialogId }]"
-          :data-dialog-id="dialog.dialogId"
-        >
-          <td>{{ shortenDialogId(dialog.dialogId) }}</td>
-          <td>{{ dialog.context?.unreadCount || 0 }}</td>
-          <td style="text-align: center;">
-            <span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #495057;">
-              {{ dialog.stats?.topicCount || 0 }}
-            </span>
-          </td>
-          <td>{{ formatLastSeen(dialog.context?.lastSeenAt) }}</td>
-          <td class="actions-column">
-            <button class="info-button" @click.stop="$emit('show-info', dialog.dialogId)">ℹ️ Инфо</button>
-            <button class="action-button events-button" @click.stop="$emit('show-events', dialog.dialogId)">📋 События</button>
-            <button class="btn-success btn-small" @click.stop="$emit('show-meta', dialog.dialogId)">🏷️ Мета</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      </template>
+      <template #row="{ item }">
+        <td>{{ shortenDialogId(item.dialogId) }}</td>
+        <td>{{ item.context?.unreadCount || 0 }}</td>
+        <td style="text-align: center;">
+          <span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #495057;">
+            {{ item.stats?.topicCount || 0 }}
+          </span>
+        </td>
+        <td>{{ formatLastSeen(item.context?.lastSeenAt) }}</td>
+        <td class="actions-column">
+          <button class="info-button" @click.stop="$emit('show-info', item.dialogId)">ℹ️ Инфо</button>
+          <button class="action-button events-button" @click.stop="$emit('show-events', item.dialogId)">📋 События</button>
+          <button class="btn-success btn-small" @click.stop="$emit('show-meta', item.dialogId)">🏷️ Мета</button>
+        </td>
+      </template>
+    </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import { BaseTable } from '@/shared/ui';
+
 interface Dialog {
   dialogId: string;
   context?: {
@@ -62,12 +66,16 @@ interface Props {
 }
 
 defineProps<Props>();
-defineEmits<{
+const emit = defineEmits<{
   (e: 'select', dialogId: string): void;
   (e: 'show-info', dialogId: string): void;
   (e: 'show-events', dialogId: string): void;
   (e: 'show-meta', dialogId: string): void;
 }>();
+
+function handleRowClick(item: Dialog) {
+  emit('select', item.dialogId);
+}
 
 function shortenDialogId(dialogId: string): string {
   if (!dialogId) return '-';
@@ -89,58 +97,23 @@ function formatLastSeen(lastSeenAt?: string | number): string {
 <style scoped>
 .panel-content {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
-.loading,
-.error,
-.no-data,
+:deep(.dialogs-table.base-table-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .placeholder {
   padding: 40px 20px;
   text-align: center;
   color: #6c757d;
-}
-
-.error {
-  color: #dc3545;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th {
-  text-align: left;
-  padding: 12px 15px;
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
-  font-weight: 600;
-  color: #495057;
-  font-size: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-td {
-  padding: 10px 15px;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 13px;
-  color: #495057;
-}
-
-.dialog-row {
-  cursor: pointer;
-}
-
-.dialog-row:hover {
-  background: #f8f9fa;
-}
-
-.dialog-row-selected {
-  background: #e3f2fd !important;
 }
 
 .actions-column {

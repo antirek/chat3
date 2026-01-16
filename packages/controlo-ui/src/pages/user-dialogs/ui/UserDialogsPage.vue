@@ -220,7 +220,7 @@
           container-style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;"
           @change="changeMessagePage"
         />
-        <div class="panel-content" id="messagesList" v-show="currentViewMode === 'messages'" style="flex: 1; overflow-y: auto;">
+        <div class="panel-content" id="messagesList" v-show="currentViewMode === 'messages'">
           <MessagesTable
             :messages="messages"
             :loading="loadingMessages"
@@ -813,13 +813,13 @@ onMounted(() => {
 
 .users-panel {
   width: 13%;
-  min-width: 370px;
-  overflow-y: auto;
+  min-width: 410px;
+  overflow: hidden;
   border-right: 1px solid #edeff3;
 }
 
 .dialogs-panel {
-  width: 30%;
+  width: 33%;
   min-width: 350px;
 }
 
@@ -862,8 +862,11 @@ onMounted(() => {
 
 .panel-content {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 0;
+  min-height: 0;
 }
 
 table {

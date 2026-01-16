@@ -156,12 +156,17 @@ function handleRowClick(item: any, index: number) {
 <style scoped>
 .base-table-container {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   padding: 0;
+  min-height: 0;
 }
 
 .table-wrapper {
+  flex: 1;
   overflow-x: auto;
+  min-height: 0;
 }
 
 :deep(table) {
@@ -178,7 +183,7 @@ function handleRowClick(item: any, index: number) {
 }
 
 :deep(th) {
-  padding: 12px 15px;
+  padding: 5px 10px;
   text-align: left;
   font-weight: 600;
   color: #495057;
@@ -188,7 +193,7 @@ function handleRowClick(item: any, index: number) {
 }
 
 :deep(td) {
-  padding: 12px 15px;
+  padding: 5px 10px;
   border-bottom: 1px solid #e9ecef;
   font-size: 13px;
 }

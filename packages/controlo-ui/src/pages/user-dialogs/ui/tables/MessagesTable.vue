@@ -1,11 +1,18 @@
 <template>
   <div class="messages-content">
     <div v-if="!hasDialog" class="placeholder">Выберите диалог</div>
-    <div v-else-if="loading" class="loading">Загрузка сообщений...</div>
-    <div v-else-if="error" class="error">Ошибка: {{ error }}</div>
-    <div v-else-if="messages.length === 0" class="no-data">Сообщения не найдены</div>
-    <table v-else>
-      <thead>
+    <BaseTable
+      v-else
+      class="messages-table"
+      :items="messages"
+      :loading="loading"
+      :error="error"
+      :get-item-key="(item) => item.messageId"
+      :get-row-class="(item) => item.context?.isMine ? 'message-row-mine' : ''"
+      loading-text="Загрузка сообщений..."
+      empty-text="Сообщения не найдены"
+    >
+      <template #header>
         <tr>
           <th>Отправитель</th>
           <th>Время</th>
@@ -13,46 +20,41 @@
           <th>Статус</th>
           <th>Инфо</th>
         </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="message in messages"
-          :key="message.messageId"
-          :data-message-id="message.messageId"
-          :style="message.context?.isMine ? 'background-color: #f0f8ff;' : ''"
-        >
-          <td>
-            {{ message.senderId }}
-            <span v-if="message.context?.isMine" style="color: #4fc3f7; margin-left: 5px;" title="Ваше сообщение">👤</span>
-          </td>
-          <td>{{ formatMessageTime(message.createdAt) }}</td>
-          <td class="message-content">{{ message.content }}</td>
-          <td>
-            <span
-              v-if="message.context?.isMine && getMessageStatus(message)"
-              :style="{ color: getStatusColor(getMessageStatus(message)), fontWeight: 'bold' }"
-              :title="getMessageStatus(message) || undefined"
-            >
-              {{ getStatusIcon(getMessageStatus(message)) }}
-            </span>
-            <span v-else style="color: #999;">-</span>
-          </td>
-          <td class="actions-column">
-            <button class="info-button" @click="$emit('show-info', message.messageId)">ℹ️ Инфо</button>
-            <button class="btn-success btn-small" @click="$emit('show-meta', message.messageId)">🏷️ Мета</button>
-            <button class="action-button reactions-button" @click="$emit('show-reactions', message.messageId)">😊 Реакции</button>
-            <button class="action-button events-button" @click="$emit('show-events', message.messageId)">📋 События</button>
-            <button class="action-button status-matrix-button" @click="$emit('show-status-matrix', message.messageId)">📊 Матрица статусов</button>
-            <button class="action-button statuses-button" @click="$emit('show-statuses', message.messageId)">📋 Статусы</button>
-            <button class="action-button set-status-button" @click="$emit('show-set-status', message.messageId)">✏️ Установить статус</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      </template>
+      <template #row="{ item }">
+        <td>
+          {{ item.senderId }}
+          <span v-if="item.context?.isMine" style="color: #4fc3f7; margin-left: 5px;" title="Ваше сообщение">👤</span>
+        </td>
+        <td>{{ formatMessageTime(item.createdAt) }}</td>
+        <td class="message-content">{{ item.content }}</td>
+        <td>
+          <span
+            v-if="item.context?.isMine && getMessageStatus(item)"
+            :style="{ color: getStatusColor(getMessageStatus(item)), fontWeight: 'bold' }"
+            :title="getMessageStatus(item) || undefined"
+          >
+            {{ getStatusIcon(getMessageStatus(item)) }}
+          </span>
+          <span v-else style="color: #999;">-</span>
+        </td>
+        <td class="actions-column">
+          <button class="info-button" @click="$emit('show-info', item.messageId)">ℹ️ Инфо</button>
+          <button class="btn-success btn-small" @click="$emit('show-meta', item.messageId)">🏷️ Мета</button>
+          <button class="action-button reactions-button" @click="$emit('show-reactions', item.messageId)">😊 Реакции</button>
+          <button class="action-button events-button" @click="$emit('show-events', item.messageId)">📋 События</button>
+          <button class="action-button status-matrix-button" @click="$emit('show-status-matrix', item.messageId)">📊 Матрица статусов</button>
+          <button class="action-button statuses-button" @click="$emit('show-statuses', item.messageId)">📋 Статусы</button>
+          <button class="action-button set-status-button" @click="$emit('show-set-status', item.messageId)">✏️ Установить статус</button>
+        </td>
+      </template>
+    </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import { BaseTable } from '@/shared/ui';
+
 interface Message {
   messageId: string;
   senderId: string;
@@ -120,45 +122,27 @@ function getStatusIcon(status: string | null): string {
 <style scoped>
 .messages-content {
   flex: 1;
-  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
-.loading,
-.error,
-.no-data,
+:deep(.messages-table.base-table-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .placeholder {
   padding: 40px 20px;
   text-align: center;
   color: #6c757d;
 }
 
-.error {
-  color: #dc3545;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th {
-  text-align: left;
-  padding: 12px 15px;
-  background: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
-  font-weight: 600;
-  color: #495057;
-  font-size: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-td {
-  padding: 10px 15px;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 13px;
-  color: #495057;
+:deep(.message-row-mine) {
+  background-color: #f0f8ff;
 }
 
 .message-content {
