@@ -1,15 +1,12 @@
 <template>
   <div class="messages-page">
-    <div class="page-header">
-      <div class="page-header-left">
-        <h1>📝 Сообщения</h1>
-      </div>
-      <div class="page-header-right">
+    <BasePanel>
+      <template #header-left>
+        <span>📝 Сообщения</span>
+      </template>
+      <template #header-right>
         <button class="btn-primary btn-small" @click="showUrlModal">🔗 URL</button>
-      </div>
-    </div>
-
-    <div class="page-container">
+      </template>
       <MessageFilterPanel
         :filter-input="filterInput"
         :selected-filter-example="selectedFilterExample"
@@ -41,7 +38,7 @@
         :show-info="showInfoModal"
         :show-meta="showMetaModal"
       />
-    </div>
+    </BasePanel>
 
     <MessageInfoModal
       :is-open="showInfoModalFlag"
@@ -80,6 +77,7 @@
 </template>
 
 <script setup lang="ts">
+import { BasePanel } from '@/shared/ui';
 import { useMessagesPage } from '../model/useMessagesPage';
 import { MessageFilterPanel } from './filters';
 import { MessageTable } from './tables';
@@ -151,46 +149,6 @@ const {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.page-header {
-  background: #f8f9fa;
-  padding: 15px 20px;
-  border-bottom: 1px solid #e9ecef;
-  font-weight: 600;
-  color: #495057;
-  font-size: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 59px;
-}
-
-.page-header-left {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.page-header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.page-header h1 {
-  font-size: 16px;
-  color: #495057;
-  font-weight: 600;
-}
-
-.page-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: white;
-  overflow: hidden;
-  min-height: 0;
 }
 
 button {
