@@ -199,9 +199,6 @@ const {
   overflow: hidden;
 }
 
-:deep(.base-panel) {
-  flex: 1;
-}
 
 
 .btn {

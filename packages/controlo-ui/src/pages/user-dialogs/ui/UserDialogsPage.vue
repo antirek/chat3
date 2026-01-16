@@ -2,15 +2,13 @@
   <div class="user-dialogs-page">
     <div class="container">
       <!-- Пользователи -->
-      <div class="panel users-panel">
-        <div class="panel-header">
-          <div class="header-left">
-            <span>👥 Пользователи</span>
-          </div>
-          <div class="header-right">
-            <button @click="showUsersUrl" class="url-button" title="Показать URL запроса">🔗 URL</button>
-          </div>
-        </div>
+      <BasePanel width="13%" min-width="410px">
+        <template #header-left>
+          <span>👥 Пользователи</span>
+        </template>
+        <template #header-right>
+          <button @click="showUsersUrl" class="url-button" title="Показать URL запроса">🔗 URL</button>
+        </template>
         <FilterPanel
           input-id="userFilterInput"
           select-id="userFilterExample"
@@ -50,25 +48,23 @@
           @select="selectUser"
           @show-info="showUserInfoModal"
         />
-      </div>
+      </BasePanel>
 
       <!-- Диалоги -->
-      <div class="panel dialogs-panel">
-        <div class="panel-header">
-          <div class="header-left">
-            <span>💬 Диалоги{{ currentUserName ? ` пользователя ${currentUserName}` : '' }}</span>
-          </div>
-          <div class="header-right">
-            <button
-              id="viewUrlBtn"
-              class="view-url-btn"
-              @click="showCurrentUrl"
-              title="Просмотреть текущий URL запроса"
-            >
-              🔗 URL
-            </button>
-          </div>
-        </div>
+      <BasePanel width="33%" min-width="350px">
+        <template #header-left>
+          <span>💬 Диалоги{{ currentUserName ? ` пользователя ${currentUserName}` : '' }}</span>
+        </template>
+        <template #header-right>
+          <button
+            id="viewUrlBtn"
+            class="view-url-btn"
+            @click="showCurrentUrl"
+            title="Просмотреть текущий URL запроса"
+          >
+            🔗 URL
+          </button>
+        </template>
         <FilterPanel
           v-show="currentUserId"
           input-id="filterValue"
@@ -111,10 +107,10 @@
           @show-events="showDialogEventsModal"
           @show-meta="showDialogMetaModal"
         />
-      </div>
+      </BasePanel>
 
       <!-- Сообщения / Участники / Топики -->
-      <div class="panel messages-panel">
+      <BasePanel class="messages-panel">
         <!-- Вкладки -->
         <div v-if="currentDialogId" class="tabs-container">
           <button
@@ -139,10 +135,11 @@
             📌 Топики
           </button>
         </div>
-        <div class="panel-header">
-          <div class="header-left">
+        <!-- Кнопки действий под вкладками -->
+        <div v-if="currentDialogId" class="actions-row">
+          <div class="actions-left">
             <button
-              v-if="currentDialogId && currentViewMode === 'messages'"
+              v-if="currentViewMode === 'messages'"
               @click="showAddMessageModal"
               class="url-button"
               title="Добавить сообщение"
@@ -151,7 +148,7 @@
               ➕ Добавить
             </button>
             <button
-              v-if="currentDialogId && currentViewMode === 'members'"
+              v-if="currentViewMode === 'members'"
               @click="showAddMemberModal"
               class="url-button"
               title="Добавить участника"
@@ -160,7 +157,7 @@
               ➕ Добавить
             </button>
             <button
-              v-if="currentDialogId && currentViewMode === 'topics'"
+              v-if="currentViewMode === 'topics'"
               @click="showAddTopicModal"
               class="url-button"
               title="Создать топик"
@@ -169,9 +166,9 @@
               ➕ Создать
             </button>
           </div>
-          <div class="header-right">
+          <div class="actions-right">
             <button
-              v-if="currentDialogId && currentViewMode === 'messages'"
+              v-if="currentViewMode === 'messages'"
               @click="showCurrentMessageUrl"
               class="url-button"
               title="Показать URL запроса"
@@ -180,7 +177,7 @@
               🔗 URL
             </button>
             <button
-              v-if="currentDialogId && currentViewMode === 'members'"
+              v-if="currentViewMode === 'members'"
               @click="showMembersUrlModal"
               class="url-button"
               title="Показать URL API"
@@ -189,7 +186,7 @@
               🔗 URL
             </button>
             <button
-              v-if="currentDialogId && currentViewMode === 'topics'"
+              v-if="currentViewMode === 'topics'"
               @click="showTopicsUrlModal"
               class="url-button"
               title="Показать URL API"
@@ -325,7 +322,7 @@
             />
           </div>
         </div>
-      </div>
+      </BasePanel>
     </div>
 
     <!-- Модальное окно для информации -->
@@ -523,6 +520,7 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import { BasePanel } from '@/shared/ui';
 import { useUserDialogsPage } from '../model/useUserDialogsPage';
 import {
   InfoModal,
@@ -884,53 +882,9 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.users-panel {
-  width: 13%;
-  min-width: 410px;
-  overflow: hidden;
+:deep(.base-panel.users-panel),
+:deep(.base-panel.dialogs-panel) {
   border-right: 1px solid #edeff3;
-}
-
-.dialogs-panel {
-  width: 33%;
-  min-width: 350px;
-}
-
-.messages-panel {
-  width: 57%;
-  min-width: 350px;
-}
-
-.panel {
-  background: white;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.panel-header {
-  background: #f8f9fa;
-  padding: 15px 20px;
-  border-bottom: 1px solid #e9ecef;
-  font-weight: 600;
-  color: #495057;
-  font-size: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 59px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .panel-content {
@@ -1733,5 +1687,28 @@ tr:hover {
   border-bottom-color: #667eea;
   background: white;
   font-weight: 600;
+}
+
+.actions-row {
+  background: #f8f9fa;
+  padding: 15px 20px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 59px;
+  flex-shrink: 0;
+}
+
+.actions-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 </style>

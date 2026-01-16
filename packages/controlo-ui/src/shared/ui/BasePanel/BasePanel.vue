@@ -33,7 +33,12 @@ const props = withDefaults(defineProps<Props>(), {
 
 const panelStyle = computed(() => {
   const style: Record<string, string> = {};
-  if (props.width) style.width = props.width;
+  if (props.width) {
+    style.width = props.width;
+  } else {
+    // Если width не указан, панель должна занимать оставшееся пространство
+    style.flex = '1';
+  }
   if (props.minWidth) style.minWidth = props.minWidth;
   if (props.maxWidth) style.maxWidth = props.maxWidth;
   return style;
