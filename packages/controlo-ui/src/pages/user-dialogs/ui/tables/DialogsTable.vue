@@ -34,9 +34,9 @@
         </td>
         <td>{{ formatLastSeen(item.context?.lastSeenAt) }}</td>
         <td class="actions-column">
-          <button class="info-button" @click.stop="$emit('show-info', item.dialogId)">ℹ️ Инфо</button>
-          <button class="action-button events-button" @click.stop="$emit('show-events', item.dialogId)">📋 События</button>
-          <button class="btn-success btn-small" @click.stop="$emit('show-meta', item.dialogId)">🏷️ Мета</button>
+          <BaseButton variant="primary" size="small" @click.stop="$emit('show-info', item.dialogId)">ℹ️ Инфо</BaseButton>
+          <BaseButton variant="primary" size="small" @click.stop="$emit('show-events', item.dialogId)">📋 События</BaseButton>
+          <BaseButton variant="success" size="small" @click.stop="$emit('show-meta', item.dialogId)">🏷️ Мета</BaseButton>
         </td>
       </template>
     </BaseTable>
@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseTable } from '@/shared/ui';
+import { BaseTable, BaseButton } from '@/shared/ui';
 
 interface Dialog {
   dialogId: string;
@@ -119,42 +119,4 @@ function formatLastSeen(lastSeenAt?: string | number): string {
   white-space: normal;
 }
 
-.info-button,
-.action-button,
-.btn-success {
-  padding: 3px 6px;
-  font-size: 10px;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  margin: 1px;
-  display: inline-block;
-}
-
-.info-button {
-  background: #667eea;
-  color: white;
-}
-
-.info-button:hover {
-  background: #5568d3;
-}
-
-.events-button {
-  background: #17a2b8;
-  color: white;
-}
-
-.events-button:hover {
-  background: #138496;
-}
-
-.btn-success {
-  background: #28a745;
-  color: white;
-}
-
-.btn-success:hover {
-  background: #218838;
-}
 </style>

@@ -5,3 +5,4 @@ export { BaseFilter } from './BaseFilter';
 export type { BaseFilterProps, FilterExample, FilterOption } from './BaseFilter';
 export { BaseTable } from './BaseTable';
 export { BasePanel } from './BasePanel';
+export { BaseButton } from './BaseButton';

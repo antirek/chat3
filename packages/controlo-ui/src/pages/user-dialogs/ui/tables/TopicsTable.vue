@@ -28,7 +28,7 @@
           <span v-else style="color: #adb5bd;">—</span>
         </td>
         <td class="actions-column">
-          <button class="btn-success btn-small" @click="$emit('show-meta', item.topicId)">🏷️ Мета</button>
+          <BaseButton variant="success" size="small" @click="$emit('show-meta', item.topicId)">🏷️ Мета</BaseButton>
         </td>
       </template>
     </BaseTable>
@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseTable } from '@/shared/ui';
+import { BaseTable, BaseButton } from '@/shared/ui';
 
 interface Topic {
   topicId: string;
@@ -76,17 +76,4 @@ function shortenTopicId(topicId: string): string {
   white-space: nowrap;
 }
 
-.btn-success {
-  padding: 4px 8px;
-  font-size: 11px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.btn-success:hover {
-  background: #218838;
-}
 </style>

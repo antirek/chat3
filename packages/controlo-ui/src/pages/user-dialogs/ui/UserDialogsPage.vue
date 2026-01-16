@@ -7,7 +7,7 @@
           <span>👥 Пользователи</span>
         </template>
         <template #header-right>
-          <button @click="showUsersUrl" class="url-button" title="Показать URL запроса">🔗 URL</button>
+          <BaseButton variant="url" @click="showUsersUrl" title="Показать URL запроса">🔗 URL</BaseButton>
         </template>
         <FilterPanel
           input-id="userFilterInput"
@@ -56,14 +56,14 @@
           <span>💬 Диалоги{{ currentUserName ? ` пользователя ${currentUserName}` : '' }}</span>
         </template>
         <template #header-right>
-          <button
+          <BaseButton
             id="viewUrlBtn"
-            class="view-url-btn"
+            variant="url"
             @click="showCurrentUrl"
             title="Просмотреть текущий URL запроса"
           >
             🔗 URL
-          </button>
+          </BaseButton>
         </template>
         <FilterPanel
           v-show="currentUserId"
@@ -138,62 +138,62 @@
         <!-- Кнопки действий под вкладками -->
         <div v-if="currentDialogId" class="actions-row">
           <div class="actions-left">
-            <button
+            <BaseButton
               v-if="currentViewMode === 'messages'"
+              variant="success"
               @click="showAddMessageModal"
-              class="url-button"
               title="Добавить сообщение"
               id="addMessageBtn"
             >
               ➕ Добавить
-            </button>
-            <button
+            </BaseButton>
+            <BaseButton
               v-if="currentViewMode === 'members'"
+              variant="success"
               @click="showAddMemberModal"
-              class="url-button"
               title="Добавить участника"
               id="addMemberBtn"
             >
               ➕ Добавить
-            </button>
-            <button
+            </BaseButton>
+            <BaseButton
               v-if="currentViewMode === 'topics'"
+              variant="success"
               @click="showAddTopicModal"
-              class="url-button"
               title="Создать топик"
               id="addTopicBtn"
             >
               ➕ Создать
-            </button>
+            </BaseButton>
           </div>
           <div class="actions-right">
-            <button
+            <BaseButton
               v-if="currentViewMode === 'messages'"
+              variant="url"
               @click="showCurrentMessageUrl"
-              class="url-button"
               title="Показать URL запроса"
               id="messageUrlBtn"
             >
               🔗 URL
-            </button>
-            <button
+            </BaseButton>
+            <BaseButton
               v-if="currentViewMode === 'members'"
+              variant="url"
               @click="showMembersUrlModal"
-              class="url-button"
               title="Показать URL API"
               id="membersUrlBtn"
             >
               🔗 URL
-            </button>
-            <button
+            </BaseButton>
+            <BaseButton
               v-if="currentViewMode === 'topics'"
+              variant="url"
               @click="showTopicsUrlModal"
-              class="url-button"
               title="Показать URL API"
               id="topicsUrlBtn"
             >
               🔗 URL
-            </button>
+            </BaseButton>
           </div>
         </div>
         <FilterPanel
@@ -520,7 +520,7 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { BasePanel } from '@/shared/ui';
+import { BasePanel, BaseButton } from '@/shared/ui';
 import { useUserDialogsPage } from '../model/useUserDialogsPage';
 import {
   InfoModal,
@@ -984,48 +984,6 @@ tr:hover {
   white-space: pre-wrap;
 }
 
-.info-button {
-  padding: 4px 6px;
-  font-size: 11px;
-  border: 1px solid #7c8ff0;
-  background: #7c8ff0;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-  max-height: 25px;
-  margin-bottom: 1px;
-}
-
-.info-button:hover {
-  background: #6d7ee0;
-  border-color: #6d7ee0;
-}
-
-.action-button {
-  padding: 4px 5px;
-  font-size: 11px;
-  border: 1px solid transparent;
-  background: #f8f9fa;
-  color: #495057;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-  margin-right: 1px;
-}
-
-.action-button.messages-button {
-  background: #9f7aea;
-  color: white;
-  border-color: #9f7aea;
-}
-
-.action-button.messages-button:hover {
-  background: #8b6ce8;
-  border-color: #8b6ce8;
-}
 
 .filter-form {
   padding: 15px;
@@ -1142,37 +1100,6 @@ tr:hover {
   background: #5a6268;
 }
 
-.url-button {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: normal;
-  transition: background-color 0.2s;
-}
-
-.url-button:hover {
-  background: #5a6fd8;
-}
-
-.view-url-btn {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: normal;
-  transition: background-color 0.2s;
-}
-
-.view-url-btn:hover {
-  background: #5a6fd8;
-}
 
 /* Модальные окна */
 .modal {
@@ -1420,83 +1347,6 @@ tr:hover {
   white-space: nowrap;
 }
 
-.action-button.topics-button {
-  background: #f0f0f0;
-  color: #495057;
-  border: 1px solid #dee2e6;
-}
-
-.action-button.topics-button:hover {
-  background: #ffc107;
-  color: white;
-  border-color: #ffc107;
-}
-
-.action-button.members-button {
-  background: #63b3ed;
-  color: white;
-  border-color: #63b3ed;
-}
-
-.action-button.members-button:hover {
-  background: #4fa3dd;
-  border-color: #4fa3dd;
-}
-
-.action-button.reactions-button {
-  background: #f6ad55;
-  color: white;
-  border-color: #f6ad55;
-}
-
-.action-button.reactions-button:hover {
-  background: #f59e42;
-  border-color: #f59e42;
-}
-
-.action-button.events-button {
-  background: #9f7aea;
-  color: white;
-  border-color: #9f7aea;
-}
-
-.action-button.events-button:hover {
-  background: #8b6ce8;
-  border-color: #8b6ce8;
-}
-
-.action-button.status-matrix-button {
-  background: #48bb78;
-  color: white;
-  border-color: #48bb78;
-}
-
-.action-button.status-matrix-button:hover {
-  background: #38a169;
-  border-color: #38a169;
-}
-
-.action-button.statuses-button {
-  background: #4299e1;
-  color: white;
-  border-color: #4299e1;
-}
-
-.action-button.statuses-button:hover {
-  background: #3182ce;
-  border-color: #3182ce;
-}
-
-.action-button.set-status-button {
-  background: #ed8936;
-  color: white;
-  border-color: #ed8936;
-}
-
-.action-button.set-status-button:hover {
-  background: #dd6b20;
-  border-color: #dd6b20;
-}
 
 .width-60 {
   width: 60% !important;
@@ -1539,16 +1389,6 @@ tr:hover {
   background-color: #e3f2fd !important;
 }
 
-.action-button.updates-button {
-  background: #48bb78;
-  color: white;
-  border-color: #48bb78;
-}
-
-.action-button.updates-button:hover {
-  background: #38a169;
-  border-color: #38a169;
-}
 
 .status-action-btn:hover {
   opacity: 0.9;

@@ -41,7 +41,7 @@
           </span>
         </td>
         <td class="actions-column" @click.stop>
-          <button class="info-button" @click="$emit('show-info', item.userId)">ℹ️ Инфо</button>
+          <BaseButton variant="primary" size="small" @click="$emit('show-info', item.userId)">ℹ️ Инфо</BaseButton>
         </td>
       </template>
     </BaseTable>
@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseTable } from '@/shared/ui';
+import { BaseTable, BaseButton } from '@/shared/ui';
 
 interface User {
   userId: string;
@@ -77,21 +77,4 @@ function handleRowClick(item: User) {
 </script>
 
 <style scoped>
-.info-button {
-  padding: 4px 6px;
-  font-size: 11px;
-  border: 1px solid #7c8ff0;
-  background: #7c8ff0;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-  max-height: 25px;
-}
-
-.info-button:hover {
-  background: #6d7ee0;
-  border-color: #6d7ee0;
-}
 </style>
