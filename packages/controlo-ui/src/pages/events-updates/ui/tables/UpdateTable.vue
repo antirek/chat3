@@ -37,12 +37,13 @@
         <td>{{ formatTimestamp((item as Update).createdAt) }}</td>
         <td>{{ (item as Update).published ? 'Да' : 'Нет' }}</td>
         <td class="actions-column">
-          <button
-            class="action-button"
+          <BaseButton
+            variant="primary"
+            size="small"
             @click="showUpdateJson(String((item as Update)._id || (item as Update).id || ''), item as Update)"
           >
-            Инфо
-          </button>
+          ℹ️ Инфо
+          </BaseButton>
         </td>
       </template>
     </BaseTable>
@@ -50,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseTable } from '@/shared/ui';
+import { BaseTable, BaseButton } from '@/shared/ui';
 
 interface Update {
   _id?: string;
@@ -96,17 +97,4 @@ defineProps<Props>();
   font-size: 0;
 }
 
-.action-button {
-  padding: 4px 8px;
-  font-size: 11px;
-  border: 1px solid #ced4da;
-  background: white;
-  border-radius: 3px;
-  cursor: pointer;
-  height: 25px;
-}
-
-.action-button:hover {
-  background: #e9ecef;
-}
 </style>

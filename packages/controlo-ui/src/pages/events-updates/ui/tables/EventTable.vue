@@ -37,18 +37,20 @@
         <td>{{ (item as Event).actorId || '-' }}</td>
         <td>{{ formatTimestamp((item as Event).createdAt) }}</td>
         <td class="actions-column">
-          <button
-            class="action-button updates-button"
+          <BaseButton
+            color="#ff9800"
+            size="small"
             @click.stop="showEventUpdates((item as Event).eventId || String((item as Event)._id))"
           >
-            Updates
-          </button>
-          <button
-            class="action-button"
+            🔄 Updates
+          </BaseButton>
+          <BaseButton
+            variant="primary"
+            size="small"
             @click.stop="showEventJson(String((item as Event)._id || ''), item as Event)"
           >
-            Инфо
-          </button>
+          ℹ️ Инфо
+          </BaseButton>
         </td>
       </template>
     </BaseTable>
@@ -56,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { BaseTable } from '@/shared/ui';
+import { BaseTable, BaseButton } from '@/shared/ui';
 
 interface Event {
   eventId?: string;
@@ -107,32 +109,4 @@ function handleRowClick(event: Event, _index: number) {
   font-size: 0;
 }
 
-.action-button {
-  padding: 4px 8px;
-  font-size: 11px;
-  border: 1px solid #ced4da;
-  background: white;
-  border-radius: 3px;
-  cursor: pointer;
-  height: 25px;
-  margin-right: 2px;
-}
-
-.action-button:last-child {
-  margin-right: 0;
-}
-
-.action-button:hover {
-  background: #e9ecef;
-}
-
-.action-button.updates-button {
-  background: #ff9800;
-  color: white;
-  border-color: #ff9800;
-}
-
-.action-button.updates-button:hover {
-  background: #f57c00;
-}
 </style>

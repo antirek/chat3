@@ -2,13 +2,13 @@
   <BaseModal :is-open="isOpen" title="URL запроса" max-width="900px" @close="close">
     <div class="modal-url">{{ url }}</div>
     <template #footer>
-      <button class="btn-copy" @click="copy">Скопировать URL</button>
+      <BaseButton variant="primary" @click="copy">Скопировать URL</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
 
 interface Props {
   isOpen: boolean;
@@ -40,17 +40,4 @@ function copy() {
   word-break: break-all;
 }
 
-.btn-copy {
-  padding: 8px 16px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.btn-copy:hover {
-  background: #5568d3;
-}
 </style>

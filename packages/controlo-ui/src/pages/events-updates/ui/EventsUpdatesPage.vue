@@ -7,7 +7,7 @@
           <span>События</span>
         </template>
         <template #header-right>
-          <button class="btn btn-url" @click="showUrlModal('events')">URL</button>
+          <BaseButton variant="url" @click="showUrlModal('events')">🔗 URL</BaseButton>
         </template>
         <EventFilterPanel
           :filter-input="eventsFilterInput"
@@ -44,7 +44,7 @@
           <span>Updates</span>
         </template>
         <template #header-right>
-          <button class="btn btn-url" @click="showUrlModal('updates')">URL</button>
+          <BaseButton variant="url" @click="showUrlModal('updates')">🔗 URL</BaseButton>
         </template>
         <UpdateFilterPanel
           :filter-input="updatesFilterInput"
@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { BasePanel } from '@/shared/ui';
+import { BasePanel, BaseButton } from '@/shared/ui';
 import { useEventsUpdatesPage } from '../model/useEventsUpdatesPage';
 import { EventFilterPanel, UpdateFilterPanel } from './filters';
 import { EventPagination, UpdatePagination } from './pagination';
@@ -177,28 +177,4 @@ const {
   overflow: hidden;
 }
 
-.btn {
-  padding: 6px 12px;
-  border: 1px solid #ced4da;
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn:hover {
-  background: #e9ecef;
-}
-
-.btn-url {
-  color: #667eea;
-  border-color: #667eea;
-}
-
-.btn-url:hover {
-  background: #667eea;
-  color: white;
-}
 </style>
