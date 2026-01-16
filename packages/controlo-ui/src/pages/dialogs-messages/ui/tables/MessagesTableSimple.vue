@@ -1,11 +1,16 @@
 <template>
-  <div class="panel-content" id="messagesList">
+  <div id="messagesList">
     <div v-if="!currentDialogId" class="placeholder">Выберите диалог</div>
-    <div v-else-if="loading" class="loading">Загрузка сообщений...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
-    <div v-else-if="messages.length === 0" class="no-data">Сообщения не найдены</div>
-    <table v-else>
-      <thead>
+    <BaseTable
+      v-else
+      :items="messages"
+      :loading="loading"
+      :error="error"
+      loading-text="Загрузка сообщений..."
+      empty-text="Сообщения не найдены"
+      :get-item-key="(message) => message.messageId"
+    >
+      <template #header>
         <tr>
           <th>Отправитель</th>
           <th @click="toggleSort('createdAt')" style="cursor: pointer;">
@@ -18,25 +23,26 @@
           <th>Тип</th>
           <th>Инфо</th>
         </tr>
-      </thead>
-      <tbody>
-        <tr v-for="message in messages" :key="message.messageId">
-          <td>{{ message.senderId }}</td>
-          <td>{{ formatTimestamp(message.createdAt) }}</td>
-          <td class="message-content">{{ message.content }}</td>
-          <td>{{ message.type }}</td>
-          <td>
-            <button class="info-button" @click="showInfo(message)">
-              ℹ️ Инфо
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      </template>
+
+      <template #row="{ item }">
+        <td>{{ (item as Message).senderId }}</td>
+        <td>{{ formatTimestamp((item as Message).createdAt) }}</td>
+        <td class="message-content">{{ (item as Message).content }}</td>
+        <td>{{ (item as Message).type }}</td>
+        <td>
+          <button class="info-button" @click="showInfo(item as Message)">
+            ℹ️ Инфо
+          </button>
+        </td>
+      </template>
+    </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import { BaseTable } from '@/shared/ui';
+
 interface Message {
   messageId: string;
   senderId: string;
@@ -61,58 +67,35 @@ defineProps<Props>();
 </script>
 
 <style scoped>
-.panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-thead {
-  background: #f8f9fa;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-th {
-  padding: 10px 12px;
-  text-align: left;
-  font-weight: 600;
-  color: #495057;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid #e9ecef;
-}
-
-th[style*='cursor: pointer'] {
+:deep(th[style*='cursor: pointer']) {
   cursor: pointer;
   user-select: none;
 }
 
-th[style*='cursor: pointer']:hover {
+:deep(th[style*='cursor: pointer']:hover) {
   background: #e9ecef;
-}
-
-td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 12px;
-}
-
-tr:hover {
-  background: #f8f9fa;
 }
 
 .message-content {
   max-width: 100%;
   word-wrap: break-word;
   white-space: pre-wrap;
+}
+
+.sort-indicator {
+  margin-left: 5px;
+  font-size: 10px;
+  color: #667eea;
+}
+
+.sort-indicator.active {
+  font-weight: bold;
+}
+
+.placeholder {
+  padding: 40px 20px;
+  text-align: center;
+  color: #6c757d;
 }
 
 .info-button {
@@ -132,28 +115,5 @@ tr:hover {
 .info-button:hover {
   background: #7c8ff0;
   border-color: #7c8ff0;
-}
-
-.sort-indicator {
-  margin-left: 5px;
-  font-size: 10px;
-  color: #667eea;
-}
-
-.sort-indicator.active {
-  font-weight: bold;
-}
-
-.loading,
-.error,
-.no-data,
-.placeholder {
-  padding: 40px 20px;
-  text-align: center;
-  color: #6c757d;
-}
-
-.error {
-  color: #dc3545;
 }
 </style>

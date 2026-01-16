@@ -26,6 +26,7 @@
               v-for="(item, index) in items"
               :key="getItemKey(item, index)"
               :class="getComputedRowClass(item, index)"
+              style="cursor: pointer"
               @click="handleRowClick(item, index)"
             >
               <slot name="row" :item="item" :index="index">
@@ -42,6 +43,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+
 interface Column {
   label: string;
   field?: string;
@@ -79,15 +82,40 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
+// Внутреннее состояние для визуального выделения строк
+const internalSelectedKey = ref<string | number | null>(null);
+
+// Используем внешний selectedKey, если он передан, иначе внутренний
+const effectiveSelectedKey = computed(() => {
+  return props.selectedKey !== null && props.selectedKey !== undefined
+    ? props.selectedKey
+    : internalSelectedKey.value;
+});
+
+// Сбрасываем внутреннее выделение при изменении items
+watch(() => props.items, () => {
+  if (props.selectedKey === null || props.selectedKey === undefined) {
+    internalSelectedKey.value = null;
+  }
+});
+
+// Сбрасываем внутреннее выделение, когда внешний selectedKey становится null
+watch(() => props.selectedKey, (newValue) => {
+  if (newValue === null || newValue === undefined) {
+    internalSelectedKey.value = null;
+  }
+});
+
 function getItemValue(item: any, field?: string): any {
   if (!field) return '';
   return item[field] ?? '-';
 }
 
 function isRowSelected(item: any, index: number): boolean {
-  if (!props.selectable || !props.selectedKey) return false;
+  const selectedKey = effectiveSelectedKey.value;
+  if (selectedKey === null || selectedKey === undefined) return false;
   const itemKey = props.getItemKey(item, index);
-  return String(itemKey) === String(props.selectedKey);
+  return String(itemKey) === String(selectedKey);
 }
 
 function getComputedRowClass(item: any, index: number): string | string[] | Record<string, boolean> {
@@ -110,6 +138,15 @@ function getComputedRowClass(item: any, index: number): string | string[] | Reco
 }
 
 function handleRowClick(item: any, index: number) {
+  const itemKey = props.getItemKey(item, index);
+  
+  // Всегда выделяем строку визуально
+  if (props.selectedKey === null || props.selectedKey === undefined) {
+    // Если внешний selectedKey не передан, используем внутренний
+    internalSelectedKey.value = internalSelectedKey.value === itemKey ? null : itemKey;
+  }
+  
+  // Если selectable=true, эмитим событие
   if (props.selectable) {
     emit('row-click', item, index);
   }
@@ -157,8 +194,12 @@ function handleRowClick(item: any, index: number) {
   font-size: 13px;
 }
 
+:deep(tr) {
+  transition: background-color 0.2s;
+}
+
 :deep(tr:hover) {
-  background: #f8f9fa;
+  background: #f0f0f0 !important;
 }
 
 :deep(.row-selected) {
