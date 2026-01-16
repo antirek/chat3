@@ -1,10 +1,14 @@
 <template>
-  <div class="content" id="tenantsList">
-    <div v-if="loading" class="loading">Загрузка...</div>
-    <div v-else-if="error" class="error">Ошибка загрузки: {{ error }}</div>
-    <div v-else-if="tenants.length === 0" class="no-data">Тенанты не найдены</div>
-    <table v-else>
-      <thead>
+  <div id="tenantsList">
+    <BaseTable
+      :items="tenants"
+      :loading="loading"
+      :error="error"
+      loading-text="Загрузка..."
+      empty-text="Тенанты не найдены"
+      :get-item-key="(tenant) => tenant.tenantId"
+    >
+      <template #header>
         <tr>
           <th @click="toggleSort('tenantId')" style="cursor: pointer;">
             Tenant ID
@@ -16,38 +20,39 @@
           </th>
           <th>Действия</th>
         </tr>
-      </thead>
-      <tbody>
-        <tr v-for="tenant in tenants" :key="tenant.tenantId">
-          <td><strong>{{ tenant.tenantId || '-' }}</strong></td>
-          <td>{{ formatTimestamp(tenant.createdAt) }}</td>
-          <td>
-            <button
-              class="btn-primary btn-small"
-              @click="showInfo(tenant.tenantId)"
-            >
-              📋 Инфо
-            </button>
-            <button
-              class="btn-success btn-small"
-              @click="showMeta(tenant.tenantId)"
-            >
-              🏷️ Мета
-            </button>
-            <button
-              class="btn-danger btn-small"
-              @click="deleteTenant(tenant.tenantId)"
-            >
-              🗑️ Удалить
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      </template>
+
+      <template #row="{ item }">
+        <td><strong>{{ (item as Tenant).tenantId || '-' }}</strong></td>
+        <td>{{ formatTimestamp((item as Tenant).createdAt) }}</td>
+        <td>
+          <button
+            class="btn-primary btn-small"
+            @click="showInfo((item as Tenant).tenantId)"
+          >
+            📋 Инфо
+          </button>
+          <button
+            class="btn-success btn-small"
+            @click="showMeta((item as Tenant).tenantId)"
+          >
+            🏷️ Мета
+          </button>
+          <button
+            class="btn-danger btn-small"
+            @click="deleteTenant((item as Tenant).tenantId)"
+          >
+            🗑️ Удалить
+          </button>
+        </td>
+      </template>
+    </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import { BaseTable } from '@/shared/ui';
+
 interface Tenant {
   tenantId: string;
   createdAt?: string | number;
@@ -89,75 +94,19 @@ function deleteTenant(tenantId: string) {
 </script>
 
 <style scoped>
-.content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
-.loading {
-  text-align: center;
-  padding: 40px;
-  color: #667eea;
-  font-size: 14px;
-}
-
-.error {
-  background: #f8d7da;
-  color: #721c24;
-  padding: 15px;
-  border-radius: 6px;
-  margin: 15px;
-  font-size: 13px;
-}
-
-.no-data {
-  text-align: center;
-  padding: 40px;
-  color: #6c757d;
-  font-size: 14px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-thead {
-  background: #f8f9fa;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-th {
-  padding: 12px 15px;
-  text-align: left;
-  font-weight: 600;
-  color: #495057;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid #e9ecef;
-}
-
-th[style*='cursor: pointer'] {
+:deep(th[style*='cursor: pointer']) {
   cursor: pointer;
   user-select: none;
 }
 
-th[style*='cursor: pointer']:hover {
+:deep(th[style*='cursor: pointer']:hover) {
   background: #e9ecef;
 }
 
-td {
-  padding: 12px 15px;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 13px;
-}
-
-tr:hover {
-  background: #f8f9fa;
+.sort-indicator {
+  margin-left: 5px;
+  font-size: 10px;
+  color: #667eea;
 }
 
 button {
@@ -168,6 +117,11 @@ button {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-primary {
@@ -202,11 +156,5 @@ button {
   padding: 4px 10px;
   font-size: 11px;
   margin-right: 5px;
-}
-
-.sort-indicator {
-  margin-left: 5px;
-  font-size: 10px;
-  color: #667eea;
 }
 </style>
