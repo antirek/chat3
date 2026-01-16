@@ -4537,18 +4537,6 @@ tr:hover {
   transition: background-color 0.2s;
 }
 
-.user-row:hover {
-  background: #f8f9fa;
-}
-
-.user-row-selected {
-  background-color: #e9ecef !important;
-}
-
-.user-row-selected:hover {
-  background-color: #dee2e6 !important;
-}
-
 .user-info {
   flex: 1;
 }
@@ -4566,18 +4554,6 @@ tr:hover {
 
 .dialog-row {
   cursor: pointer;
-}
-
-.dialog-row:hover {
-  background: #e3f2fd;
-}
-
-.dialog-row-selected {
-  background-color: #e9ecef !important;
-}
-
-.dialog-row-selected:hover {
-  background-color: #dee2e6 !important;
 }
 
 .unread-badge {

@@ -22,9 +22,9 @@
           Создан
           <span class="sort-indicator">{{ getSortIndicator('createdAt') }}</span>
         </th>
-        <th style="text-align: center; width: 80px;" title="Общее количество диалогов">💬 Диалоги</th>
-        <th style="text-align: center; width: 80px;" title="Диалоги с непрочитанными сообщениями">🔔 Непрочитано</th>
-        <th>Действия</th>
+        <th title="Общее количество диалогов">💬 Диалоги</th>
+        <th title="Диалоги с непрочитанными сообщениями">🔔 Непрочитано</th>
+        <th title="Действия">⚡ Действия</th>
       </tr>
     </template>
 
@@ -36,12 +36,12 @@
         </span>
       </td>
       <td>{{ formatTimestamp((item as User).createdAt) }}</td>
-      <td style="text-align: center;">
+      <td>
         <span class="dialog-count-badge">
           {{ (item as User).dialogCount !== undefined ? (item as User).dialogCount : '-' }}
         </span>
       </td>
-      <td style="text-align: center;">
+      <td>
         <span
           :class="['unread-count-badge', { 'has-unread': ((item as User).unreadDialogsCount || 0) > 0 }]"
         >

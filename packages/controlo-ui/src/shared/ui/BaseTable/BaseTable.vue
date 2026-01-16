@@ -183,7 +183,6 @@ function handleRowClick(item: any, index: number) {
   font-weight: 600;
   color: #495057;
   font-size: 12px;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 2px solid #e9ecef;
 }
@@ -203,7 +202,7 @@ function handleRowClick(item: any, index: number) {
 }
 
 :deep(.row-selected) {
-  background: #e3f2fd !important;
+  background: #e9ecef !important;
 }
 
 :deep(.row-selected:hover) {

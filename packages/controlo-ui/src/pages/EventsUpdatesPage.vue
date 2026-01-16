@@ -316,7 +316,7 @@ function getControlApiUrl(path = '') {
 
 // Получить tenantId
 function getTenantId() {
-  return credentialsStore.tenantId.value || 'tnt_default';
+  return credentialsStore.tenantId || 'tnt_default';
 }
 
 // Загрузить события
@@ -944,18 +944,6 @@ tr:hover {
 
 .event-row {
   cursor: pointer;
-}
-
-.event-row:hover {
-  background: #e3f2fd;
-}
-
-.event-row-selected {
-  background-color: #e9ecef !important;
-}
-
-.event-row-selected:hover {
-  background-color: #dee2e6 !important;
 }
 
 .actions-column {

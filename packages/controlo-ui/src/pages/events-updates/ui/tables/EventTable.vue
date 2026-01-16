@@ -1,58 +1,62 @@
 <template>
-  <div class="panel-content" id="events-content">
-    <div v-if="loading" class="loading">Загрузка событий...</div>
-    <div v-else-if="error" class="error">Ошибка загрузки событий: {{ error }}</div>
-    <div v-else-if="events.length === 0" class="no-data">События не найдены</div>
-    <table v-else>
-      <thead>
+  <div id="events-content">
+    <BaseTable
+      :items="events"
+      :loading="loading"
+      :error="error"
+      loading-text="Загрузка событий..."
+      empty-text="События не найдены"
+      :get-item-key="(event) => event.eventId || String(event._id)"
+      :selectable="true"
+      :selected-key="selectedEventId"
+      :get-row-class="() => 'event-row'"
+      @row-click="handleRowClick"
+    >
+      <template #header>
         <tr>
-          <th @click="sortEvents('eventId')">
+          <th @click="sortEvents('eventId')" style="cursor: pointer;">
             eventId <span class="sort-indicator">↕</span>
           </th>
-          <th @click="sortEvents('eventType')">
+          <th @click="sortEvents('eventType')" style="cursor: pointer;">
             eventType <span class="sort-indicator">↕</span>
           </th>
-          <th @click="sortEvents('actorId')">
+          <th @click="sortEvents('actorId')" style="cursor: pointer;">
             actorId <span class="sort-indicator">↕</span>
           </th>
-          <th @click="sortEvents('createdAt')">
+          <th @click="sortEvents('createdAt')" style="cursor: pointer;">
             createdAt <span class="sort-indicator">↕</span>
           </th>
           <th class="actions-column">Действия</th>
         </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="event in events"
-          :key="event.eventId || event._id"
-          :class="['event-row', { 'event-row-selected': selectedEventId === (event.eventId || String(event._id)) }]"
-          @click="selectEvent(event.eventId || String(event._id))"
-        >
-          <td>{{ event.eventId || '-' }}</td>
-          <td>{{ event.eventType || '-' }}</td>
-          <td>{{ event.actorId || '-' }}</td>
-          <td>{{ formatTimestamp(event.createdAt) }}</td>
-          <td class="actions-column">
-            <button
-              class="action-button updates-button"
-              @click.stop="showEventUpdates(event.eventId || String(event._id))"
-            >
-              Updates
-            </button>
-            <button
-              class="action-button"
-              @click.stop="showEventJson(event._id, event)"
-            >
-              Инфо
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      </template>
+
+      <template #row="{ item }">
+        <td>{{ (item as Event).eventId || '-' }}</td>
+        <td>{{ (item as Event).eventType || '-' }}</td>
+        <td>{{ (item as Event).actorId || '-' }}</td>
+        <td>{{ formatTimestamp((item as Event).createdAt) }}</td>
+        <td class="actions-column">
+          <button
+            class="action-button updates-button"
+            @click.stop="showEventUpdates((item as Event).eventId || String((item as Event)._id))"
+          >
+            Updates
+          </button>
+          <button
+            class="action-button"
+            @click.stop="showEventJson(String((item as Event)._id || ''), item as Event)"
+          >
+            Инфо
+          </button>
+        </td>
+      </template>
+    </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import { BaseTable } from '@/shared/ui';
+
 interface Event {
   eventId?: string;
   _id?: string;
@@ -73,42 +77,20 @@ interface Props {
   showEventJson: (eventId: string, event: Event) => void;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
+
+function handleRowClick(event: Event, _index: number) {
+  props.selectEvent(event.eventId || String(event._id));
+}
 </script>
 
 <style scoped>
-.panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 8px 10px;
-  text-align: left;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 13px;
-}
-
-th {
-  background: #f8f9fa;
-  font-weight: 600;
-  color: #495057;
+:deep(th[style*='cursor: pointer']) {
   cursor: pointer;
   user-select: none;
-  font-size: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 
-th:hover {
+:deep(th[style*='cursor: pointer']:hover) {
   background: #e9ecef;
 }
 
@@ -116,26 +98,6 @@ th:hover {
   margin-left: 5px;
   color: #6c757d;
   font-size: 10px;
-}
-
-tr:hover {
-  background: #f8f9fa;
-}
-
-.event-row {
-  cursor: pointer;
-}
-
-.event-row:hover {
-  background: #e3f2fd;
-}
-
-.event-row-selected {
-  background-color: #e9ecef !important;
-}
-
-.event-row-selected:hover {
-  background-color: #dee2e6 !important;
 }
 
 .actions-column {
@@ -170,17 +132,5 @@ tr:hover {
 
 .action-button.updates-button:hover {
   background: #f57c00;
-}
-
-.loading,
-.error,
-.no-data {
-  padding: 40px 20px;
-  text-align: center;
-  color: #6c757d;
-}
-
-.error {
-  color: #dc3545;
 }
 </style>

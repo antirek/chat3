@@ -1386,18 +1386,6 @@ tr:hover {
   cursor: pointer;
 }
 
-.dialog-row:hover {
-  background: #e3f2fd;
-}
-
-.dialog-row-selected {
-  background-color: #e9ecef !important;
-}
-
-.dialog-row-selected:hover {
-  background-color: #dee2e6 !important;
-}
-
 .unread-badge {
   background: #dc3545;
   color: white;
