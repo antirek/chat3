@@ -7,7 +7,10 @@
       </div>
     </div>
     <MessageList :messages="messages" :current-user-id="userId" />
-    <MessageInput @send="handleSend" :disabled="!wsConnected || !dialogId" />
+    <MessageInput 
+      @send="handleSend" 
+      :disabled="!wsConnected || !dialogId" 
+    />
   </div>
 </template>
 
@@ -41,9 +44,11 @@ const handleSend = (message: string) => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0; /* Важно для flex-контейнера с overflow */
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden; /* Предотвращает выход содержимого за пределы */
 }
 
 .chat-header {

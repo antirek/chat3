@@ -29,9 +29,14 @@ const scrollToBottom = () => {
   });
 };
 
+// Прокручиваем вниз при изменении количества сообщений или самих сообщений
 watch(() => props.messages.length, () => {
   scrollToBottom();
 });
+
+watch(() => props.messages, () => {
+  scrollToBottom();
+}, { deep: true });
 
 onMounted(() => {
   scrollToBottom();
@@ -40,8 +45,10 @@ onMounted(() => {
 
 <style scoped>
 .message-list {
-  flex: 1;
+  flex: 1 1 auto; /* flex-grow: 1, flex-shrink: 1, flex-basis: auto */
+  min-height: 0; /* Важно для flex-контейнера с overflow */
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 15px;
   display: flex;
   flex-direction: column;

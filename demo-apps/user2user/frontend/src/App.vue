@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import ApiKeyInput from './components/ApiKeyInput.vue';
 import UserSelector from './components/UserSelector.vue';
 import DialogSelector from './components/DialogSelector.vue';
@@ -65,13 +65,17 @@ const dialogId = ref<string | null>(null);
 const messages1 = ref<Message[]>([]);
 const messages2 = ref<Message[]>([]);
 
+// Отслеживаем обработанные обновления, чтобы избежать дублирующих перезагрузок
+const processedUpdates1 = ref<Set<string>>(new Set());
+const processedUpdates2 = ref<Set<string>>(new Set());
+
 const tenantId = ref('tnt_default');
 
 const ws1 = useWebSocket(apiKey, tenantId, user1);
 const ws2 = useWebSocket(apiKey, tenantId, user2);
 
-const wsConnected1 = ws1.connected;
-const wsConnected2 = ws2.connected;
+const wsConnected1 = computed(() => ws1.connected.value);
+const wsConnected2 = computed(() => ws2.connected.value);
 
 const handleApiKeyUpdate = (key: string) => {
   setApiKey(key);
@@ -107,12 +111,22 @@ const loadMessages = async () => {
   }
 
   try {
+    // Очищаем обработанные обновления при загрузке сообщений
+    processedUpdates1.value.clear();
+    processedUpdates2.value.clear();
+    
     const response1 = await getMessages(dialogId.value, user1.value);
-    messages1.value = response1.messages || [];
+    // Сортируем сообщения по дате создания (старые первыми, новые внизу)
+    messages1.value = (response1.messages || []).sort((a: Message, b: Message) => 
+      (a.created_at || 0) - (b.created_at || 0)
+    );
 
     if (user2.value) {
       const response2 = await getMessages(dialogId.value, user2.value);
-      messages2.value = response2.messages || [];
+      // Сортируем сообщения по дате создания (старые первыми, новые внизу)
+      messages2.value = (response2.messages || []).sort((a: Message, b: Message) => 
+        (a.created_at || 0) - (b.created_at || 0)
+      );
     }
   } catch (error) {
     console.error('Error loading messages:', error);
@@ -128,8 +142,8 @@ const handleSendMessage1 = async (content: string) => {
   try {
     const response = await sendMessage(dialogId.value, user1.value, content);
     if (response.message) {
-      messages1.value.push(response.message);
-      // Сообщение придет через WebSocket для обоих пользователей
+      // Не добавляем сообщение сразу, оно придет через WebSocket
+      // Это предотвращает дублирование сообщений
       console.log('[App] Message sent:', response.message.message_id);
     }
   } catch (error: any) {
@@ -147,8 +161,8 @@ const handleSendMessage2 = async (content: string) => {
   try {
     const response = await sendMessage(dialogId.value, user2.value, content);
     if (response.message) {
-      messages2.value.push(response.message);
-      // Сообщение придет через WebSocket для обоих пользователей
+      // Не добавляем сообщение сразу, оно придет через WebSocket
+      // Это предотвращает дублирование сообщений
       console.log('[App] Message sent:', response.message.message_id);
     }
   } catch (error: any) {
@@ -165,6 +179,14 @@ watch(() => ws1.updates.value, async (updates) => {
   // Обрабатываем все обновления типа message.create
   for (const update of updates) {
     if (update.event_type === 'message.create') {
+      const updateKey = `${update.entity_id}_${update.created_at}`;
+      
+      // Пропускаем уже обработанные обновления
+      if (processedUpdates1.value.has(updateKey)) {
+        continue;
+      }
+      processedUpdates1.value.add(updateKey);
+      
       // Если есть полные данные сообщения в data.message
       if (update.data?.message) {
         const message = update.data.message as Message;
@@ -173,17 +195,27 @@ watch(() => ws1.updates.value, async (updates) => {
           if (!messages1.value.some(m => m.message_id === message.message_id)) {
             console.log('[App] Adding message to user1 chat via WebSocket:', message.message_id);
             messages1.value.push(message);
+            // Сортируем по дате создания после добавления (старые первыми, новые внизу)
+            messages1.value.sort((a: Message, b: Message) => 
+              (a.created_at || 0) - (b.created_at || 0)
+            );
           }
         }
       } else if (update.entity_id && update.entity_id.startsWith('msg_')) {
         // Если нет полных данных, но есть entity_id (ID сообщения), перезагружаем сообщения из диалога
-        console.log('[App] WebSocket update for user1: message.create with entity_id:', update.entity_id, 'Reloading messages...');
-        try {
-          const response = await getMessages(dialogId.value, user1.value);
-          // Обновляем список сообщений, чтобы получить новое сообщение
-          messages1.value = response.messages || [];
-        } catch (error) {
-          console.error('[App] Error reloading messages for user1:', error);
+        // Но только если сообщения еще нет в списке
+        const messageId = update.entity_id;
+        if (!messages1.value.some(m => m.message_id === messageId)) {
+          console.log('[App] WebSocket update for user1: message.create with entity_id:', messageId, 'Reloading messages...');
+          try {
+            const response = await getMessages(dialogId.value, user1.value);
+            // Обновляем список сообщений, сортируя по дате создания (старые первыми, новые внизу)
+            messages1.value = (response.messages || []).sort((a: Message, b: Message) => 
+              (a.created_at || 0) - (b.created_at || 0)
+            );
+          } catch (error) {
+            console.error('[App] Error reloading messages for user1:', error);
+          }
         }
       }
     }
@@ -197,6 +229,14 @@ watch(() => ws2.updates.value, async (updates) => {
   // Обрабатываем все обновления типа message.create
   for (const update of updates) {
     if (update.event_type === 'message.create') {
+      const updateKey = `${update.entity_id}_${update.created_at}`;
+      
+      // Пропускаем уже обработанные обновления
+      if (processedUpdates2.value.has(updateKey)) {
+        continue;
+      }
+      processedUpdates2.value.add(updateKey);
+      
       // Если есть полные данные сообщения в data.message
       if (update.data?.message) {
         const message = update.data.message as Message;
@@ -205,17 +245,27 @@ watch(() => ws2.updates.value, async (updates) => {
           if (!messages2.value.some(m => m.message_id === message.message_id)) {
             console.log('[App] Adding message to user2 chat via WebSocket:', message.message_id);
             messages2.value.push(message);
+            // Сортируем по дате создания после добавления (старые первыми, новые внизу)
+            messages2.value.sort((a: Message, b: Message) => 
+              (a.created_at || 0) - (b.created_at || 0)
+            );
           }
         }
       } else if (update.entity_id && update.entity_id.startsWith('msg_')) {
         // Если нет полных данных, но есть entity_id (ID сообщения), перезагружаем сообщения из диалога
-        console.log('[App] WebSocket update for user2: message.create with entity_id:', update.entity_id, 'Reloading messages...');
-        try {
-          const response = await getMessages(dialogId.value, user2.value);
-          // Обновляем список сообщений, чтобы получить новое сообщение
-          messages2.value = response.messages || [];
-        } catch (error) {
-          console.error('[App] Error reloading messages for user2:', error);
+        // Но только если сообщения еще нет в списке
+        const messageId = update.entity_id;
+        if (!messages2.value.some(m => m.message_id === messageId)) {
+          console.log('[App] WebSocket update for user2: message.create with entity_id:', messageId, 'Reloading messages...');
+          try {
+            const response = await getMessages(dialogId.value, user2.value);
+            // Обновляем список сообщений, сортируя по дате создания (старые первыми, новые внизу)
+            messages2.value = (response.messages || []).sort((a: Message, b: Message) => 
+              (a.created_at || 0) - (b.created_at || 0)
+            );
+          } catch (error) {
+            console.error('[App] Error reloading messages for user2:', error);
+          }
         }
       }
     }
@@ -302,7 +352,8 @@ onUnmounted(() => {
 }
 
 .app-content {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0; /* Важно для flex-контейнера с overflow */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -318,7 +369,8 @@ onUnmounted(() => {
 }
 
 .chat-container {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0; /* Важно для flex-контейнера с overflow */
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;

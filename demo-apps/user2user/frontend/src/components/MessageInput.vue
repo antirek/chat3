@@ -5,6 +5,7 @@
       type="text"
       placeholder="Type a message..."
       @keyup.enter="handleSend"
+      :disabled="disabled"
     />
     <button @click="handleSend" :disabled="disabled || !messageText.trim()">
       Send
@@ -41,6 +42,7 @@ const handleSend = () => {
   padding: 15px;
   background: white;
   border-top: 1px solid #ddd;
+  flex-shrink: 0; /* Предотвращает сжатие поля ввода */
 }
 
 .message-input input {
