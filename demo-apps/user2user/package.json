@@ -1,0 +1,22 @@
+{
+  "name": "@chat3/user2user",
+  "version": "0.0.1",
+  "description": "Demo application for user-to-user chat via gRPC",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run build:frontend && npm run start:backend",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "start": "npm run build:frontend && npm run start:backend",
+    "start:backend": "cd backend && npm run start",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "ws": "^8.19.0"
+  }
+}

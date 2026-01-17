@@ -1,0 +1,31 @@
+{
+  "name": "@chat3/user2user-backend",
+  "version": "0.0.1",
+  "description": "Backend for user2user demo application",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch & node --watch dist/index.js"
+  },
+  "dependencies": {
+    "@chat3/user-grpc-client-ts": "workspace:../../packages/user-grpc-client-ts",
+    "@grpc/grpc-js": "^1.11.0",
+    "@grpc/proto-loader": "^0.7.13",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "ws": "^8.16.0",
+    "dotenv": "^16.4.5",
+    "axios": "^1.7.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.25",
+    "@types/cors": "^2.8.19",
+    "@types/ws": "^8.5.10",
+    "@types/node": "^20.19.27",
+    "typescript": "^5.9.3"
+  }
+}
