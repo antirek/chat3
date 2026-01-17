@@ -97,13 +97,12 @@ npm run start:user-grpc-server
 
 ```
 packages/user-grpc-server/
-├── proto/                      # Proto файлы
-│   └── chat3_user.proto
+# Proto файлы находятся в @chat3/user-grpc-proto (packages-shared/proto/)
 ├── src/
 │   ├── config/                 # Конфигурация
 │   ├── handlers/               # gRPC handlers
 │   ├── services/               # Бизнес-логика
-│   │   ├── tenantApiClient.ts  # HTTP клиент для tenant-api
+│   │   # Использует @chottodev/chat3-tenant-api-client (Chat3Client)
 │   │   └── rabbitmqClient.ts   # RabbitMQ клиент
 │   ├── utils/                  # Утилиты
 │   └── index.ts                # Точка входа

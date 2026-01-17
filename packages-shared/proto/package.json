@@ -1,0 +1,22 @@
+{
+  "name": "@chat3/user-grpc-proto",
+  "version": "0.0.26",
+  "description": "Protocol Buffers definitions for Chat3 User gRPC service",
+  "type": "module",
+  "private": true,
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "verify": "echo 'Proto files are ready to use'"
+  },
+  "keywords": [
+    "chat3",
+    "grpc",
+    "protobuf",
+    "proto"
+  ],
+  "author": "",
+  "license": "ISC"
+}

@@ -120,8 +120,7 @@ const unsubscribe = client.subscribeUpdates((update) => {
 
 ```
 packages/user-grpc-client-ts/
-├── proto/                      # Proto файлы
-│   └── chat3_user.proto
+# Proto файлы находятся в @chat3/user-grpc-proto (packages-shared/proto/)
 ├── src/
 │   ├── Chat3GrpcClient.ts      # Основной клиент
 │   └── index.ts                # Экспорты

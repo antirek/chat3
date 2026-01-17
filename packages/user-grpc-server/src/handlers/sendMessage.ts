@@ -2,14 +2,14 @@
  * Handler для отправки сообщения
  */
 import * as grpc from '@grpc/grpc-js';
-import { TenantApiClient } from '../services/tenantApiClient.js';
+import { Chat3Client } from '@chottodev/chat3-tenant-api-client';
 import { mapHttpStatusToGrpc, logError } from '../utils/errorMapper.js';
 import { convertToGrpcMessage } from '../utils/converter.js';
 
 export async function sendMessageHandler(
   call: grpc.ServerUnaryCall<any, any>,
   callback: grpc.sendUnaryData<any>,
-  tenantApiClient: TenantApiClient
+  tenantApiClient: Chat3Client
 ): Promise<void> {
   try {
     // Извлекаем метаданные
@@ -65,14 +65,17 @@ export async function sendMessageHandler(
     // Преобразуем Struct в обычный объект для tenant-api
     const meta = request.meta ? JSON.parse(JSON.stringify(request.meta)) : undefined;
 
-    // Вызываем tenant-api
-    const response = await tenantApiClient.sendMessage(dialogId, {
+    // Вызываем tenant-api (используем createMessage)
+    const data: Record<string, any> = {
       senderId,
       content,
       type: request.type || 'internal.text',
-      meta,
-      idempotencyKey: request.idempotency_key
-    });
+      ...(meta && { meta })
+    };
+
+    // TODO: Добавить поддержку idempotency key в Chat3Client или через interceptor
+    // Для idempotency key нужно использовать заголовки, но Chat3Client пока не поддерживает это напрямую
+    const response = await tenantApiClient.createMessage(dialogId, data);
 
     // Преобразуем ответ в gRPC формат
     const message = convertToGrpcMessage(response.data);

@@ -2,7 +2,7 @@
  * Handler для подписки на обновления (server streaming)
  */
 import * as grpc from '@grpc/grpc-js';
-import { TenantApiClient } from '../services/tenantApiClient.js';
+import { Chat3Client } from '@chottodev/chat3-tenant-api-client';
 import { RabbitMQClient, Subscription } from '../services/rabbitmqClient.js';
 import { generateConnectionId } from '../utils/connectionId.js';
 import { mapHttpStatusToGrpc, logError, createGrpcError } from '../utils/errorMapper.js';
@@ -10,7 +10,7 @@ import { convertToGrpcUpdate } from '../utils/converter.js';
 
 export async function subscribeUpdatesHandler(
   call: grpc.ServerWritableStream<any, any>,
-  tenantApiClient: TenantApiClient,
+  tenantApiClient: Chat3Client,
   rabbitmqClient: RabbitMQClient
 ): Promise<void> {
   let subscription: Subscription | null = null;

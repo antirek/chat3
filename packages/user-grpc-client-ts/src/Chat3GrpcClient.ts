@@ -38,8 +38,9 @@ export interface SendMessageOptions {
   idempotencyKey?: string;
 }
 
-// Загрузка proto файла
-const PROTO_PATH = path.join(__dirname, '../proto/chat3_user.proto');
+// Загрузка proto файла (используем общий proto пакет)
+// __dirname указывает на dist/, поэтому используем ../../../packages-shared
+const PROTO_PATH = path.join(__dirname, '../../../packages-shared/proto/src/chat3_user.proto');
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,
   longs: String,

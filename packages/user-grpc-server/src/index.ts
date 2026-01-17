@@ -6,7 +6,7 @@ import * as protoLoader from '@grpc/proto-loader';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loadConfig } from './config/index.js';
-import { TenantApiClient } from './services/tenantApiClient.js';
+import { Chat3Client } from '@chottodev/chat3-tenant-api-client';
 import { RabbitMQClient } from './services/rabbitmqClient.js';
 import { getUserDialogsHandler } from './handlers/getUserDialogs.js';
 import { getDialogMessagesHandler } from './handlers/getDialogMessages.js';
@@ -24,8 +24,9 @@ console.log('[Config] Loaded configuration:', {
   rabbitmq: config.rabbitmq.url
 });
 
-// Загрузка proto файла
-const PROTO_PATH = path.join(__dirname, '../proto/chat3_user.proto');
+// Загрузка proto файла (используем общий proto пакет)
+// __dirname указывает на dist/, поэтому используем ../../../packages-shared
+const PROTO_PATH = path.join(__dirname, '../../../packages-shared/proto/src/chat3_user.proto');
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true, // Сохраняем имена полей как в proto (snake_case)
   longs: String,
@@ -38,11 +39,7 @@ const chat3Proto = grpc.loadPackageDefinition(packageDefinition) as any;
 const chat3UserService = chat3Proto.chat3.user.Chat3UserService;
 
 // Инициализация клиентов
-const tenantApiClient = new TenantApiClient({
-  baseURL: config.tenantApi.url,
-  apiKey: '', // API ключ будет передаваться в метаданных каждого запроса
-  tenantId: '' // Tenant ID будет передаваться в метаданных каждого запроса
-});
+// Chat3Client будет создаваться для каждого запроса с правильными credentials
 
 const rabbitmqClient = new RabbitMQClient({
   url: config.rabbitmq.url
@@ -53,7 +50,7 @@ const server = new grpc.Server();
 
 // Функция для создания обернутого handler с обновлением API ключа
 function wrapHandler(
-  handler: (call: any, callback: any, client: TenantApiClient) => Promise<void>
+  handler: (call: any, callback: any, client: Chat3Client) => Promise<void>
 ) {
   return (call: any, callback: any) => {
     const metadata = call.metadata;
@@ -61,7 +58,7 @@ function wrapHandler(
     const tenantId = metadata.get('x-tenant-id')[0] as string;
 
     // Создаем новый клиент с правильными credentials для этого запроса
-    const requestClient = new TenantApiClient({
+    const requestClient = new Chat3Client({
       baseURL: config.tenantApi.url,
       apiKey: apiKey || '',
       tenantId: tenantId || ''
@@ -73,7 +70,7 @@ function wrapHandler(
 
 // Функция для создания обернутого streaming handler
 function wrapStreamingHandler(
-  handler: (call: any, client: TenantApiClient, rabbitmqClient: RabbitMQClient) => Promise<void>
+  handler: (call: any, client: Chat3Client, rabbitmqClient: RabbitMQClient) => Promise<void>
 ) {
   return (call: any) => {
     const metadata = call.metadata;
@@ -81,7 +78,7 @@ function wrapStreamingHandler(
     const tenantId = metadata.get('x-tenant-id')[0] as string;
 
     // Создаем новый клиент с правильными credentials для этого запроса
-    const requestClient = new TenantApiClient({
+    const requestClient = new Chat3Client({
       baseURL: config.tenantApi.url,
       apiKey: apiKey || '',
       tenantId: tenantId || ''

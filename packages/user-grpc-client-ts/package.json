@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "generate:proto": "protoc --plugin=protoc-gen-ts_proto --ts_proto_out=./src/generated --proto_path=./proto ./proto/chat3_user.proto",
+    "generate:proto": "protoc --plugin=protoc-gen-ts_proto --ts_proto_out=./src/generated --proto_path=../packages-shared/proto/src ../packages-shared/proto/src/chat3_user.proto",
     "test": "node test-grpc.js"
   },
   "keywords": [

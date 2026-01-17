@@ -2,14 +2,14 @@
  * Handler для получения диалогов пользователя
  */
 import * as grpc from '@grpc/grpc-js';
-import { TenantApiClient } from '../services/tenantApiClient.js';
+import { Chat3Client } from '@chottodev/chat3-tenant-api-client';
 import { mapHttpStatusToGrpc, logError } from '../utils/errorMapper.js';
 import { convertToGrpcDialog } from '../utils/converter.js';
 
 export async function getUserDialogsHandler(
   call: grpc.ServerUnaryCall<any, any>,
   callback: grpc.sendUnaryData<any>,
-  tenantApiClient: TenantApiClient
+  tenantApiClient: Chat3Client
 ): Promise<void> {
   try {
     // Извлекаем метаданные
