@@ -14,6 +14,7 @@
     "start:controlo-ui": "npm run start --workspace=@chat3/controlo-ui",
     "start:update-worker": "npm run start --workspace=@chat3/update-worker",
     "start:dialog-read-worker": "npm run start --workspace=@chat3/dialog-read-worker",
+    "start:user-grpc-server": "npm run start --workspace=@chat3/user-grpc-server",
     "start:all": "npm run start:tenant-api & npm run start:controlo-gateway & npm run start:update-worker",
     "dev": "npm run dev --workspace=@chat3/tenant-api",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
