@@ -3,6 +3,7 @@
  */
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
+import * as reflection from '@grpc/reflection';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loadConfig } from './config/index.js';
@@ -96,6 +97,16 @@ server.addService(chat3UserService.service, {
   SubscribeUpdates: wrapStreamingHandler(subscribeUpdatesHandler)
 });
 
+// Включение gRPC Server Reflection для поддержки инструментов (Kreya, Postman, grpcurl, grpcui)
+// Reflection позволяет клиентам динамически получать информацию о доступных сервисах и методах
+try {
+  const reflectionService = new reflection.ReflectionService(packageDefinition);
+  reflectionService.addToServer(server);
+} catch (error) {
+  console.warn('[Server] Failed to enable gRPC Server Reflection:', error);
+  console.warn('[Server] Some tools (Kreya, grpcurl, grpcui) may not work without reflection');
+}
+
 // Запуск сервера
 async function startServer() {
   try {
@@ -114,6 +125,12 @@ async function startServer() {
         }
         server.start();
         console.log(`[Server] gRPC server started on ${address}`);
+        console.log(`[Server] gRPC Server Reflection enabled - clients can discover services dynamically`);
+        console.log(`[Server] You can use the following tools to explore the API:`);
+        console.log(`[Server]   - Kreya: Connect to ${address} with reflection enabled`);
+        console.log(`[Server]   - grpcurl: grpcurl -plaintext ${address} list`);
+        console.log(`[Server]   - Postman: Import gRPC server at ${address}`);
+        console.log(`[Server]   - grpcui: grpcui -plaintext ${address}`);
       }
     );
   } catch (error) {

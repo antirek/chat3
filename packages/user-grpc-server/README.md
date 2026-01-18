@@ -34,6 +34,50 @@ npm run start:user-grpc-server
 - `TENANT_API_URL` - URL tenant-api (обязательно, например `http://localhost:3000`)
 - `RABBITMQ_URL` - URL RabbitMQ (обязательно, например `amqp://localhost:5672`)
 
+## gRPC Server Reflection
+
+Сервер поддерживает **gRPC Server Reflection**, что позволяет инструментам автоматически обнаруживать доступные сервисы и методы без необходимости загрузки `.proto` файлов.
+
+### Поддерживаемые инструменты
+
+После запуска сервера вы можете использовать следующие инструменты для исследования API:
+
+1. **Kreya** (GUI клиент)
+   - Подключитесь к `localhost:50051`
+   - Включите "Use Server Reflection"
+   - Автоматически загрузит все доступные методы
+
+2. **grpcurl** (CLI инструмент)
+   ```bash
+   # Список всех сервисов
+   grpcurl -plaintext localhost:50051 list
+   
+   # Описание сервиса
+   grpcurl -plaintext localhost:50051 describe chat3.user.Chat3UserService
+   
+   # Вызов метода
+   grpcurl -plaintext -H "x-api-key: YOUR_KEY" -H "x-tenant-id: tnt_default" -H "x-user-id: user_1" \
+     -d '{"page": 1, "limit": 10}' \
+     localhost:50051 chat3.user.Chat3UserService/GetUserDialogs
+   ```
+
+3. **Postman**
+   - Создайте новый gRPC запрос
+   - Укажите адрес: `localhost:50051`
+   - Включите "Server Reflection"
+   - Автоматически загрузит методы и типы
+
+4. **grpcui** (Веб-интерфейс)
+   ```bash
+   # Запуск через скрипт (автоматически установит grpcui, если его нет)
+   ./start-grpcui.sh
+   
+   # Или вручную (требует Go)
+   go install github.com/fullstorydev/grpcui/cmd/grpcui@latest
+   grpcui -plaintext localhost:50051
+   ```
+   Откроется браузер с веб-интерфейсом для вызова методов (по умолчанию на http://localhost:8080).
+
 ## Методы API
 
 ### GetUserDialogs

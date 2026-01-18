@@ -12,9 +12,10 @@
     "dev": "tsc --watch & node --watch dist/index.js"
   },
   "dependencies": {
+    "@chottodev/chat3-tenant-api-client": "*",
     "@grpc/grpc-js": "^1.11.0",
     "@grpc/proto-loader": "^0.7.13",
-    "@chottodev/chat3-tenant-api-client": "*",
+    "@grpc/reflection": "^1.0.4",
     "amqplib": "^0.10.9"
   },
   "devDependencies": {
