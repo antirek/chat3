@@ -6,15 +6,8 @@
   "workspaces": [
     "packages/*",
     "packages-shared/*",
-    "demo-apps/user2user",
-    "demo-apps/user2user-connectrpc"
+    "demo-apps/user2user"
   ],
-  "overrides": {
-    "@connectrpc/connect": "1.7.0",
-    "@connectrpc/connect-node": "1.7.0",
-    "@connectrpc/connect-web": "1.7.0",
-    "@bufbuild/protobuf": "1.10.1"
-  },
   "scripts": {
     "start:tenant-api": "npm run start --workspace=@chat3/tenant-api",
     "start:controlo-gateway": "npm run start --workspace=@chat3/controlo-gateway",
