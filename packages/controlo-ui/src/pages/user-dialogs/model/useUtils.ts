@@ -6,9 +6,11 @@
 import { ref } from 'vue';
 import { useModal } from '@/shared/lib/composables/useModal';
 import { formatTimestamp } from '@/shared/lib/utils/date';
+import { escapeHtml } from '@/shared/lib/utils/string';
 
 // Утилиты форматирования
 export { formatTimestamp as formatLastSeen, formatTimestamp as formatMessageTime };
+export { escapeHtml };
 
 export function shortenDialogId(dialogId: string) {
   if (!dialogId) return '-';
@@ -24,16 +26,6 @@ export function shortenTopicId(topicId: string) {
     return `topic_${topicId.substring(6, 10)}...`;
   }
   return topicId;
-}
-
-export function escapeHtml(value: any): string {
-  if (value === null || value === undefined) return '';
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 // Модальные утилиты

@@ -5,6 +5,7 @@
 import { Ref } from 'vue';
 import { useModal } from '@/shared/lib/composables/useModal';
 import { useCredentialsStore } from '@/app/stores/credentials';
+import { escapeHtml } from '@/shared/lib/utils/string';
 
 export function useUtils(
   urlModalUrl: Ref<string>,
@@ -19,16 +20,6 @@ export function useUtils(
   tenantId: Ref<string>,
   loadDialogsWithFilter: (filter: string) => void,
 ) {
-  // Утилиты форматирования
-  function escapeHtml(value: string) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
   // Утилиты для работы с URL
   function getUrlParams() {
     const params = new URLSearchParams(window.location.search);
