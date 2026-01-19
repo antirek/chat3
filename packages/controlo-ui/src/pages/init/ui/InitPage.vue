@@ -307,7 +307,6 @@ button:disabled {
 </style>
 
 <style>
-/* Глобальные стили для элементов, вставляемых через v-html */
 .api-key-display {
   margin-top: 15px;
   padding: 20px;
