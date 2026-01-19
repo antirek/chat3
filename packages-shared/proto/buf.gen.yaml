@@ -1,0 +1,10 @@
+version: v2
+plugins:
+  # Генерация TypeScript типов из proto (Protobuf-ES v1)
+  - local: protoc-gen-es
+    out: generated
+    opt: target=ts
+  # Генерация ConnectRPC сервисов (для v1)
+  - local: protoc-gen-connect-es
+    out: generated
+    opt: target=ts

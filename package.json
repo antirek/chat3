@@ -6,8 +6,15 @@
   "workspaces": [
     "packages/*",
     "packages-shared/*",
-    "demo-apps/user2user"
+    "demo-apps/user2user",
+    "demo-apps/user2user-connectrpc"
   ],
+  "overrides": {
+    "@connectrpc/connect": "1.7.0",
+    "@connectrpc/connect-node": "1.7.0",
+    "@connectrpc/connect-web": "1.7.0",
+    "@bufbuild/protobuf": "1.10.1"
+  },
   "scripts": {
     "start:tenant-api": "npm run start --workspace=@chat3/tenant-api",
     "start:controlo-gateway": "npm run start --workspace=@chat3/controlo-gateway",
@@ -52,6 +59,7 @@
   "devDependencies": {
     "@babel/core": "^7.28.5",
     "@babel/preset-env": "^7.28.5",
+    "@bufbuild/protoc-gen-es": "^1.10.1",
     "@eslint/js": "^9.39.2",
     "@onify/fake-amqplib": "^3.2.0",
     "@playwright/test": "^1.57.0",

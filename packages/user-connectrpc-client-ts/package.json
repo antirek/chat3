@@ -1,0 +1,36 @@
+{
+  "name": "@chat3/user-connectrpc-client-ts",
+  "version": "0.0.1",
+  "description": "TypeScript client library for Chat3 ConnectRPC User Service",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "generate:proto": "protoc --plugin=protoc-gen-connect-es=./node_modules/.bin/protoc-gen-connect-es --plugin=protoc-gen-es=./node_modules/.bin/protoc-gen-es --connect-es_out=src/generated --es_out=src/generated --proto_path=../../packages-shared/proto/src ../../packages-shared/proto/src/chat3_user.proto",
+    "test": "echo \"Tests not implemented\""
+  },
+  "keywords": [
+    "chat3",
+    "connectrpc",
+    "client",
+    "typescript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@connectrpc/connect": "^1.7.0",
+    "@connectrpc/connect-web": "^1.7.0",
+    "@bufbuild/protobuf": "^1.10.1"
+  },
+  "devDependencies": {
+    "@bufbuild/protoc-gen-es": "^1.10.1",
+    "@connectrpc/protoc-gen-connect-es": "^1.7.0",
+    "@types/node": "^20.19.27",
+    "typescript": "^5.9.3"
+  }
+}
