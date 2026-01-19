@@ -3,22 +3,13 @@
  * Отвечает за: формирование URL для Control API, получение tenantId, форматирование timestamp
  */
 import { toRef } from 'vue';
-import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { formatTimestamp } from '@/shared/lib/utils/date';
-
-export function getControlApiUrl(path = ''): string {
-  const configStore = useConfigStore();
-  if (typeof window !== 'undefined' && (window as any).CHAT3_CONFIG && (window as any).CHAT3_CONFIG.getControlApiUrl) {
-    return (window as any).CHAT3_CONFIG.getControlApiUrl(path);
-  }
-  const controlApiUrl = configStore.config.CONTROL_APP_URL || 'http://localhost:3001';
-  return `${controlApiUrl}${path}`;
-}
+import { getControlApiUrl } from '@/shared/lib/utils/url';
 
 export function getTenantId(credentialsStore: ReturnType<typeof useCredentialsStore>): string {
   const tenantId = toRef(credentialsStore, 'tenantId');
   return tenantId.value || 'tnt_default';
 }
 
-export { formatTimestamp };
+export { formatTimestamp, getControlApiUrl };
