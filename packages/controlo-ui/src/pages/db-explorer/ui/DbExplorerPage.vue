@@ -82,7 +82,7 @@
       :calendar-month-year="calendarMonthYear"
       :calendar-days="calendarDays"
       :date-presets="datePresets"
-      :get-calendar-day-class="getCalendarDayClass"
+      :selected-date-range="selectedDateRange"
       @close="closeDateRangeModal"
       @select-preset="selectDatePreset"
       @change-month="changeCalendarMonth"
@@ -96,7 +96,7 @@
 
 <script setup lang="ts">
 import { BasePanel, BaseButton } from '@/shared/ui';
-import { useDbExplorerPage } from '../model/useDbExplorerPage';
+import { useDbExplorerPage } from '../model';
 import { ModelsPanel } from './panels';
 import { DataTable } from './tables';
 import { DataPagination } from './pagination';
@@ -166,7 +166,6 @@ const {
   showDateRangeModal,
   selectDatePreset,
   changeCalendarMonth,
-  getCalendarDayClass,
   selectCalendarDate,
   applyDateRange,
   closeDateRangeModal,
