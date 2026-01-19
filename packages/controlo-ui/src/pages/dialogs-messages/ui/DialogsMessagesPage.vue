@@ -141,7 +141,7 @@
 
 <script setup lang="ts">
 import { BasePanel, BaseButton } from '@/shared/ui';
-import { useDialogsMessagesPage } from '../model/useDialogsMessagesPage';
+import { useDialogsMessagesPage } from '../model';
 import { DialogTable, MessagesTableSimple } from './tables';
 import { DialogInfoModal, CreateDialogModal, UrlModal } from './modals';
 import { ExtendedPagination } from './pagination';
