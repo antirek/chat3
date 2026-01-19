@@ -104,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import { useInitPage } from '../model/useInitPage';
+import { useInitPage } from '../model';
 
 const {
   initLoading,
