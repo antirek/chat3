@@ -1,56 +1,23 @@
-/* eslint-env browser */
-/* global alert, confirm */
-import { ref, onMounted, toRef } from 'vue';
+/**
+ * Модуль модальных окон для работы с тенантами
+ * Отвечает за: создание, удаление тенантов, работа с meta-тегами, отображение информации, URL запросов
+ */
+import { ref, computed } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
-import { usePagination } from '@/shared/lib/composables/usePagination';
-import { useFilter } from '@/shared/lib/composables/useFilter';
-import { useSort } from '@/shared/lib/composables/useSort';
 import { useModal } from '@/shared/lib/composables/useModal';
+import type { Ref } from 'vue';
 
-export function useTenantsPage() {
-  // Конфигурация
-  const configStore = useConfigStore();
-  const credentialsStore = useCredentialsStore();
-
-  // Используем credentials из store (toRef для правильной типизации)
-  const apiKey = toRef(credentialsStore, 'apiKey');
-  const tenantId = toRef(credentialsStore, 'tenantId');
-  
-  // Данные
-  const tenants = ref<any[]>([]);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
-
-  // Функция загрузки данных (нужна для callbacks)
-  let loadTenantsFn: (page: number, limit: number) => Promise<void>;
-
-  // Используем общие composables
-  const pagination = usePagination({
-    initialPage: 1,
-    initialLimit: 20,
-    onPageChange: (page, limit) => {
-      if (loadTenantsFn) {
-        loadTenantsFn(page, limit);
-      }
-    },
-  });
-
-  const filter = useFilter({
-    initialFilter: '',
-    // onFilterChange не нужен, так как загрузка происходит в applyTenantFilter
-  });
-
-  const sort = useSort({
-    initialField: 'createdAt',
-    initialOrder: -1,
-    onSortChange: () => {
-      if (loadTenantsFn) {
-        loadTenantsFn(pagination.currentPage.value, pagination.currentLimit.value);
-      }
-    },
-  });
-
+export function useTenantModals(
+  getApiKey: () => string,
+  configStore: ReturnType<typeof useConfigStore>,
+  credentialsStore: ReturnType<typeof useCredentialsStore>,
+  currentPage: Ref<number>,
+  currentLimit: Ref<number>,
+  currentFilter: Ref<string | null>,
+  currentSort: { value: { field: string; order: number } },
+  loadTenants: (page?: number, limit?: number) => Promise<void>,
+) {
   // Модальные окна
   const createModal = useModal();
   const metaModal = useModal();
@@ -79,119 +46,7 @@ export function useTenantsPage() {
   const generatedUrl = ref('');
   const copyUrlButtonText = ref('📋 Скопировать');
 
-  // Функции
-  function getUrlParams() {
-    const params = new URLSearchParams(window.location.search);
-    return {
-      apiKey: params.get('apiKey') || '',
-      tenantId: params.get('tenantId') || 'tnt_default',
-    };
-  }
-
-  function setApiKeyFromExternal(extApiKey: string, extTenantId?: string) {
-    if (!extApiKey) {
-      console.warn('API Key не предоставлен');
-      return;
-    }
-
-    credentialsStore.setCredentials(extApiKey, extTenantId);
-
-    console.log('API Key set from external:', apiKey.value);
-    console.log('Tenant ID set from external:', tenantId.value);
-
-    loadTenants(1);
-  }
-
-  function getApiKey() {
-    return apiKey.value;
-  }
-
-  async function loadTenants(page = pagination.currentPage.value, limit = pagination.currentLimit.value) {
-    try {
-      const key = getApiKey();
-
-      if (!key) {
-        // Не показываем ошибку, если просто нет API Key - это нормально
-        error.value = null;
-        tenants.value = [];
-        loading.value = false;
-        return;
-      }
-
-      // Обновляем страницу и лимит без вызова callback, чтобы избежать бесконечного цикла
-      if (pagination.currentPage.value !== page) {
-        pagination.currentPage.value = page;
-        pagination.currentPageInput.value = page;
-      }
-      pagination.currentLimit.value = limit;
-      loading.value = true;
-      error.value = null;
-
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
-
-      if (filter.currentFilter.value) {
-        params.append('filter', filter.currentFilter.value);
-      }
-
-      const sortObj: Record<string, number> = {};
-      sortObj[sort.currentSort.value.field] = sort.currentSort.value.order;
-      params.append('sort', JSON.stringify(sortObj));
-
-      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
-      const url = `${baseUrl}/api/tenants?${params.toString()}`;
-      
-      const response = await fetch(url, {
-        headers: credentialsStore.getHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `HTTP error! status: ${response.status}`;
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorMessage;
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-
-      pagination.setPaginationData(data.pagination?.total || 0, data.pagination?.pages || 1);
-
-      if (data.data && data.data.length > 0) {
-        tenants.value = data.data;
-      } else {
-        tenants.value = [];
-      }
-    } catch (err) {
-      console.error('Error loading tenants:', err);
-      if (err instanceof TypeError && err.message.includes('fetch')) {
-        error.value = 'Не удалось подключиться к серверу. Проверьте, что backend сервер запущен на порту 3000.';
-      } else {
-        error.value = err instanceof Error ? err.message : 'Ошибка загрузки';
-      }
-      tenants.value = [];
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  // Сохраняем ссылку на функцию для callbacks
-  loadTenantsFn = loadTenants;
-
-  function formatTimestamp(timestamp: string | number | undefined) {
-    if (!timestamp) return '-';
-    const ts = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
-    const date = new Date(ts);
-    return date.toLocaleString('ru-RU');
-  }
-
-  // Модальные окна
+  // Create modal functions
   function showCreateModal() {
     createModal.open();
     createTenantId.value = '';
@@ -280,7 +135,7 @@ export function useTenantsPage() {
       }
 
       createModal.close();
-      loadTenants(1, pagination.currentLimit.value);
+      loadTenants(1, currentLimit.value);
       alert('Тенант успешно создан!');
     } catch (err) {
       console.error('Error creating tenant:', err);
@@ -288,6 +143,7 @@ export function useTenantsPage() {
     }
   }
 
+  // Meta modal functions
   async function showMetaModal(tenantIdValue: string) {
     metaTenantId.value = tenantIdValue;
     metaModal.open();
@@ -394,6 +250,7 @@ export function useTenantsPage() {
     }
   }
 
+  // Info modal functions
   async function showInfoModal(tenantIdParam: string) {
     try {
       getApiKey(); // Проверка наличия ключа
@@ -463,6 +320,7 @@ export function useTenantsPage() {
     }
   }
 
+  // Delete tenant function
   async function deleteTenant(tenantIdParam: string) {
     if (!confirm(`Вы уверены, что хотите удалить тенант "${tenantIdParam}"?`)) {
       return;
@@ -482,7 +340,7 @@ export function useTenantsPage() {
         throw new Error(error.message || 'Failed to delete tenant');
       }
 
-      loadTenants(pagination.currentPage.value, pagination.currentLimit.value);
+      loadTenants(currentPage.value, currentLimit.value);
       alert('Тенант успешно удален!');
     } catch (err) {
       console.error('Error deleting tenant:', err);
@@ -490,29 +348,7 @@ export function useTenantsPage() {
     }
   }
 
-  function selectTenantFilterExample() {
-    // selectedFilterExample уже обновлен через v-model к моменту вызова @change
-    const selected = filter.selectedFilterExample.value;
-    
-    if (selected && selected !== 'custom') {
-      filter.filterInput.value = selected;
-    } else if (selected === 'custom') {
-      filter.filterInput.value = '';
-    }
-  }
-
-  function clearTenantFilter() {
-    filter.clearFilter();
-    loadTenants(1, pagination.currentLimit.value);
-  }
-
-  function applyTenantFilter() {
-    // Устанавливаем currentFilter напрямую из filterInput (как в оригинале)
-    filter.currentFilter.value = filter.filterInput.value.trim();
-    // После применения фильтра нужно перезагрузить данные с первой страницы
-    loadTenants(1, pagination.currentLimit.value);
-  }
-
+  // URL modal functions
   function generateApiUrl() {
     const key = getApiKey();
     if (!key) {
@@ -520,21 +356,30 @@ export function useTenantsPage() {
     }
 
     const params = new URLSearchParams({
-      page: pagination.currentPage.value.toString(),
-      limit: pagination.currentLimit.value.toString(),
+      page: currentPage.value.toString(),
+      limit: currentLimit.value.toString(),
     });
 
-    if (filter.currentFilter.value) {
-      params.append('filter', filter.currentFilter.value);
+    if (currentFilter.value) {
+      params.append('filter', currentFilter.value);
     }
 
     const sortObj: Record<string, number> = {};
-    sortObj[sort.currentSort.value.field] = sort.currentSort.value.order;
+    sortObj[currentSort.value.field] = currentSort.value.order;
     params.append('sort', JSON.stringify(sortObj));
 
     const baseUrl = configStore.config.TENANT_API_URL || '/api';
     return `${baseUrl}/api/tenants?${params.toString()}`;
   }
+
+  const fullUrl = computed(() => {
+    const url = generateApiUrl();
+    const key = getApiKey();
+    if (!key) {
+      return url;
+    }
+    return `${window.location.origin}${url}`;
+  });
 
   function showUrlModal() {
     generatedUrl.value = generateApiUrl();
@@ -556,55 +401,12 @@ export function useTenantsPage() {
     }
   }
 
-  // Инициализация
-  onMounted(() => {
-    // Загружаем credentials из store (они уже загружены из localStorage при создании store)
-    credentialsStore.loadFromStorage();
-
-    // Проверяем URL параметры (для обратной совместимости с iframe)
-    const params = getUrlParams();
-    if (params.apiKey) {
-      setApiKeyFromExternal(params.apiKey, params.tenantId);
-    } else {
-      // Если нет URL параметров, но есть API Key в store, загружаем тенантов
-      const key = getApiKey();
-      if (key) {
-        loadTenants(1);
-      }
-    }
-
-    // Обработка сообщений от родительского окна (для обратной совместимости)
-    window.addEventListener('message', (event) => {
-      if (event.data && event.data.type === 'setApiCredentials') {
-        setApiKeyFromExternal(event.data.apiKey, event.data.tenantId);
-      }
-    });
-  });
-
   return {
-    // State
-    tenants,
-    loading,
-    error,
-    // Pagination (из composable)
-    currentPage: pagination.currentPage,
-    currentLimit: pagination.currentLimit,
-    totalPages: pagination.totalPages,
-    totalTenants: pagination.totalItems,
-    currentPageInput: pagination.currentPageInput,
-    paginationStart: pagination.paginationStart,
-    paginationEnd: pagination.paginationEnd,
-    // Filter (из composable)
-    filterInput: filter.filterInput,
-    selectedFilterExample: filter.selectedFilterExample,
-    currentFilter: filter.currentFilter,
-    // Sort (из composable)
-    currentSort: sort.currentSort,
-    // Modals (из composable)
-    showCreateModalFlag: createModal.isOpen,
-    showMetaModalFlag: metaModal.isOpen,
-    showInfoModalFlag: infoModal.isOpen,
-    showUrlModalFlag: urlModal.isOpen,
+    // Modals
+    createModal,
+    metaModal,
+    infoModal,
+    urlModal,
     // Создание тенанта
     createTenantId,
     createMetaTags,
@@ -622,35 +424,22 @@ export function useTenantsPage() {
     // URL modal
     generatedUrl,
     copyUrlButtonText,
+    fullUrl,
     // Functions
-    loadTenants,
-    goToFirstPage: pagination.goToFirstPage,
-    goToPreviousPage: pagination.goToPreviousPage,
-    goToNextPage: pagination.goToNextPage,
-    goToLastPage: pagination.goToLastPage,
-    goToPage: pagination.goToPage,
-    changeLimit: pagination.changeLimit,
-    getSortIndicator: sort.getSortIndicator,
-    toggleSort: sort.toggleSort,
-    formatTimestamp,
     showCreateModal,
-    closeCreateModal: createModal.close,
     addCreateMetaTag,
     removeCreateMetaTag,
     createTenant,
     showMetaModal,
     closeMetaModal,
+    loadMetaTags,
     addMetaTag,
     deleteMetaTag,
     showInfoModal,
-    closeInfoModal: infoModal.close,
     copyJsonToClipboard,
     deleteTenant,
-    selectTenantFilterExample,
-    clearTenantFilter,
-    applyTenantFilter,
+    generateApiUrl,
     showUrlModal,
-    closeUrlModal: urlModal.close,
     copyUrlToClipboard,
   };
 }

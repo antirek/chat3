@@ -6,7 +6,7 @@
         <BaseButton variant="success" @click="showCreateModal">➕ Создать тенант</BaseButton>
       </template>
       <template #header-right>
-        <BaseButton variant="url" @click="showUrlModal">URL</BaseButton>
+        <BaseButton variant="url" @click="showUrlModal">🔗 URL</BaseButton>
       </template>
       <TenantFilterPanel
         :filter-input="filterInput"
@@ -95,7 +95,7 @@
 
 <script setup lang="ts">
 import { BasePanel, BaseButton } from '@/shared/ui';
-import { useTenantsPage } from '../model/useTenantsPage';
+import { useTenantsPage } from '../model';
 import { TenantFilterPanel } from './filters';
 import { TenantTable } from './tables';
 import { TenantInfoModal, TenantMetaModal, TenantUrlModal, CreateTenantModal } from './modals';

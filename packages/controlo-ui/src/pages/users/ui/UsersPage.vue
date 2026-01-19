@@ -6,7 +6,7 @@
         <BaseButton variant="success" @click="showCreateModal">➕ Создать пользователя</BaseButton>
       </template>
       <template #header-right>
-        <BaseButton variant="url" @click="showUrlModal">URL</BaseButton>
+        <BaseButton variant="url" @click="showUrlModal">🔗 URL</BaseButton>
       </template>
       <UserFilterPanel
         :filter-input="filterInput"
