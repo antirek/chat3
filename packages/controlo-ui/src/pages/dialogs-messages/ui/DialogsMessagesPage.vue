@@ -45,7 +45,7 @@
           :current-dialog-id="currentDialogId"
           :current-sort="currentSort"
           :get-sort-indicator="getDialogSortIndicator"
-          :format-updated-at="formatUpdatedAt"
+          :format-timestamp="formatTimestamp"
           :format-members="formatMembers"
           @toggle-sort="toggleSort"
           @select-dialog="selectDialog"
@@ -102,7 +102,7 @@
           :current-sort="currentMessageSort"
           :get-sort-indicator="getMessageSortIndicator"
           :toggle-sort="toggleMessageSort"
-          :format-timestamp="formatMessageTime"
+          :format-timestamp="formatTimestamp"
           :show-info="showMessageInfo"
         />
       </BasePanel>
@@ -205,19 +205,19 @@ const {
   goToDialogsLastPage,
   goToDialogsPage,
   changeDialogLimit,
-  changePage,
-  formatUpdatedAt,
-  formatMembers,
-  selectDialog,
-  // Messages Pagination Functions
-  goToMessagesFirstPage,
-  goToMessagesPreviousPage,
-  goToMessagesNextPage,
-  goToMessagesLastPage,
-  goToMessagesPage,
-  changeMessageLimit,
-  changeMessagePage,
-  formatMessageTime,
+    changePage,
+    formatTimestamp,
+    formatMembers,
+    selectDialog,
+    // Messages Pagination Functions
+    goToMessagesFirstPage,
+    goToMessagesPreviousPage,
+    goToMessagesNextPage,
+    goToMessagesLastPage,
+    goToMessagesPage,
+    changeMessageLimit,
+    changeMessagePage,
+    formatMessageTime,
   toggleSort,
   getDialogSortIndicator,
   toggleMessageSort,

@@ -5,6 +5,7 @@
 import { ref, computed } from 'vue';
 import { usePagination } from '@/shared/lib/composables/usePagination';
 import { useFilter } from '@/shared/lib/composables/useFilter';
+import { formatTimestamp } from '@/shared/lib/utils/date';
 
 export function useMessages(
   getApiKey: () => string,
@@ -154,13 +155,6 @@ export function useMessages(
   function getDialogName(dialogId: string) {
     const dialog = dialogs.value.find((d) => d.dialogId === dialogId);
     return dialog ? dialog.dialogId : dialogId;
-  }
-
-  function formatTimestamp(timestamp: string | number | undefined) {
-    if (!timestamp) return '-';
-    const ts = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
-    const date = new Date(ts);
-    return date.toLocaleString('ru-RU');
   }
 
   function getSortIndicator(field: string) {

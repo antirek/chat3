@@ -6,6 +6,7 @@ import { ref, computed } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { usePagination } from '@/shared/lib/composables/usePagination';
+import { formatTimestamp } from '@/shared/lib/utils/date';
 
 export function useMessages(getApiKey: () => string) {
   // Конфигурация
@@ -161,15 +162,6 @@ export function useMessages(getApiKey: () => string) {
     }
   }
 
-  // Утилиты форматирования
-  function formatMessageTime(createdAt: string | number | undefined) {
-    if (!createdAt) return '-';
-
-    const timestamp = typeof createdAt === 'string' ? parseFloat(createdAt) : createdAt;
-    const date = new Date(timestamp);
-    return date.toLocaleString('ru-RU');
-  }
-
   return {
     // State
     messages,
@@ -193,6 +185,6 @@ export function useMessages(getApiKey: () => string) {
     toggleMessageSort,
     getMessageSortIndicator,
     // Utils
-    formatMessageTime,
+    formatTimestamp,
   };
 }

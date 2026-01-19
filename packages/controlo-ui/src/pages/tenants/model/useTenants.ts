@@ -6,6 +6,7 @@ import { ref } from 'vue';
 import { usePagination } from '@/shared/lib/composables/usePagination';
 import { useFilter } from '@/shared/lib/composables/useFilter';
 import { useSort } from '@/shared/lib/composables/useSort';
+import { formatTimestamp } from '@/shared/lib/utils/date';
 
 export function useTenants(
   getApiKey: () => string,
@@ -124,13 +125,6 @@ export function useTenants(
 
   // Сохраняем ссылку на функцию для callbacks
   loadTenantsFn = loadTenants;
-
-  function formatTimestamp(timestamp: string | number | undefined) {
-    if (!timestamp) return '-';
-    const ts = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
-    const date = new Date(ts);
-    return date.toLocaleString('ru-RU');
-  }
 
   function selectTenantFilterExample() {
     // selectedFilterExample уже обновлен через v-model к моменту вызова @change

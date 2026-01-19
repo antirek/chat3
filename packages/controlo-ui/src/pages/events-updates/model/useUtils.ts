@@ -5,6 +5,7 @@
 import { toRef } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
+import { formatTimestamp } from '@/shared/lib/utils/date';
 
 export function getControlApiUrl(path = ''): string {
   const configStore = useConfigStore();
@@ -20,9 +21,4 @@ export function getTenantId(credentialsStore: ReturnType<typeof useCredentialsSt
   return tenantId.value || 'tnt_default';
 }
 
-export function formatTimestamp(ts: string | number | null | undefined): string {
-  if (!ts) return '-';
-  const timestamp = typeof ts === 'string' ? parseFloat(ts) : ts;
-  const date = new Date(Math.floor(timestamp));
-  return date.toLocaleString('ru-RU');
-}
+export { formatTimestamp };

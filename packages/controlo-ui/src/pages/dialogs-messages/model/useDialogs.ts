@@ -6,6 +6,7 @@ import { ref, computed } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { usePagination } from '@/shared/lib/composables/usePagination';
+import { formatTimestamp } from '@/shared/lib/utils/date';
 
 export function useDialogs(getApiKey: () => string) {
   // Конфигурация
@@ -211,15 +212,6 @@ export function useDialogs(getApiKey: () => string) {
     }
   }
 
-  // Утилиты форматирования
-  function formatUpdatedAt(createdAt: string | number | undefined) {
-    if (!createdAt) return '-';
-
-    const timestamp = typeof createdAt === 'string' ? parseFloat(createdAt) : createdAt;
-    const date = new Date(timestamp);
-    return date.toLocaleString('ru-RU');
-  }
-
   function formatMembers(members: any[] | undefined) {
     if (!members || members.length === 0) return '-';
 
@@ -259,7 +251,7 @@ export function useDialogs(getApiKey: () => string) {
     toggleSort,
     getDialogSortIndicator,
     // Utils
-    formatUpdatedAt,
+    formatTimestamp,
     formatMembers,
   };
 }

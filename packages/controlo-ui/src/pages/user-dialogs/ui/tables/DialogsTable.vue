@@ -32,7 +32,7 @@
             {{ item.stats?.topicCount || 0 }}
           </span>
         </td>
-        <td>{{ formatLastSeen(item.context?.lastSeenAt) }}</td>
+        <td>{{ formatTimestamp(item.context?.lastSeenAt) }}</td>
         <td class="actions-column">
           <BaseButton variant="primary" size="small" @click.stop="$emit('show-info', item.dialogId)">ℹ️ Инфо</BaseButton>
           <BaseButton variant="events" size="small" @click.stop="$emit('show-events', item.dialogId)">📋 События</BaseButton>
@@ -45,6 +45,7 @@
 
 <script setup lang="ts">
 import { BaseTable, BaseButton } from '@/shared/ui';
+import { formatTimestamp } from '@/shared/lib/utils/date';
 
 interface Dialog {
   dialogId: string;
@@ -83,20 +84,7 @@ function shortenDialogId(dialogId: string): string {
   return dialogId.substring(0, 8) + '...' + dialogId.substring(dialogId.length - 8);
 }
 
-function formatLastSeen(lastSeenAt?: string | number): string {
-  if (!lastSeenAt) return '-';
-  try {
-    // Конвертируем строку в число, если это timestamp
-    const ts = typeof lastSeenAt === 'string' ? parseFloat(lastSeenAt) : lastSeenAt;
-    if (isNaN(ts)) return '-';
-    const date = new Date(ts);
-    // Проверяем, что дата валидна
-    if (isNaN(date.getTime())) return '-';
-    return date.toLocaleString('ru-RU');
-  } catch {
-    return '-';
-  }
-}
+const formatLastSeen = formatTimestamp;
 </script>
 
 <style scoped>

@@ -5,21 +5,10 @@
  */
 import { ref } from 'vue';
 import { useModal } from '@/shared/lib/composables/useModal';
+import { formatTimestamp } from '@/shared/lib/utils/date';
 
 // Утилиты форматирования
-export function formatLastSeen(timestamp: string | number | null | undefined) {
-  if (!timestamp) return '-';
-  const ts = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
-  const date = new Date(ts);
-  return date.toLocaleString('ru-RU');
-}
-
-export function formatMessageTime(timestamp: string | number) {
-  if (!timestamp) return '';
-  const ts = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
-  const date = new Date(ts);
-  return date.toLocaleString('ru-RU');
-}
+export { formatTimestamp as formatLastSeen, formatTimestamp as formatMessageTime };
 
 export function shortenDialogId(dialogId: string) {
   if (!dialogId) return '-';

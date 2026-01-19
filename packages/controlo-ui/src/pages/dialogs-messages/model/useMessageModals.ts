@@ -6,7 +6,7 @@ import { useConfigStore } from '@/app/stores/config';
 import { useModal } from '@/shared/lib/composables/useModal';
 
 export function useMessageModals(
-  formatMessageTime: (createdAt: string | number | undefined) => string,
+  formatTimestamp: (createdAt: string | number | undefined) => string,
   currentDialogId: { value: string | null },
   currentMessageFilter: { value: string | null },
   currentMessageSort: { value: string | null },
@@ -32,7 +32,7 @@ export function useMessageModals(
       const messageInfo = {
         id: message.messageId,
         sender: message.senderId,
-        time: formatMessageTime(message.createdAt),
+        time: formatTimestamp(message.createdAt),
         content: message.content,
         type: message.type,
       };

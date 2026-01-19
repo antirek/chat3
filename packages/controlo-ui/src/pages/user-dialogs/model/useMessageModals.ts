@@ -6,6 +6,7 @@ import { ref, nextTick, type Ref } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { useModal } from '@/shared/lib/composables/useModal';
+import { formatTimestamp } from '@/shared/lib/utils/date';
 
 export function useMessageModals(
   currentUserId: Ref<string | null>,
@@ -379,11 +380,8 @@ export function useMessageModals(
     return String(event.id || '');
   }
 
-  function formatEventTime(timestamp: any): string {
-    if (!timestamp) return '-';
-    const ts = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
-    return new Date(ts).toLocaleString('ru-RU');
-  }
+  // Используем общую функцию форматирования из shared
+  const formatEventTime = formatTimestamp;
 
   function getEventDescription(eventType: string, data: any): string {
     const descriptions: Record<string, string> = {

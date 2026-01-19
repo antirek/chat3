@@ -46,7 +46,7 @@ export function useDialogsMessagesPage() {
     applyCombined,
     toggleSort,
     getDialogSortIndicator,
-    formatUpdatedAt,
+    formatTimestamp,
     formatMembers,
   } = dialogsModule;
 
@@ -71,7 +71,7 @@ export function useDialogsMessagesPage() {
     clearMessageFilter,
     toggleMessageSort,
     getMessageSortIndicator,
-    formatMessageTime,
+    formatTimestamp: formatMessageTimestamp,
   } = messagesModule;
 
   // Модальные окна (общие)
@@ -141,7 +141,7 @@ export function useDialogsMessagesPage() {
 
   // Модальные окна для сообщений
   const messageModalsModule = useMessageModals(
-    formatMessageTime,
+    formatMessageTimestamp,
     currentDialogId,
     currentMessageFilter,
     currentMessageSort,
@@ -271,7 +271,7 @@ export function useDialogsMessagesPage() {
     goToDialogsPage: dialogsPagination.goToPage,
     changeDialogLimit: dialogsPagination.changeLimit,
     changePage,
-    formatUpdatedAt,
+    formatTimestamp,
     formatMembers,
     selectDialog,
     // Messages Pagination Functions
@@ -282,7 +282,7 @@ export function useDialogsMessagesPage() {
     goToMessagesPage: messagesPagination.goToPage,
     changeMessageLimit: messagesPagination.changeLimit,
     changeMessagePage,
-    formatMessageTime,
+    formatMessageTime: formatMessageTimestamp,
     toggleSort,
     getDialogSortIndicator,
     toggleMessageSort,

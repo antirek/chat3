@@ -29,7 +29,7 @@
 
       <template #row="{ item }">
         <td>{{ (item as Dialog).dialogId }}</td>
-        <td>{{ formatUpdatedAt((item as Dialog).createdAt) }}</td>
+        <td>{{ formatTimestamp((item as Dialog).createdAt) }}</td>
         <td>{{ formatMembers((item as Dialog).members) }}</td>
         <td>
           <BaseButton variant="primary" size="small" @click.stop="showInfo((item as Dialog).dialogId)">
@@ -57,7 +57,7 @@ interface Props {
   currentDialogId: string | null;
   currentSort: string;
   getSortIndicator: (field: string) => string;
-  formatUpdatedAt: (createdAt?: string | number) => string;
+  formatTimestamp: (createdAt?: string | number) => string;
   formatMembers: (members?: Array<{ userId: string; isActive?: boolean }>) => string;
 }
 
@@ -91,8 +91,6 @@ function showInfo(dialogId: string) {
   overflow: hidden;
   min-height: 0;
 }
-
-
 
 .sort-indicator {
   margin-left: 5px;

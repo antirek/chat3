@@ -26,7 +26,7 @@
           {{ item.senderId }}
           <span v-if="item.context?.isMine" style="color: #4fc3f7; margin-left: 5px;" title="Ваше сообщение">👤</span>
         </td>
-        <td>{{ formatMessageTime(item.createdAt) }}</td>
+        <td>{{ formatTimestamp(item.createdAt) }}</td>
         <td class="message-content">{{ item.content }}</td>
         <td>
           <span
@@ -54,6 +54,7 @@
 
 <script setup lang="ts">
 import { BaseTable, BaseButton } from '@/shared/ui';
+import { formatTimestamp } from '@/shared/lib/utils/date';
 
 interface Message {
   messageId: string;
@@ -84,20 +85,7 @@ defineEmits<{
   (e: 'show-set-status', messageId: string): void;
 }>();
 
-function formatMessageTime(createdAt: string | number): string {
-  if (!createdAt) return '-';
-  try {
-    // Конвертируем строку в число, если это timestamp
-    const ts = typeof createdAt === 'string' ? parseFloat(createdAt) : createdAt;
-    if (isNaN(ts)) return '-';
-    const date = new Date(ts);
-    // Проверяем, что дата валидна
-    if (isNaN(date.getTime())) return '-';
-    return date.toLocaleString('ru-RU');
-  } catch {
-    return '-';
-  }
-}
+const formatMessageTime = formatTimestamp;
 
 function getMessageStatus(message: Message): string | null {
   return message.context?.status || null;
