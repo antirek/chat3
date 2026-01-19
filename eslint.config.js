@@ -68,6 +68,8 @@ export default [
         navigator: 'readonly',
         location: 'readonly',
         history: 'readonly',
+        alert: 'readonly',
+        confirm: 'readonly',
       },
     },
   },

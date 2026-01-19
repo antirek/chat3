@@ -430,7 +430,7 @@
     <!-- Модальное окно для установки статуса сообщения -->
     <SetStatusModal
       :is-open="isSetStatusModalOpen"
-      :url="undefined"
+      :url="setStatusUrl"
       :result="setStatusResult"
       @close="closeSetStatusModal"
       @set-status="setMessageStatus"
@@ -521,7 +521,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { BasePanel, BaseButton } from '@/shared/ui';
-import { useUserDialogsPage } from '../model/useUserDialogsPage';
+import { useUserDialogsPage } from '../model';
 import {
   InfoModal,
   AddMessageModal,
@@ -768,6 +768,7 @@ const {
   closeSetStatusModal,
   setMessageStatus,
   setStatusResult,
+  setStatusUrl,
   loadingStatusMatrix,
   statusMatrixError,
   loadingStatuses,
