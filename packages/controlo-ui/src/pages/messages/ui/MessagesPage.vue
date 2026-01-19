@@ -78,7 +78,7 @@
 
 <script setup lang="ts">
 import { BasePanel, BaseButton } from '@/shared/ui';
-import { useMessagesPage } from '../model/useMessagesPage';
+import { useMessagesPage } from '../model';
 import { MessageFilterPanel } from './filters';
 import { MessageTable } from './tables';
 import { MessageInfoModal, MessageMetaModal, MessageUrlModal } from './modals';
