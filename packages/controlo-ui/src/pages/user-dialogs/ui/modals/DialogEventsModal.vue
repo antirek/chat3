@@ -1,5 +1,5 @@
 <template>
-  <BaseModal :is-open="isOpen" title="События диалога" max-width="1100px" @close="$emit('close')">
+  <BaseModal :is-open="isOpen" title="События диалога" max-width="1500px" @close="$emit('close')">
     <div class="events-container">
       <div class="events-left">
         <h3 v-if="dialogEventUpdates.length > 0" class="section-title">События</h3>
@@ -17,17 +17,17 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(event, index) in events" :key="getDialogEventId(event) || `event-${index}`" class="event-row" :class="{ selected: selectedEventId === getDialogEventId(event) }" :style="{ cursor: (event.updatesCount > 0 && getDialogEventId(event)) ? 'pointer' : 'default' }" @click="(event.updatesCount > 0 && getDialogEventId(event) && dialogId) && $emit('load-updates', dialogId, getDialogEventId(event)!)">
+              <tr v-for="(event, index) in events" :key="getDialogEventId(event) || `event-${index}`" class="event-row" :class="{ selected: selectedEventId === getDialogEventId(event) }" :style="{ cursor: ((event.updatesCount ?? 0) > 0 && getDialogEventId(event)) ? 'pointer' : 'default' }" @click="((event.updatesCount ?? 0) > 0 && getDialogEventId(event) && dialogId) && $emit('load-updates', dialogId, getDialogEventId(event)!)">
                 <td class="time-cell">{{ formatEventTime(event.createdAt) }}</td>
                 <td>
-                  <span>{{ getDialogEventDescription(event.eventType, event.data) }}</span>
+                  <span>{{ getDialogEventDescription(event.eventType || '', event.data ?? {}) }}</span>
                   <br v-if="event.actorId">
                   <small class="actor-info">Актор: {{ event.actorId }}{{ event.actorType ? ` (${event.actorType})` : '' }}</small>
                 </td>
                 <td><code>{{ event.eventType || '-' }}</code></td>
                 <td>
-                  <BaseButton v-if="event.updatesCount > 0 && getDialogEventId(event) && dialogId" variant="primary" size="small" @click.stop="$emit('load-updates', dialogId, getDialogEventId(event)!)">🔄 Обновления</BaseButton>
-                  <span v-else class="no-updates">{{ event.updatesCount === 0 ? 'Нет обновлений' : '-' }}</span>
+                  <BaseButton v-if="(event.updatesCount ?? 0) > 0 && getDialogEventId(event) && dialogId" variant="primary" size="small" @click.stop="$emit('load-updates', dialogId, getDialogEventId(event)!)">🔄 Обновления</BaseButton>
+                  <span v-else class="no-updates">{{ (event.updatesCount ?? 0) === 0 ? 'Нет обновлений' : '-' }}</span>
                 </td>
               </tr>
             </tbody>

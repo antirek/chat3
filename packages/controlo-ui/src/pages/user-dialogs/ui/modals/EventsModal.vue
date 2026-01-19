@@ -1,5 +1,5 @@
 <template>
-  <BaseModal :is-open="isOpen" title="События сообщения" max-width="1200px" @close="$emit('close')">
+  <BaseModal :is-open="isOpen" title="События сообщения" max-width="1500px" @close="$emit('close')">
     <div class="events-container">
       <div class="events-left">
         <h3 v-if="eventUpdates.length > 0" class="section-title">События</h3>
@@ -17,17 +17,17 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="event in events" :key="getEventId(event)" class="event-row" :style="{ cursor: event.updatesCount > 0 ? 'pointer' : 'default' }" @click="event.updatesCount > 0 && $emit('load-updates', getEventId(event))">
+              <tr v-for="event in events" :key="getEventId(event)" class="event-row" :style="{ cursor: (event.updatesCount ?? 0) > 0 ? 'pointer' : 'default' }" @click="(event.updatesCount ?? 0) > 0 && $emit('load-updates', getEventId(event))">
                 <td class="time-cell">{{ formatEventTime(event.createdAt) }}</td>
                 <td>
-                  <span>{{ getEventDescription(event.eventType, event.data) }}</span>
+                  <span>{{ getEventDescription(event.eventType || '', event.data ?? {}) }}</span>
                   <br v-if="event.actorId">
                   <small v-if="event.actorId" class="actor-info">Актор: {{ event.actorId }}{{ event.actorType ? ` (${event.actorType})` : '' }}</small>
                 </td>
                 <td><code>{{ event.eventType || '-' }}</code></td>
                 <td>
-                  <BaseButton v-if="event.updatesCount > 0" variant="primary" size="small" @click.stop="$emit('load-updates', getEventId(event))">🔄 Обновления</BaseButton>
-                  <span v-else class="no-updates">{{ event.updatesCount === 0 ? 'Нет обновлений' : '-' }}</span>
+                  <BaseButton v-if="(event.updatesCount ?? 0) > 0" variant="primary" size="small" @click.stop="$emit('load-updates', getEventId(event))">🔄 Обновления</BaseButton>
+                  <span v-else class="no-updates">{{ (event.updatesCount ?? 0) === 0 ? 'Нет обновлений' : '-' }}</span>
                 </td>
               </tr>
             </tbody>
