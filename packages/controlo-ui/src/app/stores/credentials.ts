@@ -4,6 +4,8 @@ import { ref, watch } from 'vue';
 export const useCredentialsStore = defineStore('credentials', () => {
   const apiKey = ref('');
   const tenantId = ref('tnt_default');
+  // Флаг для уведомления страниц о том, что credentials были применены
+  const credentialsApplied = ref(false);
 
   // Загрузка из localStorage
   function loadFromStorage() {
@@ -39,6 +41,18 @@ export const useCredentialsStore = defineStore('credentials', () => {
     saveToStorage();
   }
 
+  // Применение credentials (вызывается при нажатии на галочку)
+  function applyCredentials() {
+    saveToStorage();
+    credentialsApplied.value = true;
+    // Генерируем событие для уведомления страниц
+    if (typeof window !== 'undefined' && window.CustomEvent) {
+      window.dispatchEvent(new window.CustomEvent('credentials-applied', {
+        detail: { apiKey: apiKey.value, tenantId: tenantId.value }
+      }));
+    }
+  }
+
   // Получение headers для API запросов
   function getHeaders() {
     if (!apiKey.value) {
@@ -50,13 +64,29 @@ export const useCredentialsStore = defineStore('credentials', () => {
     };
   }
 
-  // Автосохранение при изменении
+  // Флаг для отслеживания инициализации
+  let isInitialized = false;
+
+  // Автосохранение при изменении (но не устанавливаем applied)
+  // Флаг applied сбрасывается в checkForChanges() в AppLayout при каждом input
   watch(apiKey, () => {
+    // Пропускаем первое изменение (инициализация)
+    if (!isInitialized) {
+      isInitialized = true;
+      return;
+    }
     saveToStorage();
+    // Не сбрасываем флаг здесь - это делает checkForChanges() в AppLayout
   });
 
   watch(tenantId, () => {
+    // Пропускаем первое изменение (инициализация)
+    if (!isInitialized) {
+      isInitialized = true;
+      return;
+    }
     saveToStorage();
+    // Не сбрасываем флаг здесь - это делает checkForChanges() в AppLayout
   });
 
   // Инициализация при создании store
@@ -65,9 +95,11 @@ export const useCredentialsStore = defineStore('credentials', () => {
   return {
     apiKey,
     tenantId,
+    credentialsApplied,
     loadFromStorage,
     saveToStorage,
     setCredentials,
+    applyCredentials,
     getHeaders,
   };
 });

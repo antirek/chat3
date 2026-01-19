@@ -193,6 +193,15 @@ export function useDialogsMessagesPage() {
       }
     });
 
+    // Слушаем событие применения credentials из AppLayout
+    window.addEventListener('credentials-applied', () => {
+      // Перезагружаем данные при применении новых credentials
+      const key = getApiKey();
+      if (key && key.trim()) {
+        loadDialogsWithFilter('');
+      }
+    });
+
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' || event.key === 'Esc') {
         if (infoModal.isOpen.value) {

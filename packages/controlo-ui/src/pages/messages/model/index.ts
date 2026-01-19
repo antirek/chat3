@@ -119,6 +119,15 @@ export function useMessagesPage() {
       }
     });
 
+    // Слушаем событие применения credentials из AppLayout
+    window.addEventListener('credentials-applied', () => {
+      // Перезагружаем данные при применении новых credentials
+      const key = getApiKey();
+      if (key) {
+        loadMessages(1);
+      }
+    });
+
     // Закрытие модальных окон при нажатии Esc
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' || event.key === 'Esc') {

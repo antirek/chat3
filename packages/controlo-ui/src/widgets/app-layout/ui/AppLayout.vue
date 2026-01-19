@@ -43,6 +43,7 @@
               v-model="apiKey"
               placeholder="Введите API Key"
               @input="checkForChanges"
+              @change="checkForChanges"
             />
           </div>
           <div class="header-input-group">
@@ -67,7 +68,7 @@
             <button
               id="headerApplyButton"
               class="header-apply-btn"
-              :class="{ applied: credentialsApplied }"
+              :class="{ applied: credentialsApplied || storeCredentialsApplied }"
               @click="applyCredentials"
               title="Применить API Key и Tenant ID"
             >
@@ -179,10 +180,14 @@ const credentialsStore = useCredentialsStore();
 // Состояние
 const tenantsList = ref<any[]>([]);
 const credentialsApplied = ref(false);
+// Сохраняем исходные примененные значения для сравнения
+const appliedApiKey = ref('');
+const appliedTenantId = ref('tnt_default');
 
 // Используем credentials из store (toRef для правильной типизации)
 const apiKey = toRef(credentialsStore, 'apiKey');
 const tenantId = toRef(credentialsStore, 'tenantId');
+const storeCredentialsApplied = toRef(credentialsStore, 'credentialsApplied');
 
 // Computed
 const tenantApiDocsUrl = computed(() => {
@@ -248,17 +253,30 @@ async function loadTenants() {
 }
 
 function checkForChanges() {
-  const savedApiKey = localStorage.getItem('apiKey') || '';
-  const savedTenantId = localStorage.getItem('tenantId') || 'tnt_default';
+  // Сравниваем текущие значения с примененными (которые были сохранены при нажатии на галочку)
+  const currentApiKey = apiKey.value.trim();
+  const currentTenantId = tenantId.value || 'tnt_default';
 
-  if (apiKey.value.trim() !== savedApiKey || tenantId.value !== savedTenantId) {
+  // Если значения изменились относительно примененных, сбрасываем флаг applied
+  if (currentApiKey !== appliedApiKey.value || currentTenantId !== appliedTenantId.value) {
     credentialsApplied.value = false;
+    storeCredentialsApplied.value = false;
+  } else if (currentApiKey && currentApiKey === appliedApiKey.value && currentTenantId === appliedTenantId.value) {
+    // Если значения совпадают с примененными и API Key не пустой, устанавливаем флаг applied
+    credentialsApplied.value = true;
+    storeCredentialsApplied.value = true;
   }
 }
 
 async function applyCredentials() {
-  credentialsStore.saveToStorage();
+  // Сохраняем текущие значения как примененные
+  appliedApiKey.value = apiKey.value.trim();
+  appliedTenantId.value = tenantId.value || 'tnt_default';
+
+  // Используем метод из store, который установит флаг и отправит событие
+  credentialsStore.applyCredentials();
   credentialsApplied.value = true;
+  storeCredentialsApplied.value = true;
 
   // Загружаем список тенантов после применения API Key
   await loadTenants();
@@ -267,6 +285,7 @@ async function applyCredentials() {
   const savedTenantId = localStorage.getItem('tenantId') || 'tnt_default';
   if (tenantsList.value.find((t) => t.tenantId === savedTenantId)) {
     tenantId.value = savedTenantId;
+    appliedTenantId.value = savedTenantId;
   }
 }
 
@@ -313,18 +332,16 @@ onMounted(async () => {
     tenantId.value = 'tnt_default';
   }
 
-  // Проверяем, применены ли текущие значения (при загрузке страницы)
-  // Выполняется после загрузки тенантов, чтобы tenantId был правильно установлен
+  // Инициализируем примененные значения из localStorage
   const savedApiKey = localStorage.getItem('apiKey') || '';
   const savedTenantId = localStorage.getItem('tenantId') || 'tnt_default';
+  appliedApiKey.value = savedApiKey;
+  appliedTenantId.value = savedTenantId;
 
-  if (
-    apiKey.value.trim() === savedApiKey &&
-    tenantId.value === savedTenantId &&
-    apiKey.value.trim()
-  ) {
-    credentialsApplied.value = true;
-  }
+  // Проверяем, применены ли текущие значения (при загрузке страницы)
+  // Выполняется после загрузки тенантов, чтобы tenantId был правильно установлен
+  // Используем checkForChanges для единообразной логики
+  checkForChanges();
 });
 </script>
 

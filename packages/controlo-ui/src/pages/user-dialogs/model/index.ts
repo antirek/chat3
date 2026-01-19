@@ -358,6 +358,14 @@ export function useUserDialogsPage() {
     if (apiKey.value) {
       loadUsers(1, usersPagination.currentLimit.value);
     }
+
+    // Слушаем событие применения credentials из AppLayout
+    window.addEventListener('credentials-applied', () => {
+      // Перезагружаем данные при применении новых credentials
+      if (apiKey.value) {
+        loadUsers(1, usersPagination.currentLimit.value);
+      }
+    });
   });
 
   return {

@@ -141,6 +141,13 @@ export function useEventsUpdatesPage() {
     eventsModule.loadEvents();
     updatesModule.loadUpdates();
     modalsModule.initEscHandler();
+
+    // Слушаем событие применения credentials из AppLayout
+    window.addEventListener('credentials-applied', () => {
+      // Перезагружаем данные при применении новых credentials
+      eventsModule.loadEvents();
+      updatesModule.loadUpdates();
+    });
   });
 
   return {

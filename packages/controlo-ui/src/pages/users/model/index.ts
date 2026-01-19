@@ -109,6 +109,15 @@ export function useUsersPage() {
         loadUsers(1);
       }
     }
+
+    // Слушаем событие применения credentials из AppLayout
+    window.addEventListener('credentials-applied', () => {
+      // Перезагружаем данные при применении новых credentials
+      const key = getApiKey();
+      if (key) {
+        loadUsers(1);
+      }
+    });
   });
 
   return {

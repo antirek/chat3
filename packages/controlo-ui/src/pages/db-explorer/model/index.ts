@@ -101,6 +101,15 @@ export function useDbExplorerPage() {
   // Lifecycle
   onMounted(() => {
     modelsModule.loadModels();
+
+    // Слушаем событие применения credentials из AppLayout
+    window.addEventListener('credentials-applied', () => {
+      // Перезагружаем модели и данные при применении новых credentials
+      modelsModule.loadModels();
+      if (currentModel.value) {
+        dataModuleFinal.loadModelData();
+      }
+    });
   });
 
   return {
