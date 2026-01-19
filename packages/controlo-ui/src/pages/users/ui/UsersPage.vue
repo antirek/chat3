@@ -99,7 +99,7 @@
 
 <script setup lang="ts">
 import { BasePanel, BaseButton } from '@/shared/ui';
-import { useUsersPage } from '../model/useUsersPage';
+import { useUsersPage } from '../model';
 import { UserFilterPanel } from './filters';
 import { UserTable } from './tables';
 import { UserInfoModal, UserMetaModal, UserUrlModal, CreateUserModal, EditUserModal } from './modals';
@@ -171,7 +171,6 @@ const {
 </script>
 
 <style scoped>
-/* Переносим все стили из оригинального HTML */
 * {
   margin: 0;
   padding: 0;
@@ -184,6 +183,4 @@ const {
   flex-direction: column;
   overflow: hidden;
 }
-
-
 </style>

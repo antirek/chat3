@@ -1,56 +1,23 @@
-/* eslint-env browser */
-/* global alert, confirm */
-import { ref, onMounted, toRef } from 'vue';
+/**
+ * Модуль модальных окон для работы с пользователями
+ * Отвечает за: создание, редактирование, удаление пользователей, работа с meta-тегами, отображение информации, URL запросов
+ */
+import { ref } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
-import { usePagination } from '@/shared/lib/composables/usePagination';
-import { useFilter } from '@/shared/lib/composables/useFilter';
-import { useSort } from '@/shared/lib/composables/useSort';
 import { useModal } from '@/shared/lib/composables/useModal';
+import type { Ref } from 'vue';
 
-export function useUsersPage() {
-  // Конфигурация
-  const configStore = useConfigStore();
-  const credentialsStore = useCredentialsStore();
-
-  // Используем credentials из store (toRef для правильной типизации)
-  const apiKey = toRef(credentialsStore, 'apiKey');
-  const tenantId = toRef(credentialsStore, 'tenantId');
-  
-  // Данные
-  const users = ref<any[]>([]);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
-
-  // Функция загрузки данных (нужна для callbacks)
-  let loadUsersFn: (page: number, limit: number) => Promise<void>;
-
-  // Используем общие composables
-  const pagination = usePagination({
-    initialPage: 1,
-    initialLimit: 20,
-    onPageChange: (page, limit) => {
-      if (loadUsersFn) {
-        loadUsersFn(page, limit);
-      }
-    },
-  });
-
-  const filter = useFilter({
-    initialFilter: '',
-    // onFilterChange не нужен, так как загрузка происходит в applyUserFilter
-  });
-
-  const sort = useSort({
-    initialField: 'createdAt',
-    initialOrder: -1,
-    onSortChange: () => {
-      if (loadUsersFn) {
-        loadUsersFn(pagination.currentPage.value, pagination.currentLimit.value);
-      }
-    },
-  });
-
+export function useUserModals(
+  getApiKey: () => string,
+  configStore: ReturnType<typeof useConfigStore>,
+  credentialsStore: ReturnType<typeof useCredentialsStore>,
+  currentPage: Ref<number>,
+  currentLimit: Ref<number>,
+  currentFilter: Ref<string | null>,
+  currentSort: { value: { field: string; order: number } },
+  loadUsers: (page?: number, limit?: number) => Promise<void>,
+) {
   // Модальные окна
   const createModal = useModal();
   const editModal = useModal();
@@ -82,119 +49,7 @@ export function useUsersPage() {
   const generatedUrl = ref('');
   const copyUrlButtonText = ref('📋 Скопировать');
 
-  // Функции
-  function getUrlParams() {
-    const params = new URLSearchParams(window.location.search);
-    return {
-      apiKey: params.get('apiKey') || '',
-      tenantId: params.get('tenantId') || 'tnt_default',
-    };
-  }
-
-  function setApiKeyFromExternal(extApiKey: string, extTenantId?: string) {
-    if (!extApiKey) {
-      console.warn('API Key не предоставлен');
-      return;
-    }
-
-    credentialsStore.setCredentials(extApiKey, extTenantId);
-
-    console.log('API Key set from external:', apiKey.value);
-    console.log('Tenant ID set from external:', tenantId.value);
-
-    loadUsers(1);
-  }
-
-  function getApiKey() {
-    return apiKey.value;
-  }
-
-  async function loadUsers(page = pagination.currentPage.value, limit = pagination.currentLimit.value) {
-    try {
-      const key = getApiKey();
-
-      if (!key) {
-        // Не показываем ошибку, если просто нет API Key - это нормально
-        error.value = null;
-        users.value = [];
-        loading.value = false;
-        return;
-      }
-
-      // Обновляем страницу и лимит без вызова callback, чтобы избежать бесконечного цикла
-      if (pagination.currentPage.value !== page) {
-        pagination.currentPage.value = page;
-        pagination.currentPageInput.value = page;
-      }
-      pagination.currentLimit.value = limit;
-      loading.value = true;
-      error.value = null;
-
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
-
-      if (filter.currentFilter.value) {
-        params.append('filter', filter.currentFilter.value);
-      }
-
-      const sortObj: Record<string, number> = {};
-      sortObj[sort.currentSort.value.field] = sort.currentSort.value.order;
-      params.append('sort', JSON.stringify(sortObj));
-
-      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
-      const url = `${baseUrl}/api/users?${params.toString()}`;
-      
-      const response = await fetch(url, {
-        headers: credentialsStore.getHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `HTTP error! status: ${response.status}`;
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorMessage;
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-
-      pagination.setPaginationData(data.pagination?.total || 0, data.pagination?.pages || 1);
-
-      if (data.data && data.data.length > 0) {
-        users.value = data.data;
-      } else {
-        users.value = [];
-      }
-    } catch (err) {
-      console.error('Error loading users:', err);
-      if (err instanceof TypeError && err.message.includes('fetch')) {
-        error.value = 'Не удалось подключиться к серверу. Проверьте, что backend сервер запущен на порту 3000.';
-      } else {
-        error.value = err instanceof Error ? err.message : 'Ошибка загрузки';
-      }
-      users.value = [];
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  // Сохраняем ссылку на функцию для callbacks
-  loadUsersFn = loadUsers;
-
-  function formatTimestamp(timestamp: string | number | undefined) {
-    if (!timestamp) return '-';
-    const ts = typeof timestamp === 'string' ? parseFloat(timestamp) : timestamp;
-    const date = new Date(ts);
-    return date.toLocaleString('ru-RU');
-  }
-
-  // Модальные окна
+  // Create modal functions
   function showCreateModal() {
     createModal.open();
     createUserId.value = '';
@@ -234,13 +89,14 @@ export function useUsersPage() {
       createModal.close();
       createUserId.value = '';
       createType.value = 'user';
-      loadUsers(pagination.currentPage.value, pagination.currentLimit.value);
+      loadUsers(currentPage.value, currentLimit.value);
     } catch (err) {
       console.error('Error creating user:', err);
       alert('Ошибка создания пользователя: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   }
 
+  // Edit modal functions
   async function showEditModal(userIdParam: string) {
     try {
       getApiKey(); // Проверка наличия ключа
@@ -290,7 +146,7 @@ export function useUsersPage() {
 
       alert('Пользователь успешно обновлен!');
       editModal.close();
-      loadUsers(pagination.currentPage.value, pagination.currentLimit.value);
+      loadUsers(currentPage.value, currentLimit.value);
     } catch (err) {
       console.error('Error updating user:', err);
       alert('Ошибка обновления пользователя: ' + (err instanceof Error ? err.message : 'Unknown error'));
@@ -316,7 +172,7 @@ export function useUsersPage() {
         throw new Error(error.message || 'Failed to delete user');
       }
 
-      loadUsers(pagination.currentPage.value, pagination.currentLimit.value);
+      loadUsers(currentPage.value, currentLimit.value);
       alert('Пользователь успешно удален!');
     } catch (err) {
       console.error('Error deleting user:', err);
@@ -324,6 +180,7 @@ export function useUsersPage() {
     }
   }
 
+  // Meta modal functions
   async function showMetaModal(userIdValue: string) {
     metaUserId.value = userIdValue;
     await loadMetaTags(userIdValue);
@@ -423,6 +280,7 @@ export function useUsersPage() {
     }
   }
 
+  // Info modal functions
   async function showInfoModal(userIdParam: string) {
     try {
       getApiKey(); // Проверка наличия ключа
@@ -492,29 +350,7 @@ export function useUsersPage() {
     }
   }
 
-  function selectUserFilterExample() {
-    // selectedFilterExample уже обновлен через v-model к моменту вызова @change
-    const selected = filter.selectedFilterExample.value;
-    
-    if (selected && selected !== 'custom') {
-      filter.filterInput.value = selected;
-    } else if (selected === 'custom') {
-      filter.filterInput.value = '';
-    }
-  }
-
-  function clearUserFilter() {
-    filter.clearFilter();
-    loadUsers(1, pagination.currentLimit.value);
-  }
-
-  function applyUserFilter() {
-    // Устанавливаем currentFilter напрямую из filterInput (как в оригинале)
-    filter.currentFilter.value = filter.filterInput.value.trim();
-    // После применения фильтра нужно перезагрузить данные с первой страницы
-    loadUsers(1, pagination.currentLimit.value);
-  }
-
+  // URL modal functions
   function generateApiUrl() {
     const key = getApiKey();
     if (!key) {
@@ -522,19 +358,19 @@ export function useUsersPage() {
     }
 
     const params = new URLSearchParams({
-      page: pagination.currentPage.value.toString(),
-      limit: pagination.currentLimit.value.toString(),
+      page: currentPage.value.toString(),
+      limit: currentLimit.value.toString(),
     });
 
-    if (filter.currentFilter.value) {
-      params.append('filter', filter.currentFilter.value);
+    if (currentFilter.value) {
+      params.append('filter', currentFilter.value);
     }
 
     const sortObj: Record<string, number> = {};
-    sortObj[sort.currentSort.value.field] = sort.currentSort.value.order;
+    sortObj[currentSort.value.field] = currentSort.value.order;
     params.append('sort', JSON.stringify(sortObj));
 
-    const baseUrl = configStore.config.TENANT_API_URL || '/api';
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
     return `${baseUrl}/api/users?${params.toString()}`;
   }
 
@@ -558,49 +394,13 @@ export function useUsersPage() {
     }
   }
 
-  // Инициализация
-  onMounted(() => {
-    // Загружаем credentials из store (они уже загружены из localStorage при создании store)
-    credentialsStore.loadFromStorage();
-
-    // Проверяем URL параметры (для обратной совместимости с iframe)
-    const params = getUrlParams();
-    if (params.apiKey) {
-      setApiKeyFromExternal(params.apiKey, params.tenantId);
-    } else {
-      // Если нет URL параметров, но есть API Key в store, загружаем пользователей
-      const key = getApiKey();
-      if (key) {
-        loadUsers(1);
-      }
-    }
-  });
-
   return {
-    // State
-    users,
-    loading,
-    error,
-    // Pagination (из composable)
-    currentPage: pagination.currentPage,
-    currentLimit: pagination.currentLimit,
-    totalPages: pagination.totalPages,
-    totalUsers: pagination.totalItems,
-    currentPageInput: pagination.currentPageInput,
-    paginationStart: pagination.paginationStart,
-    paginationEnd: pagination.paginationEnd,
-    // Filter (из composable)
-    filterInput: filter.filterInput,
-    selectedFilterExample: filter.selectedFilterExample,
-    currentFilter: filter.currentFilter,
-    // Sort (из composable)
-    currentSort: sort.currentSort,
-    // Modals (из composable)
-    showCreateModalFlag: createModal.isOpen,
-    showEditModalFlag: editModal.isOpen,
-    showMetaModalFlag: metaModal.isOpen,
-    showInfoModalFlag: infoModal.isOpen,
-    showUrlModalFlag: urlModal.isOpen,
+    // Modals
+    createModal,
+    editModal,
+    metaModal,
+    infoModal,
+    urlModal,
     // Создание пользователя
     createUserId,
     createType,
@@ -620,35 +420,18 @@ export function useUsersPage() {
     generatedUrl,
     copyUrlButtonText,
     // Functions
-    loadUsers,
-    goToFirstPage: pagination.goToFirstPage,
-    goToPreviousPage: pagination.goToPreviousPage,
-    goToNextPage: pagination.goToNextPage,
-    goToLastPage: pagination.goToLastPage,
-    goToPage: pagination.goToPage,
-    changeLimit: pagination.changeLimit,
-    getSortIndicator: sort.getSortIndicator,
-    toggleSort: sort.toggleSort,
-    formatTimestamp,
     showCreateModal,
-    closeCreateModal: createModal.close,
     createUser,
     showEditModal,
-    closeEditModal: editModal.close,
     updateUser,
+    deleteUser,
     showMetaModal,
-    closeMetaModal: metaModal.close,
+    loadMetaTags,
     addMetaTag,
     deleteMetaTag,
     showInfoModal,
-    closeInfoModal: infoModal.close,
     copyJsonToClipboard,
-    deleteUser,
-    selectUserFilterExample,
-    clearUserFilter,
-    applyUserFilter,
     showUrlModal,
-    closeUrlModal: urlModal.close,
     copyUrlToClipboard,
   };
 }
