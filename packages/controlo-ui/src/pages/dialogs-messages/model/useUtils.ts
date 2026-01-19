@@ -6,6 +6,7 @@ import { Ref } from 'vue';
 import { useModal } from '@/shared/lib/composables/useModal';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { escapeHtml } from '@/shared/lib/utils/string';
+import { getUrlParams } from '@/shared/lib/utils/url';
 
 export function useUtils(
   urlModalUrl: Ref<string>,
@@ -20,15 +21,6 @@ export function useUtils(
   tenantId: Ref<string>,
   loadDialogsWithFilter: (filter: string) => void,
 ) {
-  // Утилиты для работы с URL
-  function getUrlParams() {
-    const params = new URLSearchParams(window.location.search);
-    return {
-      apiKey: params.get('apiKey') || '',
-      tenantId: params.get('tenantId') || 'tnt_default',
-    };
-  }
-
   // Утилиты для копирования
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text).then(

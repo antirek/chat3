@@ -4,6 +4,7 @@
  */
 import type { Ref } from 'vue';
 import { useCredentialsStore } from '@/app/stores/credentials';
+import { getUrlParams } from '@/shared/lib/utils/url';
 
 export function useUtils(
   credentialsStore: ReturnType<typeof useCredentialsStore>,
@@ -11,15 +12,6 @@ export function useUtils(
   tenantId: Ref<string>,
   loadUsers: (page?: number, limit?: number) => Promise<void>,
 ) {
-  // Утилиты для работы с URL
-  function getUrlParams() {
-    const params = new URLSearchParams(window.location.search);
-    return {
-      apiKey: params.get('apiKey') || '',
-      tenantId: params.get('tenantId') || 'tnt_default',
-    };
-  }
-
   // Функции для работы с API ключом
   function setApiKeyFromExternal(extApiKey: string, extTenantId?: string) {
     if (!extApiKey) {
