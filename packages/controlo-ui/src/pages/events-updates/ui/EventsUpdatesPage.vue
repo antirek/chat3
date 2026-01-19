@@ -94,7 +94,7 @@
 
 <script setup lang="ts">
 import { BasePanel, BaseButton } from '@/shared/ui';
-import { useEventsUpdatesPage } from '../model/useEventsUpdatesPage';
+import { useEventsUpdatesPage } from '../model';
 import { EventFilterPanel, UpdateFilterPanel } from './filters';
 import { EventPagination, UpdatePagination } from './pagination';
 import { EventTable, UpdateTable } from './tables';

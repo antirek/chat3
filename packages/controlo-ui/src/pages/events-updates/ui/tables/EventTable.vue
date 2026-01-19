@@ -47,7 +47,7 @@
           <BaseButton
             variant="primary"
             size="small"
-            @click.stop="showEventJson(String((item as Event)._id || ''), item as Event)"
+            @click.stop="showEventJson(item as Event)"
           >
           ℹ️ Инфо
           </BaseButton>
@@ -77,7 +77,7 @@ interface Props {
   sortEvents: (field: string) => void;
   selectEvent: (eventId: string) => void;
   showEventUpdates: (eventId: string) => void;
-  showEventJson: (eventId: string, event: Event) => void;
+  showEventJson: (event: Event) => void;
 }
 
 const props = defineProps<Props>();
