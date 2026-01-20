@@ -211,7 +211,7 @@ async function seed() {
     // Create meta tags for DialogMembers
     console.log('\n🏷️  Creating DialogMember meta tags...');
     const dialogMemberMetaEntries = [];
-    // eslint-disable-next-line no-unused-vars
+     
     const roles = ['admin', 'member', 'moderator'];
     
     savedDialogMembers.forEach((member, _index) => {
@@ -678,7 +678,7 @@ async function seed() {
     });
 
     // Add meta for each dialog
-    // eslint-disable-next-line no-unused-vars
+     
     allDialogs.forEach((dialog, index) => {
       // Meta type (internal/external)
       metaEntries.push({
@@ -845,12 +845,12 @@ async function seed() {
       reactionsByType[r.reaction] = (reactionsByType[r.reaction] || 0) + 1;
     });
 
-    // eslint-disable-next-line no-unused-vars
+     
     console.log(`   - Messages with reactions: ${messages.filter((m, i) => {
       const messageReactions = allReactions.filter(r => r.messageId.toString() === m._id.toString());
       return messageReactions.length > 0;
     }).length} out of ${messages.length}`);
-    // eslint-disable-next-line no-unused-vars
+     
     console.log(`   - Average reactions per message: ${allReactions.length > 0 ? Math.round(allReactions.length / messages.filter((m, i) => {
       const messageReactions = allReactions.filter(r => r.messageId.toString() === m._id.toString());
       return messageReactions.length > 0;

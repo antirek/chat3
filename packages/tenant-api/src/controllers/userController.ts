@@ -1,11 +1,9 @@
-import { User, DialogMember, Meta, UserStats } from '@chat3/models';
+import { User, Meta, UserStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
-import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
-// eslint-disable-next-line no-unused-vars
-import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { Response } from 'express';
+import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
 function appendFilterConditions(target: any[], filtersObject: any): void {

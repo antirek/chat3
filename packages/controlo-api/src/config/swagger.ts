@@ -1,9 +1,8 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
- 
 const __dirname = dirname(__filename);
 
 const swaggerOptions = {
@@ -35,8 +34,8 @@ const swaggerOptions = {
     ]
   },
   apis: [
-    './dist/routes/*.js',
-    './dist/controllers/*.js'
+    join(__dirname, '../routes/*.js'),
+    join(__dirname, '../controllers/*.js')
   ]
 };
 

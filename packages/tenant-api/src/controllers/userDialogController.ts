@@ -1,11 +1,9 @@
 import { 
-  DialogMember, Dialog, Message, 
+  DialogMember, Dialog, Message,
   Meta, MessageStatus, 
-  // MessageReaction, 
   User,
   UserDialogStats,
   UserDialogActivity,
-  UserStats,
   Topic,
   DialogStats,
   UserTopicStats
@@ -17,8 +15,6 @@ import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { validateGetUserDialogMessagesResponse, validateGetUserDialogMessageResponse } from '../validators/schemas/responseSchemas.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
-// eslint-disable-next-line no-unused-vars
-import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 import {
   getSenderInfo,
   mergeMetaRecords,
@@ -27,7 +23,6 @@ import {
   getContextUserInfo
    
 } from '@chat3/utils/userDialogUtils.js';
-import mongoose from 'mongoose';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
@@ -1327,7 +1322,7 @@ const userDialogController = {
           };
 
           // Удаляем временное поле dialogObjectId из ответа
-          // eslint-disable-next-line no-unused-vars
+           
           const { dialogObjectId, ...dialogWithoutObjectId } = dialog;
 
           return {
@@ -1715,7 +1710,7 @@ const userDialogController = {
       }
 
       // 3. Получаем все статусы сообщения (для всех пользователей)
-      // eslint-disable-next-line no-unused-vars
+       
       const allStatuses = await MessageStatus.find({
         tenantId: req.tenantId,
         messageId: messageId

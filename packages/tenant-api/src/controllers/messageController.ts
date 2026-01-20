@@ -1,5 +1,5 @@
-// eslint-disable-next-line no-unused-vars
-import { Message, Dialog, MessageStatus, User, Event, Update, DialogMember, UserDialogActivity } from '@chat3/models';
+ 
+import { Message, Dialog, MessageStatus, User, DialogMember, } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
@@ -13,7 +13,6 @@ import {
 } from '@chat3/utils/counterUtils.js';
 import { updateLastMessageAt } from '../utils/dialogMemberUtils.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
-import mongoose from 'mongoose';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
@@ -307,7 +306,7 @@ const messageController = {
               query = { ...query, ...metaQuery };
             }
           }
-        // eslint-disable-next-line no-unused-vars
+         
         } catch (error) {
           res.status(400).json({
             error: 'Bad Request',
@@ -445,6 +444,7 @@ const messageController = {
           error: 'Not Found',
           message: 'Dialog not found'
         });
+        return;
       }
 
       // Валидация topicId, если указан
@@ -824,12 +824,14 @@ const messageController = {
           error: 'Bad Request',
           message: 'Invalid dialog ID'
         });
+        return;
       }
       if (error.name === 'ValidationError') {
         res.status(400).json({
           error: 'Bad Request',
           message: error.message
         });
+        return;
       }
       res.status(500).json({
         error: 'Internal Server Error',
