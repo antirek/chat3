@@ -2,6 +2,7 @@ import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { existsSync } from 'fs';
 import pkg from '../../../package.json' with { type: 'json' };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,7 +23,7 @@ const PROJECT_NAME = process.env.MMS3_PROJECT_NAME || 'chat3';
 const APP_VERSION = pkg.version || '0.0.0';
 
 // CONTROL_APP_URL для клиента (браузера) - должен быть доступен извне Docker
-const CLIENT_CONTROL_APP_URL = process.env.CLIENT_CONTROL_APP_URL || 'http://localhost:3001';
+const CLIENT_CONTROL_APP_URL = process.env.CLIENT_CONTROL_APP_URL || 'http://localhost:3003';
 
 // Extract port from URL for server listening
 // Приоритет: PORT > порт из CLIENT_CONTROL_APP_URL > 3003
@@ -142,10 +143,10 @@ window.CHAT3_CONFIG = {
 };`);
 });
 
-// В production режиме отдаем статику из dist
+// Отдаем статику из dist (работает и в production, и в development)
 // ВАЖНО: статика должна быть ПОСЛЕ прокси, чтобы /api/* запросы не отдавались как статика
-if (NODE_ENV === 'production') {
-  const distPath = join(__dirname, '../dist');
+const distPath = join(__dirname, '../dist');
+if (existsSync(distPath)) {
   app.use(express.static(distPath));
 
   // Все остальные маршруты (кроме /api/*, /health, /config.js) отдаем index.html для SPA
@@ -155,6 +156,31 @@ if (NODE_ENV === 'production') {
       return next();
     }
     res.sendFile(join(distPath, 'index.html'));
+  });
+} else {
+  // Если dist не существует, отдаем простое сообщение
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/config.js') {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Chat3 UI</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; text-align: center; }
+            h1 { color: #333; }
+            p { color: #666; }
+          </style>
+        </head>
+        <body>
+          <h1>Chat3 UI Server</h1>
+          <p>Please build the project first: <code>npm run build</code></p>
+          <p>Or run in development mode: <code>npm run dev</code></p>
+        </body>
+      </html>
+    `);
   });
 }
 
