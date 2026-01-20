@@ -68,18 +68,17 @@ services:
       retries: 3
       start_period: 40s
 
-  # Gateway (объединяет admin-web, control-api и api-test)
-  gateway:
+  controlo-backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: chat3-gateway
+    container_name: chat3-controlo-backend
     restart: unless-stopped
     ports:
       - "3001:3001"
     env_file:
       - .env
-    command: npm run start:controlo-gateway
+    command: npm run start:controlo-backend
     depends_on:
       tenant-api:
         condition: service_started
@@ -148,7 +147,7 @@ services:
       - NODE_ENV=${CONTROLO_UI_NODE_ENV:-production}
       - CONTROLO_UI_NODE_ENV=${CONTROLO_UI_NODE_ENV:-production}
       - PORT=3003
-      - CONTROL_API_TARGET=http://gateway:3001 # Internal target for Express proxy
+      - CONTROL_API_TARGET=http://controlo-backend:3001 # Internal target for Express proxy
       - CLIENT_CONTROL_APP_URL=http://localhost:3001 # Client-facing URL for config.js
       - CONTROL_APP_URL=http://localhost:3001 # For consistency, points to gateway
       - TENANT_API_URL=http://tenant-api:3000 # Internal Docker network URL for tenant-api (for Express proxy)
