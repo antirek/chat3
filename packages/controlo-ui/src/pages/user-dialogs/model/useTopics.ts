@@ -21,13 +21,15 @@ export function useTopics(
   const loadingTopics = ref(false);
   const topicsError = ref<string | null>(null);
   const topics = ref<any[]>([]);
+  const isLoadingTopicsInternal = ref(false); // Флаг для предотвращения рекурсии
 
   // Пагинация для топиков
   const topicsPagination = usePagination({
     initialPage: 1,
     initialLimit: 20,
     onPageChange: (page, limit) => {
-      if (currentDialogId.value) {
+      // Предотвращаем рекурсию
+      if (!isLoadingTopicsInternal.value && currentDialogId.value) {
         loadDialogTopics(currentDialogId.value, page, limit);
       }
     },
@@ -35,11 +37,17 @@ export function useTopics(
 
   // Функции для топиков
   async function loadDialogTopics(dialogId: string, page = 1, limit?: number) {
+    // Предотвращаем рекурсию
+    if (isLoadingTopicsInternal.value) {
+      return;
+    }
+
     try {
       if (!dialogId || !currentUserId.value) {
         return;
       }
 
+      isLoadingTopicsInternal.value = true;
       loadingTopics.value = true;
       topicsError.value = null;
 
@@ -59,7 +67,12 @@ export function useTopics(
 
       const data = await response.json();
       topicsPagination.setPaginationData(data.pagination?.total || 0, data.pagination?.pages || 1);
-      topicsPagination.setPage(page);
+      
+      // Обновляем пагинацию напрямую, без вызова onPageChange
+      if (topicsPagination.currentPage.value !== page) {
+        topicsPagination.currentPage.value = page;
+        topicsPagination.currentPageInput.value = page;
+      }
 
       if (data.data && data.data.length > 0) {
         topics.value = data.data;
@@ -72,6 +85,7 @@ export function useTopics(
       topics.value = [];
     } finally {
       loadingTopics.value = false;
+      isLoadingTopicsInternal.value = false;
     }
   }
 

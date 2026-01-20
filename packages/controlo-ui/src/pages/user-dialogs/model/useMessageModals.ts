@@ -243,12 +243,11 @@ export function useMessageModals(
 
   async function loadExistingReactions(messageId: string) {
     try {
-      const response = await fetch(
-        `/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}`,
-        {
-          headers: credentialsStore.getHeaders(),
-        }
-      );
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}`;
+      const response = await fetch(fullUrl, {
+        headers: credentialsStore.getHeaders(),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -275,21 +274,20 @@ export function useMessageModals(
     const isActive = existingReaction && existingReaction.me;
 
     try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
       const action = isActive ? 'unset' : 'set';
+      const fullUrl = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${currentMessageIdForReaction.value}/reactions/${action}`;
       
-      const response = await fetch(
-        `/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${currentMessageIdForReaction.value}/reactions/${action}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...credentialsStore.getHeaders(),
-          },
-          body: JSON.stringify({
-            reaction: reaction,
-          }),
-        }
-      );
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...credentialsStore.getHeaders(),
+        },
+        body: JSON.stringify({
+          reaction: reaction,
+        }),
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -338,9 +336,10 @@ export function useMessageModals(
       loadingEvents.value = true;
       eventsError.value = null;
       
-      const url = `/api/messages/${messageId}/events?tenantId=${encodeURIComponent(tenantId.value)}`;
+      const baseUrl = configStore.config.CONTROL_APP_URL || 'http://localhost:3001';
+      const fullUrl = `${baseUrl}/api/messages/${messageId}/events?tenantId=${encodeURIComponent(tenantId.value)}`;
       
-      const response = await fetch(url, {
+      const response = await fetch(fullUrl, {
         method: 'GET',
         headers: {
           'X-Tenant-Id': tenantId.value,
@@ -486,12 +485,11 @@ export function useMessageModals(
     statusMatrixError.value = null;
     
     try {
-      const response = await fetch(
-        `/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}`,
-        {
-          headers: credentialsStore.getHeaders(),
-        }
-      );
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}`;
+      const response = await fetch(fullUrl, {
+        headers: credentialsStore.getHeaders(),
+      });
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -562,15 +560,13 @@ export function useMessageModals(
     await nextTick();
     
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
-    statusesUrl.value = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}/statuses?page=${page}&limit=${limit}`;
+    const fullUrl = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}/statuses?page=${page}&limit=${limit}`;
+    statusesUrl.value = fullUrl;
     
     try {
-      const response = await fetch(
-        `/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}/statuses?page=${page}&limit=${limit}`,
-        {
-          headers: credentialsStore.getHeaders(),
-        }
-      );
+      const response = await fetch(fullUrl, {
+        headers: credentialsStore.getHeaders(),
+      });
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -641,9 +637,12 @@ export function useMessageModals(
     setStatusResult.value = 'Установка статуса...';
     
     try {
-      const url = `/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${currentMessageIdForSetStatus.value}/status/${status}`;
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${currentMessageIdForSetStatus.value}/status/${status}`;
       
-      const response = await fetch(url, {
+      console.log('Setting message status:', { baseUrl, fullUrl, status });
+      
+      const response = await fetch(fullUrl, {
         method: 'POST',
         headers: credentialsStore.getHeaders(),
       });
