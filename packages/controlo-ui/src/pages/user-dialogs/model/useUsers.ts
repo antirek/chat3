@@ -162,11 +162,13 @@ export function useUsers(
 
   // Функции для модальных окон
   async function showUserInfoModal(userId: string) {
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
     const url = `/api/users/${userId}`;
-    showModal('JSON пользователя', '<div class="loading">Загрузка данных пользователя...</div>', url);
+    const fullUrl = `${baseUrl}${url}`;
+    showModal('JSON пользователя', '<div class="loading">Загрузка данных пользователя...</div>', fullUrl);
     
     try {
-      const response = await fetch(url, {
+      const response = await fetch(fullUrl, {
         headers: credentialsStore.getHeaders(),
       });
 

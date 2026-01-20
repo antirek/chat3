@@ -87,7 +87,10 @@ export function useMembers(
         params.append('filter', membersFilter.currentFilter.value);
       }
 
-      const response = await fetch(`/api/dialogs/${dialogId}/members?${params.toString()}`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/dialogs/${dialogId}/members?${params.toString()}`;
+
+      const response = await fetch(fullUrl, {
         headers: credentialsStore.getHeaders(),
       });
 
@@ -161,7 +164,10 @@ export function useMembers(
     }
 
     try {
-      const response = await fetch(`/api/dialogs/${dialogId}/members/${userId}/remove`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/dialogs/${dialogId}/members/${userId}/remove`;
+
+      const response = await fetch(fullUrl, {
         method: 'POST',
         headers: credentialsStore.getHeaders(),
       });

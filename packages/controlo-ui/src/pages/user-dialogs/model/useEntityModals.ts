@@ -3,6 +3,7 @@
  * Отвечает за: добавление участников, создание топиков, просмотр событий диалога
  */
 import { ref, type Ref } from 'vue';
+import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { useModal } from '@/shared/lib/composables/useModal';
 
@@ -14,6 +15,7 @@ export function useEntityModals(
   membersPagination: any,
   topicsPagination: any
 ) {
+  const configStore = useConfigStore();
   const credentialsStore = useCredentialsStore();
   const tenantId = ref(credentialsStore.tenantId);
 
@@ -52,7 +54,9 @@ export function useEntityModals(
     availableUsersForMember.value = [];
     
     try {
-      const response = await fetch(`/api/users?limit=100`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/users?limit=100`;
+      const response = await fetch(fullUrl, {
         headers: credentialsStore.getHeaders(),
       });
       
@@ -112,12 +116,14 @@ export function useEntityModals(
     }
     
     try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
       const requestBody: any = { userId };
       if (type) {
         requestBody.type = type;
       }
 
-      const response = await fetch(`/api/dialogs/${currentDialogId.value}/members/add`, {
+      const fullUrl = `${baseUrl}/api/dialogs/${currentDialogId.value}/members/add`;
+      const response = await fetch(fullUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,7 +158,8 @@ export function useEntityModals(
         try {
           const entityId = `${currentDialogId.value}:${userId}`;
           for (const [key, value] of Object.entries(meta)) {
-            const metaResponse = await fetch(`/api/meta/dialogMember/${entityId}/${key}`, {
+            const metaFullUrl = `${baseUrl}/api/meta/dialogMember/${entityId}/${key}`;
+            const metaResponse = await fetch(metaFullUrl, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -229,12 +236,14 @@ export function useEntityModals(
     const meta = collectTopicMetaTags();
     
     try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
       const requestBody: any = {};
       if (Object.keys(meta).length > 0) {
         requestBody.meta = meta;
       }
       
-      const response = await fetch(`/api/dialogs/${currentDialogId.value}/topics`, {
+      const fullUrl = `${baseUrl}/api/dialogs/${currentDialogId.value}/topics`;
+      const response = await fetch(fullUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

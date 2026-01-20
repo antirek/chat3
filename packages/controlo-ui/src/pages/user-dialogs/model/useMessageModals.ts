@@ -186,7 +186,9 @@ export function useMessageModals(
         payload.meta = meta;
       }
 
-      const response = await fetch(`/api/dialogs/${currentDialogId.value}/messages`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/dialogs/${currentDialogId.value}/messages`;
+      const response = await fetch(fullUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

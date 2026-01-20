@@ -3,6 +3,7 @@
  * Отвечает за: управление мета-тегами диалогов, сообщений, участников, топиков (добавление, удаление, редактирование)
  */
 import { ref, type Ref } from 'vue';
+import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { useModal } from '@/shared/lib/composables/useModal';
 
@@ -15,6 +16,7 @@ export function useMetaModals(
   membersPagination: any,
   topicsPagination: any
 ) {
+  const configStore = useConfigStore();
   const credentialsStore = useCredentialsStore();
 
   // Модальные окна
@@ -70,7 +72,9 @@ export function useMetaModals(
   async function loadDialogMetaTags(dialogId: string) {
     try {
       loadingDialogMeta.value = true;
-      const response = await fetch(`/api/meta/dialog/${dialogId}`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/meta/dialog/${dialogId}`;
+      const response = await fetch(fullUrl, {
         headers: credentialsStore.getHeaders(),
       });
       
@@ -106,7 +110,9 @@ export function useMetaModals(
     }
     
     try {
-      const response = await fetch(`/api/meta/dialog/${dialogId}/${key}`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/meta/dialog/${dialogId}/${key}`;
+      const response = await fetch(fullUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +143,9 @@ export function useMetaModals(
     
     const dialogId = dialogMetaDialogId.value;
     try {
-      const response = await fetch(`/api/meta/dialog/${dialogId}/${key}`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/meta/dialog/${dialogId}/${key}`;
+      const response = await fetch(fullUrl, {
         method: 'DELETE',
         headers: credentialsStore.getHeaders(),
       });
@@ -162,7 +170,9 @@ export function useMetaModals(
     memberMetaStatus.value = '';
     
     try {
-      const response = await fetch(`/api/dialogs/${dialogId}/members?filter=(userId,eq,${userId})`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/dialogs/${dialogId}/members?filter=(userId,eq,${userId})`;
+      const response = await fetch(fullUrl, {
         headers: credentialsStore.getHeaders(),
       });
       
@@ -247,10 +257,12 @@ export function useMetaModals(
     memberMetaStatus.value = '';
     
     try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
       const oldKeys = Object.keys(currentMemberMetaOriginal.value);
       for (const key of oldKeys) {
         if (!(key in newMeta)) {
-          await fetch(`/api/dialogs/${memberMetaModalDialogId.value}/members/${memberMetaModalUserId.value}/meta/${key}`, {
+          const fullUrl = `${baseUrl}/api/dialogs/${memberMetaModalDialogId.value}/members/${memberMetaModalUserId.value}/meta/${key}`;
+          await fetch(fullUrl, {
             method: 'DELETE',
             headers: credentialsStore.getHeaders(),
           });
@@ -260,7 +272,8 @@ export function useMetaModals(
       for (const [key, value] of Object.entries(newMeta)) {
         const oldValue = currentMemberMetaOriginal.value[key];
         if (oldValue !== value) {
-          await fetch(`/api/dialogs/${memberMetaModalDialogId.value}/members/${memberMetaModalUserId.value}/meta/${key}`, {
+          const fullUrl = `${baseUrl}/api/dialogs/${memberMetaModalDialogId.value}/members/${memberMetaModalUserId.value}/meta/${key}`;
+          await fetch(fullUrl, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -315,12 +328,11 @@ export function useMetaModals(
     
     try {
       loadingMessageMeta.value = true;
-      const response = await fetch(
-        `/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}`,
-        {
-          headers: credentialsStore.getHeaders(),
-        }
-      );
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/messages/${messageId}`;
+      const response = await fetch(fullUrl, {
+        headers: credentialsStore.getHeaders(),
+      });
       
       if (!response.ok) {
         throw new Error('Failed to load message meta');
@@ -354,7 +366,9 @@ export function useMetaModals(
     }
     
     try {
-      const response = await fetch(`/api/meta/message/${messageId}/${encodeURIComponent(key)}`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/meta/message/${messageId}/${encodeURIComponent(key)}`;
+      const response = await fetch(fullUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -385,7 +399,9 @@ export function useMetaModals(
     
     const messageId = messageMetaMessageId.value;
     try {
-      const response = await fetch(`/api/meta/message/${messageId}/${encodeURIComponent(key)}`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/meta/message/${messageId}/${encodeURIComponent(key)}`;
+      const response = await fetch(fullUrl, {
         method: 'DELETE',
         headers: credentialsStore.getHeaders(),
       });
@@ -423,7 +439,9 @@ export function useMetaModals(
   async function loadTopicMetaTags(dialogId: string, topicId: string) {
     try {
       loadingTopicMeta.value = true;
-      const response = await fetch(`/api/dialogs/${dialogId}/topics/${topicId}`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/dialogs/${dialogId}/topics/${topicId}`;
+      const response = await fetch(fullUrl, {
         headers: credentialsStore.getHeaders(),
       });
       
@@ -460,7 +478,9 @@ export function useMetaModals(
     }
     
     try {
-      const response = await fetch(`/api/meta/topic/${topicId}/${encodeURIComponent(key)}`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/meta/topic/${topicId}/${encodeURIComponent(key)}`;
+      const response = await fetch(fullUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -495,7 +515,9 @@ export function useMetaModals(
     const dialogId = topicMetaDialogId.value;
     const topicId = topicMetaTopicId.value;
     try {
-      const response = await fetch(`/api/meta/topic/${topicId}/${encodeURIComponent(key)}`, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/meta/topic/${topicId}/${encodeURIComponent(key)}`;
+      const response = await fetch(fullUrl, {
         method: 'DELETE',
         headers: credentialsStore.getHeaders(),
       });
