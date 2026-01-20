@@ -26,8 +26,7 @@ RUN npm run build --workspace=@chat3/utils && npm run build --workspace=@chat3/m
 
 # Собираем остальные пакеты (все зависят от models и utils)
 RUN npm run build --workspace=@chat3/tenant-api && \
-    npm run build --workspace=@chat3/controlo-api && \
-    npm run build --workspace=@chat3/controlo-gateway && \
+    npm run build --workspace=@chat3/controlo-backend && \
     npm run build --workspace=@chat3/update-worker && \
     npm run build --workspace=@chat3/dialog-read-worker
 
@@ -49,8 +48,7 @@ COPY --chown=chat3user:nodejs tsconfig.json ./
 
 # Копируем собранные dist директории из первого stage
 COPY --from=base --chown=chat3user:nodejs /app/packages/tenant-api/dist ./packages/tenant-api/dist
-COPY --from=base --chown=chat3user:nodejs /app/packages/controlo-gateway/dist ./packages/controlo-gateway/dist
-COPY --from=base --chown=chat3user:nodejs /app/packages/controlo-api/dist ./packages/controlo-api/dist
+COPY --from=base --chown=chat3user:nodejs /app/packages/controlo-backend/dist ./packages/controlo-backend/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/update-worker/dist ./packages/update-worker/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/dialog-read-worker/dist ./packages/dialog-read-worker/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/controlo-ui/dist ./packages/controlo-ui/dist

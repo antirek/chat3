@@ -3,12 +3,12 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import connectDB from '@chat3/utils/databaseUtils.js';
-import initRoutes from '@chat3/controlo-api/dist/routes/initRoutes.js';
-import eventsRoutes from '@chat3/controlo-api/dist/routes/eventsRoutes.js';
-import dbExplorerRoutes from '@chat3/controlo-api/dist/routes/dbExplorerRoutes.js';
-import swaggerSpec from '@chat3/controlo-api/dist/config/swagger.js';
+import initRoutes from './routes/initRoutes.js';
+import eventsRoutes from './routes/eventsRoutes.js';
+import dbExplorerRoutes from './routes/dbExplorerRoutes.js';
+import swaggerSpec from './config/swagger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -35,7 +35,7 @@ const PORT = new URL(CONTROL_APP_URL).port || 3001;
 
 // CORS middleware - разрешаем запросы с разных источников
 app.use(cors({
-  origin: '*', // В production можно ограничить
+  origin: '*', // В production можно ограничить конкретными доменами
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Tenant-Id', 'x-tenant-id']
@@ -45,18 +45,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ============================================
-// 1. Control API Routes - /api/init, /api/dialogs, /api/messages, /api/db-explorer
-// ============================================
-app.use('/api/init', initRoutes);
-app.use('/api', eventsRoutes);
-app.use('/api/db-explorer', dbExplorerRoutes);
-
-// ============================================
-// 2. Swagger UI - /api-docs
-// ============================================
+// Swagger UI with dynamic host
 app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
-  // Учитываем X-Forwarded-Proto для случаев, когда перед gateway стоит reverse proxy
+  // Учитываем X-Forwarded-Proto для случаев, когда перед сервером стоит reverse proxy
   const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
   const host = req.get('host');
   const swaggerSpecWithHost = {
@@ -70,33 +61,35 @@ app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
   };
   swaggerUi.setup(swaggerSpecWithHost, {
     customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'Chat3 Gateway API Documentation'
+    customSiteTitle: 'Chat3 Backend API Documentation'
   })(req, res, next);
 });
 
 // ============================================
-// 3. API Test Suite - / (главная) и статические файлы
+// 1. Control API Routes - /api/init, /api/dialogs, /api/messages, /api/db-explorer
 // ============================================
-// Dynamic config.js endpoint - must be before static files
+app.use('/api/init', initRoutes);
+app.use('/api', eventsRoutes);
+app.use('/api/db-explorer', dbExplorerRoutes);
+
+// ============================================
+// 2. Dynamic config.js endpoint - must be before static files
+// ============================================
 app.get('/config.js', (req, res) => {
   res.type('application/javascript');
   
-  // Определяем URL gateway динамически на основе запроса
-  // Это позволяет gateway работать на любом хосте/IP/домене
-  // Учитываем X-Forwarded-Proto для случаев, когда перед gateway стоит reverse proxy
+  // Определяем URL backend динамически на основе запроса
   const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
   const host = req.get('host');
-  const gatewayUrl = `${protocol}://${host}`;
+  const backendUrl = `${protocol}://${host}`;
   
   // TENANT_API_URL используем из переменной окружения или дефолт
-  // Если tenant-api на том же хосте, можно было бы определить динамически,
-  // но оставляем возможность настройки через переменную окружения
   const tenantApiUrl = TENANT_API_URL;
   
   // Safely escape URLs for JavaScript
   const config = {
     TENANT_API_URL: tenantApiUrl,
-    CONTROL_APP_URL: gatewayUrl,
+    CONTROL_APP_URL: backendUrl,
     RABBITMQ_MANAGEMENT_URL: RABBITMQ_MANAGEMENT_URL,
     PROJECT_NAME: PROJECT_NAME,
     APP_VERSION: APP_VERSION
@@ -120,43 +113,71 @@ window.CHAT3_CONFIG = {
 };`);
 });
 
-// Serve static files from controlo-ui/public directory
-// Path: packages/controlo-ui/src/public (using workspace structure)
-// __dirname is packages/controlo-gateway/src, so we go up to packages, then to controlo-ui/src/public
-const controloUiPublicPath = join(__dirname, '../../controlo-ui/src/public');
-app.use(express.static(controloUiPublicPath));
+// ============================================
+// 3. Serve static files from controlo-ui/dist
+// ============================================
+const controloUiDistPath = join(__dirname, '../../controlo-ui/dist');
+if (existsSync(controloUiDistPath)) {
+  app.use(express.static(controloUiDistPath));
 
-// Main page - Controlo UI
-app.get('/', (req, res) => {
-  res.sendFile(join(controloUiPublicPath, 'api-test.html'));
-});
+  // Все остальные маршруты (кроме /api/*, /health, /config.js, /api-docs) отдаем index.html для SPA
+  app.get('*', (req, res, next) => {
+    // Пропускаем /api/*, /health, /config.js, /api-docs - они обрабатываются отдельными маршрутами
+    if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/config.js' || req.path.startsWith('/api-docs')) {
+      return next();
+    }
+    res.sendFile(join(controloUiDistPath, 'index.html'));
+  });
+} else {
+  // Если dist не существует, отдаем простое сообщение
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/config.js' || req.path.startsWith('/api-docs')) {
+      return next();
+    }
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Chat3 Backend</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; text-align: center; }
+            h1 { color: #333; }
+            p { color: #666; }
+          </style>
+        </head>
+        <body>
+          <h1>Chat3 Backend</h1>
+          <p>Please build the UI first: <code>npm run build --workspace=@chat3/controlo-ui</code></p>
+        </body>
+      </html>
+    `);
+  });
+}
 
 // ============================================
-// Health check endpoint
+// 4. Health check endpoint
 // ============================================
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
-    message: 'Chat3 Gateway is running',
+    message: 'Chat3 Backend is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0',
+    version: APP_VERSION,
     endpoints: {
       apiDocs: `${CONTROL_APP_URL}/api-docs`,
       init: `${CONTROL_APP_URL}/api/init`,
       seed: `${CONTROL_APP_URL}/api/init/seed`,
+      recalculateStats: `${CONTROL_APP_URL}/api/init/recalculate-stats`,
       dialogEvents: `${CONTROL_APP_URL}/api/dialogs/{dialogId}/events`,
       dialogUpdates: `${CONTROL_APP_URL}/api/dialogs/{dialogId}/updates`,
       messageEvents: `${CONTROL_APP_URL}/api/messages/{messageId}/events`,
-      messageUpdates: `${CONTROL_APP_URL}/api/messages/{messageId}/updates`,
-      apiTest: `${CONTROL_APP_URL}`
+      messageUpdates: `${CONTROL_APP_URL}/api/messages/{messageId}/updates`
     }
   });
 });
 
-// ============================================
-// Initialize database connection and start server
-// ============================================
+// Initialize database connection
 const startServer = async () => {
   try {
     // Connect to MongoDB
@@ -164,20 +185,21 @@ const startServer = async () => {
 
     // Start server
     app.listen(PORT, () => {
-      console.log(`\n🚀 Chat3 Gateway is running on ${CONTROL_APP_URL}`);
+      console.log(`\n🚀 Chat3 Backend is running on ${CONTROL_APP_URL}`);
       console.log(`📚 API Documentation: ${CONTROL_APP_URL}/api-docs`);
-      console.log(`🧪 API Test Suite: ${CONTROL_APP_URL}`);
+      console.log(`🌐 UI: ${CONTROL_APP_URL}`);
       console.log(`💚 Health Check: ${CONTROL_APP_URL}/health`);
-      console.log(`\n🔑 Endpoints:`);
-      console.log(`   POST ${CONTROL_APP_URL}/api/init - Initialize system (create tenant and API key)`);
-      console.log(`   POST ${CONTROL_APP_URL}/api/init/seed - Run database seed script`);
-      console.log(`   GET  ${CONTROL_APP_URL}/api/dialogs/{dialogId}/events - Get events for a dialog`);
-      console.log(`   GET  ${CONTROL_APP_URL}/api/dialogs/{dialogId}/updates - Get updates for a dialog`);
-      console.log(`   GET  ${CONTROL_APP_URL}/api/messages/{messageId}/events - Get events for a message`);
-      console.log(`   GET  ${CONTROL_APP_URL}/api/messages/{messageId}/updates - Get updates for a message\n`);
+      console.log(`\n🔑 API Endpoints:`);
+      console.log(`   POST /api/init - Initialize system (create tenant and API key)`);
+      console.log(`   POST /api/init/seed - Run database seed script`);
+      console.log(`   POST /api/init/recalculate-stats - Recalculate user stats for all users`);
+      console.log(`   GET  /api/dialogs/{dialogId}/events - Get events for a dialog`);
+      console.log(`   GET  /api/dialogs/{dialogId}/updates - Get updates for a dialog`);
+      console.log(`   GET  /api/messages/{messageId}/events - Get events for a message`);
+      console.log(`   GET  /api/messages/{messageId}/updates - Get updates for a message\n`);
     });
   } catch (error) {
-    console.error('Failed to start Gateway server:', error);
+    console.error('Failed to start Backend server:', error);
     process.exit(1);
   }
 };

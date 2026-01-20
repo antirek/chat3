@@ -46,7 +46,10 @@ export function useTopics(
       const currentLimit = limit || topicsPagination.currentLimit.value;
       const url = `/api/users/${currentUserId.value}/dialogs/${dialogId}/topics?page=${page}&limit=${currentLimit}`;
 
-      const response = await fetch(url, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}${url}`;
+
+      const response = await fetch(fullUrl, {
         headers: credentialsStore.getHeaders(),
       });
 

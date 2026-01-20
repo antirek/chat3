@@ -89,7 +89,10 @@ export function useMessages(
         url += `&filter=${encodeURIComponent(messagesFilter.currentFilter.value)}`;
       }
 
-      const response = await fetch(url, {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}${url}`;
+
+      const response = await fetch(fullUrl, {
         headers: credentialsStore.getHeaders(),
       });
 

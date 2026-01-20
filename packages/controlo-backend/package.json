@@ -1,5 +1,5 @@
 {
-  "name": "@chat3/controlo-gateway",
+  "name": "@chat3/controlo-backend",
   "version": "0.0.26",
   "type": "module",
   "main": "dist/index.js",
@@ -14,7 +14,6 @@
   "dependencies": {
     "@chat3/models": "*",
     "@chat3/utils": "*",
-    "@chat3/controlo-api": "*",
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "swagger-ui-express": "^5.0.0",

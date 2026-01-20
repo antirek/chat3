@@ -16,6 +16,23 @@ export function getUrlParams(): { apiKey: string; tenantId: string } {
 }
 
 /**
+ * Получает URL для Tenant API
+ * @param path - путь для добавления к базовому URL
+ * @returns Полный URL для Tenant API
+ */
+export function getTenantApiUrl(path = ''): string {
+  // Сначала проверяем глобальный CHAT3_CONFIG (если есть)
+  if (typeof window !== 'undefined' && (window as any).CHAT3_CONFIG?.getTenantApiUrl) {
+    return (window as any).CHAT3_CONFIG.getTenantApiUrl(path);
+  }
+  
+  // Используем configStore как источник истины
+  const configStore = useConfigStore();
+  const tenantApiUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+  return `${tenantApiUrl}${path}`;
+}
+
+/**
  * Получает URL для Control API
  * @param path - путь для добавления к базовому URL
  * @returns Полный URL для Control API

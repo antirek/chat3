@@ -73,20 +73,7 @@ app.use('/api/messages', (req, res, next) => {
   }
 });
 
-// Прокси для всех остальных /api/* запросов к tenant-api (должен быть после control-api прокси)
-console.log(`Setting up tenant-api proxy to: ${TENANT_API_URL}`);
-app.use('/api', createProxyMiddleware({
-  target: TENANT_API_URL,
-  changeOrigin: true,
-  pathRewrite: { '^/api': '/api' },
-  onProxyReq: (proxyReq, req) => {
-    console.log(`Proxying ${req.method} ${req.url} to ${TENANT_API_URL}${req.url}`);
-  },
-  onError: (err, req, res) => {
-    console.error('Proxy error:', err);
-    res.status(500).json({ error: 'Proxy error', message: err.message });
-  },
-}));
+// Прокси для tenant-api не нужен - UI обращается напрямую к tenant-api
 
 // Health check endpoint - must be before static files
 app.get('/health', (req, res) => {
@@ -99,12 +86,12 @@ app.get('/health', (req, res) => {
     endpoints: {
       main: `http://localhost:${PORT}`,
       apiDocs: `${CLIENT_CONTROL_APP_URL}/api-docs`,
-      tenantApi: TENANT_API_URL,
+      tenantApi: 'Direct connection (no proxy)',
       controlApi: CLIENT_CONTROL_APP_URL,
     },
     services: {
       ui: 'running',
-      tenantApi: TENANT_API_URL,
+      tenantApi: 'Direct connection (no proxy)',
       controlApi: CLIENT_CONTROL_APP_URL,
     }
   });
@@ -189,7 +176,7 @@ app.listen(PORT, () => {
   console.log(`\n🧪 API Test is running on ${CLIENT_CONTROL_APP_URL}`);
   console.log(`📄 Main page: ${CLIENT_CONTROL_APP_URL}`);
   console.log(`\n💡 Configure API endpoints:`);
-  console.log(`   Tenant API: ${TENANT_API_URL}`);
+      console.log(`   Tenant API: Direct connection (no proxy)`);
   console.log(`   Control App (client-facing): ${CLIENT_CONTROL_APP_URL}`);
   console.log(`   Control App (internal proxy target): ${CONTROL_APP_URL_INTERNAL}`);
   console.log(`   Mode: ${NODE_ENV}\n`);
