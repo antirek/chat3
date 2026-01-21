@@ -655,14 +655,14 @@ export const dialogController = {
       log(`Диалог создан: dialogId=${createdDialog.dialogId}`);
 
       // Создаем DialogStats сразу после создания диалога
-      const memberCount = Array.isArray(members) ? members.length : 0;
-      log(`Создание DialogStats: dialogId=${createdDialog.dialogId}, memberCount=${memberCount}`);
+      // ВАЖНО: memberCount не устанавливаем здесь, так как он будет обновлен автоматически
+      // при обработке событий dialog.member.add в update-worker
+      log(`Создание DialogStats: dialogId=${createdDialog.dialogId}`);
       await updateDialogStats(
         req.tenantId!,
         createdDialog.dialogId,
         {
           topicCount: 0,
-          memberCount: memberCount,
           messageCount: 0
         },
         null
@@ -854,13 +854,15 @@ export const dialogController = {
         dialogId: createdDialog.dialogId
       }).lean();
 
+      // Используем реальное количество участников из запроса, если dialogStats еще не обновлен
+      const actualMemberCount = Array.isArray(members) ? members.length : 0;
       const stats = dialogStats ? {
         topicCount: dialogStats.topicCount || 0,
-        memberCount: dialogStats.memberCount || 0,
+        memberCount: dialogStats.memberCount || actualMemberCount,
         messageCount: dialogStats.messageCount || 0
       } : {
         topicCount: 0,
-        memberCount: memberCount,
+        memberCount: actualMemberCount,
         messageCount: 0
       };
 
