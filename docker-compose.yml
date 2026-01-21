@@ -68,18 +68,17 @@ services:
       retries: 3
       start_period: 40s
 
-  # Gateway (объединяет admin-web, control-api и api-test)
-  gateway:
+  controlo-backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: chat3-gateway
+    container_name: chat3-controlo-backend
     restart: unless-stopped
     ports:
       - "3001:3001"
     env_file:
       - .env
-    command: npm run start:controlo-gateway
+    command: npm run start:controlo-backend
     depends_on:
       tenant-api:
         condition: service_started
@@ -133,12 +132,64 @@ services:
     networks:
       - chat3-network
 
+  # Controlo UI (Vue 3 приложение)
+  controlo-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat3-controlo-ui
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${CONTROLO_UI_NODE_ENV:-production}
+      - CONTROLO_UI_NODE_ENV=${CONTROLO_UI_NODE_ENV:-production}
+      - PORT=3003
+      - CONTROL_API_TARGET=http://controlo-backend:3001 # Internal target for Express proxy
+      - CLIENT_CONTROL_APP_URL=http://localhost:3001 # Client-facing URL for config.js
+      - CONTROL_APP_URL=http://localhost:3001 # For consistency, points to gateway
+      - TENANT_API_URL=http://tenant-api:3000 # Internal Docker network URL for tenant-api (for Express proxy)
+      - CLIENT_TENANT_API_URL=http://localhost:3000 # Client-facing URL for tenant-api (for config.js)
+      - DOCKER=true # Flag to indicate running in Docker
+    # Для разработки: монтируем исходники и запускаем Vite dev server
+    # Для production: используем собранные файлы из dist
+    volumes:
+      - ./packages/controlo-ui/src:/app/packages/controlo-ui/src
+      - ./packages/controlo-ui/vite.config.ts:/app/packages/controlo-ui/vite.config.ts
+      - ./packages/controlo-ui/tsconfig.json:/app/packages/controlo-ui/tsconfig.json
+      - ./packages/controlo-ui/index.html:/app/packages/controlo-ui/index.html
+      - ./packages/controlo-ui/package.json:/app/packages/controlo-ui/package.json
+      - controlo_ui_node_modules:/app/packages/controlo-ui/node_modules
+    command: >
+      sh -c "
+      if [ \"$$CONTROLO_UI_NODE_ENV\" = \"development\" ]; then
+        cd /app/packages/controlo-ui && npm run dev
+      else
+        npm run start:controlo-ui
+      fi
+      "
+    depends_on:
+      tenant-api:
+        condition: service_started
+    networks:
+      - chat3-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3003/config.js', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 volumes:
   mongodb_data:
     driver: local
   rabbitmq_data:
     driver: local
   gateway_node_modules:
+    driver: local
+  controlo_ui_node_modules:
     driver: local
 
 networks:

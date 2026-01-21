@@ -58,6 +58,28 @@ export default [
       ]
     },
   },
+  // Конфигурация для UI файлов (браузерное окружение)
+  {
+    files: ['packages/controlo-ui/src/**/*.ts', 'packages/controlo-ui/src/**/*.js'],
+    languageOptions: {
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        location: 'readonly',
+        history: 'readonly',
+        alert: 'readonly',
+        confirm: 'readonly',
+      },
+    },
+  },
+  // Конфигурация для роутера (разрешаем динамические импорты для code splitting)
+  {
+    files: ['**/router/**', '**/router/**/*.ts', '**/router/**/*.js', 'packages/controlo-ui/src/app/router/**'],
+    rules: {
+      'no-restricted-syntax': 'off', // Разрешаем динамические импорты в роутере (стандартная практика Vue Router)
+    },
+  },
   // Конфигурация для тестовых файлов
   {
     files: ['**/__tests__/**', '**/*.test.js', '**/*.test.ts', '**/*.spec.js', '**/*.spec.ts'],

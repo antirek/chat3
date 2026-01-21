@@ -13,6 +13,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "outDir": "./dist",
     "strict": false,
     "noImplicitAny": false,
     "strictNullChecks": false,
@@ -42,6 +43,13 @@
     "build",
     "coverage",
     "**/*.test.ts",
-    "**/*.test.js"
+    "**/*.test.js",
+    "**/*.spec.js",
+    "**/*.spec.ts",
+    "eslint.config.js",
+    "**/*.config.js",
+    "**/scripts/**",
+    "**/samples/**",
+    "**/__tests__/**/*.js"
   ]
 }

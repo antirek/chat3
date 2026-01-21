@@ -1,0 +1,950 @@
+<template>
+  <div class="user-dialogs-page">
+    <div class="container">
+      <!-- Пользователи -->
+      <BasePanel width="13%" min-width="410px">
+        <template #header-left>
+          <span>👥 Пользователи</span>
+        </template>
+        <template #header-right>
+          <BaseButton variant="url" @click="showUsersUrl" title="Показать URL запроса">🔗 URL</BaseButton>
+        </template>
+        <FilterPanel
+          input-id="userFilterInput"
+          select-id="userFilterExample"
+          label="Фильтр пользователей (формат: (поле,оператор,значение))"
+          :filter-value="userFilterInput"
+          :selected-example="selectedUserFilterExample"
+          :examples="userFilterExamples"
+          placeholder="Например: (userId,regex,carl)&(meta.role,eq,manager)"
+          hint="Поддерживаются поля userId, name, а также meta.*. Операторы: eq, regex, in, nin, gt, gte, lt, lte, ne и др."
+          form-style="border-bottom: 1px solid #e9ecef;"
+          @update:filter-value="userFilterInput = $event"
+          @update:selected-example="selectedUserFilterExample = $event"
+          @select-example="selectUserFilterExample"
+          @clear="clearUserFilter"
+          @apply="applyUserFilter"
+        />
+        <ExtendedPagination
+          :current-page="currentUserPage"
+          :current-page-input="currentUserPageInput"
+          :total-pages="totalUserPages"
+          :total="totalUsers"
+          :pagination-start="userPaginationStart"
+          :pagination-end="userPaginationEnd"
+          :limit="currentUserLimit"
+          @first="goToUsersFirstPage"
+          @prev="goToUsersPreviousPage"
+          @next="goToUsersNextPage"
+          @last="goToUsersLastPage"
+          @go-to-page="goToUsersPage"
+          @change-limit="changeUserLimit"
+        />
+        <UsersTable
+          :users="users"
+          :loading="loadingUsers"
+          :error="usersError"
+          :selected-user-id="currentUserId"
+          @select="selectUser"
+          @show-info="showUserInfoModal"
+        />
+      </BasePanel>
+
+      <!-- Диалоги -->
+      <BasePanel width="33%" min-width="350px">
+        <template #header-left>
+          <span>💬 Диалоги{{ currentUserName ? ` пользователя ${currentUserName}` : '' }}</span>
+        </template>
+        <template #header-right>
+          <BaseButton
+            id="viewUrlBtn"
+            variant="url"
+            @click="showCurrentUrl"
+            title="Просмотреть текущий URL запроса"
+          >
+            🔗 URL
+          </BaseButton>
+        </template>
+        <FilterPanel
+          v-show="currentUserId"
+          input-id="filterValue"
+          select-id="filterExample"
+          label="Фильтр:"
+          :filter-value="filterValue"
+          :selected-example="selectedFilterExample"
+          :examples="dialogFilterExamples"
+          placeholder="Введите или выберите фильтр"
+          @update:filter-value="filterValue = $event"
+          @update:selected-example="selectedFilterExample = $event"
+          @select-example="selectFilterExample"
+          @clear="clearFilter"
+          @apply="applyFilter"
+        />
+        <ExtendedPagination
+          v-show="showDialogsPagination"
+          :current-page="currentDialogPage"
+          :current-page-input="currentDialogPageInput"
+          :total-pages="totalDialogPages"
+          :total="totalDialogs"
+          :pagination-start="dialogPaginationStart"
+          :pagination-end="dialogPaginationEnd"
+          :limit="currentDialogLimit"
+          @first="goToDialogsFirstPage"
+          @prev="goToDialogsPreviousPage"
+          @next="goToDialogsNextPage"
+          @last="goToDialogsLastPage"
+          @go-to-page="goToDialogsPage"
+          @change-limit="changeDialogLimit"
+        />
+        <DialogsTable
+          :dialogs="dialogs"
+          :loading="loadingDialogs"
+          :error="dialogsError"
+          :selected-dialog-id="currentDialogId"
+          :has-user="!!currentUserId"
+          @select="selectDialog"
+          @show-info="showDialogInfo"
+          @show-events="showDialogEventsModal"
+          @show-meta="showDialogMetaModal"
+        />
+      </BasePanel>
+
+      <!-- Сообщения / Участники / Топики -->
+      <BasePanel class="messages-panel">
+        <!-- Вкладки -->
+        <div v-if="currentDialogId" class="tabs-container">
+          <button
+            class="tab-button"
+            :class="{ active: currentViewMode === 'messages' }"
+            @click="selectDialog(currentDialogId!)"
+          >
+            📝 Сообщения
+          </button>
+          <button
+            class="tab-button"
+            :class="{ active: currentViewMode === 'members' }"
+            @click="selectDialogMembers(currentDialogId!)"
+          >
+            👥 Участники
+          </button>
+          <button
+            class="tab-button"
+            :class="{ active: currentViewMode === 'topics' }"
+            @click="selectDialogTopics(currentDialogId!)"
+          >
+            📌 Топики
+          </button>
+        </div>
+        <!-- Кнопки действий под вкладками -->
+        <div v-if="currentDialogId" class="actions-row">
+          <div class="actions-left">
+            <BaseButton
+              v-if="currentViewMode === 'messages'"
+              variant="success"
+              @click="showAddMessageModal"
+              title="Добавить сообщение"
+              id="addMessageBtn"
+            >
+              ➕ Добавить
+            </BaseButton>
+            <BaseButton
+              v-if="currentViewMode === 'members'"
+              variant="success"
+              @click="showAddMemberModal"
+              title="Добавить участника"
+              id="addMemberBtn"
+            >
+              ➕ Добавить
+            </BaseButton>
+            <BaseButton
+              v-if="currentViewMode === 'topics'"
+              variant="success"
+              @click="showAddTopicModal"
+              title="Создать топик"
+              id="addTopicBtn"
+            >
+              ➕ Создать
+            </BaseButton>
+          </div>
+          <div class="actions-right">
+            <BaseButton
+              v-if="currentViewMode === 'messages'"
+              variant="url"
+              @click="showCurrentMessageUrl"
+              title="Показать URL запроса"
+              id="messageUrlBtn"
+            >
+              🔗 URL
+            </BaseButton>
+            <BaseButton
+              v-if="currentViewMode === 'members'"
+              variant="url"
+              @click="showMembersUrlModal"
+              title="Показать URL API"
+              id="membersUrlBtn"
+            >
+              🔗 URL
+            </BaseButton>
+            <BaseButton
+              v-if="currentViewMode === 'topics'"
+              variant="url"
+              @click="showTopicsUrlModal"
+              title="Показать URL API"
+              id="topicsUrlBtn"
+            >
+              🔗 URL
+            </BaseButton>
+          </div>
+        </div>
+        <FilterPanel
+          v-show="currentDialogId && currentViewMode === 'messages'"
+          input-id="messageFilterInput"
+          select-id="messageFilterExample"
+          label="Фильтр сообщений:"
+          :filter-value="messageFilterInput"
+          :selected-example="selectedMessageFilterExample"
+          :examples="messageFilterExamples"
+          placeholder="Введите или выберите фильтр сообщений"
+          @update:filter-value="messageFilterInput = $event"
+          @update:selected-example="selectedMessageFilterExample = $event"
+          @select-example="selectMessageFilterExample"
+          @clear="clearMessageFilter"
+          @apply="applyMessageFilter"
+        />
+        <!-- Сообщения -->
+        <ExtendedPagination
+          v-show="currentViewMode === 'messages' && showMessagesPagination"
+          :current-page="currentMessagePage"
+          :current-page-input="currentMessagePageInput"
+          :total-pages="totalMessagePages"
+          :total="totalMessages"
+          :pagination-start="messagePaginationStart"
+          :pagination-end="messagePaginationEnd"
+          :limit="currentMessageLimit"
+          container-style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;"
+          @first="goToMessagesFirstPage"
+          @prev="goToMessagesPreviousPage"
+          @next="goToMessagesNextPage"
+          @last="goToMessagesLastPage"
+          @go-to-page="goToMessagesPage"
+          @change-limit="changeMessageLimit"
+        />
+        <div class="panel-content" id="messagesList" v-show="currentViewMode === 'messages'">
+          <MessagesTable
+            :messages="messages"
+            :loading="loadingMessages"
+            :error="messagesError"
+            :has-dialog="!!currentDialogId"
+            @show-info="showMessageInfo"
+            @show-meta="showMessageMetaModal"
+            @show-reactions="showReactionModal"
+            @show-events="showEventsModal"
+            @show-status-matrix="showStatusMatrixModal"
+            @show-statuses="showStatusesModal"
+            @show-set-status="showSetStatusModal"
+          />
+        </div>
+
+        <!-- Топики -->
+        <div id="topicsPanelContent" v-show="currentViewMode === 'topics'" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+          <TopicsTable
+            :topics="topics"
+            :loading="loadingTopics"
+            :error="topicsError"
+            @show-meta="(topicId) => currentDialogId && showTopicMetaModal(currentDialogId, topicId)"
+          />
+          <ExtendedPagination
+            v-if="totalTopicsPages > 1"
+            :current-page="currentTopicsPage"
+            :current-page-input="currentTopicsPageInput"
+            :total-pages="totalTopicsPages"
+            :total="totalTopics"
+            :pagination-start="topicsPaginationStart"
+            :pagination-end="topicsPaginationEnd"
+            :limit="currentTopicsLimit"
+            container-style="margin-top: 15px; padding: 0 20px;"
+            @first="goToTopicsFirstPage"
+            @prev="goToTopicsPreviousPage"
+            @next="goToTopicsNextPage"
+            @last="goToTopicsLastPage"
+            @go-to-page="goToTopicsPage"
+            @change-limit="changeTopicsLimit"
+          />
+        </div>
+
+        <!-- Участники -->
+        <div id="membersPanelContent" v-show="currentViewMode === 'members'" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+          
+          <div id="membersListSectionPanel" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+            <FilterPanel
+              input-id="memberFilterInputPanel"
+              select-id="memberFilterExamplePanel"
+              label="Фильтр участников (формат: (поле,оператор,значение))"
+              :filter-value="memberFilterInput"
+              :selected-example="selectedMemberFilterExample"
+              :examples="memberFilterExamples"
+              placeholder="Например: (userId,regex,carl)&(meta.role,eq,agent)"
+              hint="Поддерживаются поля userId, isActive, unreadCount, joinedAt, meta.*. Операторы: eq, ne, regex, in, nin, gt, gte, lt, lte."
+              form-style="border-bottom: 1px solid #e9ecef; padding: 15px 20px;"
+              @update:filter-value="memberFilterInput = $event"
+              @update:selected-example="selectedMemberFilterExample = $event"
+              @select-example="selectMemberFilterExamplePanel"
+              @clear="clearMemberFilterFieldPanel"
+              @apply="applyMemberFilterPanel"
+            />
+            
+            <!-- Пагинация участников -->
+            <ExtendedPagination
+              v-show="totalMembers > 0"
+              :current-page="currentMemberPage"
+              :current-page-input="currentMemberPageInput"
+              :total-pages="totalMemberPages"
+              :total="totalMembers"
+              :pagination-start="memberPaginationStart"
+              :pagination-end="memberPaginationEnd"
+              :limit="currentMemberLimit"
+              container-style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;"
+              @first="goToMembersFirstPage"
+              @prev="goToMembersPreviousPage"
+              @next="goToMembersNextPage"
+              @last="goToMembersLastPage"
+              @go-to-page="goToMembersPage"
+              @change-limit="changeMemberLimit"
+            />
+            
+            <!-- Таблица участников -->
+            <MembersTable
+              :members="members"
+              :loading="loadingMembers"
+              :error="membersError"
+              @show-meta="(userId) => currentDialogId && showMemberMetaModal(currentDialogId, userId)"
+              @remove="(userId) => currentDialogId && removeMemberFromPanel(currentDialogId, userId)"
+            />
+          </div>
+        </div>
+      </BasePanel>
+    </div>
+
+    <!-- Модальное окно для информации -->
+    <InfoModal
+      :is-open="isInfoModalOpen"
+      :title="modalTitle"
+      :body="modalBody"
+      @close="closeModal"
+    />
+
+    <!-- Модальное окно для добавления сообщения -->
+    <AddMessageModal
+      :is-open="isAddMessageModalOpen"
+      :current-dialog-id="currentDialogId"
+      v-model:sender="messageSender"
+      v-model:type="messageType"
+      v-model:topic-id="messageTopicId"
+      v-model:content="messageContent"
+      v-model:quoted-message-id="quotedMessageId"
+      v-model:meta-tags="messageMetaTags"
+      :available-topics="availableTopics"
+      @close="closeAddMessageModal"
+      @add-meta-tag="addMetaTagRow"
+      @remove-meta-tag="removeMetaTagRow"
+      @submit="submitAddMessage"
+    />
+
+    <!-- Модальное окно для добавления реакции -->
+    <ReactionModal
+      :is-open="isReactionModalOpen"
+      :existing-reactions="existingReactions"
+      @close="closeReactionModal"
+      @toggle-reaction="toggleReaction"
+    />
+
+    <!-- Модальное окно для просмотра событий сообщения -->
+    <EventsModal
+      :is-open="isEventsModalOpen"
+      :events="events"
+      :event-updates="eventUpdates"
+      :loading="loadingEvents"
+      :error="eventsError"
+      :get-event-id="getEventId"
+      :get-event-description="getEventDescription"
+      :format-event-time="formatEventTime"
+      @close="closeEventsModal"
+      @load-updates="loadEventUpdates"
+    />
+
+    <!-- Модальное окно для просмотра событий диалога -->
+    <DialogEventsModal
+      :is-open="isDialogEventsModalOpen"
+      :events="dialogEvents"
+      :dialog-event-updates="dialogEventUpdates"
+      :loading="loadingDialogEvents"
+      :error="dialogEventsError"
+      :dialog-id="currentDialogIdForEvents"
+      :selected-event-id="selectedDialogEventId"
+      :get-dialog-event-id="getDialogEventId"
+      :get-dialog-event-description="getDialogEventDescription"
+      :format-event-time="formatEventTime"
+      :get-update-id="getUpdateId"
+      @close="closeDialogEventsModal"
+      @load-updates="loadAllDialogUpdatesInModal"
+    />
+
+    <!-- Модальное окно для просмотра матрицы статусов сообщения -->
+    <StatusMatrixModal
+      :is-open="isStatusMatrixModalOpen"
+      :status-matrix="statusMatrix"
+      :loading="loadingStatusMatrix"
+      :error="statusMatrixError"
+      :url="statusMatrixUrl"
+      @close="closeStatusMatrixModal"
+    />
+
+    <!-- Модальное окно для просмотра статусов сообщения -->
+    <StatusesModal
+      :is-open="isStatusesModalOpen"
+      :statuses="statuses"
+      :loading="loadingStatuses"
+      :error="statusesError"
+      :url="statusesUrl"
+      :total="totalStatuses"
+      :current-page="currentStatusesPage"
+      :total-pages="totalStatusesPages"
+      :format-event-time="formatEventTime"
+      @close="closeStatusesModal"
+      @go-to-page="goToStatusesPage"
+    />
+
+    <!-- Модальное окно мета-тегов диалога -->
+    <MetaModal
+      :is-open="isDialogMetaModalOpen"
+      title="🏷️ Meta теги диалога"
+      :loading="loadingDialogMeta"
+      :meta-tags="dialogMetaTags"
+      key-placeholder="key (например: type)"
+      value-placeholder='value (например: "internal" или {"foo": "bar"})'
+      @close="closeDialogMetaModal"
+      @add-tag="(key, value) => { newDialogMetaKey = key; newDialogMetaValue = value; addDialogMetaTag(); }"
+      @delete-tag="deleteDialogMetaTag"
+    />
+
+    <!-- Модальное окно для установки статуса сообщения -->
+    <SetStatusModal
+      :is-open="isSetStatusModalOpen"
+      :url="setStatusUrl"
+      :result="setStatusResult"
+      @close="closeSetStatusModal"
+      @set-status="setMessageStatus"
+    />
+
+    <!-- Модальное окно мета-тегов сообщения -->
+    <MetaModal
+      :is-open="isMessageMetaModalOpen"
+      title="🏷️ Meta теги сообщения"
+      :loading="loadingMessageMeta"
+      :meta-tags="messageMetaTagsData"
+      key-placeholder="key (например: channelType)"
+      value-placeholder='value (например: "whatsapp" или {"foo": "bar"})'
+      @close="closeMessageMetaModal"
+      @add-tag="(key, value) => { newMessageMetaKey = key; newMessageMetaValue = value; addMessageMetaTag(); }"
+      @delete-tag="deleteMessageMetaTag"
+    />
+
+    <!-- Модальное окно для добавления участника -->
+    <AddMemberModal
+      :is-open="isAddMemberModalOpen"
+      :available-users="availableUsersForMember"
+      :selected-user="newMemberSelect"
+      :member-type="newMemberType"
+      :meta-tags="newMemberMetaTags"
+      @close="closeAddMemberModal"
+      @submit="submitAddMember"
+      @update:selected-user="newMemberSelect = $event"
+      @update:member-type="newMemberType = $event"
+      @add-meta-row="addMemberMetaRow"
+      @remove-meta-row="removeMemberMetaRow"
+      @update-meta-key="(i, v) => newMemberMetaTags[i].key = v"
+      @update-meta-value="(i, v) => newMemberMetaTags[i].value = v"
+    />
+
+    <!-- Модальное окно для редактирования мета-тегов участника -->
+    <MemberMetaModal
+      :is-open="isMemberMetaModalOpen"
+      :dialog-id="memberMetaModalDialogId"
+      :user-id="memberMetaModalUserId"
+      :meta-tags="memberMetaTags"
+      :status="memberMetaStatus"
+      @close="closeMemberMetaModal"
+      @save="saveMemberMetaChangesModal"
+      @add-meta-row="addMemberMetaRowModal"
+      @remove-meta-row="removeMemberMetaRowModal"
+      @update-meta-key="(i, v) => memberMetaTags[i].key = v"
+      @update-meta-value="(i, v) => memberMetaTags[i].value = v"
+    />
+
+    <!-- Модальное окно для создания топика -->
+    <AddTopicModal
+      :is-open="isAddTopicModalOpen"
+      :meta-tags="newTopicMetaTags"
+      @close="closeAddTopicModal"
+      @submit="submitAddTopic"
+      @add-meta-row="addTopicMetaRow"
+      @remove-meta-row="removeTopicMetaRow"
+      @update-meta-key="(i, v) => newTopicMetaTags[i].key = v"
+      @update-meta-value="(i, v) => newTopicMetaTags[i].value = v"
+    />
+
+    <!-- Модальное окно для мета-тегов топика -->
+    <TopicMetaModal
+      :is-open="isTopicMetaModalOpen"
+      :meta-tags="topicMetaTags"
+      :loading="loadingTopicMeta"
+      :new-key="newTopicMetaKey"
+      :new-value="newTopicMetaValue"
+      @close="closeTopicMetaModal"
+      @delete-tag="deleteTopicMetaTag"
+      @add-tag="addTopicMetaTag"
+      @update:new-key="newTopicMetaKey = $event"
+      @update:new-value="newTopicMetaValue = $event"
+    />
+
+    <UrlModal
+      :is-open="showUrlModal"
+      :title="urlModalTitle"
+      :url="urlModalUrl"
+      :copy-button-text="urlCopyButtonText"
+      @close="closeUrlModal"
+      @copy="copyUrlToClipboard"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onMounted } from 'vue';
+import { BasePanel, BaseButton } from '@/shared/ui';
+import { useUserDialogsPage } from '../model';
+import {
+  InfoModal,
+  AddMessageModal,
+  ReactionModal,
+  MetaModal,
+  SetStatusModal,
+  EventsModal,
+  DialogEventsModal,
+  StatusMatrixModal,
+  StatusesModal,
+  AddMemberModal,
+  MemberMetaModal,
+  AddTopicModal,
+  TopicMetaModal,
+  UrlModal,
+} from './modals';
+import {
+  FilterPanel,
+  userFilterExamples,
+  dialogFilterExamples,
+  messageFilterExamples,
+  memberFilterExamples,
+} from './filters';
+import { ExtendedPagination } from './pagination';
+import { UsersTable, DialogsTable, MessagesTable, TopicsTable, MembersTable } from './tables';
+
+// Используем composable
+const pageData = useUserDialogsPage();
+
+// Деструктурируем только то, что нужно в template
+const {
+  // Users
+  loadingUsers,
+  usersError,
+  users,
+  currentUserId,
+  currentUserName,
+  userPaginationStart,
+  userPaginationEnd,
+  // Users Pagination
+  currentUserPage,
+  currentUserPageInput,
+  currentUserLimit,
+  totalUserPages,
+  totalUsers,
+  // Users Filter
+  userFilterInput,
+  selectedUserFilterExample,
+  // Dialogs
+  loadingDialogs,
+  dialogsError,
+  dialogs,
+  currentDialogId,
+  showDialogsPagination,
+  visibleDialogPages,
+  // Dialogs Pagination
+  currentDialogPage,
+  currentDialogPageInput,
+  currentDialogLimit,
+  totalDialogPages,
+  totalDialogs,
+  dialogPaginationStart,
+  dialogPaginationEnd,
+  // Dialogs Filter
+  filterValue,
+  selectedFilterExample,
+  // Messages
+  loadingMessages,
+  messagesError,
+  messages,
+  showMessagesPagination,
+  visibleMessagePages,
+  // Messages Pagination
+  currentMessagePage,
+  currentMessagePageInput,
+  currentMessageLimit,
+  totalMessagePages,
+  totalMessages,
+  messagePaginationStart,
+  messagePaginationEnd,
+  // Messages Filter
+  messageFilterInput,
+  selectedMessageFilterExample,
+  // Members
+  loadingMembers,
+  membersError,
+  members,
+  visibleMemberPages,
+  // Members Pagination
+  currentMemberPage,
+  currentMemberPageInput,
+  currentMemberLimit,
+  totalMemberPages,
+  totalMembers,
+  memberPaginationStart,
+  memberPaginationEnd,
+  // Members Filter
+  memberFilterInput,
+  selectedMemberFilterExample,
+  // Topics
+  loadingTopics,
+  topicsError,
+  topics,
+  // Topics Pagination
+  currentTopicsPage,
+  currentTopicsPageInput,
+  currentTopicsLimit,
+  totalTopicsPages,
+  totalTopics,
+  topicsPaginationStart,
+  topicsPaginationEnd,
+  // View Mode
+  currentViewMode,
+  // Modals - flags
+  isInfoModalOpen,
+  isAddMessageModalOpen,
+  isReactionModalOpen,
+  isEventsModalOpen,
+  isStatusMatrixModalOpen,
+  isStatusesModalOpen,
+  isSetStatusModalOpen,
+  isDialogEventsModalOpen,
+  isDialogMetaModalOpen,
+  isAddMemberModalOpen,
+  isAddTopicModalOpen,
+  isMemberMetaModalOpen,
+  isMessageMetaModalOpen,
+  isTopicMetaModalOpen,
+  modalTitle,
+  modalBody,
+  // Functions
+  loadUsers,
+  selectUserFilterExample,
+  clearUserFilter,
+  applyUserFilter,
+  goToUsersFirstPage,
+  goToUsersPreviousPage,
+  goToUsersNextPage,
+  goToUsersLastPage,
+  goToUsersPage,
+  changeUserLimit,
+  selectUser,
+  loadUserDialogs,
+  selectFilterExample,
+  clearFilter,
+  applyFilter,
+  // Dialogs Pagination Functions
+  goToDialogsFirstPage,
+  goToDialogsPreviousPage,
+  goToDialogsNextPage,
+  goToDialogsLastPage,
+  goToDialogsPage,
+  changeDialogLimit,
+  changeDialogPage,
+  selectDialog,
+  selectDialogMembers,
+  selectDialogTopics,
+  loadDialogMessages,
+  selectMessageFilterExample,
+  clearMessageFilter,
+  applyMessageFilter,
+  // Messages Pagination Functions
+  goToMessagesFirstPage,
+  goToMessagesPreviousPage,
+  goToMessagesNextPage,
+  goToMessagesLastPage,
+  goToMessagesPage,
+  changeMessageLimit,
+  changeMessagePage,
+  loadDialogMembers,
+  selectMemberFilterExamplePanel,
+  clearMemberFilterFieldPanel,
+  applyMemberFilterPanel,
+  // Members Pagination Functions
+  goToMembersFirstPage,
+  goToMembersPreviousPage,
+  goToMembersNextPage,
+  goToMembersLastPage,
+  goToMembersPage,
+  changeMemberLimit,
+  changeMemberPage,
+  loadDialogTopics,
+  // Topics Pagination Functions
+  goToTopicsFirstPage,
+  goToTopicsPreviousPage,
+  goToTopicsNextPage,
+  goToTopicsLastPage,
+  goToTopicsPage,
+  changeTopicsLimit,
+  changeTopicsPage,
+  formatLastSeen,
+  formatMessageTime,
+  shortenDialogId,
+  shortenTopicId,
+  getMessageStatus,
+  getStatusIcon,
+  getStatusColor,
+  showModal,
+  closeModal,
+  showUsersUrl,
+  showCurrentUrl,
+  showCurrentMessageUrl,
+  showDialogInfo,
+  showMessageInfo,
+  showUserInfoModal,
+  // Добавление сообщения
+  showAddMessageModal,
+  closeAddMessageModal,
+  addMetaTagRow,
+  removeMetaTagRow,
+  updatePayloadJson,
+  submitAddMessage,
+  messageSender,
+  messageType,
+  messageContent,
+  messageTopicId,
+  quotedMessageId,
+  messageMetaTags,
+  availableTopics,
+  payloadJson,
+  // Реакции
+  showReactionModal,
+  closeReactionModal,
+  toggleReaction,
+  existingReactions,
+  // События сообщения
+  showEventsModal,
+  closeEventsModal,
+  getEventId,
+  formatEventTime,
+  getEventDescription,
+  loadEventUpdates,
+  events,
+  loadingEvents,
+  eventsError,
+  eventUpdates,
+  // Статусы
+  showStatusMatrixModal,
+  closeStatusMatrixModal,
+  showStatusesModal,
+  closeStatusesModal,
+  goToStatusesPage,
+  showSetStatusModal,
+  closeSetStatusModal,
+  setMessageStatus,
+  setStatusResult,
+  setStatusUrl,
+  loadingStatusMatrix,
+  statusMatrixError,
+  loadingStatuses,
+  statusesError,
+  statusesUrl,
+  statusMatrixUrl,
+  totalStatuses,
+  statusMatrix,
+  statuses,
+  currentStatusesPage,
+  totalStatusesPages,
+  // События диалога
+  showDialogEventsModal,
+  closeDialogEventsModal,
+  getDialogEventId,
+  getUpdateId,
+  getDialogEventDescription,
+  loadAllDialogUpdatesInModal,
+  currentDialogIdForEvents,
+  dialogEvents,
+  loadingDialogEvents,
+  dialogEventsError,
+  selectedDialogEventId,
+  dialogEventUpdates,
+  // Мета-теги диалога
+  showDialogMetaModal,
+  closeDialogMetaModal,
+  addDialogMetaTag,
+  deleteDialogMetaTag,
+  dialogMetaTags,
+  loadingDialogMeta,
+  newDialogMetaKey,
+  newDialogMetaValue,
+  // Добавление участника
+  showAddMemberModal,
+  closeAddMemberModal,
+  addMemberMetaRow,
+  removeMemberMetaRow,
+  submitAddMember,
+  newMemberSelect,
+  newMemberType,
+  newMemberMetaTags,
+  availableUsersForMember,
+  // Создание топика
+  showAddTopicModal,
+  closeAddTopicModal,
+  addTopicMetaRow,
+  removeTopicMetaRow,
+  submitAddTopic,
+  newTopicMetaTags,
+  // Мета-теги участника
+  showMemberMetaModal,
+  closeMemberMetaModal,
+  addMemberMetaRowModal,
+  removeMemberMetaRowModal,
+  saveMemberMetaChangesModal,
+  memberMetaModalDialogId,
+  memberMetaModalUserId,
+  memberMetaTags,
+  memberMetaStatus,
+  // Мета-теги сообщения
+  showMessageMetaModal,
+  closeMessageMetaModal,
+  addMessageMetaTag,
+  deleteMessageMetaTag,
+  messageMetaTagsData,
+  loadingMessageMeta,
+  newMessageMetaKey,
+  newMessageMetaValue,
+  // Мета-теги топика
+  showTopicMetaModal,
+  closeTopicMetaModal,
+  addTopicMetaTag,
+  deleteTopicMetaTag,
+  topicMetaTags,
+  loadingTopicMeta,
+  newTopicMetaKey,
+  newTopicMetaValue,
+  // Участники
+  removeMemberFromPanel,
+  showMembersUrlModal,
+  showTopicsUrlModal,
+  // URL модалка
+  showUrlModal,
+  urlModalTitle,
+  urlModalUrl,
+  urlCopyButtonText,
+  closeUrlModal,
+  copyUrlToClipboard,
+} = pageData;
+
+// Инициализация
+onMounted(() => {
+  // loadUsers проверяет apiKey внутри себя
+  loadUsers();
+});
+</script>
+
+<style scoped>
+.user-dialogs-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.container {
+  display: flex;
+  flex: 1;
+  gap: 1px;
+  background: #ddd;
+  overflow: hidden;
+}
+
+.panel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  min-height: 0;
+}
+
+/* Стили для вкладок */
+.tabs-container {
+  display: flex;
+  border-bottom: 2px solid #e9ecef;
+  background: #f8f9fa;
+  min-height: 59px;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6c757d;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  color: #495057;
+  background: #e9ecef;
+}
+
+.tab-button.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  background: white;
+  font-weight: 600;
+}
+
+.actions-row {
+  background: #f8f9fa;
+  padding: 15px 20px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 59px;
+  flex-shrink: 0;
+}
+
+.actions-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+</style>

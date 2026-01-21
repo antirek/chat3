@@ -97,10 +97,34 @@ const messageStatusSchema = new mongoose.Schema<IMessageStatus>({
 // но доступны в документе и middleware до сохранения
 // Мы явно не добавляем _sourceEventId в схему, чтобы оно не сохранялось
 
-// Pre-save hook для установки createdAt при создании
-messageStatusSchema.pre('save', function(next) {
-  if (this.isNew) {
+// Pre-save hook для установки createdAt при создании и получения oldStatus
+messageStatusSchema.pre('save', async function(next) {
+  const wasNew = this.isNew;
+  // Сохраняем флаг isNew, так как после сохранения он станет false
+  (this as any).__wasNew = wasNew;
+  
+  if (wasNew) {
     this.createdAt = generateTimestamp();
+    
+    // Получаем последний статус ДО сохранения нового документа
+    // Это гарантирует, что мы не найдем сам создаваемый документ
+    try {
+      const MessageStatusModel = mongoose.model<IMessageStatus>('MessageStatus') as mongoose.Model<IMessageStatus>;
+      const lastStatus = await MessageStatusModel.findOne({
+        messageId: this.messageId,
+        userId: this.userId,
+        tenantId: this.tenantId
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+      
+      // Сохраняем oldStatus во временном поле для использования в post-save hook
+      (this as any)._oldStatus = lastStatus?.status || 'unread';
+      console.log(`📋 MessageStatus pre-save: messageId=${this.messageId}, userId=${this.userId}, oldStatus=${(this as any)._oldStatus}, newStatus=${this.status}`);
+    } catch (error) {
+      console.error('Error getting oldStatus in pre-save:', error);
+      (this as any)._oldStatus = 'unread';
+    }
   }
   next();
 });
@@ -133,20 +157,29 @@ messageStatusSchema.index({ dialogId: 1, userId: 1 }); // Для фильтра�
  * при каждом изменении статуса в истории.
  */
 messageStatusSchema.post('save', async function(doc) {
-  if (doc.isNew) {
+  // Проверяем, что это новый документ (используем флаг, так как isNew может быть false после сохранения)
+  if ((doc as any).__wasNew !== undefined ? (doc as any).__wasNew : doc.isNew) {
     try {
-      // Получаем последний статус для этого пользователя и сообщения (до текущего)
-      const MessageStatusModel = mongoose.model<IMessageStatus>('MessageStatus') as mongoose.Model<IMessageStatus>;
-      const lastStatus = await MessageStatusModel.findOne({
-        messageId: doc.messageId,
-        userId: doc.userId,
-        tenantId: doc.tenantId,
-        _id: { $ne: doc._id }
-      })
-        .sort({ createdAt: -1 })
-        .lean();
+      // Используем oldStatus, полученный в pre-save hook
+      // Если по какой-то причине oldStatus не был установлен, получаем его заново
+      let oldStatus = (doc as any)._oldStatus;
       
-      const oldStatus = lastStatus?.status || 'unread';
+      if (oldStatus === undefined) {
+        // Fallback: получаем последний статус (исключая текущий документ)
+        const MessageStatusModel = mongoose.model<IMessageStatus>('MessageStatus') as mongoose.Model<IMessageStatus>;
+        const lastStatus = await MessageStatusModel.findOne({
+          messageId: doc.messageId,
+          userId: doc.userId,
+          tenantId: doc.tenantId,
+          _id: { $ne: doc._id }
+        })
+          .sort({ createdAt: -1 })
+          .lean();
+        
+        oldStatus = lastStatus?.status || 'unread';
+      }
+      
+      console.log(`📊 MessageStatus post-save: messageId=${doc.messageId}, userId=${doc.userId}, oldStatus=${oldStatus}, newStatus=${doc.status}`);
       
       // КРИТИЧНО: Получаем sourceEventId из временного поля _sourceEventId
       // Это поле передается при создании MessageStatus и не сохраняется в БД
@@ -179,6 +212,8 @@ messageStatusSchema.post('save', async function(doc) {
             
             const topicId = message?.topicId || null;
             
+            console.log(`📉 Decreasing unreadCount: tenantId=${doc.tenantId}, userId=${doc.userId}, dialogId=${doc.dialogId}, messageId=${doc.messageId}`);
+            
             await updateUnreadCount(
               doc.tenantId,
               doc.userId,
@@ -191,7 +226,13 @@ messageStatusSchema.post('save', async function(doc) {
               'user',
               topicId // topicId для обновления счетчиков топика
             );
+            
+            console.log(`✅ unreadCount decreased for: tenantId=${doc.tenantId}, userId=${doc.userId}, dialogId=${doc.dialogId}`);
+          } else {
+            console.warn(`⚠️ dialogId is missing for messageId=${doc.messageId}, cannot update unreadCount`);
           }
+        } else {
+          console.log(`⏭️ Skipping unreadCount update: oldStatus=${oldStatus}, newStatus=${doc.status}`);
         }
       } finally {
         // Финализируем контекст для пользователя
