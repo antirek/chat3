@@ -1,0 +1,40 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "./src/index.ts"
+  ],
+  "out": "./docs",
+  "plugin": [
+    "typedoc-plugin-markdown"
+  ],
+  "readme": "README.md",
+  "name": "@chat3/user-grpc-client-ts",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": false,
+  "includeVersion": true,
+  "gitRevision": "main",
+  "hidePageHeader": false,
+  "hideBreadcrumbs": false,
+  "disableSources": false,
+  "sort": [
+    "kind",
+    "alphabetical"
+  ],
+  "kindSortOrder": [
+    "Project",
+    "Module",
+    "Namespace",
+    "Enum",
+    "Class",
+    "Interface",
+    "TypeAlias",
+    "Function",
+    "Variable"
+  ],
+  "externalSymbolLinkMappings": {
+    "@grpc/grpc-js": {
+      "ServiceError": "https://grpc.github.io/grpc/node/grpc.html#~ServiceError"
+    }
+  }
+}
