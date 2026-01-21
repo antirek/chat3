@@ -18,6 +18,15 @@ service Chat3UserService {
   // Подписка на обновления (server streaming)
   // Первое сообщение - Update с eventType="connection.established" и connId в data
   rpc SubscribeUpdates(SubscribeUpdatesRequest) returns (stream Update);
+  
+  // Установка статуса сообщения
+  rpc SetMessageStatus(SetMessageStatusRequest) returns (SetMessageStatusResponse);
+  
+  // Установка или снятие реакции на сообщение
+  rpc SetMessageReaction(SetMessageReactionRequest) returns (SetMessageReactionResponse);
+  
+  // Отправка индикатора печати
+  rpc SendTypingIndicator(SendTypingIndicatorRequest) returns (SendTypingIndicatorResponse);
 }
 
 // Запрос получения диалогов пользователя
@@ -148,4 +157,43 @@ message Pagination {
   int32 limit = 2;
   int32 total = 3;
   int32 pages = 4;
+}
+
+// Запрос установки статуса сообщения
+message SetMessageStatusRequest {
+  string dialog_id = 1;
+  string message_id = 2;
+  string status = 3; // unread, delivered, read
+}
+
+// Ответ на установку статуса сообщения
+message SetMessageStatusResponse {
+  MessageStatus status = 1;
+  Message message = 2; // Обновленное сообщение с новым статусом
+}
+
+// Запрос установки/снятия реакции
+message SetMessageReactionRequest {
+  string dialog_id = 1;
+  string message_id = 2;
+  string reaction = 3; // Эмодзи или текст реакции (например, "👍", "❤️")
+  bool set = 4; // true для установки, false для снятия
+}
+
+// Ответ на установку/снятие реакции
+message SetMessageReactionResponse {
+  string message = 1; // Сообщение об успехе
+  google.protobuf.Struct reaction_set = 2; // Обновленный набор реакций
+}
+
+// Запрос отправки индикатора печати
+message SendTypingIndicatorRequest {
+  string dialog_id = 1;
+}
+
+// Ответ на отправку индикатора печати
+message SendTypingIndicatorResponse {
+  string message = 1;
+  string dialog_id = 2;
+  int32 expires_in_ms = 3; // Время истечения индикатора в миллисекундах
 }

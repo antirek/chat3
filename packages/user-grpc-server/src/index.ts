@@ -13,6 +13,9 @@ import { getUserDialogsHandler } from './handlers/getUserDialogs.js';
 import { getDialogMessagesHandler } from './handlers/getDialogMessages.js';
 import { sendMessageHandler } from './handlers/sendMessage.js';
 import { subscribeUpdatesHandler } from './handlers/subscribeUpdates.js';
+import { setMessageStatusHandler } from './handlers/setMessageStatus.js';
+import { setMessageReactionHandler } from './handlers/setMessageReaction.js';
+import { sendTypingIndicatorHandler } from './handlers/sendTypingIndicator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -94,7 +97,10 @@ server.addService(chat3UserService.service, {
   GetUserDialogs: wrapHandler(getUserDialogsHandler),
   GetDialogMessages: wrapHandler(getDialogMessagesHandler),
   SendMessage: wrapHandler(sendMessageHandler),
-  SubscribeUpdates: wrapStreamingHandler(subscribeUpdatesHandler)
+  SubscribeUpdates: wrapStreamingHandler(subscribeUpdatesHandler),
+  SetMessageStatus: wrapHandler(setMessageStatusHandler),
+  SetMessageReaction: wrapHandler(setMessageReactionHandler),
+  SendTypingIndicator: wrapHandler(sendTypingIndicatorHandler)
 });
 
 // Включение gRPC Server Reflection для поддержки инструментов (Kreya, Postman, grpcurl, grpcui)

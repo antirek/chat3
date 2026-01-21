@@ -67,6 +67,40 @@ export interface SendMessageOptions {
   idempotencyKey?: string;
 }
 
+/**
+ * Опции для установки статуса сообщения
+ */
+export interface SetMessageStatusOptions {
+  /** ID диалога */
+  dialogId: string;
+  /** ID сообщения */
+  messageId: string;
+  /** Статус сообщения: `unread`, `delivered` или `read` */
+  status: 'unread' | 'delivered' | 'read';
+}
+
+/**
+ * Опции для установки/снятия реакции
+ */
+export interface SetMessageReactionOptions {
+  /** ID диалога */
+  dialogId: string;
+  /** ID сообщения */
+  messageId: string;
+  /** Реакция (эмодзи или текст, например, "👍", "❤️") */
+  reaction: string;
+  /** Установить (true) или снять (false) реакцию. По умолчанию: true */
+  set?: boolean;
+}
+
+/**
+ * Опции для отправки индикатора печати
+ */
+export interface SendTypingIndicatorOptions {
+  /** ID диалога */
+  dialogId: string;
+}
+
 // Загрузка proto файла (используем общий proto пакет)
 // __dirname указывает на dist/, поэтому используем ../../../packages-shared
 const PROTO_PATH = path.join(__dirname, '../../../packages-shared/proto/src/chat3_user.proto');
@@ -306,6 +340,128 @@ export class Chat3GrpcClient {
     return () => {
       call.cancel();
     };
+  }
+
+  /**
+   * Установить статус сообщения
+   * 
+   * Выполняет запрос к gRPC серверу для установки статуса сообщения (unread, delivered, read).
+   * 
+   * @param options - Опции для установки статуса
+   * @returns Промис с ответом, содержащим обновленный статус и сообщение
+   * 
+   * @example
+   * ```typescript
+   * const response = await client.setMessageStatus({
+   *   dialogId: 'dlg_abc123',
+   *   messageId: 'msg_xyz789',
+   *   status: 'read'
+   * });
+   * console.log(response.status); // Обновленный статус
+   * console.log(response.message); // Обновленное сообщение
+   * ```
+   */
+  async setMessageStatus(options: SetMessageStatusOptions): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.client.SetMessageStatus(
+        {
+          dialog_id: options.dialogId,
+          message_id: options.messageId,
+          status: options.status
+        },
+        this.metadata,
+        (error: grpc.ServiceError | null, response: any) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(response);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Установить или снять реакцию на сообщение
+   * 
+   * Выполняет запрос к gRPC серверу для установки или снятия реакции на сообщение.
+   * 
+   * @param options - Опции для установки/снятия реакции
+   * @returns Промис с ответом, содержащим обновленный набор реакций
+   * 
+   * @example
+   * ```typescript
+   * // Установить реакцию
+   * const response1 = await client.setMessageReaction({
+   *   dialogId: 'dlg_abc123',
+   *   messageId: 'msg_xyz789',
+   *   reaction: '👍',
+   *   set: true
+   * });
+   * 
+   * // Снять реакцию
+   * const response2 = await client.setMessageReaction({
+   *   dialogId: 'dlg_abc123',
+   *   messageId: 'msg_xyz789',
+   *   reaction: '👍',
+   *   set: false
+   * });
+   * ```
+   */
+  async setMessageReaction(options: SetMessageReactionOptions): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.client.SetMessageReaction(
+        {
+          dialog_id: options.dialogId,
+          message_id: options.messageId,
+          reaction: options.reaction,
+          set: options.set !== undefined ? options.set : true
+        },
+        this.metadata,
+        (error: grpc.ServiceError | null, response: any) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(response);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Отправить индикатор печати
+   * 
+   * Выполняет запрос к gRPC серверу для отправки индикатора печати в диалог.
+   * Участники диалога получат update через SubscribeUpdates stream.
+   * 
+   * @param options - Опции для отправки индикатора печати
+   * @returns Промис с ответом, содержащим информацию о принятом сигнале
+   * 
+   * @example
+   * ```typescript
+   * const response = await client.sendTypingIndicator({
+   *   dialogId: 'dlg_abc123'
+   * });
+   * console.log(`Typing indicator expires in ${response.expiresInMs}ms`);
+   * ```
+   */
+  async sendTypingIndicator(options: SendTypingIndicatorOptions): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.client.SendTypingIndicator(
+        {
+          dialog_id: options.dialogId
+        },
+        this.metadata,
+        (error: grpc.ServiceError | null, response: any) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(response);
+          }
+        }
+      );
+    });
   }
 
   /**

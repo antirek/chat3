@@ -71,6 +71,18 @@ export function convertToGrpcMessage(message: any): any {
 }
 
 /**
+ * Преобразует статус сообщения из tenant-api в gRPC формат
+ */
+export function convertToGrpcMessageStatus(status: any): any {
+  return {
+    user_id: status.userId || '',
+    status: status.status || '',
+    read_at: status.readAt || 0,
+    created_at: status.createdAt || 0
+  };
+}
+
+/**
  * Преобразует update из RabbitMQ в gRPC формат
  */
 export function convertToGrpcUpdate(update: any): any {
