@@ -124,6 +124,14 @@
             <span class="nav-link-icon">🏢</span>
           </router-link>
 
+          <router-link
+            to="/chat"
+            class="nav-link"
+            title="Чат пользователя"
+          >
+            <span class="nav-link-icon">💬</span>
+          </router-link>
+
           <div style="border-top: 1px solid #e9ecef; margin: 10px 0;"></div>
 
           <router-link
@@ -170,7 +178,7 @@
       </div>
 
       <!-- Контент область -->
-      <div class="content">
+      <div class="content" :class="{ 'content-no-scroll': $route.name === 'chat' }">
         <router-view />
       </div>
     </div>
@@ -575,6 +583,11 @@ onMounted(async () => {
   background: white;
   overflow-y: auto;
   overflow-x: hidden;
+  min-height: 0;
+}
+
+.content-no-scroll {
+  overflow: hidden;
 }
 
 /* Скроллбар для sidebar */
