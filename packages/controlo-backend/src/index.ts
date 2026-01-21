@@ -8,6 +8,7 @@ import connectDB from '@chat3/utils/databaseUtils.js';
 import initRoutes from './routes/initRoutes.js';
 import eventsRoutes from './routes/eventsRoutes.js';
 import dbExplorerRoutes from './routes/dbExplorerRoutes.js';
+import activityRoutes from './routes/activityRoutes.js';
 import swaggerSpec from './config/swagger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -66,11 +67,12 @@ app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
 });
 
 // ============================================
-// 1. Control API Routes - /api/init, /api/dialogs, /api/messages, /api/db-explorer
+// 1. Control API Routes - /api/init, /api/dialogs, /api/messages, /api/db-explorer, /api/activity
 // ============================================
 app.use('/api/init', initRoutes);
 app.use('/api', eventsRoutes);
 app.use('/api/db-explorer', dbExplorerRoutes);
+app.use('/api/activity', activityRoutes);
 
 // ============================================
 // 2. Dynamic config.js endpoint - must be before static files

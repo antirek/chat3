@@ -43,6 +43,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/events-updates'),
   },
   {
+    path: '/activity',
+    name: 'activity',
+    component: () => import('@/pages/activity'),
+  },
+  {
     path: '/init',
     name: 'init',
     component: () => import('@/pages/init'),

@@ -30,6 +30,10 @@ const swaggerOptions = {
       {
         name: 'Events & Updates',
         description: 'Эндпоинты для получения событий и обновлений (внутреннее использование)'
+      },
+      {
+        name: 'Activity',
+        description: 'Эндпоинты для получения статистики активности системы (Events, Updates, API запросы)'
       }
     ]
   },

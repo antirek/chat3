@@ -150,6 +150,14 @@
             <span class="nav-link-icon">📊</span>
           </router-link>
 
+          <router-link
+            to="/activity"
+            class="nav-link"
+            title="Активность"
+          >
+            <span class="nav-link-icon">📈</span>
+          </router-link>
+
           <a
             class="nav-link"
             href="/health"
