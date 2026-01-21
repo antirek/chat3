@@ -15,29 +15,36 @@
     >
       <template #header>
         <tr>
-          <th>👤 User ID</th>
-          <th title="Общее количество диалогов">💬 Диалоги</th>
-          <th title="Диалоги с непрочитанными сообщениями">🔔 Непроч.</th>
+          <th class="user-id-column">👤 User ID</th>
+          <th title="Всего / Непрочитанные">💬 Диалоги</th>
+          <th title="Всего / Непрочитанные">💬 Сообщения</th>
           <th>⚡ Действия</th>
         </tr>
       </template>
       <template #row="{ item }">
-        <td>{{ item.userId }}</td>
-        <td style="text-align: center;">
-          <span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #495057;">
-            {{ item.dialogCount !== undefined ? item.dialogCount : '-' }}
-          </span>
-        </td>
+        <td class="user-id-column" :title="item.userId">{{ item.userId }}</td>
         <td style="text-align: center;">
           <span :style="{
-            background: item.unreadDialogsCount > 0 ? '#fff3cd' : '#f0f0f0',
+            background: (item.stats?.unreadDialogsCount || 0) > 0 ? '#fff3cd' : '#f0f0f0',
             padding: '4px 8px',
             borderRadius: '4px',
             fontSize: '12px',
             fontWeight: '600',
-            color: item.unreadDialogsCount > 0 ? '#856404' : '#495057'
+            color: (item.stats?.unreadDialogsCount || 0) > 0 ? '#856404' : '#495057'
           }">
-            {{ item.unreadDialogsCount !== undefined ? item.unreadDialogsCount : '-' }}
+            {{ formatCount(item.stats?.dialogCount, item.stats?.unreadDialogsCount) }}
+          </span>
+        </td>
+        <td style="text-align: center;">
+          <span :style="{
+            background: (item.stats?.totalUnreadCount || 0) > 0 ? '#fff3cd' : '#f0f0f0',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            fontWeight: '600',
+            color: (item.stats?.totalUnreadCount || 0) > 0 ? '#856404' : '#495057'
+          }">
+            {{ formatCount(item.stats?.totalMessagesCount, item.stats?.totalUnreadCount) }}
           </span>
         </td>
         <td class="actions-column" @click.stop>
@@ -54,8 +61,18 @@ import { BaseTable, BaseButton } from '@/shared/ui';
 interface User {
   userId: string;
   displayName?: string;
-  dialogCount?: number;
-  unreadDialogsCount?: number;
+  stats?: {
+    dialogCount?: number;
+    unreadDialogsCount?: number;
+    totalMessagesCount?: number;
+    totalUnreadCount?: number;
+  };
+}
+
+function formatCount(total: number | undefined, unread: number | undefined): string {
+  const totalValue = total !== undefined ? total : 0;
+  const unreadValue = unread !== undefined ? unread : 0;
+  return `${totalValue}/${unreadValue}`;
 }
 
 interface Props {
@@ -77,4 +94,11 @@ function handleRowClick(item: User) {
 </script>
 
 <style scoped>
+:deep(.user-id-column) {
+  width: 120px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 </style>
