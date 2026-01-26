@@ -192,6 +192,8 @@ export function useEventsUpdatesPage() {
     applyFilter: filtersModule.applyFilter,
     sortEvents: eventsModule.sortEvents,
     sortUpdates: updatesModule.sortUpdates,
+    getEventsSortIndicator: eventsModule.getSortIndicator,
+    getUpdatesSortIndicator: updatesModule.getSortIndicator,
     selectEvent,
     showEventUpdates,
     showEventJson: modalsModule.showEventJson,

@@ -32,6 +32,7 @@
           :selected-event-id="selectedEventId"
           :format-timestamp="formatTimestamp"
           :sort-events="sortEvents"
+          :get-sort-indicator="getEventsSortIndicator"
           :select-event="selectEvent"
           :show-event-updates="showEventUpdates"
           :show-event-json="showEventJson"
@@ -68,6 +69,7 @@
           :error="updatesError"
           :format-timestamp="formatTimestamp"
           :sort-updates="sortUpdates"
+          :get-sort-indicator="getUpdatesSortIndicator"
           :show-update-json="showUpdateJson"
         />
       </BasePanel>
@@ -138,9 +140,11 @@ const {
   setFilterExample,
   clearFilter,
   applyFilter,
-  sortEvents,
-  sortUpdates,
-  selectEvent,
+    sortEvents,
+    sortUpdates,
+    getEventsSortIndicator,
+    getUpdatesSortIndicator,
+    selectEvent,
   showEventUpdates,
   showEventJson,
   showUpdateJson,

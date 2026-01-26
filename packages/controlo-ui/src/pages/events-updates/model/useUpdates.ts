@@ -5,6 +5,7 @@
 import { ref, computed, Ref } from 'vue';
 import { getControlApiUrl, getTenantId } from './useUtils';
 import { useCredentialsStore } from '@/app/stores/credentials';
+import { useApiSort } from '@/shared/lib/composables/useApiSort';
 
 interface UseUpdatesDependencies {
   credentialsStore: ReturnType<typeof useCredentialsStore>;
@@ -20,6 +21,21 @@ interface UseUpdatesDependencies {
 
 export function useUpdates(deps: UseUpdatesDependencies) {
   const { credentialsStore, pagination, currentFilter, selectedEventId } = deps;
+
+  // Функция загрузки данных (нужна для callbacks)
+  let loadUpdatesFn: () => Promise<void> = async () => {};
+
+  // Сортировка для обновлений
+  const updatesSort = useApiSort({
+    initialSort: null,
+    onSortChange: () => {
+      // При изменении сортировки перезагружаем данные
+      pagination.currentPage.value = 1;
+      if (loadUpdatesFn) {
+        loadUpdatesFn();
+      }
+    },
+  });
 
   // State для обновлений
   const updates = ref<any[]>([]);
@@ -60,6 +76,11 @@ export function useUpdates(deps: UseUpdatesDependencies) {
         }
       }
 
+      // Добавить сортировку
+      if (updatesSort.currentSort.value) {
+        params.append('sort', updatesSort.currentSort.value);
+      }
+
       const url = getControlApiUrl(`/api/updates?${params.toString()}`);
       const response = await fetch(url);
 
@@ -84,10 +105,13 @@ export function useUpdates(deps: UseUpdatesDependencies) {
     }
   }
 
-  // Сортировка (заглушка)
+  // Сортировка
   function sortUpdates(field: string) {
-    console.log(`Нажато: ${field}`)
+    updatesSort.toggleSort(field);
   }
+
+  // Сохраняем ссылку на функцию для callbacks
+  loadUpdatesFn = loadUpdates;
 
   return {
     updates,
@@ -97,5 +121,6 @@ export function useUpdates(deps: UseUpdatesDependencies) {
     updatesPaginationInfo,
     loadUpdates,
     sortUpdates,
+    getSortIndicator: updatesSort.getSortIndicator,
   };
 }

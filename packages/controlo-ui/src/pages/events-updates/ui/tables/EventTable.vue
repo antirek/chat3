@@ -16,16 +16,16 @@
       <template #header>
         <tr>
           <th @click="sortEvents('eventId')" style="cursor: pointer;">
-            eventId <span class="sort-indicator">↕</span>
+            eventId <span class="sort-indicator">{{ getSortIndicator('eventId') }}</span>
           </th>
           <th @click="sortEvents('eventType')" style="cursor: pointer;">
-            eventType <span class="sort-indicator">↕</span>
+            eventType <span class="sort-indicator">{{ getSortIndicator('eventType') }}</span>
           </th>
           <th @click="sortEvents('actorId')" style="cursor: pointer;">
-            actorId <span class="sort-indicator">↕</span>
+            actorId <span class="sort-indicator">{{ getSortIndicator('actorId') }}</span>
           </th>
           <th @click="sortEvents('createdAt')" style="cursor: pointer;">
-            createdAt <span class="sort-indicator">↕</span>
+            createdAt <span class="sort-indicator">{{ getSortIndicator('createdAt') }}</span>
           </th>
           <th class="actions-column">Действия</th>
         </tr>
@@ -75,6 +75,7 @@ interface Props {
   selectedEventId: string | null;
   formatTimestamp: (ts?: string | number | null) => string;
   sortEvents: (field: string) => void;
+  getSortIndicator: (field: string) => string;
   selectEvent: (eventId: string) => void;
   showEventUpdates: (eventId: string) => void;
   showEventJson: (event: Event) => void;
@@ -96,12 +97,10 @@ function handleRowClick(event: Event, _index: number) {
   min-height: 0;
 }
 
-
-
 .sort-indicator {
   margin-left: 5px;
-  color: #6c757d;
   font-size: 10px;
+  color: #667eea;
 }
 
 .actions-column {

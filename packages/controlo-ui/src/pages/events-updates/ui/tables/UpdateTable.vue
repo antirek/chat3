@@ -12,19 +12,19 @@
       <template #header>
         <tr>
           <th @click="sortUpdates('userId')" style="cursor: pointer;">
-            userId <span class="sort-indicator">↕</span>
+            userId <span class="sort-indicator">{{ getSortIndicator('userId') }}</span>
           </th>
           <th @click="sortUpdates('entityId')" style="cursor: pointer;">
-            entityId <span class="sort-indicator">↕</span>
+            entityId <span class="sort-indicator">{{ getSortIndicator('entityId') }}</span>
           </th>
           <th @click="sortUpdates('eventType')" style="cursor: pointer;">
-            eventType <span class="sort-indicator">↕</span>
+            eventType <span class="sort-indicator">{{ getSortIndicator('eventType') }}</span>
           </th>
           <th @click="sortUpdates('createdAt')" style="cursor: pointer;">
-            createdAt <span class="sort-indicator">↕</span>
+            createdAt <span class="sort-indicator">{{ getSortIndicator('createdAt') }}</span>
           </th>
           <th @click="sortUpdates('published')" style="cursor: pointer;">
-            published <span class="sort-indicator">↕</span>
+            published <span class="sort-indicator">{{ getSortIndicator('published') }}</span>
           </th>
           <th class="actions-column">Действия</th>
         </tr>
@@ -69,6 +69,7 @@ interface Props {
   error: string | null;
   formatTimestamp: (ts?: string | number | null) => string;
   sortUpdates: (field: string) => void;
+  getSortIndicator: (field: string) => string;
   showUpdateJson: (updateId: string, update: Update) => void;
 }
 
@@ -84,12 +85,10 @@ defineProps<Props>();
   min-height: 0;
 }
 
-
-
 .sort-indicator {
   margin-left: 5px;
-  color: #6c757d;
   font-size: 10px;
+  color: #667eea;
 }
 
 .actions-column {

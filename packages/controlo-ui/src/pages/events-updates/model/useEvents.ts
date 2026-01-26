@@ -5,6 +5,7 @@
 import { ref, computed, Ref } from 'vue';
 import { getControlApiUrl, getTenantId } from './useUtils';
 import { useCredentialsStore } from '@/app/stores/credentials';
+import { useApiSort } from '@/shared/lib/composables/useApiSort';
 
 interface UseEventsDependencies {
   credentialsStore: ReturnType<typeof useCredentialsStore>;
@@ -19,6 +20,21 @@ interface UseEventsDependencies {
 
 export function useEvents(deps: UseEventsDependencies) {
   const { credentialsStore, pagination, currentFilter } = deps;
+
+  // Функция загрузки данных (нужна для callbacks)
+  let loadEventsFn: () => Promise<void> = async () => {};
+
+  // Сортировка для событий
+  const eventsSort = useApiSort({
+    initialSort: null,
+    onSortChange: () => {
+      // При изменении сортировки перезагружаем данные
+      pagination.currentPage.value = 1;
+      if (loadEventsFn) {
+        loadEventsFn();
+      }
+    },
+  });
 
   // State для событий
   const events = ref<any[]>([]);
@@ -55,6 +71,11 @@ export function useEvents(deps: UseEventsDependencies) {
         }
       }
 
+      // Добавить сортировку
+      if (eventsSort.currentSort.value) {
+        params.append('sort', eventsSort.currentSort.value);
+      }
+
       const url = getControlApiUrl(`/api/events?${params.toString()}`);
       const response = await fetch(url);
 
@@ -89,10 +110,13 @@ export function useEvents(deps: UseEventsDependencies) {
     selectEvent(eventId);
   }
 
-  // Сортировка (заглушка)
+  // Сортировка
   function sortEvents(field: string) {
-    console.log(`Нажато: ${field}`)
+    eventsSort.toggleSort(field);
   }
+
+  // Сохраняем ссылку на функцию для callbacks
+  loadEventsFn = loadEvents;
 
   return {
     events,
@@ -105,5 +129,6 @@ export function useEvents(deps: UseEventsDependencies) {
     selectEvent,
     showEventUpdates,
     sortEvents,
+    getSortIndicator: eventsSort.getSortIndicator,
   };
 }

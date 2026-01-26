@@ -55,7 +55,7 @@ export const eventsController = {
               ...event,
               updatesCount
             };
-          } catch (err) {
+          } catch (_err) {
             return {
               ...event,
               updatesCount: 0
@@ -207,7 +207,7 @@ export const eventsController = {
               ...event,
               updatesCount
             };
-          } catch (err) {
+          } catch (_err) {
             return {
               ...event,
               updatesCount: 0
@@ -320,9 +320,23 @@ export const eventsController = {
       // Get total count
       const total = await Event.countDocuments(filter);
 
+      // Формируем сортировку
+      let sortOptions: Record<string, 1 | -1> = { createdAt: -1 }; // По умолчанию
+      if (req.query.sort) {
+        const sortParam = String(req.query.sort);
+        // Формат: (field,direction)
+        const match = sortParam.match(/\(([^,]+),([^)]+)\)/);
+        if (match) {
+          const field = match[1].trim();
+          const direction = match[2].trim().toLowerCase();
+          sortOptions = {};
+          sortOptions[field] = direction === 'asc' ? 1 : -1;
+        }
+      }
+
       // Get events with pagination
       const events = await Event.find(filter)
-        .sort({ createdAt: -1 }) // Обратный хронологический порядок
+        .sort(sortOptions)
         .skip(skip)
         .limit(limit)
         .lean();
@@ -339,7 +353,7 @@ export const eventsController = {
               ...event,
               updatesCount
             };
-          } catch (err) {
+          } catch (_err) {
             return {
               ...event,
               updatesCount: 0
@@ -410,9 +424,23 @@ export const eventsController = {
       // Get total count
       const total = await Update.countDocuments(filter);
 
+      // Формируем сортировку
+      let sortOptions: Record<string, 1 | -1> = { createdAt: -1 }; // По умолчанию
+      if (req.query.sort) {
+        const sortParam = String(req.query.sort);
+        // Формат: (field,direction)
+        const match = sortParam.match(/\(([^,]+),([^)]+)\)/);
+        if (match) {
+          const field = match[1].trim();
+          const direction = match[2].trim().toLowerCase();
+          sortOptions = {};
+          sortOptions[field] = direction === 'asc' ? 1 : -1;
+        }
+      }
+
       // Get updates with pagination
       const updates = await Update.find(filter)
-        .sort({ createdAt: -1 }) // Обратный хронологический порядок
+        .sort(sortOptions)
         .skip(skip)
         .limit(limit)
         .lean();
