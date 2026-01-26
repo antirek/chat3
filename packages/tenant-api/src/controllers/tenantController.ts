@@ -33,14 +33,53 @@ export const tenantController = {
       const page = parseInt(String(req.query.page)) || 1;
       const limit = parseInt(String(req.query.limit)) || 10;
       const skip = (page - 1) * limit;
-      log(`Получены параметры: page=${page}, limit=${limit}`);
+      
+      // Логируем все query параметры для диагностики
+      log(`Все query параметры: ${JSON.stringify(req.query)}`);
+      log(`Получены параметры: page=${page}, limit=${limit}, sort=${req.query.sort || 'нет'}`);
 
-      log(`Поиск тенантов: skip=${skip}, limit=${limit}`);
+      // Формируем сортировку (как в userController)
+      let sortOptions: any = { createdAt: -1 }; // По умолчанию
+      if (req.query.sort) {
+        try {
+          const sortParam = String(req.query.sort);
+          log(`Получен параметр sort (raw): ${sortParam}`);
+          sortOptions = JSON.parse(sortParam);
+          log(`Сортировка распарсена: ${JSON.stringify(sortOptions)}`);
+          
+          // Проверяем, что все значения корректны (1 или -1)
+          for (const [field, order] of Object.entries(sortOptions)) {
+            const numOrder = Number(order);
+            if (numOrder !== 1 && numOrder !== -1) {
+              log(`⚠️ Некорректное значение сортировки для поля ${field}: ${order}, используем -1`);
+              sortOptions[field] = -1;
+            } else {
+              sortOptions[field] = numOrder; // Убеждаемся, что это число
+            }
+          }
+        } catch (e: any) {
+          log(`❌ Ошибка парсинга sort параметра: ${e.message}, используем сортировку по умолчанию`);
+        }
+      } else {
+        log(`Параметр sort не передан, используем сортировку по умолчанию`);
+      }
+      log(`✅ Итоговая сортировка: ${JSON.stringify(sortOptions)}`);
+
+      log(`Поиск тенантов: skip=${skip}, limit=${limit}, sortOptions=${JSON.stringify(sortOptions)}`);
       const tenants = await Tenant.find()
+        .sort(sortOptions)
         .skip(skip)
         .limit(limit)
         .select('-__v -_id');
       log(`Найдено тенантов: ${tenants.length}`);
+      // Логируем первые несколько tenantId для проверки сортировки
+      if (tenants.length > 0) {
+        const firstThree = tenants.slice(0, Math.min(3, tenants.length));
+        log(`Первые tenantId (для проверки сортировки): ${firstThree.map(t => `${t.tenantId}(${t.createdAt})`).join(', ')}`);
+        // Логируем все createdAt для проверки
+        const allCreatedAt = tenants.map(t => t.createdAt);
+        log(`Все createdAt значения (для проверки сортировки): ${allCreatedAt.join(', ')}`);
+      }
 
       const total = await Tenant.countDocuments();
       log(`Всего тенантов: ${total}`);
