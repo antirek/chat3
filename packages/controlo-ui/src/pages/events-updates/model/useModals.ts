@@ -6,6 +6,7 @@ import { ref, Ref } from 'vue';
 import { useModal } from '@/shared/lib/composables/useModal';
 import { getControlApiUrl, getTenantId } from './useUtils';
 import { useCredentialsStore } from '@/app/stores/credentials';
+import { copyJsonFromModal } from '@/shared/lib/utils/clipboard';
 
 interface UseModalsDependencies {
   credentialsStore: ReturnType<typeof useCredentialsStore>;
@@ -122,13 +123,8 @@ export function useModals(deps: UseModalsDependencies) {
   }
 
   // Копировать JSON
-  async function copyJson() {
-    try {
-      await navigator.clipboard.writeText(jsonModalContent.value);
-      alert('JSON скопирован в буфер обмена');
-    } catch (error) {
-      console.error('Error copying JSON:', error);
-    }
+  async function copyJson(button?: HTMLElement) {
+    copyJsonFromModal(jsonModalContent.value, button || null);
   }
 
   // Инициализация обработчика Esc

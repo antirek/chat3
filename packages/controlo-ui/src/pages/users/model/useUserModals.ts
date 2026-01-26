@@ -6,6 +6,7 @@ import { ref } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { useModal } from '@/shared/lib/composables/useModal';
+import { copyJsonFromModal } from '@/shared/lib/utils/clipboard';
 import type { Ref } from 'vue';
 
 export function useUserModals(
@@ -330,24 +331,9 @@ export function useUserModals(
     }
   }
 
-  async function copyJsonToClipboard() {
+  async function copyJsonToClipboard(button?: HTMLElement) {
     const jsonText = jsonViewerContent.value || currentJsonForCopy.value;
-
-    if (!jsonText) {
-      alert('Нет данных для копирования');
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(jsonText);
-      copyJsonButtonText.value = '✅ Скопировано!';
-      setTimeout(() => {
-        copyJsonButtonText.value = '📋 Копировать JSON';
-      }, 2000);
-    } catch (err) {
-      console.error('Failed to copy JSON:', err);
-      alert('Не удалось скопировать JSON');
-    }
+    copyJsonFromModal(jsonText, button || null);
   }
 
   // URL modal functions

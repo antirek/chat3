@@ -7,6 +7,8 @@ import { useModal } from '@/shared/lib/composables/useModal';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { escapeHtml } from '@/shared/lib/utils/string';
 import { getUrlParams } from '@/shared/lib/utils/url';
+import { copyUrlFromModal as copyUrlFromModalShared, copyJsonFromModal } from '@/shared/lib/utils/clipboard';
+import { buildModalContentWithCopyButtons } from '@/shared/lib/utils/modalContent';
 
 export function useUtils(
   urlModalUrl: Ref<string>,
@@ -51,53 +53,27 @@ export function useUtils(
     );
   }
 
-  function copyJsonToClipboardFromModal() {
-    const jsonText = currentModalJsonForCopy.value;
+  function copyJsonToClipboardFromModal(button?: any) {
+    copyJsonFromModal(currentModalJsonForCopy.value, button);
+  }
 
-    if (!jsonText) {
-      alert('Нет данных для копирования');
-      return;
-    }
-
-    navigator.clipboard.writeText(jsonText).then(
-      () => {
-        const button = document.querySelector('.modal-body .btn-primary');
-        if (button && 'style' in button && 'textContent' in button) {
-          const originalText = button.textContent;
-          button.textContent = '✅ Скопировано!';
-          (button as any).style.background = '#28a745';
-          setTimeout(() => {
-            button.textContent = originalText;
-            (button as any).style.background = '';
-          }, 2000);
-        }
-      },
-      (err) => {
-        console.error('Failed to copy JSON:', err);
-        alert('Не удалось скопировать JSON');
-      },
-    );
+  // Функция для копирования URL из модального окна (будет вызвана из v-html)
+  function copyUrlFromModal(button: any) {
+    copyUrlFromModalShared(button);
   }
 
   // Модальные утилиты
   function showModal(title: string, content: string, url: string | null = null, jsonContent: any = null) {
     modalTitle.value = title;
 
-    let modalContent = '';
-
-    if (url) {
-      modalContent += `<div class="info-url" style="margin-bottom: 15px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 12px; word-break: break-all; color: #495057;">${escapeHtml(url)}</div>`;
-    }
-
-    modalContent += content;
-
+    // Сохраняем JSON для копирования
     if (jsonContent) {
       const jsonStr = typeof jsonContent === 'string' ? jsonContent : JSON.stringify(jsonContent, null, 2);
       currentModalJsonForCopy.value = jsonStr;
-      modalContent += `<div class="form-actions" style="margin-top: 15px;">
-      <button type="button" class="btn-primary" onclick="copyJsonToClipboardFromModal()" style="margin-right: 10px;">📋 Копировать JSON</button>
-    </div>`;
     }
+
+    // Формируем контент с кнопками копирования
+    const modalContent = buildModalContentWithCopyButtons(content, url, jsonContent);
 
     modalBody.value = modalContent;
     modalUrl.value = url || '';
@@ -106,6 +82,12 @@ export function useUtils(
 
   function closeModal() {
     infoModal.close();
+  }
+
+  // Добавляем функции в window для вызова из v-html
+  if (typeof window !== 'undefined') {
+    (window as any).copyJsonToClipboardFromModal = copyJsonToClipboardFromModal;
+    (window as any).copyUrlFromModal = copyUrlFromModal;
   }
 
   // Функции для работы с API ключом

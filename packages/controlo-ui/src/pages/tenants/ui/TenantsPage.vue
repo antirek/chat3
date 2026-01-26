@@ -80,7 +80,7 @@
       :content="jsonViewerContent"
       :copy-button-text="copyJsonButtonText"
       @close="closeInfoModal"
-      @copy="copyJsonToClipboard"
+      @copy="(button) => copyJsonToClipboard(button)"
     />
 
     <TenantUrlModal

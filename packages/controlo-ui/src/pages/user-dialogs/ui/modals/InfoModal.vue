@@ -120,4 +120,49 @@ defineEmits<{ (e: 'close'): void }>();
 .info-content :deep(.btn-secondary:hover) {
   background: #5a6268;
 }
+
+.info-content :deep(.info-url-wrapper) {
+  position: relative;
+}
+
+.info-content :deep(.copy-url-btn) {
+  position: absolute;
+  top: 0;
+  right: 20px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background-color: #667eea;
+  transition: background-color 0.2s;
+}
+
+.info-content :deep(.copy-url-btn:hover) {
+  background: #5a6fd8;
+}
+
+.info-content :deep(.json-content-wrapper) {
+  position: relative;
+}
+
+.info-content :deep(.copy-json-btn) {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background-color: #667eea;
+  transition: background-color 0.2s;
+  z-index: 10;
+}
+
+.info-content :deep(.copy-json-btn:hover) {
+  background: #5a6fd8;
+}
 </style>

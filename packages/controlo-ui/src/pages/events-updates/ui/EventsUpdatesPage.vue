@@ -89,7 +89,7 @@
       :url="jsonModalUrl"
       :content="jsonModalContent"
       @close="closeJsonModal"
-      @copy="copyJson"
+      @copy="(button) => copyJson(button)"
     />
   </div>
 </template>

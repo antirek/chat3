@@ -28,6 +28,7 @@ function close() {
   border: 1px solid #e9ecef !important;
   border-radius: 4px !important;
   padding: 10px !important;
+  padding-right: 35px !important;
   font-family: 'Courier New', monospace !important;
   font-size: 12px !important;
   white-space: pre-wrap !important;
@@ -35,15 +36,61 @@ function close() {
   word-wrap: break-word !important;
 }
 
+.info-url-wrapper {
+  position: relative;
+}
+
 .info-url {
   margin-bottom: 15px;
   padding: 8px;
+  padding-right: 35px;
   background: #f8f9fa;
   border-radius: 4px;
   font-family: monospace;
   font-size: 12px;
   word-break: break-all;
   color: #495057;
+}
+
+.copy-url-btn {
+  position: absolute;
+  top: 0;
+  right: 20px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background-color: #667eea;
+  transition: background-color 0.2s;
+}
+
+.copy-url-btn:hover {
+  background: #5a6fd8;
+}
+
+.json-content-wrapper {
+  position: relative;
+}
+
+.copy-json-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background-color: #667eea;
+  transition: background-color 0.2s;
+  z-index: 10;
+}
+
+.copy-json-btn:hover {
+  background: #5a6fd8;
 }
 
 .url-info h4 {
