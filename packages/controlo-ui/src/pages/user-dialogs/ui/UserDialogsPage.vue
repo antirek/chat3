@@ -102,10 +102,13 @@
           :error="dialogsError"
           :selected-dialog-id="currentDialogId"
           :has-user="!!currentUserId"
+          :current-sort="currentSort"
+          :get-sort-indicator="getDialogSortIndicator"
           @select="selectDialog"
           @show-info="showDialogInfo"
           @show-events="showDialogEventsModal"
           @show-meta="showDialogMetaModal"
+          @toggle-sort="toggleSort"
         />
       </BasePanel>
 
@@ -235,6 +238,8 @@
             :loading="loadingMessages"
             :error="messagesError"
             :has-dialog="!!currentDialogId"
+            :current-sort="currentMessageSort"
+            :get-sort-indicator="getMessageSortIndicator"
             @show-info="showMessageInfo"
             @show-meta="showMessageMetaModal"
             @show-reactions="showReactionModal"
@@ -242,6 +247,7 @@
             @show-status-matrix="showStatusMatrixModal"
             @show-statuses="showStatusesModal"
             @show-set-status="showSetStatusModal"
+            @toggle-sort="toggleMessageSort"
           />
         </div>
 
@@ -588,6 +594,10 @@ const {
   // Dialogs Filter
   filterValue,
   selectedFilterExample,
+  // Dialogs Sort
+  currentSort,
+  toggleSort,
+  getDialogSortIndicator,
   // Messages
   loadingMessages,
   messagesError,
@@ -605,6 +615,10 @@ const {
   // Messages Filter
   messageFilterInput,
   selectedMessageFilterExample,
+  // Messages Sort
+  currentMessageSort,
+  toggleMessageSort,
+  getMessageSortIndicator,
   // Members
   loadingMembers,
   membersError,

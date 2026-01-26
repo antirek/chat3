@@ -6,8 +6,7 @@
 import { ref, computed, type Ref } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
-import { usePagination } from '@/shared/lib/composables/usePagination';
-import { useFilter } from '@/shared/lib/composables/useFilter';
+import { usePagination, useFilter, useApiSort } from '@/shared/lib/composables';
 
 export function useDialogs(
   currentUserId: Ref<string | null>,
@@ -39,6 +38,19 @@ export function useDialogs(
   // Фильтр для диалогов
   const dialogsFilter = useFilter({
     initialFilter: '',
+  });
+
+  // Сортировка для диалогов
+  const dialogsSort = useApiSort({
+    initialSort: null,
+    onSortChange: () => {
+      // При изменении сортировки перезагружаем данные
+      if (currentUserId.value) {
+        dialogsPagination.currentPage.value = 1;
+        dialogsPagination.currentPageInput.value = 1;
+        loadUserDialogs(currentUserId.value, 1);
+      }
+    },
   });
 
   // Computed
@@ -82,6 +94,10 @@ export function useDialogs(
 
       if (dialogsFilter.currentFilter.value) {
         url += `&filter=${encodeURIComponent(dialogsFilter.currentFilter.value)}`;
+      }
+
+      if (dialogsSort.currentSort.value) {
+        url += `&sort=${encodeURIComponent(dialogsSort.currentSort.value)}`;
       }
 
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
@@ -142,6 +158,7 @@ export function useDialogs(
 
   function clearFilter() {
     dialogsFilter.clearFilter();
+    dialogsSort.clearSort();
     if (currentUserId.value) {
       loadUserDialogs(currentUserId.value, 1);
     }
@@ -160,6 +177,14 @@ export function useDialogs(
     }
   }
 
+  function toggleSort(field: string) {
+    dialogsSort.toggleSort(field);
+  }
+
+  function getDialogSortIndicator(field: string) {
+    return dialogsSort.getSortIndicator(field);
+  }
+
   // Функции для модальных окон
   async function showCurrentUrl() {
     if (!currentUserId.value) {
@@ -175,6 +200,10 @@ export function useDialogs(
     
     if (dialogsFilter.currentFilter.value) {
       params.append('filter', dialogsFilter.currentFilter.value);
+    }
+    
+    if (dialogsSort.currentSort.value) {
+      params.append('sort', dialogsSort.currentSort.value);
     }
     
     const fullUrl = url + (params.toString() ? '?' + params.toString() : '');
@@ -224,12 +253,16 @@ export function useDialogs(
     visibleDialogPages,
     // Filter
     dialogsFilter,
+    // Sort
+    currentSort: dialogsSort.currentSort,
     // Functions
     loadUserDialogs,
     selectFilterExample,
     clearFilter,
     applyFilter,
     changeDialogPage,
+    toggleSort,
+    getDialogSortIndicator,
     // Modals
     showCurrentUrl,
     showDialogInfo,

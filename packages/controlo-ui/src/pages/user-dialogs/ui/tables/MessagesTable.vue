@@ -15,7 +15,12 @@
       <template #header>
         <tr>
           <th style="text-align: center;">Отправитель</th>
-          <th style="text-align: center;">Время</th>
+          <th @click="toggleSort('createdAt')" style="cursor: pointer; text-align: center;">
+            Время
+            <span class="sort-indicator" :class="{ active: currentSort && currentSort.includes('createdAt') }">
+              {{ getSortIndicator('createdAt') }}
+            </span>
+          </th>
           <th style="text-align: center;">Содержимое</th>
           <th style="text-align: center;">Статус</th>
           <th style="text-align: center;">Инфо</th>
@@ -72,10 +77,12 @@ interface Props {
   loading: boolean;
   error: string | null;
   hasDialog: boolean;
+  currentSort: string | null;
+  getSortIndicator: (field: string) => string;
 }
 
-defineProps<Props>();
-defineEmits<{
+const props = defineProps<Props>();
+const emit = defineEmits<{
   (e: 'show-info', messageId: string): void;
   (e: 'show-meta', messageId: string): void;
   (e: 'show-reactions', messageId: string): void;
@@ -83,7 +90,12 @@ defineEmits<{
   (e: 'show-status-matrix', messageId: string): void;
   (e: 'show-statuses', messageId: string): void;
   (e: 'show-set-status', messageId: string): void;
+  (e: 'toggle-sort', field: string): void;
 }>();
+
+function toggleSort(field: string) {
+  emit('toggle-sort', field);
+}
 
 const formatMessageTime = formatTimestamp;
 
@@ -142,6 +154,16 @@ function getStatusIcon(status: string | null): string {
 .actions-column {
   white-space: normal;
   min-width: 200px;
+}
+
+.sort-indicator {
+  margin-left: 5px;
+  font-size: 10px;
+  color: #667eea;
+}
+
+.sort-indicator.active {
+  font-weight: bold;
 }
 
 </style>

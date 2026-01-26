@@ -20,7 +20,12 @@
           <th>Dialog ID</th>
           <th style="text-align: center;">Непроч.</th>
           <th style="text-align: center;">Топики</th>
-          <th>Последний просмотр</th>
+          <th @click="toggleSort('lastSeenAt')" style="cursor: pointer;">
+            Последний просмотр
+            <span class="sort-indicator" :class="{ active: currentSort && currentSort.includes('lastSeenAt') }">
+              {{ getSortIndicator('lastSeenAt') }}
+            </span>
+          </th>
           <th>Действия</th>
         </tr>
       </template>
@@ -64,15 +69,22 @@ interface Props {
   error: string | null;
   selectedDialogId: string | null;
   hasUser: boolean;
+  currentSort: string | null;
+  getSortIndicator: (field: string) => string;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 const emit = defineEmits<{
   (e: 'select', dialogId: string): void;
   (e: 'show-info', dialogId: string): void;
   (e: 'show-events', dialogId: string): void;
   (e: 'show-meta', dialogId: string): void;
+  (e: 'toggle-sort', field: string): void;
 }>();
+
+function toggleSort(field: string) {
+  emit('toggle-sort', field);
+}
 
 function handleRowClick(item: Dialog) {
   emit('select', item.dialogId);
@@ -105,6 +117,16 @@ const formatLastSeen = formatTimestamp;
 
 .actions-column {
   white-space: normal;
+}
+
+.sort-indicator {
+  margin-left: 5px;
+  font-size: 10px;
+  color: #667eea;
+}
+
+.sort-indicator.active {
+  font-weight: bold;
 }
 
 </style>

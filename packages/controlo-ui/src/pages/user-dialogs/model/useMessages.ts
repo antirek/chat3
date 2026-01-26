@@ -6,8 +6,7 @@
 import { ref, computed, type Ref } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
-import { usePagination } from '@/shared/lib/composables/usePagination';
-import { useFilter } from '@/shared/lib/composables/useFilter';
+import { usePagination, useFilter, useApiSort } from '@/shared/lib/composables';
 
 export function useMessages(
   currentUserId: Ref<string | null>,
@@ -40,6 +39,19 @@ export function useMessages(
   // Фильтр для сообщений
   const messagesFilter = useFilter({
     initialFilter: '',
+  });
+
+  // Сортировка для сообщений
+  const messagesSort = useApiSort({
+    initialSort: null,
+    onSortChange: () => {
+      // При изменении сортировки перезагружаем данные
+      if (currentDialogId.value) {
+        messagesPagination.currentPage.value = 1;
+        messagesPagination.currentPageInput.value = 1;
+        loadDialogMessages(currentDialogId.value, 1);
+      }
+    },
   });
 
   // Computed
@@ -89,6 +101,10 @@ export function useMessages(
         url += `&filter=${encodeURIComponent(messagesFilter.currentFilter.value)}`;
       }
 
+      if (messagesSort.currentSort.value) {
+        url += `&sort=${encodeURIComponent(messagesSort.currentSort.value)}`;
+      }
+
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
       const fullUrl = `${baseUrl}${url}`;
 
@@ -134,6 +150,7 @@ export function useMessages(
 
   function clearMessageFilter() {
     messagesFilter.clearFilter();
+    messagesSort.clearSort();
     if (currentDialogId.value) {
       loadDialogMessages(currentDialogId.value, 1);
     }
@@ -150,6 +167,14 @@ export function useMessages(
     if (currentDialogId.value) {
       loadDialogMessages(currentDialogId.value, page);
     }
+  }
+
+  function toggleMessageSort(field: string) {
+    messagesSort.toggleSort(field);
+  }
+
+  function getMessageSortIndicator(field: string) {
+    return messagesSort.getSortIndicator(field);
   }
 
   // Утилиты для статусов сообщений
@@ -195,6 +220,10 @@ export function useMessages(
 
     if (messagesFilter.currentFilter.value) {
       url += `&filter=${encodeURIComponent(messagesFilter.currentFilter.value)}`;
+    }
+
+    if (messagesSort.currentSort.value) {
+      url += `&sort=${encodeURIComponent(messagesSort.currentSort.value)}`;
     }
 
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
@@ -248,12 +277,16 @@ export function useMessages(
     visibleMessagePages,
     // Filter
     messagesFilter,
+    // Sort
+    currentMessageSort: messagesSort.currentSort,
     // Functions
     loadDialogMessages,
     selectMessageFilterExample,
     clearMessageFilter,
     applyMessageFilter,
     changeMessagePage,
+    toggleMessageSort,
+    getMessageSortIndicator,
     // Utils
     getMessageStatus,
     getStatusIcon,

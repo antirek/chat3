@@ -5,7 +5,7 @@
 import { ref, computed } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
-import { usePagination } from '@/shared/lib/composables/usePagination';
+import { usePagination, useApiSort } from '@/shared/lib/composables';
 import { formatTimestamp } from '@/shared/lib/utils/date';
 
 export function useDialogs(getApiKey: () => string) {
@@ -19,7 +19,6 @@ export function useDialogs(getApiKey: () => string) {
   const dialogsError = ref<string | null>(null);
   const currentFilter = ref<string | null>(null);
   const currentAdditionalFilter = ref<string | null>(null);
-  const currentSort = ref<string>('');
   const filterValue = ref('');
   const sortValue = ref('');
   const selectedFilterExample = ref('');
@@ -28,13 +27,25 @@ export function useDialogs(getApiKey: () => string) {
   const applyButtonText = ref('Применить');
   const showDialogsPagination = ref(false);
 
+  // Сортировка для диалогов
+  const dialogsSort = useApiSort({
+    initialSort: '',
+    onSortChange: () => {
+      // При изменении сортировки перезагружаем данные
+      const filterVal = filterValue.value.trim();
+      dialogsPagination.currentPage.value = 1;
+      dialogsPagination.currentPageInput.value = 1;
+      loadDialogsWithFilter(filterVal || '', 1);
+    },
+  });
+
   // Пагинация для диалогов
   const dialogsPagination = usePagination({
     initialPage: 1,
     initialLimit: 20,
     onPageChange: (page, limit) => {
       const filterVal = filterValue.value.trim();
-      loadDialogsWithFilter(filterVal || '', page, currentSort.value, limit);
+      loadDialogsWithFilter(filterVal || '', page, dialogsSort.currentSort.value || null, limit);
     },
   });
 
@@ -61,7 +72,7 @@ export function useDialogs(getApiKey: () => string) {
 
       const currentLimit = limit || dialogsPagination.currentLimit.value;
       let url = `/api/dialogs?filter=${encodeURIComponent(filter)}&page=${page}&limit=${currentLimit}`;
-      const sortParam = sort || currentSort.value;
+      const sortParam = sort || dialogsSort.currentSort.value;
       if (sortParam) {
         url += `&sort=${encodeURIComponent(sortParam)}`;
       }
@@ -112,7 +123,7 @@ export function useDialogs(getApiKey: () => string) {
     const filterVal = filterValue.value.trim();
     const combinedFilter = filterVal || '';
 
-    await loadDialogsWithFilter(combinedFilter, page, currentSort.value);
+    await loadDialogsWithFilter(combinedFilter, page, dialogsSort.currentSort.value || null);
   }
 
   function updateFilterInput() {
@@ -138,7 +149,7 @@ export function useDialogs(getApiKey: () => string) {
     selectedSortExample.value = '';
     currentFilter.value = null;
     currentAdditionalFilter.value = null;
-    currentSort.value = '';
+    dialogsSort.clearSort();
     dialogsPagination.currentPage.value = 1;
     dialogsPagination.currentPageInput.value = 1;
     loadDialogsWithFilter('');
@@ -163,7 +174,11 @@ export function useDialogs(getApiKey: () => string) {
 
     try {
       currentAdditionalFilter.value = filterVal || null;
-      currentSort.value = sortVal || '';
+      if (sortVal) {
+        dialogsSort.setSort(sortVal.match(/\(([^,]+),([^)]+)\)/)?.[1] || 'createdAt', sortVal.includes('desc') ? 'desc' : 'asc');
+      } else {
+        dialogsSort.clearSort();
+      }
       dialogsPagination.currentPage.value = 1;
       dialogsPagination.currentPageInput.value = 1;
 
@@ -185,31 +200,11 @@ export function useDialogs(getApiKey: () => string) {
   }
 
   function toggleSort(field: string) {
-    let newSort: string | null = null;
-
-    if (!currentSort.value || !currentSort.value.includes(field)) {
-      newSort = `(${field},asc)`;
-    } else if (currentSort.value.includes('asc')) {
-      newSort = `(${field},desc)`;
-    } else {
-      newSort = null;
-    }
-
-    currentSort.value = newSort || '';
-    dialogsPagination.currentPage.value = 1;
-    dialogsPagination.currentPageInput.value = 1;
-    const filterVal = filterValue.value.trim();
-    loadDialogsWithFilter(filterVal || '', 1);
+    dialogsSort.toggleSort(field);
   }
 
   function getDialogSortIndicator(field: string) {
-    if (!currentSort.value || !currentSort.value.includes(field)) {
-      return '◄';
-    } else if (currentSort.value.includes('asc')) {
-      return '▲';
-    } else {
-      return '▼';
-    }
+    return dialogsSort.getSortIndicator(field);
   }
 
   function formatMembers(members: any[] | undefined) {
@@ -230,7 +225,7 @@ export function useDialogs(getApiKey: () => string) {
     dialogsError,
     currentFilter,
     currentAdditionalFilter,
-    currentSort,
+    currentSort: dialogsSort.currentSort,
     filterValue,
     sortValue,
     selectedFilterExample,

@@ -3,8 +3,7 @@
  * Отвечает за: загрузку сообщений, пагинацию, фильтры, сортировку
  */
 import { ref, computed } from 'vue';
-import { usePagination } from '@/shared/lib/composables/usePagination';
-import { useFilter } from '@/shared/lib/composables/useFilter';
+import { usePagination, useFilter, useApiSort } from '@/shared/lib/composables';
 import { formatTimestamp } from '@/shared/lib/utils/date';
 
 export function useMessages(
@@ -37,8 +36,18 @@ export function useMessages(
     // onFilterChange не нужен, так как загрузка происходит в applyMessageFilter
   });
 
-  // Сортировка (специфичная для messages - формат (field,asc)/(field,desc))
-  const currentSort = ref<string | null>(null);
+  // Сортировка для сообщений
+  const messagesSort = useApiSort({
+    initialSort: null,
+    onSortChange: () => {
+      // При изменении сортировки перезагружаем данные
+      pagination.currentPage.value = 1;
+      pagination.currentPageInput.value = 1;
+      if (loadMessagesFn) {
+        loadMessagesFn(1);
+      }
+    },
+  });
 
   // Computed для пагинации (видимые страницы)
   const visiblePages = computed(() => {
@@ -104,8 +113,8 @@ export function useMessages(
         params.append('filter', filter.currentFilter.value);
       }
 
-      if (currentSort.value) {
-        params.append('sort', currentSort.value);
+      if (messagesSort.currentSort.value) {
+        params.append('sort', messagesSort.currentSort.value);
       }
 
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
@@ -158,24 +167,11 @@ export function useMessages(
   }
 
   function getSortIndicator(field: string) {
-    if (!currentSort.value || !currentSort.value.includes(field)) {
-      return '◄';
-    } else if (currentSort.value.includes('asc')) {
-      return '▲';
-    } else {
-      return '▼';
-    }
+    return messagesSort.getSortIndicator(field);
   }
 
   function toggleSort(field: string) {
-    if (!currentSort.value || !currentSort.value.includes(field)) {
-      currentSort.value = `(${field},asc)`;
-    } else if (currentSort.value.includes('asc')) {
-      currentSort.value = `(${field},desc)`;
-    } else {
-      currentSort.value = null;
-    }
-    loadMessages(1);
+    messagesSort.toggleSort(field);
   }
 
   function selectMessageFilterExample() {
@@ -191,7 +187,7 @@ export function useMessages(
 
   function clearMessageFilter() {
     filter.clearFilter();
-    currentSort.value = null;
+    messagesSort.clearSort();
     loadMessages(1);
   }
 
@@ -255,7 +251,7 @@ export function useMessages(
     selectedFilterExample: filter.selectedFilterExample,
     currentFilter: filter.currentFilter,
     // Sort
-    currentSort,
+    currentSort: messagesSort.currentSort,
     // Functions
     loadDialogs,
     loadMessages,

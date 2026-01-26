@@ -5,7 +5,7 @@
 import { ref, computed } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
-import { usePagination } from '@/shared/lib/composables/usePagination';
+import { usePagination, useApiSort } from '@/shared/lib/composables';
 import { formatTimestamp } from '@/shared/lib/utils/date';
 
 export function useMessages(getApiKey: () => string) {
@@ -19,10 +19,22 @@ export function useMessages(getApiKey: () => string) {
   const messagesError = ref<string | null>(null);
   const currentDialogId = ref<string | null>(null);
   const currentMessageFilter = ref<string | null>(null);
-  const currentMessageSort = ref<string | null>(null);
   const messageFilterValue = ref('');
   const selectedMessageFilterExample = ref('');
   const showMessagesPagination = ref(false);
+
+  // Сортировка для сообщений
+  const messagesSort = useApiSort({
+    initialSort: null,
+    onSortChange: () => {
+      // При изменении сортировки перезагружаем данные
+      if (currentDialogId.value) {
+        messagesPagination.currentPage.value = 1;
+        messagesPagination.currentPageInput.value = 1;
+        loadDialogMessages(currentDialogId.value, 1);
+      }
+    },
+  });
 
   // Пагинация для сообщений
   const messagesPagination = usePagination({
@@ -58,8 +70,8 @@ export function useMessages(getApiKey: () => string) {
 
       const currentLimit = limit || messagesPagination.currentLimit.value;
       let url = `/api/dialogs/${dialogId}/messages?page=${page}&limit=${currentLimit}`;
-      if (currentMessageSort.value) {
-        url += `&sort=${encodeURIComponent(currentMessageSort.value)}`;
+      if (messagesSort.currentSort.value) {
+        url += `&sort=${encodeURIComponent(messagesSort.currentSort.value)}`;
       }
       if (currentMessageFilter.value) {
         url += `&filter=${encodeURIComponent(currentMessageFilter.value)}`;
@@ -124,7 +136,7 @@ export function useMessages(getApiKey: () => string) {
     messageFilterValue.value = '';
     selectedMessageFilterExample.value = '';
     currentMessageFilter.value = null;
-    currentMessageSort.value = null;
+    messagesSort.clearSort();
     messagesPagination.currentPage.value = 1;
     messagesPagination.currentPageInput.value = 1;
 
@@ -134,32 +146,11 @@ export function useMessages(getApiKey: () => string) {
   }
 
   function toggleMessageSort(field: string) {
-    let newSort: string | null = null;
-
-    if (!currentMessageSort.value || !currentMessageSort.value.includes(field)) {
-      newSort = `(${field},asc)`;
-    } else if (currentMessageSort.value.includes('asc')) {
-      newSort = `(${field},desc)`;
-    } else {
-      newSort = null;
-    }
-
-    currentMessageSort.value = newSort;
-    messagesPagination.currentPage.value = 1;
-    messagesPagination.currentPageInput.value = 1;
-    if (currentDialogId.value) {
-      loadDialogMessages(currentDialogId.value, 1);
-    }
+    messagesSort.toggleSort(field);
   }
 
   function getMessageSortIndicator(field: string) {
-    if (!currentMessageSort.value || !currentMessageSort.value.includes(field)) {
-      return '◄';
-    } else if (currentMessageSort.value.includes('asc')) {
-      return '▲';
-    } else {
-      return '▼';
-    }
+    return messagesSort.getSortIndicator(field);
   }
 
   return {
@@ -169,7 +160,7 @@ export function useMessages(getApiKey: () => string) {
     messagesError,
     currentDialogId,
     currentMessageFilter,
-    currentMessageSort,
+    currentMessageSort: messagesSort.currentSort,
     messageFilterValue,
     selectedMessageFilterExample,
     showMessagesPagination,
