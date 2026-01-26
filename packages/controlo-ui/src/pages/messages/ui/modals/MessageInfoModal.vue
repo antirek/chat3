@@ -51,25 +51,24 @@ function copyUrl(event: Event) {
 <style scoped>
 .info-url-wrapper {
   position: relative;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 
 .info-url {
-  padding: 8px;
-  padding-right: 35px;
   background: #f8f9fa;
+  border: 1px solid #e9ecef;
   border-radius: 4px;
-  font-family: monospace;
+  padding: 15px 15px;
+  padding-right: 35px;
+  font-family: 'Courier New', monospace;
   font-size: 12px;
   word-break: break-all;
-  color: #495057;
 }
 
 .copy-url-btn {
   position: absolute;
-  top: 0;
+  top: 8px;
   right: 20px;
-  background: transparent;
   border: none;
   font-size: 16px;
   cursor: pointer;
@@ -77,6 +76,7 @@ function copyUrl(event: Event) {
   border-radius: 4px;
   background-color: #667eea;
   transition: background-color 0.2s;
+  z-index: 10;
 }
 
 .copy-url-btn:hover {
@@ -93,12 +93,14 @@ function copyUrl(event: Event) {
   border-radius: 4px;
   padding: 15px;
   padding-right: 35px;
-  max-height: 500px;
-  overflow-y: auto;
   font-family: 'Courier New', monospace;
   font-size: 12px;
   white-space: pre-wrap;
   word-wrap: break-word;
+  overflow: auto;
+  max-height: 60vh;
+  margin: 0;
+  display: block;
 }
 
 .copy-json-btn {

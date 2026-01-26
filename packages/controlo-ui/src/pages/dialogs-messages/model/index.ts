@@ -78,9 +78,9 @@ export function useDialogsMessagesPage() {
   const infoModal = useModal();
   const urlModal = useModal();
   const modalTitle = ref('Информация');
-  const modalBody = ref('');
-  const modalUrl = ref('');
-  const currentModalJsonForCopy = ref<string | null>(null);
+  const modalUrl = ref<string | null>(null);
+  const modalJsonContent = ref<string | null>(null);
+  const modalOtherContent = ref<string | null>(null);
   
   // URL модалка
   const urlModalTitle = ref('');
@@ -91,10 +91,10 @@ export function useDialogsMessagesPage() {
   const utilsModule = useUtils(
     urlModalUrl,
     urlCopyButtonText,
-    currentModalJsonForCopy,
     modalTitle,
-    modalBody,
     modalUrl,
+    modalJsonContent,
+    modalOtherContent,
     infoModal,
     credentialsStore,
     apiKey,
@@ -259,8 +259,9 @@ export function useDialogsMessagesPage() {
     showInfoModalFlag: infoModal.isOpen,
     showCreateDialogModalFlag: createDialogModal.isOpen,
     modalTitle,
-    modalBody,
     modalUrl,
+    modalJsonContent,
+    modalOtherContent,
     // Создание диалога
     usersForDialog,
     loadingUsers,

@@ -7,8 +7,6 @@ import { ref } from 'vue';
 import { useModal } from '@/shared/lib/composables/useModal';
 import { formatTimestamp } from '@/shared/lib/utils/date';
 import { escapeHtml } from '@/shared/lib/utils/string';
-import { copyUrlFromModal as copyUrlFromModalShared, copyJsonFromModal } from '@/shared/lib/utils/clipboard';
-import { buildModalContentWithCopyButtons } from '@/shared/lib/utils/modalContent';
 
 // Утилиты форматирования
 export { formatTimestamp as formatLastSeen, formatTimestamp as formatMessageTime };
@@ -36,9 +34,9 @@ export function useModalUtils() {
   
   // Модальные окна - данные
   const modalTitle = ref('Информация');
-  const modalBody = ref('');
-  const modalUrl = ref('');
-  const currentModalJsonForCopy = ref<string | null>(null);
+  const modalUrl = ref<string | null>(null);
+  const modalJsonContent = ref<string | null>(null);
+  const modalOtherContent = ref<string | null>(null);
 
   // URL модалка
   const urlModal = useModal();
@@ -47,66 +45,71 @@ export function useModalUtils() {
   const urlCopyButtonText = ref('📋 Скопировать URL');
 
   function showModal(title: string, content: string, url: string | null = null, jsonContent: any = null) {
-    modalTitle.value = title;
+    modalTitle.value = title || 'Информация';
+    modalUrl.value = url || null;
 
-    // Сохраняем JSON для копирования
-    if (jsonContent) {
-      const jsonStr = typeof jsonContent === 'string' ? jsonContent : JSON.stringify(jsonContent, null, 2);
-      currentModalJsonForCopy.value = jsonStr;
+    // Инициализируем значения
+    modalJsonContent.value = null;
+    modalOtherContent.value = null;
+
+    // Если jsonContent передан напрямую, используем его
+    if (jsonContent !== null && jsonContent !== undefined) {
+      try {
+        const jsonStr = typeof jsonContent === 'string' ? jsonContent : JSON.stringify(jsonContent, null, 2);
+        modalJsonContent.value = jsonStr;
+        // Если есть другой контент помимо JSON, сохраняем его
+        if (content && typeof content === 'string' && content.trim() && !content.includes('json-content')) {
+          modalOtherContent.value = content;
+        }
+      } catch (error) {
+        console.error('Error stringifying JSON:', error);
+        modalJsonContent.value = null;
+        if (content && typeof content === 'string') {
+          modalOtherContent.value = content;
+        }
+      }
+    } else if (content && typeof content === 'string' && content.includes('json-content')) {
+      // Если JSON встроен в HTML content, извлекаем его
+      const jsonMatch = content.match(/<pre[^>]*class="json-content"[^>]*>([\s\S]*?)<\/pre>/);
+      if (jsonMatch && jsonMatch[1]) {
+        // Декодируем HTML entities
+        const jsonText = jsonMatch[1]
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&')
+          .replace(/&quot;/g, '"')
+          .trim();
+        if (jsonText) {
+          modalJsonContent.value = jsonText;
+        }
+        
+        // Удаляем JSON блок из content и сохраняем остальное как otherContent
+        const contentWithoutJson = content
+          .replace(/<div[^>]*class="json-content-wrapper"[^>]*>[\s\S]*?<\/div>/gi, '')
+          .replace(/<pre[^>]*class="json-content"[^>]*>[\s\S]*?<\/pre>/gi, '')
+          .trim();
+        if (contentWithoutJson) {
+          modalOtherContent.value = contentWithoutJson;
+        }
+      } else {
+        // JSON не найден в content, сохраняем весь content как otherContent
+        modalOtherContent.value = content;
+      }
+    } else if (content && typeof content === 'string' && content.trim()) {
+      // Нет JSON, только обычный контент
+      modalOtherContent.value = content;
     }
 
-    // Формируем контент с кнопками копирования
-    const modalContent = buildModalContentWithCopyButtons(content, url, jsonContent);
-
-    modalBody.value = modalContent;
-    modalUrl.value = url || '';
     infoModal.open();
   }
 
   function closeModal() {
     infoModal.close();
-    modalBody.value = '';
-    currentModalJsonForCopy.value = null;
+    modalUrl.value = null;
+    modalJsonContent.value = null;
+    modalOtherContent.value = null;
   }
 
-  // Функция для копирования JSON из модального окна (будет вызвана из v-html)
-  function copyJsonToClipboardFromModal(button?: any) {
-    copyJsonFromModal(currentModalJsonForCopy.value, button);
-  }
-
-  // Функция для копирования URL в буфер обмена
-  function copyToClipboardFromModal(text: string) {
-    navigator.clipboard.writeText(text).then(
-      () => {
-        const button = document.querySelector('.url-copy button') as any;
-        if (button) {
-          const originalText = button.textContent;
-          button.textContent = '✅ Скопировано!';
-          button.style.background = '#28a745';
-          setTimeout(() => {
-            button.textContent = originalText;
-            button.style.background = '#28a745';
-          }, 2000);
-        }
-      },
-      (err) => {
-        console.error('Failed to copy URL:', err);
-        alert('Не удалось скопировать URL');
-      }
-    );
-  }
-
-  // Функция для копирования URL из модального окна (будет вызвана из v-html)
-  function copyUrlFromModal(button: any) {
-    copyUrlFromModalShared(button);
-  }
-
-  // Добавляем функции в window для вызова из v-html
-  if (typeof window !== 'undefined') {
-    (window as any).copyJsonToClipboardFromModal = copyJsonToClipboardFromModal;
-    (window as any).copyToClipboardFromModal = copyToClipboardFromModal;
-    (window as any).copyUrlFromModal = copyUrlFromModal;
-  }
 
   function showUrlModal(title: string, url: string) {
     urlModalTitle.value = title;
@@ -136,13 +139,11 @@ export function useModalUtils() {
     // Info modal
     infoModal,
     modalTitle,
-    modalBody,
     modalUrl,
-    currentModalJsonForCopy,
+    modalJsonContent,
+    modalOtherContent,
     showModal,
     closeModal,
-    copyJsonToClipboardFromModal,
-    copyToClipboardFromModal,
     // URL modal
     urlModal,
     urlModalTitle,

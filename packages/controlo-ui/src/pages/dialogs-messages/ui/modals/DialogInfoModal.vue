@@ -1,62 +1,95 @@
 <template>
-  <BaseModal :is-open="isOpen" :title="title" max-width="600px" @close="close">
-    <div v-html="content"></div>
+  <BaseModal :is-open="isOpen" :title="title" max-width="1200px" @close="close">
+    <div class="info-content">
+      <div v-if="url" class="url-section">
+        <div class="url-section-wrapper">
+          <div class="url-display">{{ url }}</div>
+          <button type="button" class="copy-url-btn" :data-url="url" @click="copyUrl" title="Копировать URL">📋</button>
+        </div>
+      </div>
+      
+      <div v-if="jsonContent" class="json-section">
+        <div class="json-content-wrapper">
+          <pre class="json-content">{{ jsonContent }}</pre>
+          <button type="button" class="copy-json-btn" @click="copyJson" title="Копировать JSON">📋</button>
+        </div>
+      </div>
+
+      <div v-if="otherContent" class="other-content" v-html="otherContent"></div>
+    </div>
+    <template #footer>
+      <BaseButton variant="secondary" @click="close">Закрыть</BaseButton>
+    </template>
   </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { BaseModal } from '@/shared/ui';
+import { BaseModal, BaseButton } from '@/shared/ui';
+import { copyJsonFromModal, copyUrlFromModal } from '@/shared/lib/utils/clipboard';
 
 interface Props {
   isOpen: boolean;
   title: string;
-  content: string;
+  url?: string | null;
+  jsonContent?: string | null;
+  otherContent?: string | null;
 }
 
-defineProps<Props>();
-const emit = defineEmits<{ (e: 'close'): void }>();
+const props = defineProps<Props>();
 
-function close() {
-  emit('close');
+const emit = defineEmits<{
+  (e: 'close'): void;
+}>();
+
+function close() { emit('close'); }
+
+function copyJson(event?: Event) {
+  const button = event?.target as HTMLElement;
+  if (props.jsonContent) {
+    copyJsonFromModal(props.jsonContent, button);
+  }
+}
+
+function copyUrl(event: Event) {
+  const button = event?.target as HTMLElement;
+  copyUrlFromModal(button);
 }
 </script>
 
-<style>
-/* Стили для динамически вставляемого контента через v-html (не scoped) */
-.json-content {
-  background: #f8f9fa !important;
-  border: 1px solid #e9ecef !important;
-  border-radius: 4px !important;
-  padding: 10px !important;
-  padding-right: 35px !important;
-  font-family: 'Courier New', monospace !important;
-  font-size: 12px !important;
-  white-space: pre-wrap !important;
-  overflow-x: auto !important;
-  word-wrap: break-word !important;
+<style scoped>
+.info-content h4 {
+  margin: 15px 0 8px 0;
+  color: #495057;
+  font-size: 14px;
 }
 
-.info-url-wrapper {
+.info-content h4:first-child {
+  margin-top: 0;
+}
+
+.url-section {
+  margin-bottom: 20px;
+}
+
+.url-section-wrapper {
   position: relative;
 }
 
-.info-url {
-  margin-bottom: 15px;
-  padding: 8px;
-  padding-right: 35px;
+.url-display {
   background: #f8f9fa;
+  border: 1px solid #e9ecef;
   border-radius: 4px;
-  font-family: monospace;
+  padding: 15px 15px;
+  padding-right: 35px;
+  font-family: 'Courier New', monospace;
   font-size: 12px;
   word-break: break-all;
-  color: #495057;
 }
 
 .copy-url-btn {
   position: absolute;
-  top: 0;
+  top: 8px;
   right: 20px;
-  background: transparent;
   border: none;
   font-size: 16px;
   cursor: pointer;
@@ -64,14 +97,35 @@ function close() {
   border-radius: 4px;
   background-color: #667eea;
   transition: background-color 0.2s;
+  z-index: 10;
 }
 
 .copy-url-btn:hover {
   background: #5a6fd8;
 }
 
+.json-section {
+  margin-bottom: 20px;
+}
+
 .json-content-wrapper {
   position: relative;
+}
+
+.json-content {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 15px;
+  padding-right: 35px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: auto;
+  max-height: 60vh;
+  margin: 0;
+  display: block;
 }
 
 .copy-json-btn {
@@ -93,81 +147,7 @@ function close() {
   background: #5a6fd8;
 }
 
-.url-info h4 {
-  margin: 15px 0 8px 0;
-  color: #333;
-  font-size: 14px;
-}
-
-.url-display {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  padding: 10px;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  word-break: break-all;
-  margin-bottom: 10px;
-}
-
-.params-list {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  padding: 10px;
-  font-size: 12px;
-}
-
-.params-list div {
-  margin: 5px 0;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-}
-
-.url-copy input {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-}
-
-.form-actions {
-  display: flex !important;
-  gap: 8px !important;
-  margin-top: 12px !important;
-}
-
-.form-actions button {
-  padding: 6px 12px !important;
-  border: none !important;
-  border-radius: 4px !important;
-  cursor: pointer !important;
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  transition: all 0.2s !important;
-}
-
-.form-actions button:disabled {
-  opacity: 0.5 !important;
-  cursor: not-allowed !important;
-}
-
-.btn-primary {
-  background: #667eea !important;
-  color: white !important;
-  border: none !important;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #5a6fd8 !important;
-}
-
-.btn-secondary {
-  background: #6c757d !important;
-  color: white !important;
-  border: none !important;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #5a6268 !important;
+.other-content {
+  margin-top: 20px;
 }
 </style>

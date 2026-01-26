@@ -335,7 +335,9 @@
     <InfoModal
       :is-open="isInfoModalOpen"
       :title="modalTitle"
-      :body="modalBody"
+      :url="modalUrl"
+      :json-content="modalJsonContent"
+      :other-content="modalOtherContent"
       @close="closeModal"
     />
 
@@ -665,7 +667,9 @@ const {
   isMessageMetaModalOpen,
   isTopicMetaModalOpen,
   modalTitle,
-  modalBody,
+  modalUrl,
+  modalJsonContent,
+  modalOtherContent,
   // Functions
   loadUsers,
   selectUserFilterExample,

@@ -55,7 +55,7 @@ interface Props {
   loading: boolean;
   error: string | null;
   currentDialogId: string | null;
-  currentSort: string;
+  currentSort: string | null;
   getSortIndicator: (field: string) => string;
   formatTimestamp: (createdAt?: string | number) => string;
   formatMembers: (members?: Array<{ userId: string; isActive?: boolean }>) => string;

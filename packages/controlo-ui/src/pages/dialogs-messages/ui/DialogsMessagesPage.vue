@@ -111,7 +111,9 @@
     <DialogInfoModal
       :is-open="showInfoModalFlag"
       :title="modalTitle"
-      :content="modalBody"
+      :url="modalUrl"
+      :json-content="modalJsonContent"
+      :other-content="modalOtherContent"
       @close="closeModal"
     />
 
@@ -189,7 +191,9 @@ const {
   showInfoModalFlag,
   showCreateDialogModalFlag,
   modalTitle,
-  modalBody,
+  modalUrl,
+  modalJsonContent,
+  modalOtherContent,
   // Создание диалога
   usersForDialog,
   loadingUsers,

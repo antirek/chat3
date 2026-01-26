@@ -7,16 +7,13 @@ import { useModal } from '@/shared/lib/composables/useModal';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { escapeHtml } from '@/shared/lib/utils/string';
 import { getUrlParams } from '@/shared/lib/utils/url';
-import { copyUrlFromModal as copyUrlFromModalShared, copyJsonFromModal } from '@/shared/lib/utils/clipboard';
-import { buildModalContentWithCopyButtons } from '@/shared/lib/utils/modalContent';
-
 export function useUtils(
   urlModalUrl: Ref<string>,
   urlCopyButtonText: Ref<string>,
-  currentModalJsonForCopy: Ref<string | null>,
   modalTitle: Ref<string>,
-  modalBody: Ref<string>,
-  modalUrl: Ref<string>,
+  modalUrl: Ref<string | null>,
+  modalJsonContent: Ref<string | null>,
+  modalOtherContent: Ref<string | null>,
   infoModal: ReturnType<typeof useModal>,
   credentialsStore: ReturnType<typeof useCredentialsStore>,
   apiKey: Ref<string>,
@@ -53,41 +50,71 @@ export function useUtils(
     );
   }
 
-  function copyJsonToClipboardFromModal(button?: any) {
-    copyJsonFromModal(currentModalJsonForCopy.value, button);
-  }
-
-  // Функция для копирования URL из модального окна (будет вызвана из v-html)
-  function copyUrlFromModal(button: any) {
-    copyUrlFromModalShared(button);
-  }
-
   // Модальные утилиты
   function showModal(title: string, content: string, url: string | null = null, jsonContent: any = null) {
-    modalTitle.value = title;
+    modalTitle.value = title || 'Информация';
+    modalUrl.value = url || null;
 
-    // Сохраняем JSON для копирования
-    if (jsonContent) {
-      const jsonStr = typeof jsonContent === 'string' ? jsonContent : JSON.stringify(jsonContent, null, 2);
-      currentModalJsonForCopy.value = jsonStr;
+    // Инициализируем значения
+    modalJsonContent.value = null;
+    modalOtherContent.value = null;
+
+    // Если jsonContent передан напрямую, используем его
+    if (jsonContent !== null && jsonContent !== undefined) {
+      try {
+        const jsonStr = typeof jsonContent === 'string' ? jsonContent : JSON.stringify(jsonContent, null, 2);
+        modalJsonContent.value = jsonStr;
+        // Если есть другой контент помимо JSON, сохраняем его
+        if (content && typeof content === 'string' && content.trim() && !content.includes('json-content')) {
+          modalOtherContent.value = content;
+        }
+      } catch (error) {
+        console.error('Error stringifying JSON:', error);
+        modalJsonContent.value = null;
+        if (content && typeof content === 'string') {
+          modalOtherContent.value = content;
+        }
+      }
+    } else if (content && typeof content === 'string' && content.includes('json-content')) {
+      // Если JSON встроен в HTML content, извлекаем его
+      const jsonMatch = content.match(/<pre[^>]*class="json-content"[^>]*>([\s\S]*?)<\/pre>/);
+      if (jsonMatch && jsonMatch[1]) {
+        // Декодируем HTML entities
+        const jsonText = jsonMatch[1]
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&')
+          .replace(/&quot;/g, '"')
+          .trim();
+        if (jsonText) {
+          modalJsonContent.value = jsonText;
+        }
+        
+        // Удаляем JSON блок из content и сохраняем остальное как otherContent
+        const contentWithoutJson = content
+          .replace(/<div[^>]*class="json-content-wrapper"[^>]*>[\s\S]*?<\/div>/gi, '')
+          .replace(/<pre[^>]*class="json-content"[^>]*>[\s\S]*?<\/pre>/gi, '')
+          .trim();
+        if (contentWithoutJson) {
+          modalOtherContent.value = contentWithoutJson;
+        }
+      } else {
+        // JSON не найден в content, сохраняем весь content как otherContent
+        modalOtherContent.value = content;
+      }
+    } else if (content && typeof content === 'string' && content.trim()) {
+      // Нет JSON, только обычный контент
+      modalOtherContent.value = content;
     }
 
-    // Формируем контент с кнопками копирования
-    const modalContent = buildModalContentWithCopyButtons(content, url, jsonContent);
-
-    modalBody.value = modalContent;
-    modalUrl.value = url || '';
     infoModal.open();
   }
 
   function closeModal() {
     infoModal.close();
-  }
-
-  // Добавляем функции в window для вызова из v-html
-  if (typeof window !== 'undefined') {
-    (window as any).copyJsonToClipboardFromModal = copyJsonToClipboardFromModal;
-    (window as any).copyUrlFromModal = copyUrlFromModal;
+    modalUrl.value = null;
+    modalJsonContent.value = null;
+    modalOtherContent.value = null;
   }
 
   // Функции для работы с API ключом
@@ -111,7 +138,6 @@ export function useUtils(
     getUrlParams,
     copyToClipboard,
     copyUrlToClipboard,
-    copyJsonToClipboardFromModal,
     // Modal Utils
     showModal,
     closeModal,
