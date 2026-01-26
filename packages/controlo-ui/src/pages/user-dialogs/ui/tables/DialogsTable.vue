@@ -17,11 +17,11 @@
     >
       <template #header>
         <tr>
-          <th>👥 Dialog ID</th>
-          <th style="text-align: center;">🔔 Непроч.</th>
-          <th style="text-align: center;">📌 Топики</th>
-          <th>👁‍🗨 Последний просмотр</th>
-          <th>⚡ Действия</th>
+          <th>Dialog ID</th>
+          <th style="text-align: center;">Непроч.</th>
+          <th style="text-align: center;">Топики</th>
+          <th>Последний просмотр</th>
+          <th>Действия</th>
         </tr>
       </template>
       <template #row="{ item }">
