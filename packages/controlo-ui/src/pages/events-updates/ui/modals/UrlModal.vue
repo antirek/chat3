@@ -40,7 +40,7 @@ function copyUrl(event: Event) {
 }
 
 .modal-url {
-  padding: 10px;
+  padding: 15px;
   padding-right: 35px;
   background: #f8f9fa;
   border-radius: 4px;
@@ -51,7 +51,7 @@ function copyUrl(event: Event) {
 
 .copy-url-btn {
   position: absolute;
-  top: 0;
+  top: 8px;
   right: 20px;
   background: transparent;
   border: none;

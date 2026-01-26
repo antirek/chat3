@@ -2,7 +2,10 @@
   <BaseModal :is-open="isOpen" title="🔗 URL запроса к API" max-width="800px" @close="close">
     <div class="url-info">
       <h4>API Endpoint:</h4>
-      <div class="url-display">{{ generatedUrl }}</div>
+      <div class="endpoint-wrapper">
+        <div class="url-display">{{ generatedUrl }}</div>
+        <button type="button" class="copy-endpoint-btn" @click="copyEndpoint" title="Копировать Endpoint">📋</button>
+      </div>
       <h4>Параметры:</h4>
       <div class="params-list">
         <div><strong>page:</strong> {{ currentPage }}</div>
@@ -18,10 +21,10 @@
           readonly
           @click="($event.target as HTMLInputElement).select()"
         />
-        <BaseButton variant="success" @click="copy">{{ copyButtonText }}</BaseButton>
       </div>
     </div>
     <template #footer>
+      <BaseButton variant="primary" @click="copy">📋 Скопировать URL</BaseButton>
       <BaseButton variant="secondary" @click="close">Закрыть</BaseButton>
     </template>
   </BaseModal>
@@ -29,6 +32,7 @@
 
 <script setup lang="ts">
 import { BaseModal, BaseButton } from '@/shared/ui';
+import { copyToClipboardWithFeedback } from '@/shared/lib/utils/clipboard';
 
 interface Props {
   isOpen: boolean;
@@ -38,10 +42,12 @@ interface Props {
   currentLimit: number;
   currentFilter: string;
   currentSort: string | null;
-  copyButtonText: string;
+  copyButtonText?: string;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  copyButtonText: '📋 Скопировать URL',
+});
 const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'copy'): void;
@@ -53,6 +59,12 @@ function close() {
 
 function copy() {
   emit('copy');
+}
+
+function copyEndpoint(event: Event) {
+  const button = (event?.currentTarget || event?.target) as HTMLElement;
+  const { generatedUrl } = props;
+  copyToClipboardWithFeedback(generatedUrl, button, '✅', 'Не удалось скопировать Endpoint');
 }
 </script>
 
@@ -67,14 +79,38 @@ function copy() {
   margin-top: 0;
 }
 
+.endpoint-wrapper {
+  position: relative;
+  margin-bottom: 20px;
+}
+
 .url-display {
   background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  border: 1px solid #e9ecef;
   border-radius: 4px;
-  padding: 10px;
+  padding: 15px 15px;
+  padding-right: 35px;
   font-family: 'Courier New', monospace;
   font-size: 12px;
   word-break: break-all;
+}
+
+.copy-endpoint-btn {
+  position: absolute;
+  top: 8px;
+  right: 20px;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background-color: #667eea;
+  transition: background-color 0.2s;
+  z-index: 10;
+}
+
+.copy-endpoint-btn:hover {
+  background: #5a6fd8;
 }
 
 .params-list {
@@ -94,12 +130,11 @@ function copy() {
 .url-copy input {
   width: 100%;
   padding: 8px;
-  font-family: monospace;
+  font-family: 'Courier New', monospace;
   font-size: 12px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  border: 1px solid #e9ecef;
   border-radius: 4px;
-  margin-bottom: 8px;
+  background: #fff;
 }
 
 </style>
