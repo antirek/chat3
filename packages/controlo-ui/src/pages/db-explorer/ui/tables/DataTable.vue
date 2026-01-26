@@ -96,8 +96,8 @@
             <span v-else>{{ String(item[key]) }}</span>
           </td>
           <td class="action-buttons">
-            <BaseButton variant="primary" @click="$emit('view-item', getItemId(item, index))" title="Просмотр">👁️</BaseButton>
-            <BaseButton variant="secondary" @click="$emit('edit-item', getItemId(item, index))" title="Редактировать">✏️</BaseButton>
+            <BaseButton variant="primary" @click="$emit('view-item', item, index)" title="Просмотр">👁️</BaseButton>
+            <BaseButton variant="secondary" @click="$emit('edit-item', item, index)" title="Редактировать">✏️</BaseButton>
             <BaseButton variant="danger" @click="$emit('delete-item', getItemId(item, index))" title="Удалить">🗑️</BaseButton>
           </td>
         </template>
@@ -127,8 +127,8 @@ interface Props {
 interface Emits {
   (e: 'refresh'): void;
   (e: 'show-data-modal', data: any): void;
-  (e: 'view-item', id: string): void;
-  (e: 'edit-item', id: string): void;
+  (e: 'view-item', item: any, index: number): void;
+  (e: 'edit-item', item: any, index: number): void;
   (e: 'delete-item', id: string): void;
   (e: 'toggle-sort', field: string): void;
 }

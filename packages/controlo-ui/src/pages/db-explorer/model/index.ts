@@ -76,6 +76,7 @@ export function useDbExplorerPage() {
   const itemModalsModule = useItemModals({
     currentModel,
     loadModelData: dataModuleFinal.loadModelData,
+    getItemId: dataModuleFinal.getItemId,
   });
 
   // Создаем useDataModal

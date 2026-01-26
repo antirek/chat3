@@ -9,10 +9,11 @@ import { getControlApiUrl } from './useUtils';
 interface UseItemModalsDependencies {
   currentModel: Ref<string | null>;
   loadModelData: () => Promise<void>;
+  getItemId: (item: any, index: number) => string;
 }
 
 export function useItemModals(deps: UseItemModalsDependencies) {
-  const { currentModel, loadModelData } = deps;
+  const { currentModel, loadModelData, getItemId } = deps;
 
   // State для модального окна записи
   const itemModal = useModal();
@@ -22,14 +23,13 @@ export function useItemModals(deps: UseItemModalsDependencies) {
   const itemModalJsonData = ref('');
   const itemModalItemId = ref<string | null>(null);
 
-  async function viewItem(id: string) {
+  async function viewItem(item: any, _index: number) {
     try {
-      const response = await fetch(getControlApiUrl(`/api/db-explorer/models/${currentModel.value}/${id}`));
-      if (!response.ok) throw new Error('Failed to load item');
-      const result = await response.json();
+      // Делаем глубокую копию объекта, чтобы избежать проблем с реактивностью Vue
+      const itemCopy = JSON.parse(JSON.stringify(item));
       
       itemModalTitle.value = `Просмотр: ${currentModel.value}`;
-      itemModalContent.value = JSON.stringify(result.data, null, 2);
+      itemModalContent.value = JSON.stringify(itemCopy, null, 2);
       itemModalMode.value = 'view';
       itemModal.open();
     } catch (error: any) {
@@ -37,16 +37,16 @@ export function useItemModals(deps: UseItemModalsDependencies) {
     }
   }
 
-  async function editItem(id: string) {
+  async function editItem(item: any, index: number) {
     try {
-      const response = await fetch(getControlApiUrl(`/api/db-explorer/models/${currentModel.value}/${id}`));
-      if (!response.ok) throw new Error('Failed to load item');
-      const result = await response.json();
+      // Делаем глубокую копию объекта, чтобы избежать проблем с реактивностью Vue
+      const itemCopy = JSON.parse(JSON.stringify(item));
+      const itemId = getItemId(item, index);
       
       itemModalTitle.value = `Редактирование: ${currentModel.value}`;
-      itemModalJsonData.value = JSON.stringify(result.data, null, 2);
+      itemModalJsonData.value = JSON.stringify(itemCopy, null, 2);
       itemModalMode.value = 'edit';
-      itemModalItemId.value = id;
+      itemModalItemId.value = itemId;
       itemModal.open();
     } catch (error: any) {
       alert('Ошибка: ' + error.message);
