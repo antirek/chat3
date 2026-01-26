@@ -2,8 +2,9 @@
  * Модуль работы с данными модели
  * Отвечает за: загрузку данных модели, форматирование значений, определение колонок таблицы
  */
-import { ref, computed, Ref } from 'vue';
+import { ref, computed, Ref, watch } from 'vue';
 import { getControlApiUrl } from './useUtils';
+import { useSort } from '@/shared/lib/composables/useSort';
 
 interface UseDataDependencies {
   currentModel: Ref<string | null>;
@@ -22,6 +23,21 @@ export function useData(deps: UseDataDependencies) {
   const loadingData = ref(false);
   const dataError = ref<string | null>(null);
   const originalData = ref<any[]>([]);
+
+  // Функция загрузки данных (нужна для callbacks)
+  let loadModelDataFn: () => Promise<void>;
+
+  // Сортировка (без начального поля, чтобы не сортировать по умолчанию)
+  const sort = useSort({
+    initialField: '',
+    initialOrder: -1,
+    onSortChange: () => {
+      if (loadModelDataFn) {
+        pagination.setPage(1);
+        loadModelDataFn();
+      }
+    },
+  });
 
   // Computed
   const filteredData = computed(() => {
@@ -69,6 +85,12 @@ export function useData(deps: UseDataDependencies) {
         url.searchParams.set('filter', JSON.stringify(apiFilter));
       }
 
+      // Добавляем сортировку (backend ожидает sort и sortDirection)
+      if (sort.currentSort.value.field && sort.currentSort.value.field.trim() !== '') {
+        url.searchParams.set('sort', sort.currentSort.value.field);
+        url.searchParams.set('sortDirection', sort.currentSort.value.order === 1 ? 'asc' : 'desc');
+      }
+
       const response = await fetch(url.toString());
       if (!response.ok) {
         const error = await response.json();
@@ -89,6 +111,29 @@ export function useData(deps: UseDataDependencies) {
     } finally {
       loadingData.value = false;
     }
+  }
+
+  // Сохраняем ссылку на функцию для callbacks
+  loadModelDataFn = loadModelData;
+
+  // Сбрасываем сортировку при смене модели
+  watch(currentModel, () => {
+    // Сбрасываем сортировку, устанавливая поле в пустую строку
+    if (sort.currentSort.value.field) {
+      sort.setSort('', -1);
+    }
+  });
+
+  // Функция для переключения сортировки
+  function toggleSort(field: string) {
+    sort.toggleSort(field);
+  }
+
+  // Функция для получения индикатора сортировки
+  function getSortIndicator(field: string): string {
+    const indicator = sort.getSortIndicator(field);
+    // Если индикатор пустой, возвращаем ◄ для неактивного поля (как в useApiSort)
+    return indicator || '◄';
   }
 
   function formatDateValue(value: any): string {
@@ -168,5 +213,7 @@ export function useData(deps: UseDataDependencies) {
     loadModelData,
     formatDateValue,
     getItemId,
+    toggleSort,
+    getSortIndicator,
   };
 }

@@ -29,6 +29,7 @@
           :date-fields="dateFields"
           :format-date-value="formatDateValue"
           :get-item-id="getItemId"
+          :get-sort-indicator="getSortIndicator"
           :apply-filter="applyFilter"
           :handle-date-filter-change="handleDateFilterChange"
           @refresh="refreshModelData"
@@ -36,6 +37,7 @@
           @view-item="viewItem"
           @edit-item="editItem"
           @delete-item="deleteItem"
+          @toggle-sort="toggleSort"
         />
         <DataPagination
           :current-model="currentModel"
@@ -147,6 +149,8 @@ const {
   refreshModelData,
   formatDateValue,
   getItemId,
+  toggleSort,
+  getSortIndicator,
   applyFilter,
   handleDateFilterChange,
   goToFirstPage,

@@ -157,6 +157,8 @@ export function useDbExplorerPage() {
     refreshModelData: modelsModule.refreshModelData,
     formatDateValue: dataModuleFinal.formatDateValue,
     getItemId: dataModuleFinal.getItemId,
+    toggleSort: dataModuleFinal.toggleSort,
+    getSortIndicator: dataModuleFinal.getSortIndicator,
     applyFilter: filtersModuleFinalUpdated.applyFilter,
     handleDateFilterChange: filtersModuleFinalUpdated.handleDateFilterChange,
     goToFirstPage: pagination.goToFirstPage,

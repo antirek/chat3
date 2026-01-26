@@ -23,7 +23,15 @@
       </template>
       <template #header>
         <tr>
-          <th v-for="key in tableKeys" :key="key">{{ key }}</th>
+          <th 
+            v-for="key in tableKeys" 
+            :key="key"
+            class="sortable-header"
+            @click="handleSortClick(key)"
+            :title="`Кликните для сортировки по ${key}`"
+          >
+            {{ key }}<span class="sort-indicator">{{ props.getSortIndicator(key) }}</span>
+          </th>
           <th>Действия</th>
         </tr>
         <tr v-if="filteredData.length > 0" class="filter-row">
@@ -111,6 +119,7 @@ interface Props {
   dateFields: string[];
   formatDateValue: (value: any) => string;
   getItemId: (item: any, index: number) => string;
+  getSortIndicator: (field: string) => string;
   applyFilter: (fieldName: string, filterValue: string) => void;
   handleDateFilterChange: (fieldName: string, filterType: string) => void;
 }
@@ -121,6 +130,7 @@ interface Emits {
   (e: 'view-item', id: string): void;
   (e: 'edit-item', id: string): void;
   (e: 'delete-item', id: string): void;
+  (e: 'toggle-sort', field: string): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -130,6 +140,10 @@ const emit = defineEmits<Emits>();
 
 function handleFilter(key: string, value: string) {
   props.applyFilter(key, value);
+}
+
+function handleSortClick(field: string) {
+  emit('toggle-sort', field);
 }
 </script>
 
@@ -234,6 +248,27 @@ function handleFilter(key: string, value: string) {
   flex-direction: column;
   align-items: center;
   gap: 15px;
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 20px;
+}
+
+.sortable-header:hover {
+  background-color: #f0f0f0;
+}
+
+.sort-indicator {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #667eea;
+  font-size: 12px;
+  font-weight: bold;
 }
 
 </style>
