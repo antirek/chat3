@@ -38,8 +38,10 @@ export function useUsers(
   });
 
   const sort = useSort({
-    initialField: 'createdAt',
+    initialField: '', // По умолчанию нет активной сортировки
     initialOrder: -1,
+    allowReset: true, // Включаем сброс при третьем клике
+    showIdleIndicator: true, // Показываем ◄ для неактивных полей
     onSortChange: () => {
       if (loadUsersFn) {
         loadUsersFn(pagination.currentPage.value, pagination.currentLimit.value);
@@ -78,9 +80,12 @@ export function useUsers(
         params.append('filter', filter.currentFilter.value);
       }
 
-      const sortObj: Record<string, number> = {};
-      sortObj[sort.currentSort.value.field] = sort.currentSort.value.order;
-      params.append('sort', JSON.stringify(sortObj));
+      // Добавляем сортировку только если поле не пустое
+      if (sort.currentSort.value.field && sort.currentSort.value.field.trim() !== '') {
+        const sortObj: Record<string, number> = {};
+        sortObj[sort.currentSort.value.field] = sort.currentSort.value.order;
+        params.append('sort', JSON.stringify(sortObj));
+      }
 
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
       const url = `${baseUrl}/api/users?${params.toString()}`;
@@ -149,6 +154,14 @@ export function useUsers(
     loadUsers(1, pagination.currentLimit.value);
   }
 
+  function getSortIndicator(field: string) {
+    return sort.getSortIndicator(field);
+  }
+
+  function toggleSort(field: string) {
+    sort.toggleSort(field);
+  }
+
   return {
     // State
     users,
@@ -174,6 +187,8 @@ export function useUsers(
     // Functions
     loadUsers,
     formatTimestamp,
+    getSortIndicator,
+    toggleSort,
     selectUserFilterExample,
     clearUserFilter,
     applyUserFilter,

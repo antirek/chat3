@@ -9,6 +9,8 @@ export interface UseSortOptions {
   initialField?: string;
   initialOrder?: 1 | -1;
   onSortChange?: (sort: SortState) => void;
+  allowReset?: boolean; // Если true, при третьем клике сбрасывает сортировку
+  showIdleIndicator?: boolean; // Если true, показывает ◄ для неактивных полей
 }
 
 export function useSort(options: UseSortOptions = {}) {
@@ -16,6 +18,8 @@ export function useSort(options: UseSortOptions = {}) {
     initialField = 'createdAt',
     initialOrder = -1,
     onSortChange,
+    allowReset = false,
+    showIdleIndicator = false,
   } = options;
 
   const currentSort = ref<SortState>({
@@ -24,11 +28,24 @@ export function useSort(options: UseSortOptions = {}) {
   });
 
   function toggleSort(field: string) {
-    if (currentSort.value.field === field) {
-      currentSort.value.order = currentSort.value.order === 1 ? -1 : 1;
+    if (allowReset && currentSort.value.field === field) {
+      // Логика сброса: при третьем клике сбрасываем сортировку
+      if (currentSort.value.order === -1) {
+        // Если порядок убывающий, меняем на возрастающий
+        currentSort.value.order = 1;
+      } else {
+        // Если порядок возрастающий, сбрасываем сортировку
+        currentSort.value.field = '';
+        currentSort.value.order = -1;
+      }
     } else {
-      currentSort.value.field = field;
-      currentSort.value.order = -1;
+      // Стандартная логика
+      if (currentSort.value.field === field) {
+        currentSort.value.order = currentSort.value.order === 1 ? -1 : 1;
+      } else {
+        currentSort.value.field = field;
+        currentSort.value.order = -1;
+      }
     }
     if (onSortChange) {
       onSortChange(currentSort.value);
@@ -39,7 +56,8 @@ export function useSort(options: UseSortOptions = {}) {
     if (currentSort.value.field === field) {
       return currentSort.value.order === 1 ? ' ▲' : ' ▼';
     }
-    return '';
+    // Если включен показ индикатора для неактивных полей
+    return showIdleIndicator ? '◄' : '';
   }
 
   function setSort(field: string, order: 1 | -1) {

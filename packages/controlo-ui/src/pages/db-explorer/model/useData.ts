@@ -31,6 +31,8 @@ export function useData(deps: UseDataDependencies) {
   const sort = useSort({
     initialField: '',
     initialOrder: -1,
+    allowReset: true, // Включаем сброс при третьем клике
+    showIdleIndicator: true, // Показываем ◄ для неактивных полей
     onSortChange: () => {
       if (loadModelDataFn) {
         pagination.setPage(1);
@@ -131,9 +133,7 @@ export function useData(deps: UseDataDependencies) {
 
   // Функция для получения индикатора сортировки
   function getSortIndicator(field: string): string {
-    const indicator = sort.getSortIndicator(field);
-    // Если индикатор пустой, возвращаем ◄ для неактивного поля (как в useApiSort)
-    return indicator || '◄';
+    return sort.getSortIndicator(field);
   }
 
   function formatDateValue(value: any): string {
