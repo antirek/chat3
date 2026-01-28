@@ -224,6 +224,19 @@ npm run generate-key
 #### GET /api/dialogs/:id
 Получить диалог по ID
 
+**Ответ включает:**
+- Основные данные диалога (dialogId, tenantId, name, createdAt и т.д.)
+- `meta` - мета-теги диалога
+- `memberCount` - количество участников диалога
+- `stats` - статистика диалога:
+  - `topicCount` - количество топиков
+  - `memberCount` - количество участников
+  - `messageCount` - количество сообщений
+
+**Примечания:**
+- Не возвращает массив `members` - для получения участников используйте `GET /api/dialogs/:dialogId/members`
+- Статистика берется из `DialogStats` или пересчитывается при отсутствии
+
 #### POST /api/dialogs
 Создать диалог
 
@@ -278,6 +291,8 @@ npm run generate-key
 - `(type,eq,internal.text)` - текстовые сообщения
 - `(senderId,eq,carl)` - сообщения от carl
 - `(meta.channelType,eq,whatsapp)` - WhatsApp сообщения
+- `(topicId,eq,topic_abc123...)` - сообщения конкретного топика
+- `(topicId,eq,null)` - сообщения без топика
 
 #### POST /api/dialogs/:dialogId/messages
 Создать сообщение
@@ -287,9 +302,15 @@ npm run generate-key
 {
   "senderId": "carl",
   "content": "Hello!",
-  "type": "internal.text"
+  "type": "internal.text",
+  "topicId": "topic_abc123..."  // Опционально: ID топика, если сообщение в топике
 }
 ```
+
+**Примечания:**
+- `topicId` опционально - если не указан, сообщение создается без топика
+- Если указан `topicId`, сообщение привязывается к топику
+- В ответе сообщение содержит поле `topic` с информацией о топике (если привязано)
 
 #### GET /api/messages
 Получить список всех сообщений
@@ -384,6 +405,114 @@ npm run generate-key
 
 ---
 
+### Topics (Топики)
+
+Топики позволяют организовывать сообщения внутри диалога по темам. Каждое сообщение может быть привязано к топику через поле `topicId`.
+
+#### GET /api/dialogs/:dialogId/topics
+Получить список топиков диалога
+
+**Query параметры:**
+- `page`, `limit` - пагинация
+- `filter` - фильтр
+- `sort` - сортировка
+
+**Ответ:**
+```json
+{
+  "data": [
+    {
+      "topicId": "topic_abc123...",
+      "dialogId": "dlg_...",
+      "createdAt": 1234567890,
+      "meta": {
+        "name": "Важная тема",
+        "color": "#FF5733"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 10
+  }
+}
+```
+
+#### GET /api/users/:userId/dialogs/:dialogId/topics
+Получить топики диалога в контексте пользователя (с количеством непрочитанных сообщений)
+
+**Query параметры:**
+- `page`, `limit` - пагинация
+- `filter` - фильтр
+- `sort` - сортировка
+
+**Ответ включает `unreadCount` для каждого топика:**
+```json
+{
+  "data": [
+    {
+      "topicId": "topic_abc123...",
+      "dialogId": "dlg_...",
+      "createdAt": 1234567890,
+      "meta": {
+        "name": "Важная тема"
+      },
+      "unreadCount": 5
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 10
+  }
+}
+```
+
+#### POST /api/dialogs/:dialogId/topics
+Создать топик в диалоге
+
+**Body:**
+```json
+{
+  "meta": {
+    "name": "Новый топик",
+    "color": "#FF5733"
+  }
+}
+```
+
+**Примечания:**
+- Топик создается с автоматически сгенерированным `topicId`
+- Мета-теги сохраняются в коллекции `Meta` (entityType: 'topic')
+- Автоматически обновляется `DialogStats.topicCount`
+
+#### GET /api/dialogs/:dialogId/topics/:topicId
+Получить топик по ID
+
+**Ответ включает:**
+- Основные данные топика (topicId, dialogId, createdAt)
+- `meta` - мета-теги топика
+
+#### PATCH /api/dialogs/:dialogId/topics/:topicId
+Обновить мета-теги топика
+
+**Body:**
+```json
+{
+  "meta": {
+    "name": "Обновленное название",
+    "color": "#00FF00"
+  }
+}
+```
+
+**Примечания:**
+- Можно обновлять только мета-теги
+- Удаление топиков запрещено (защита от потери данных)
+
+---
+
 ### Dialog Members (Участники диалогов)
 
 #### GET /api/dialogs/:dialogId/members
@@ -448,6 +577,20 @@ npm run generate-key
 - `(dialogId,eq,dlg_abc123)` - конкретный диалог
 - Комбинированные: `(meta.type,eq,internal)&(meta.channelType,ne,telegram)`
 
+**Фильтры по топикам:**
+- `(topic.topicId,eq,topic_abc123...)` - диалоги с конкретным топиком
+- `(topic.topicId,ne,null)` - диалоги с любыми топиками
+- `(topic.topicId,in,[topic1,topic2])` - диалоги с любым из указанных топиков
+- `(topic.topicId,nin,[topic1,topic2])` - диалоги без указанных топиков
+- `(topic.meta.category,eq,support)` - диалоги с топиками категории "support"
+- `(topic.meta.priority,in,[high,urgent])` - диалоги с топиками приоритета "high" или "urgent"
+- `(topic.meta.status,ne,archived)` - диалоги с топиками, статус которых НЕ "archived"
+- `(topic.meta.assignedTo,exists,true)` - диалоги с топиками, имеющими мета-тег assignedTo
+- `(topic.topicCount,gt,0)` - диалоги с хотя бы одним топиком
+- `(topic.topicCount,eq,0)` - диалоги без топиков
+- `(topic.topicCount,gte,5)` - диалоги с 5 и более топиками
+- Комбинированные: `(topic.meta.category,eq,support)&(topic.meta.priority,eq,high)` - диалоги с топиками категории "support" и приоритетом "high"
+
 **Примеры сортировки:**
 - `(lastInteractionAt,desc)` - по последнему взаимодействию (новые первыми)
 - `(lastInteractionAt,asc)` - по последнему взаимодействию (старые первыми)
@@ -473,9 +616,16 @@ npm run generate-key
 - `filter` - фильтр
 - `sort` - сортировка
 
+**Примеры фильтров:**
+- `(topicId,eq,topic_abc123...)` - сообщения конкретного топика
+- `(topicId,eq,null)` - сообщения без топика
+- `(type,eq,internal.text)` - текстовые сообщения
+- `(senderId,eq,carl)` - сообщения от carl
+
 **Примечания:**
 - Доступен только для участников диалога
 - Возвращает сообщения с полной информацией (statusMessageMatrix, reactionSet)
+- Каждое сообщение содержит поле `topic` с информацией о топике (если привязано) или `null`
 
 #### GET /api/users/:userId/dialogs/:dialogId/messages/:messageId
 Получить сообщение из диалога пользователя

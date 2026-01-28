@@ -380,6 +380,119 @@ Content-Type: application/json
 }
 ```
 
+#### Поиск диалогов по топикам
+
+API поддерживает поиск диалогов пользователя по топикам и их мета-тегам через фильтры в `GET /api/users/{userId}/dialogs`.
+
+**Фильтрация по topicId:**
+
+```bash
+# Диалоги с конкретным топиком
+GET /api/users/{userId}/dialogs?filter=(topic.topicId,eq,topic_abc123...)
+
+# Диалоги с любыми топиками
+GET /api/users/{userId}/dialogs?filter=(topic.topicId,ne,null)
+
+# Диалоги с любым из указанных топиков
+GET /api/users/{userId}/dialogs?filter=(topic.topicId,in,[topic1,topic2])
+
+# Диалоги без указанных топиков
+GET /api/users/{userId}/dialogs?filter=(topic.topicId,nin,[topic1,topic2])
+```
+
+**Фильтрация по мета-тегам топиков:**
+
+```bash
+# Диалоги с топиками, имеющими мета-тег category=support
+GET /api/users/{userId}/dialogs?filter=(topic.meta.category,eq,support)
+
+# Диалоги с топиками, приоритет которых high или urgent
+GET /api/users/{userId}/dialogs?filter=(topic.meta.priority,in,[high,urgent])
+
+# Диалоги с топиками, статус которых НЕ archived
+GET /api/users/{userId}/dialogs?filter=(topic.meta.status,ne,archived)
+
+# Диалоги с топиками, имеющими мета-тег assignedTo (любое значение)
+GET /api/users/{userId}/dialogs?filter=(topic.meta.assignedTo,exists,true)
+
+# Диалоги с топиками, НЕ имеющими мета-тег archived
+GET /api/users/{userId}/dialogs?filter=(topic.meta.archived,exists,false)
+```
+
+**Фильтрация по количеству топиков:**
+
+```bash
+# Диалоги с хотя бы одним топиком
+GET /api/users/{userId}/dialogs?filter=(topic.topicCount,gt,0)
+
+# Диалоги без топиков
+GET /api/users/{userId}/dialogs?filter=(topic.topicCount,eq,0)
+
+# Диалоги с 5 и более топиками
+GET /api/users/{userId}/dialogs?filter=(topic.topicCount,gte,5)
+```
+
+**Комбинированные фильтры:**
+
+Можно комбинировать несколько условий через `&` (AND логика):
+
+```bash
+# Диалоги с топиками категории "support" и приоритетом "high"
+GET /api/users/{userId}/dialogs?filter=(topic.meta.category,eq,support)&(topic.meta.priority,eq,high)
+
+# Диалоги с топиками приоритета "high" или "urgent", не архивные
+GET /api/users/{userId}/dialogs?filter=(topic.meta.priority,in,[high,urgent])&(topic.meta.status,ne,archived)
+
+# Диалоги с конкретным топиком, имеющим назначенного пользователя
+GET /api/users/{userId}/dialogs?filter=(topic.topicId,eq,topic_abc123)&(topic.meta.assignedTo,exists,true)
+```
+
+**Примеры использования:**
+
+```javascript
+// Поиск диалогов с топиками категории "support"
+const response = await fetch(
+  `/api/users/${userId}/dialogs?filter=(topic.meta.category,eq,support)`,
+  {
+    headers: {
+      'X-API-Key': apiKey,
+      'X-Tenant-ID': tenantId
+    }
+  }
+);
+
+// Поиск диалогов с топиками приоритета "high" или "urgent"
+const response = await fetch(
+  `/api/users/${userId}/dialogs?filter=(topic.meta.priority,in,[high,urgent])`,
+  {
+    headers: {
+      'X-API-Key': apiKey,
+      'X-Tenant-ID': tenantId
+    }
+  }
+);
+
+// Комбинированный поиск: support топики с назначенным пользователем
+const response = await fetch(
+  `/api/users/${userId}/dialogs?filter=(topic.meta.category,eq,support)&(topic.meta.assignedTo,exists,true)`,
+  {
+    headers: {
+      'X-API-Key': apiKey,
+      'X-Tenant-ID': tenantId
+    }
+  }
+);
+```
+
+**Поддерживаемые операторы для фильтров топиков:**
+
+- `eq` - равно
+- `ne` - не равно
+- `in` - в массиве значений
+- `nin` - не в массиве значений
+- `exists` - существование поля (true/false)
+- `gt`, `gte`, `lt`, `lte` - для `topic.topicCount` (количество топиков)
+
 #### Обработка топиков в вашей системе
 
 ```javascript
