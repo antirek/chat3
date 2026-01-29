@@ -3,7 +3,6 @@ import * as topicUtils from '@chat3/utils/topicUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
-import { updateDialogTopicCount } from '@chat3/utils/counterUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
@@ -138,9 +137,8 @@ export const topicController = {
       }) as any;
       log(`Топик создан: topicId=${topic.topicId}`);
 
-      // Обновляем DialogStats.topicCount
-      log(`Обновление DialogStats.topicCount: dialogId=${dialogId}`);
-      await updateDialogTopicCount(req.tenantId!, dialogId, 1);
+      // DialogStats.topicCount обновляется в update-worker при обработке события dialog.topic.create
+      // (не инкрементируем здесь, иначе будет двойной +1)
 
       // Получаем метаданные диалога для события
       const dialogMeta = await metaUtils.getEntityMeta(req.tenantId!, 'dialog', dialogId);
