@@ -247,6 +247,7 @@
             @show-status-matrix="showStatusMatrixModal"
             @show-statuses="showStatusesModal"
             @show-set-status="showSetStatusModal"
+            @show-topic="showMessageTopicModal"
             @toggle-sort="toggleMessageSort"
           />
         </div>
@@ -258,6 +259,7 @@
             :loading="loadingTopics"
             :error="topicsError"
             @show-meta="(topicId) => currentDialogId && showTopicMetaModal(currentDialogId, topicId)"
+            @show-messages-for-topic="showMessagesForTopic"
           />
           <ExtendedPagination
             v-if="totalTopicsPages > 1"
@@ -444,6 +446,19 @@
       @set-status="setMessageStatus"
     />
 
+    <!-- Модальное окно топика сообщения (установить/сбросить) -->
+    <MessageTopicModal
+      :is-open="isMessageTopicModalOpen"
+      :message-id="currentMessageForTopic?.messageId ?? null"
+      :current-topic-id="currentMessageForTopic?.topicId ?? null"
+      :dialog-topics="dialogTopicsForMessageTopic"
+      :loading="loadingMessageTopic"
+      :error="errorMessageTopic"
+      @close="closeMessageTopicModal"
+      @clear="clearMessageTopic"
+      @set="setMessageTopic"
+    />
+
     <!-- Модальное окно мета-тегов сообщения -->
     <MetaModal
       :is-open="isMessageMetaModalOpen"
@@ -536,6 +551,7 @@ import {
   ReactionModal,
   MetaModal,
   SetStatusModal,
+  MessageTopicModal,
   EventsModal,
   DialogEventsModal,
   StatusMatrixModal,
@@ -659,6 +675,7 @@ const {
   isStatusMatrixModalOpen,
   isStatusesModalOpen,
   isSetStatusModalOpen,
+  isMessageTopicModalOpen,
   isDialogEventsModalOpen,
   isDialogMetaModalOpen,
   isAddMemberModalOpen,
@@ -697,6 +714,7 @@ const {
   selectDialog,
   selectDialogMembers,
   selectDialogTopics,
+  showMessagesForTopic,
   loadDialogMessages,
   selectMessageFilterExample,
   clearMessageFilter,
@@ -785,6 +803,14 @@ const {
   showSetStatusModal,
   closeSetStatusModal,
   setMessageStatus,
+  showMessageTopicModal,
+  closeMessageTopicModal,
+  currentMessageForTopic,
+  dialogTopicsForMessageTopic,
+  loadingMessageTopic,
+  errorMessageTopic,
+  setMessageTopic,
+  clearMessageTopic,
   setStatusResult,
   setStatusUrl,
   loadingStatusMatrix,

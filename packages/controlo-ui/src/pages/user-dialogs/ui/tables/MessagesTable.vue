@@ -51,6 +51,7 @@
           <BaseButton variant="status-matrix" size="small" @click="$emit('show-status-matrix', item.messageId)">📊 Матрица статусов</BaseButton>
           <BaseButton variant="statuses" size="small" @click="$emit('show-statuses', item.messageId)">📋 Статусы</BaseButton>
           <BaseButton variant="set-status" size="small" @click="$emit('show-set-status', item.messageId)">✏️ Установить статус</BaseButton>
+          <BaseButton variant="primary" size="small" @click="$emit('show-topic', item)">📌 Топик</BaseButton>
         </td>
       </template>
     </BaseTable>
@@ -66,6 +67,7 @@ interface Message {
   senderId: string;
   content: string;
   createdAt: string | number;
+  topicId?: string | null;
   context?: {
     isMine?: boolean;
     status?: string;
@@ -90,6 +92,7 @@ const emit = defineEmits<{
   (e: 'show-status-matrix', messageId: string): void;
   (e: 'show-statuses', messageId: string): void;
   (e: 'show-set-status', messageId: string): void;
+  (e: 'show-topic', message: Message): void;
   (e: 'toggle-sort', field: string): void;
 }>();
 

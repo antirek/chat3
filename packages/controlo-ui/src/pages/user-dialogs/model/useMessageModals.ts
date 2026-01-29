@@ -25,6 +25,7 @@ export function useMessageModals(
   const statusMatrixModal = useModal();
   const statusesModal = useModal();
   const setStatusModal = useModal();
+  const messageTopicModal = useModal();
 
   // Добавление сообщения
   const messageSender = ref('carl');
@@ -66,6 +67,12 @@ export function useMessageModals(
   const currentStatusesPage = ref(1);
   const currentStatusesLimit = ref(50);
   const totalStatusesPages = ref(1);
+
+  // Топик сообщения (установка/сброс)
+  const currentMessageForTopic = ref<{ messageId: string; topicId: string | null } | null>(null);
+  const dialogTopicsForMessageTopic = ref<any[]>([]);
+  const loadingMessageTopic = ref(false);
+  const errorMessageTopic = ref<string | null>(null);
 
   // Функции для модального окна добавления сообщения
   async function showAddMessageModal() {
@@ -672,6 +679,94 @@ export function useMessageModals(
     }
   }
 
+  // Топик сообщения: установка/сброс
+  async function showMessageTopicModal(message: { messageId: string; topicId?: string | null }) {
+    if (!currentDialogId.value || !currentUserId.value) {
+      alert('Сначала выберите пользователя и диалог');
+      return;
+    }
+    currentMessageForTopic.value = {
+      messageId: message.messageId,
+      topicId: message.topicId ?? null,
+    };
+    errorMessageTopic.value = null;
+    dialogTopicsForMessageTopic.value = [];
+    messageTopicModal.open();
+    try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/users/${currentUserId.value}/dialogs/${currentDialogId.value}/topics?page=1&limit=100`;
+      const response = await fetch(fullUrl, { headers: credentialsStore.getHeaders() });
+      if (response.ok) {
+        const data = await response.json();
+        dialogTopicsForMessageTopic.value = data.data ?? [];
+      }
+    } catch (err) {
+      console.error('Error loading dialog topics:', err);
+      errorMessageTopic.value = err instanceof Error ? err.message : 'Ошибка загрузки топиков';
+    }
+  }
+
+  function closeMessageTopicModal() {
+    messageTopicModal.close();
+    currentMessageForTopic.value = null;
+    dialogTopicsForMessageTopic.value = [];
+    errorMessageTopic.value = null;
+  }
+
+  async function setMessageTopic(topicId: string) {
+    if (!currentMessageForTopic.value) return;
+    loadingMessageTopic.value = true;
+    errorMessageTopic.value = null;
+    try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/messages/${currentMessageForTopic.value.messageId}/topic`;
+      const response = await fetch(fullUrl, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...credentialsStore.getHeaders() },
+        body: JSON.stringify({ topicId }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || `HTTP ${response.status}`);
+      }
+      if (currentDialogId.value) {
+        loadDialogMessages(currentDialogId.value, messagesPagination.currentPage.value);
+      }
+      closeMessageTopicModal();
+    } catch (err) {
+      errorMessageTopic.value = err instanceof Error ? err.message : 'Ошибка установки топика';
+    } finally {
+      loadingMessageTopic.value = false;
+    }
+  }
+
+  async function clearMessageTopic() {
+    if (!currentMessageForTopic.value) return;
+    loadingMessageTopic.value = true;
+    errorMessageTopic.value = null;
+    try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/messages/${currentMessageForTopic.value.messageId}/topic`;
+      const response = await fetch(fullUrl, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...credentialsStore.getHeaders() },
+        body: JSON.stringify({ topicId: null }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || `HTTP ${response.status}`);
+      }
+      if (currentDialogId.value) {
+        loadDialogMessages(currentDialogId.value, messagesPagination.currentPage.value);
+      }
+      closeMessageTopicModal();
+    } catch (err) {
+      errorMessageTopic.value = err instanceof Error ? err.message : 'Ошибка сброса топика';
+    } finally {
+      loadingMessageTopic.value = false;
+    }
+  }
+
   return {
     // Modals
     addMessageModal,
@@ -743,5 +838,15 @@ export function useMessageModals(
     showSetStatusModal,
     closeSetStatusModal,
     setMessageStatus,
+    // Message topic (set/clear)
+    messageTopicModal,
+    currentMessageForTopic,
+    dialogTopicsForMessageTopic,
+    loadingMessageTopic,
+    errorMessageTopic,
+    showMessageTopicModal,
+    closeMessageTopicModal,
+    setMessageTopic,
+    clearMessageTopic,
   };
 }

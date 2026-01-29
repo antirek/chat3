@@ -28,6 +28,7 @@
           <span v-else style="color: #adb5bd;">—</span>
         </td>
         <td class="actions-column">
+          <BaseButton variant="primary" size="small" @click="$emit('show-messages-for-topic', item.topicId)">📝 Сообщения</BaseButton>
           <BaseButton variant="success" size="small" @click="$emit('show-meta', item.topicId)">🏷️ Мета</BaseButton>
         </td>
       </template>
@@ -53,6 +54,7 @@ interface Props {
 defineProps<Props>();
 defineEmits<{
   (e: 'show-meta', topicId: string): void;
+  (e: 'show-messages-for-topic', topicId: string): void;
 }>();
 
 function shortenTopicId(topicId: string): string {

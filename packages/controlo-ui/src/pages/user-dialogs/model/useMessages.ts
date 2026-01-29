@@ -163,6 +163,13 @@ export function useMessages(
     }
   }
 
+  /** Устанавливает фильтр сообщений по topicId (для перехода «Сообщения» из списка топиков). */
+  function setMessageFilterByTopicId(topicId: string) {
+    const filterValue = `(topic.topicId,eq,${topicId})`;
+    messagesFilter.filterInput.value = filterValue;
+    messagesFilter.currentFilter.value = filterValue;
+  }
+
   function changeMessagePage(page: number) {
     if (currentDialogId.value) {
       loadDialogMessages(currentDialogId.value, page);
@@ -294,5 +301,7 @@ export function useMessages(
     // Modals
     showCurrentMessageUrl,
     showMessageInfo,
+    // Programmatic filter
+    setMessageFilterByTopicId,
   };
 }

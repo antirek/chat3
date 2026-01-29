@@ -3,6 +3,7 @@ export { default as AddMessageModal } from './AddMessageModal.vue';
 export { default as ReactionModal } from './ReactionModal.vue';
 export { default as MetaModal } from './MetaModal.vue';
 export { default as SetStatusModal } from './SetStatusModal.vue';
+export { default as MessageTopicModal } from './MessageTopicModal.vue';
 export { default as EventsModal } from './EventsModal.vue';
 export { default as DialogEventsModal } from './DialogEventsModal.vue';
 export { default as StatusMatrixModal } from './StatusMatrixModal.vue';

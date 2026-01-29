@@ -96,6 +96,7 @@ export function useUserDialogsPage() {
     messagesFilter,
     currentMessageSort,
     loadDialogMessages,
+    setMessageFilterByTopicId,
     selectMessageFilterExample,
     clearMessageFilter,
     applyMessageFilter,
@@ -213,6 +214,15 @@ export function useUserDialogsPage() {
     showSetStatusModal,
     closeSetStatusModal,
     setMessageStatus,
+    messageTopicModal,
+    currentMessageForTopic,
+    dialogTopicsForMessageTopic,
+    loadingMessageTopic,
+    errorMessageTopic,
+    showMessageTopicModal,
+    closeMessageTopicModal,
+    setMessageTopic,
+    clearMessageTopic,
   } = messageModals;
 
   // Модалки для мета-тегов
@@ -357,6 +367,15 @@ export function useUserDialogsPage() {
     await loadDialogTopics(dialogId, 1);
   }
 
+  /** Переключение на таб «Сообщения» с фильтром по topicId (из списка топиков). */
+  function showMessagesForTopic(topicId: string) {
+    currentViewMode.value = 'messages';
+    setMessageFilterByTopicId(topicId);
+    if (currentDialogId.value) {
+      loadDialogMessages(currentDialogId.value, 1);
+    }
+  }
+
   // Lifecycle
   onMounted(() => {
     if (apiKey.value) {
@@ -475,6 +494,7 @@ export function useUserDialogsPage() {
     isStatusMatrixModalOpen: statusMatrixModal.isOpen,
     isStatusesModalOpen: statusesModal.isOpen,
     isSetStatusModalOpen: setStatusModal.isOpen,
+    isMessageTopicModalOpen: messageTopicModal.isOpen,
     isDialogEventsModalOpen: dialogEventsModal.isOpen,
     isDialogMetaModalOpen: dialogMetaModal.isOpen,
     isAddMemberModalOpen: addMemberModal.isOpen,
@@ -513,6 +533,7 @@ export function useUserDialogsPage() {
     selectDialog,
     selectDialogMembers,
     selectDialogTopics,
+    showMessagesForTopic,
     loadDialogMessages,
     selectMessageFilterExample,
     clearMessageFilter,
@@ -610,6 +631,14 @@ export function useUserDialogsPage() {
     showSetStatusModal,
     closeSetStatusModal,
     setMessageStatus,
+    showMessageTopicModal,
+    closeMessageTopicModal,
+    currentMessageForTopic,
+    dialogTopicsForMessageTopic,
+    loadingMessageTopic,
+    errorMessageTopic,
+    setMessageTopic,
+    clearMessageTopic,
     loadingStatusMatrix,
     statusMatrixError,
     loadingStatuses,
