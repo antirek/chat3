@@ -1137,6 +1137,170 @@ const messageController = {
     }
   },
 
+  /**
+   * Установка или сброс топика сообщения (PATCH /api/messages/:messageId/topic).
+   * Вариант 1.3: установить topicId (если у сообщения нет топика) или сбросить в null (если есть).
+   * Нельзя менять один топик на другой (A → B). topicId должен быть в том же dialogId, что и сообщение.
+   */
+  async updateMessageTopic(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const routePath = 'patch /messages/:messageId/topic';
+    const log = (...args: any[]) => {
+      console.log(`[${routePath}]`, ...args);
+    };
+    log('>>>>> start');
+
+    try {
+      const { messageId } = req.params;
+      let { topicId: topicIdPayload } = req.body as { topicId: string | null };
+      const normalizedTopicId = topicIdPayload !== undefined && topicIdPayload !== null && String(topicIdPayload).trim() !== ''
+        ? String(topicIdPayload).trim().toLowerCase()
+        : null;
+      log(`Получены параметры: messageId=${messageId}, topicId=${normalizedTopicId ?? 'null'}`);
+
+      const message = await Message.findOne({
+        messageId,
+        tenantId: req.tenantId!
+      });
+
+      if (!message) {
+        log(`Сообщение не найдено: messageId=${messageId}`);
+        res.status(404).json({
+          error: 'Not Found',
+          message: 'Message not found'
+        });
+        return;
+      }
+
+      const currentTopicId = (message as any).topicId ?? null;
+
+      if (normalizedTopicId !== null) {
+        // Установка топика: разрешено только если у сообщения ещё нет топика
+        if (currentTopicId !== null) {
+          log(`Ошибка: сообщение уже привязано к топику topicId=${currentTopicId}`);
+          res.status(400).json({
+            error: 'Bad Request',
+            message: 'Cannot set topic: message already has a topic. Clear it first or use a different message.',
+            code: 'ERROR_TOPIC_CHANGE_NOT_ALLOWED'
+          });
+          return;
+        }
+        const topic = await topicUtils.getTopicById(req.tenantId!, message.dialogId, normalizedTopicId);
+        if (!topic) {
+          log(`Топик не найден или не в этом диалоге: topicId=${normalizedTopicId}, dialogId=${message.dialogId}`);
+          res.status(404).json({
+            error: 'Not Found',
+            message: 'Topic not found or not in the same dialog as the message',
+            code: 'ERROR_TOPIC_NOT_FOUND'
+          });
+          return;
+        }
+        (message as any).topicId = normalizedTopicId;
+      } else {
+        // Сброс топика: разрешено только если у сообщения есть топик
+        if (currentTopicId === null) {
+          log(`Ошибка: у сообщения нет топика`);
+          res.status(400).json({
+            error: 'Bad Request',
+            message: 'Cannot clear topic: message has no topic.',
+            code: 'ERROR_TOPIC_CLEAR_NOT_ALLOWED'
+          });
+          return;
+        }
+        (message as any).topicId = null;
+      }
+
+      await message.save();
+      log(`Обновлён topicId сообщения: messageId=${message.messageId}, topicId=${(message as any).topicId ?? 'null'}`);
+
+      const meta = await metaUtils.getEntityMeta(req.tenantId!, 'message', message.messageId);
+      const messageObj = message.toObject();
+      const messageTopicIdForEvent = (message as any).topicId ?? null;
+      let topicForEvent: any = null;
+      if (messageTopicIdForEvent) {
+        try {
+          topicForEvent = await topicUtils.getTopicWithMeta(req.tenantId!, message.dialogId, messageTopicIdForEvent);
+        } catch {
+          topicForEvent = { topicId: messageTopicIdForEvent, meta: {} };
+        }
+      }
+
+      const dialog = await Dialog.findOne({
+        dialogId: message.dialogId,
+        tenantId: req.tenantId!
+      }).lean();
+      let dialogSection: any = null;
+      if (dialog) {
+        const dialogMeta = await metaUtils.getEntityMeta(req.tenantId!, 'dialog', message.dialogId);
+        dialogSection = eventUtils.buildDialogSection({
+          dialogId: (dialog as any).dialogId,
+          tenantId: (dialog as any).tenantId,
+          createdAt: (dialog as any).createdAt,
+          meta: dialogMeta || {}
+        });
+      }
+
+      const messageSection = eventUtils.buildMessageSection({
+        messageId: message.messageId,
+        dialogId: message.dialogId,
+        senderId: message.senderId,
+        type: message.type,
+        content: message.content,
+        meta: meta || {},
+        topicId: messageTopicIdForEvent,
+        topic: topicForEvent
+      });
+
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'message.update',
+        dialogId: message.dialogId,
+        entityId: message.messageId,
+        messageId: message.messageId,
+        includedSections: dialogSection ? ['dialog', 'message'] : ['message'],
+        updatedFields: ['message.topicId']
+      });
+
+      await eventUtils.createEvent({
+        tenantId: req.tenantId!,
+        eventType: 'message.update',
+        entityType: 'message',
+        entityId: message.messageId,
+        actorId: req.apiKey?.name || 'unknown',
+        actorType: 'api',
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection,
+          message: messageSection
+        })
+      });
+
+      const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId!, message.messageId, messageObj.senderId);
+      const reactionSet = await buildReactionSet(req.tenantId!, message.messageId, null);
+      const senderInfo = await getSenderInfo(req.tenantId!, message.senderId);
+      const topicForResponse = topicForEvent || null;
+
+      res.json({
+        data: sanitizeResponse({
+          ...messageObj,
+          topicId: messageTopicIdForEvent,
+          statusMessageMatrix,
+          reactionSet,
+          meta,
+          topic: topicForResponse,
+          senderInfo: senderInfo || null
+        }),
+        message: 'Message topic updated successfully'
+      });
+    } catch (error: any) {
+      console.error(`[${routePath}] Error:`, error.message);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    } finally {
+      log('>>>>> end');
+    }
+  },
+
   // Get events for a message
 };
 

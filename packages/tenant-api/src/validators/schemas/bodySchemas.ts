@@ -136,6 +136,23 @@ export const updateMessageContentSchema = Joi.object({
 });
 
 /**
+ * Схема валидации установки/сброса топика сообщения (PATCH /api/messages/:messageId/topic)
+ * Вариант 1.3: можно установить topicId (если у сообщения нет топика) или сбросить в null (если есть).
+ * topicId должен принадлежать тому же диалогу, что и сообщение.
+ */
+export const updateMessageTopicSchema = Joi.object({
+  topicId: Joi.string()
+    .trim()
+    .lowercase()
+    .pattern(/^topic_[a-z0-9]{20}$/)
+    .allow(null, '')
+    .required()
+    .messages({
+      'string.pattern.base': 'topicId must be in format topic_ followed by 20 lowercase alphanumeric characters'
+    })
+});
+
+/**
  * Схема валидации добавления/удаления реакции
  * userId берется из пути запроса, не из body
  */

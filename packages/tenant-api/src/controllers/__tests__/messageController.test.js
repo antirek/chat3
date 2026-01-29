@@ -576,6 +576,215 @@ describe('messageController.updateMessageContent', () => {
   });
 });
 
+describe('messageController.updateMessageTopic', () => {
+  let dialog;
+  let messageWithoutTopic;
+  let messageWithTopic;
+  let topic;
+
+  const createRequest = (body, message = messageWithoutTopic) => ({
+    tenantId,
+    params: { messageId: message.messageId },
+    body,
+    apiKey: { name: 'test-key' }
+  });
+
+  const createResponse = () => createMockRes();
+
+  beforeEach(async () => {
+    dialog = await Dialog.create({
+      tenantId,
+      dialogId: generateDialogId(),
+      createdBy: 'alice',
+      createdAt: generateTimestamp(),
+    });
+
+    topic = await Topic.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      topicId: generateTopicId(),
+      createdAt: generateTimestamp(),
+    });
+
+    messageWithoutTopic = await Message.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'alice',
+      content: 'Message without topic',
+      type: 'internal.text',
+      topicId: null,
+      createdAt: generateTimestamp(),
+    });
+
+    messageWithTopic = await Message.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'alice',
+      content: 'Message with topic',
+      type: 'internal.text',
+      topicId: topic.topicId,
+      createdAt: generateTimestamp(),
+    });
+  });
+
+  test('sets topicId on message that has no topic - success', async () => {
+    const req = createRequest({ topicId: topic.topicId });
+    const res = createResponse();
+
+    await messageController.updateMessageTopic(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data.topicId).toBe(topic.topicId);
+    expect(res.body.data.topic).toBeDefined();
+    expect(res.body.data.topic.topicId).toBe(topic.topicId);
+    expect(res.body.message).toBe('Message topic updated successfully');
+
+    const updated = await Message.findOne({ tenantId, messageId: messageWithoutTopic.messageId }).lean();
+    expect(updated.topicId).toBe(topic.topicId);
+  });
+
+  test('returns 400 when setting topicId on message that already has topic', async () => {
+    const req = createRequest({ topicId: topic.topicId }, messageWithTopic);
+    const res = createResponse();
+
+    await messageController.updateMessageTopic(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.code).toBe('ERROR_TOPIC_CHANGE_NOT_ALLOWED');
+    expect(res.body.message).toMatch(/already has a topic/);
+
+    const unchanged = await Message.findOne({ tenantId, messageId: messageWithTopic.messageId }).lean();
+    expect(unchanged.topicId).toBe(topic.topicId);
+  });
+
+  test('returns 404 when topic does not exist or not in same dialog', async () => {
+    const otherDialogId = generateDialogId();
+    await Dialog.create({
+      tenantId,
+      dialogId: otherDialogId,
+      createdBy: 'bob',
+      createdAt: generateTimestamp(),
+    });
+    const topicInOtherDialog = await Topic.create({
+      tenantId,
+      dialogId: otherDialogId,
+      topicId: generateTopicId(),
+      createdAt: generateTimestamp(),
+    });
+
+    const req = createRequest({ topicId: topicInOtherDialog.topicId });
+    const res = createResponse();
+
+    await messageController.updateMessageTopic(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.error).toBe('Not Found');
+    expect(res.body.code).toBe('ERROR_TOPIC_NOT_FOUND');
+    expect(res.body.message).toMatch(/Topic not found|not in the same dialog/);
+
+    const unchanged = await Message.findOne({ tenantId, messageId: messageWithoutTopic.messageId }).lean();
+    expect(unchanged.topicId).toBeNull();
+  });
+
+  test('returns 404 when topicId format is valid but topic does not exist', async () => {
+    const nonexistentTopicId = 'topic_abcdefghij1234567890';
+    const req = createRequest({ topicId: nonexistentTopicId });
+    const res = createResponse();
+
+    await messageController.updateMessageTopic(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.code).toBe('ERROR_TOPIC_NOT_FOUND');
+  });
+
+  test('clears topicId (topicId: null) on message that has topic - success', async () => {
+    const req = createRequest({ topicId: null }, messageWithTopic);
+    const res = createResponse();
+
+    await messageController.updateMessageTopic(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data.topicId).toBeNull();
+    expect(res.body.data.topic).toBeNull();
+    expect(res.body.message).toBe('Message topic updated successfully');
+
+    const updated = await Message.findOne({ tenantId, messageId: messageWithTopic.messageId }).lean();
+    expect(updated.topicId).toBeNull();
+  });
+
+  test('returns 400 when clearing topicId on message that has no topic', async () => {
+    const req = createRequest({ topicId: null });
+    const res = createResponse();
+
+    await messageController.updateMessageTopic(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.code).toBe('ERROR_TOPIC_CLEAR_NOT_ALLOWED');
+    expect(res.body.message).toMatch(/has no topic/);
+
+    const unchanged = await Message.findOne({ tenantId, messageId: messageWithoutTopic.messageId }).lean();
+    expect(unchanged.topicId).toBeNull();
+  });
+
+  test('returns 404 when message not found', async () => {
+    const req = {
+      tenantId,
+      params: { messageId: 'msg_nonexistent1234567890' },
+      body: { topicId: topic.topicId },
+      apiKey: { name: 'test-key' }
+    };
+    const res = createResponse();
+
+    await messageController.updateMessageTopic(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.error).toBe('Not Found');
+    expect(res.body.message).toBe('Message not found');
+  });
+
+  test('creates message.update event with updatedFields message.topicId when setting topic', async () => {
+    const req = createRequest({ topicId: topic.topicId });
+    const res = createResponse();
+
+    await messageController.updateMessageTopic(req, res);
+
+    const event = await Event.findOne({
+      tenantId,
+      eventType: 'message.update',
+      entityId: messageWithoutTopic.messageId
+    }).lean();
+
+    expect(event).toBeTruthy();
+    expect(event.data.context).toBeDefined();
+    expect(event.data.context.updatedFields).toEqual(['message.topicId']);
+    expect(event.data.message).toBeDefined();
+    expect(event.data.message.topicId).toBe(topic.topicId);
+    expect(event.data.message.topic).toBeDefined();
+  });
+
+  test('creates message.update event when clearing topic', async () => {
+    const req = createRequest({ topicId: null }, messageWithTopic);
+    const res = createResponse();
+
+    await messageController.updateMessageTopic(req, res);
+
+    const event = await Event.findOne({
+      tenantId,
+      eventType: 'message.update',
+      entityId: messageWithTopic.messageId
+    }).lean();
+
+    expect(event).toBeTruthy();
+    expect(event.data.context.updatedFields).toEqual(['message.topicId']);
+    expect(event.data.message.topicId).toBeNull();
+    expect(event.data.message.topic).toBeNull();
+  });
+});
+
 describe('messageController.getAll - error handling', () => {
   test('handles database errors gracefully', async () => {
     // Mock Message.find to throw an error

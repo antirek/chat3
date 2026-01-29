@@ -3,7 +3,8 @@ import {
   createUserSchema,
   createTenantSchema,
   setMetaSchema,
-  updateMessageContentSchema
+  updateMessageContentSchema,
+  updateMessageTopicSchema
 } from '../schemas/bodySchemas.js';
 import {
   paginationSchema,
@@ -280,6 +281,56 @@ describe('bodySchemas.updateMessageContentSchema', () => {
     const { error } = validate({ content: '' });
 
     expect(error).toBeDefined();
+  });
+});
+
+describe('bodySchemas.updateMessageTopicSchema', () => {
+  const validate = (payload) => updateMessageTopicSchema.validate(payload, { abortEarly: false });
+
+  test('accepts valid topicId', () => {
+    const { error, value } = validate({ topicId: 'topic_abcdefghij1234567890' });
+
+    expect(error).toBeUndefined();
+    expect(value.topicId).toBe('topic_abcdefghij1234567890');
+  });
+
+  test('accepts null for clearing topic', () => {
+    const { error, value } = validate({ topicId: null });
+
+    expect(error).toBeUndefined();
+    expect(value.topicId).toBeNull();
+  });
+
+  test('accepts empty string as null (clearing)', () => {
+    const { error, value } = validate({ topicId: '' });
+
+    expect(error).toBeUndefined();
+    expect(value.topicId).toBe('');
+  });
+
+  test('rejects missing topicId', () => {
+    const { error } = validate({});
+
+    expect(error).toBeDefined();
+  });
+
+  test('rejects invalid topicId format (too short)', () => {
+    const { error } = validate({ topicId: 'topic_short' });
+
+    expect(error).toBeDefined();
+  });
+
+  test('rejects invalid topicId format (wrong prefix)', () => {
+    const { error } = validate({ topicId: 'msg_abcdefghij1234567890' });
+
+    expect(error).toBeDefined();
+  });
+
+  test('normalizes topicId to lowercase', () => {
+    const { error, value } = validate({ topicId: 'topic_ABCDEFGHIJ1234567890' });
+
+    expect(error).toBeUndefined();
+    expect(value.topicId).toBe('topic_abcdefghij1234567890');
   });
 });
 

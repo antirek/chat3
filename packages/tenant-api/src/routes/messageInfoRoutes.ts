@@ -3,7 +3,7 @@ import messageController from '../controllers/messageController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validateMessageId } from '../validators/urlValidators/index.js';
 import { validateBody, validateQuery } from '../validators/middleware.js';
-import { messagesQuerySchema, updateMessageContentSchema } from '../validators/schemas/index.js';
+import { messagesQuerySchema, updateMessageContentSchema, updateMessageTopicSchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -245,6 +245,55 @@ router.get('/:messageId', apiAuth, requirePermission('read'), validateMessageId,
  *       500:
  *         description: Internal Server Error
  */
+/**
+ * @swagger
+ * /api/messages/{messageId}/topic:
+ *   patch:
+ *     summary: Set or clear message topic
+ *     description: |
+ *       Вариант 1.3: установить topicId (если у сообщения нет топика) или сбросить в null (если есть).
+ *       Нельзя менять один топик на другой (A → B).
+ *       topicId должен принадлежать тому же диалогу, что и сообщение.
+ *     tags: [Messages]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [topicId]
+ *             properties:
+ *               topicId:
+ *                 oneOf:
+ *                   - type: string
+ *                     pattern: '^topic_[a-z0-9]{20}$'
+ *                   - type: 'null'
+ *     responses:
+ *       200:
+ *         description: Message topic updated
+ *       400:
+ *         description: Bad Request (e.g. cannot change topic A to B, or topicId not in same dialog)
+ *       404:
+ *         description: Message or topic not found
+ */
+router.patch(
+  '/:messageId/topic',
+  apiAuth,
+  requirePermission('write'),
+  validateMessageId,
+  validateBody(updateMessageTopicSchema),
+  messageController.updateMessageTopic
+);
+
 router.put(
   '/:messageId',
   apiAuth,
