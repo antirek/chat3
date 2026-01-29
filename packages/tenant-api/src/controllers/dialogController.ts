@@ -603,7 +603,6 @@ export const dialogController = {
         data: sanitizeResponse({
           ...dialogObj,
           meta,
-          memberCount,
           stats
         })
       });
