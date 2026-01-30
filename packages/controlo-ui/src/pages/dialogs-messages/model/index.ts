@@ -1,14 +1,18 @@
-import { ref, onMounted, toRef } from 'vue';
+import { ref, computed, onMounted, toRef } from 'vue';
+import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { useModal } from '@/shared/lib/composables/useModal';
 import { useDialogs } from './useDialogs';
 import { useMessages } from './useMessages';
+import { useMembers } from './useMembers';
+import { useTopics } from './useTopics';
 import { useDialogModals } from './useDialogModals';
 import { useMessageModals } from './useMessageModals';
 import { useUtils } from './useUtils';
 
 export function useDialogsMessagesPage() {
   // Конфигурация
+  const configStore = useConfigStore();
   const credentialsStore = useCredentialsStore();
 
   // Используем credentials из store (toRef для правильной типизации)
@@ -73,6 +77,30 @@ export function useDialogsMessagesPage() {
     getMessageSortIndicator,
     formatTimestamp: formatMessageTimestamp,
   } = messagesModule;
+
+  // Участники и топики (ленивая загрузка при открытии таба)
+  const membersModule = useMembers(getApiKey);
+  const {
+    members,
+    loadingMembers,
+    membersError,
+    membersPagination,
+    loadDialogMembers,
+    clearMembers,
+  } = membersModule;
+
+  const topicsModule = useTopics(getApiKey);
+  const {
+    topics,
+    loadingTopics,
+    topicsError,
+    topicsPagination,
+    loadDialogTopics,
+    clearTopics,
+  } = topicsModule;
+
+  // Текущий таб правой панели
+  const currentViewMode = ref<'messages' | 'members' | 'topics'>('messages');
 
   // Модальные окна (общие)
   const infoModal = useModal();
@@ -157,13 +185,102 @@ export function useDialogsMessagesPage() {
     showCurrentMessageUrl,
   } = messageModalsModule;
 
-  // Координация между диалогами и сообщениями
+  // Координация между диалогами и правой панелью
   async function selectDialog(dialogId: string) {
     currentDialogId.value = dialogId;
     messagesPagination.currentPage.value = 1;
     messagesPagination.currentPageInput.value = 1;
     loadDialogMessages(dialogId, 1);
+    clearMembers();
+    clearTopics();
   }
+
+  function selectMessagesTab() {
+    currentViewMode.value = 'messages';
+  }
+
+  function selectMembersTab() {
+    currentViewMode.value = 'members';
+    if (currentDialogId.value) {
+      loadDialogMembers(currentDialogId.value, 1);
+    }
+  }
+
+  function selectTopicsTab() {
+    currentViewMode.value = 'topics';
+    if (currentDialogId.value) {
+      loadDialogTopics(currentDialogId.value, 1);
+    }
+  }
+
+  const showMembersPagination = computed(
+    () => currentDialogId.value !== null && membersPagination.totalItems.value > 0
+  );
+  const showTopicsPagination = computed(
+    () => currentDialogId.value !== null && topicsPagination.totalItems.value > 0
+  );
+
+  function goToMembersPage(page: number) {
+    if (currentDialogId.value) {
+      membersPagination.currentPage.value = page;
+      membersPagination.currentPageInput.value = page;
+      loadDialogMembers(currentDialogId.value, page);
+    }
+  }
+  function goToTopicsPage(page: number) {
+    if (currentDialogId.value) {
+      topicsPagination.currentPage.value = page;
+      topicsPagination.currentPageInput.value = page;
+      loadDialogTopics(currentDialogId.value, page);
+    }
+  }
+
+  function changeMemberLimit(limit: number) {
+    membersPagination.changeLimit(limit);
+    if (currentDialogId.value) {
+      loadDialogMembers(currentDialogId.value, 1, limit);
+    }
+  }
+  function changeTopicsLimit(limit: number) {
+    topicsPagination.changeLimit(limit);
+    if (currentDialogId.value) {
+      loadDialogTopics(currentDialogId.value, 1, limit);
+    }
+  }
+
+  function showCurrentMembersUrl() {
+    if (!currentDialogId.value) return;
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+    const page = membersPagination.currentPage.value;
+    const limit = membersPagination.currentLimit.value;
+    const url = `${baseUrl}/api/dialogs/${currentDialogId.value}/members?page=${page}&limit=${limit}`;
+    urlModalTitle.value = 'URL запроса участников';
+    urlModalUrl.value = url;
+    urlModal.open();
+  }
+
+  function showCurrentTopicsUrl() {
+    if (!currentDialogId.value) return;
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+    const page = topicsPagination.currentPage.value;
+    const limit = topicsPagination.currentLimit.value;
+    const url = `${baseUrl}/api/dialogs/${currentDialogId.value}/topics?page=${page}&limit=${limit}`;
+    urlModalTitle.value = 'URL запроса топиков';
+    urlModalUrl.value = url;
+    urlModal.open();
+  }
+
+  function showCurrentTabUrl() {
+    if (currentViewMode.value === 'messages') showCurrentMessageUrl();
+    else if (currentViewMode.value === 'members') showCurrentMembersUrl();
+    else if (currentViewMode.value === 'topics') showCurrentTopicsUrl();
+  }
+
+  const rightPanelTitle = computed(() => {
+    if (currentViewMode.value === 'messages') return 'Сообщения';
+    if (currentViewMode.value === 'members') return 'Участники';
+    return 'Топики';
+  });
 
   // Инициализация
   onMounted(() => {
@@ -255,6 +372,49 @@ export function useDialogsMessagesPage() {
     messageFilterValue,
     selectedMessageFilterExample,
     showMessagesPagination,
+    // Таб правой панели
+    currentViewMode,
+    selectMessagesTab,
+    selectMembersTab,
+    selectTopicsTab,
+    // Участники
+    members,
+    loadingMembers,
+    membersError,
+    membersPagination,
+    showMembersPagination,
+    currentMemberPage: membersPagination.currentPage,
+    currentMemberPageInput: membersPagination.currentPageInput,
+    currentMemberLimit: membersPagination.currentLimit,
+    totalMemberPages: membersPagination.totalPages,
+    totalMembers: membersPagination.totalItems,
+    memberPaginationStart: membersPagination.paginationStart,
+    memberPaginationEnd: membersPagination.paginationEnd,
+    goToMembersFirstPage: membersPagination.goToFirstPage,
+    goToMembersPreviousPage: membersPagination.goToPreviousPage,
+    goToMembersNextPage: membersPagination.goToNextPage,
+    goToMembersLastPage: membersPagination.goToLastPage,
+    goToMembersPage,
+    changeMemberLimit,
+    // Топики
+    topics,
+    loadingTopics,
+    topicsError,
+    topicsPagination,
+    showTopicsPagination,
+    currentTopicsPage: topicsPagination.currentPage,
+    currentTopicsPageInput: topicsPagination.currentPageInput,
+    currentTopicsLimit: topicsPagination.currentLimit,
+    totalTopicsPages: topicsPagination.totalPages,
+    totalTopics: topicsPagination.totalItems,
+    topicsPaginationStart: topicsPagination.paginationStart,
+    topicsPaginationEnd: topicsPagination.paginationEnd,
+    goToTopicsFirstPage: topicsPagination.goToFirstPage,
+    goToTopicsPreviousPage: topicsPagination.goToPreviousPage,
+    goToTopicsNextPage: topicsPagination.goToNextPage,
+    goToTopicsLastPage: topicsPagination.goToLastPage,
+    goToTopicsPage,
+    changeTopicsLimit,
     // Модальные окна
     showInfoModalFlag: infoModal.isOpen,
     showCreateDialogModalFlag: createDialogModal.isOpen,
@@ -301,6 +461,10 @@ export function useDialogsMessagesPage() {
     applyMessageFilter,
     clearMessageFilter,
     showCurrentMessageUrl,
+    showCurrentMembersUrl,
+    showCurrentTopicsUrl,
+    showCurrentTabUrl,
+    rightPanelTitle,
     showCurrentUrl,
     showAddDialogModal,
     closeCreateDialogModal: createDialogModal.close,
