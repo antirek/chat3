@@ -22,7 +22,9 @@
               {{ getSortIndicator('createdAt') }}
             </span>
           </th>
-          <th>Пользователи</th>
+          <th style="text-align: center;">Участники</th>
+          <th style="text-align: center;">Топики</th>
+          <th style="text-align: center;">Сообщения</th>
           <th>Инфо</th>
         </tr>
       </template>
@@ -30,7 +32,9 @@
       <template #row="{ item }">
         <td>{{ (item as Dialog).dialogId }}</td>
         <td>{{ formatTimestamp((item as Dialog).createdAt) }}</td>
-        <td>{{ formatMembers((item as Dialog).members) }}</td>
+        <td style="text-align: center;">{{ (item as Dialog).stats?.memberCount ?? '—' }}</td>
+        <td style="text-align: center;">{{ (item as Dialog).stats?.topicCount ?? '—' }}</td>
+        <td style="text-align: center;">{{ (item as Dialog).stats?.messageCount ?? '—' }}</td>
         <td>
           <BaseButton variant="primary" size="small" @click.stop="showInfo((item as Dialog).dialogId)">
             ℹ️ Инфо
@@ -44,10 +48,16 @@
 <script setup lang="ts">
 import { BaseTable, BaseButton } from '@/shared/ui';
 
+interface DialogStats {
+  memberCount?: number;
+  messageCount?: number;
+  topicCount?: number;
+}
+
 interface Dialog {
   dialogId: string;
   createdAt?: string | number;
-  members?: Array<{ userId: string; isActive?: boolean }>;
+  stats?: DialogStats;
 }
 
 interface Props {
@@ -58,7 +68,6 @@ interface Props {
   currentSort: string | null;
   getSortIndicator: (field: string) => string;
   formatTimestamp: (createdAt?: string | number) => string;
-  formatMembers: (members?: Array<{ userId: string; isActive?: boolean }>) => string;
 }
 
 interface Emits {

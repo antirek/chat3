@@ -51,7 +51,6 @@ export function useDialogsMessagesPage() {
     toggleSort,
     getDialogSortIndicator,
     formatTimestamp,
-    formatMembers,
   } = dialogsModule;
 
   // Сообщения
@@ -442,7 +441,6 @@ export function useDialogsMessagesPage() {
     changeDialogLimit: dialogsPagination.changeLimit,
     changePage,
     formatTimestamp,
-    formatMembers,
     selectDialog,
     // Messages Pagination Functions
     goToMessagesFirstPage: messagesPagination.goToFirstPage,

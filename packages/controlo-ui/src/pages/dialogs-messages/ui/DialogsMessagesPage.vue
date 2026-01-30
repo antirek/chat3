@@ -46,7 +46,6 @@
           :current-sort="currentSort"
           :get-sort-indicator="getDialogSortIndicator"
           :format-timestamp="formatTimestamp"
-          :format-members="formatMembers"
           @toggle-sort="toggleSort"
           @select-dialog="selectDialog"
           @show-info="showDialogInfo"
@@ -330,7 +329,6 @@ const {
   changeDialogLimit,
     changePage,
     formatTimestamp,
-    formatMembers,
     selectDialog,
     // Messages Pagination Functions
     goToMessagesFirstPage,

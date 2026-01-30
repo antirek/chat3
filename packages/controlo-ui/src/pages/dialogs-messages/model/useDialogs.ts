@@ -207,17 +207,6 @@ export function useDialogs(getApiKey: () => string) {
     return dialogsSort.getSortIndicator(field);
   }
 
-  function formatMembers(members: any[] | undefined) {
-    if (!members || members.length === 0) return '-';
-
-    return members
-      .map((member) => {
-        const status = member.isActive ? '🟢' : '🔴';
-        return `${status} ${member.userId}`;
-      })
-      .join(', ');
-  }
-
   return {
     // State
     dialogs,
@@ -247,6 +236,5 @@ export function useDialogs(getApiKey: () => string) {
     getDialogSortIndicator,
     // Utils
     formatTimestamp,
-    formatMembers,
   };
 }
