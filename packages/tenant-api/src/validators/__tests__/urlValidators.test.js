@@ -161,14 +161,38 @@ describe('urlValidators', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  test('validateMetaKey enforces allowed characters', () => {
-    const req = { params: { key: 'allowed_key-1' } };
+  test('validateMetaKey enforces allowed characters (letters, numbers, underscore)', () => {
+    const req = { params: { key: 'allowed_key_1' } };
     const res = createRes();
     const next = jest.fn();
 
     validateMetaKey(req, res, next);
 
     expect(next).toHaveBeenCalled();
+  });
+
+  test('validateMetaKey rejects key with dot', () => {
+    const req = { params: { key: 'contact.phone' } };
+    const res = createRes();
+    const next = jest.fn();
+
+    validateMetaKey(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(400);
+    expect(res.body.field).toBe('key');
+    expect(res.body.message).toMatch(/no dots|underscore/);
+  });
+
+  test('validateMetaKey rejects hyphen (only underscore allowed)', () => {
+    const req = { params: { key: 'contact-phone' } };
+    const res = createRes();
+    const next = jest.fn();
+
+    validateMetaKey(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(400);
   });
 
   test('validateMetaKey rejects forbidden characters', () => {

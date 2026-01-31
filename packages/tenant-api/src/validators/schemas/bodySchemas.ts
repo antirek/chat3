@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { META_KEY_PATTERN, META_KEY_MAX_LENGTH, META_KEY_INVALID_MESSAGE } from '../metaKeyPattern.js';
 
 /**
  * Допустимые системные (internal) типы сообщений
@@ -25,7 +26,10 @@ const INTERNAL_MEDIA_MESSAGE_TYPES = Object.freeze([
 const SYSTEM_MESSAGE_TYPE_REGEX = /^system\.[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 const USER_MESSAGE_TYPE_REGEX = /^user\.[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 
-const META_KEY_SCHEMA = Joi.string().pattern(/^[a-zA-Z0-9_-]+$/).max(100);
+const META_KEY_SCHEMA = Joi.string()
+  .pattern(META_KEY_PATTERN)
+  .max(META_KEY_MAX_LENGTH)
+  .messages({ 'string.pattern.base': META_KEY_INVALID_MESSAGE });
 const META_VALUE_SCHEMA = Joi.alternatives().try(
   Joi.string(),
   Joi.number(),
@@ -182,7 +186,7 @@ export const createTenantSchema = Joi.object({
   // tenantId опционален, если не указан - будет автогенерирован
   // Если указан как пустая строка - преобразуется в undefined для автогенерации
   tenantId: Joi.string().trim().max(20).allow('').optional(),
-  meta: Joi.object().pattern(Joi.string(), Joi.any()).optional()
+  meta: Joi.object().pattern(META_KEY_SCHEMA, Joi.any()).optional()
 }).custom((value, helpers) => {
   // Преобразуем пустую строку tenantId в undefined для автогенерации
   if ((value as any).tenantId === '') {
@@ -211,6 +215,13 @@ export const createUserSchema = Joi.object({
  */
 export const updateUserSchema = Joi.object({
   type: Joi.string().trim().min(1).max(50).optional()
+});
+
+/**
+ * Схема валидации обновления топика (только meta)
+ */
+export const patchTopicSchema = Joi.object({
+  meta: OPTIONAL_META_SCHEMA
 });
 
 /**

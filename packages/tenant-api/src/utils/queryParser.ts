@@ -23,6 +23,8 @@ import type { FilterQuery } from 'mongoose';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 
 const MAX_GROUP_SIZE = 5;
+/** Алфавит meta-ключа: только [a-zA-Z0-9_], без точки (должен совпадать с validators/metaKeyPattern) */
+const META_KEY_REGEX = /^[a-zA-Z0-9_]+$/;
 
 export class FilterValidationError extends Error {
   constructor(message: string) {
@@ -93,19 +95,38 @@ export function parseFilter(filterString: string | undefined | null): MongoQuery
     const parsedValue = parseValue(valueTrimmed, fieldTrimmed);
     const mongoQuery = operatorToMongo(operatorTrimmed, parsedValue);
 
-    // Поддержка вложенных полей (meta.type)
     if (fieldTrimmed.includes('.')) {
-      // Для вложенных полей создаем структуру
       const parts = fieldTrimmed.split('.');
+      // meta.key: ключ не должен содержать точку (алфавит [a-zA-Z0-9_])
+      if (parts[0] === 'meta') {
+        if (parts.length > 2) {
+          throw new FilterValidationError(
+            'Meta key cannot contain a dot. Use underscore (e.g. contact_phone). Allowed: letters, numbers, underscore.'
+          );
+        }
+        if (parts.length === 2 && !META_KEY_REGEX.test(parts[1])) {
+          throw new FilterValidationError(
+            'Meta key may only contain letters, numbers, and underscores (no dots or hyphens). Example: contact_phone'
+          );
+        }
+      }
+      // topic.meta.key — валидация ключа после topic.meta
+      if (parts[0] === 'topic' && parts[1] === 'meta' && parts.length >= 3) {
+        const metaKey = parts.slice(2).join('.');
+        if (!META_KEY_REGEX.test(metaKey)) {
+          throw new FilterValidationError(
+            'Topic meta key may only contain letters, numbers, and underscores (no dots or hyphens). Example: contact_phone'
+          );
+        }
+      }
+      // Поддержка вложенных полей (meta.type, topic.meta.category)
       let current: any = result;
-      
       for (let i = 0; i < parts.length - 1; i++) {
         if (!current[parts[i]]) {
           current[parts[i]] = {};
         }
         current = current[parts[i]];
       }
-      
       const lastPart = parts[parts.length - 1];
       current[lastPart] = mongoQuery;
     } else {

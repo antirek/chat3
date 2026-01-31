@@ -3,7 +3,7 @@ import { topicController } from '../controllers/topicController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validateDialogId } from '../validators/urlValidators/index.js';
 import { validateQuery, validateBody } from '../validators/middleware.js';
-import { queryWithFilterSchema } from '../validators/schemas/index.js';
+import { queryWithFilterSchema, patchTopicSchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -173,6 +173,7 @@ router.patch(
   apiAuth,
   requirePermission('write'),
   validateDialogId,
+  validateBody(patchTopicSchema),
   topicController.updateTopic
 );
 

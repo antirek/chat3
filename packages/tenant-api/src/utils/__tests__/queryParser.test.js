@@ -68,6 +68,21 @@ describe('queryParser', () => {
       expect(result).toEqual({ meta: { channelType: { $ne: 'telegram' } } });
     });
 
+    test('should reject meta key with dot (use underscore)', () => {
+      expect(() => parseFilter('(meta.contact.phone,eq,+7999)')).toThrow(FilterValidationError);
+      expect(() => parseFilter('(meta.contact.phone,eq,+7999)')).toThrow(/Meta key cannot contain a dot/);
+    });
+
+    test('should accept meta key with underscore', () => {
+      const result = parseFilter('(meta.contact_phone,eq,+7999)');
+      expect(result).toEqual({ meta: { contact_phone: '+7999' } });
+    });
+
+    test('should reject topic.meta key with dot', () => {
+      expect(() => parseFilter('(topic.meta.contact.phone,eq,x)')).toThrow(FilterValidationError);
+      expect(() => parseFilter('(topic.meta.contact.phone,eq,x)')).toThrow(/Topic meta key/);
+    });
+
     test('should parse comparison operators', () => {
       expect(parseFilter('(age,gt,18)')).toEqual({ age: { $gt: 18 } });
       expect(parseFilter('(age,gte,18)')).toEqual({ age: { $gte: 18 } });
@@ -386,6 +401,18 @@ describe('queryParser', () => {
         status: 'active'
       });
       expect(result.memberFilters).toEqual({});
+    });
+
+    test('should extract meta key with underscore (contact_phone)', () => {
+      const filter = {
+        'meta.contact_phone': '+7999',
+        status: 'active'
+      };
+      const result = extractMetaFilters(filter);
+      expect(result.metaFilters).toEqual({
+        contact_phone: '+7999'
+      });
+      expect(result.regularFilters).toEqual({ status: 'active' });
     });
 
     test('should extract old format meta filters', () => {
