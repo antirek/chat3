@@ -8,6 +8,7 @@
       :selected-example="selectedFilterExample"
       :examples="filterExamples"
       placeholder="Введите или выберите фильтр"
+      hint="Поддерживаются поля dialogId, meta.*. Операторы: eq, regex, in, nin, gt, gte, lt, lte, ne и др."
       container-style="padding: 0; border: none; background: transparent; margin-bottom: 12px;"
       :show-actions="false"
       @update:filter-value="(v) => emit('update:filterValue', v)"

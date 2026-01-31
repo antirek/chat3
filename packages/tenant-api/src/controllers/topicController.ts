@@ -3,10 +3,95 @@ import * as topicUtils from '@chat3/utils/topicUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
+import { parseFilters, extractMetaFilters, parseSort } from '../utils/queryParser.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
 export const topicController = {
+  /**
+   * Получение списка топиков по тенанту (все диалоги). GET /api/topics
+   */
+  async getTenantTopics(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const routePath = 'get /topics';
+    const log = (...args: any[]) => {
+      console.log(`[${routePath}]`, ...args);
+    };
+    log('>>>>> start');
+
+    try {
+      const page = parseInt(String(req.query.page)) || 1;
+      const limit = parseInt(String(req.query.limit)) || 10;
+      const skip = (page - 1) * limit;
+      const tenantId = req.tenantId!;
+      log(`Получены параметры: page=${page}, limit=${limit}, filter=${req.query.filter || 'нет'}`);
+
+      const query: Record<string, unknown> = { tenantId };
+
+      if (req.query.filter) {
+        try {
+          const parsedFilters = parseFilters(String(req.query.filter));
+          const { regularFilters, metaFilters } = extractMetaFilters(parsedFilters);
+          Object.assign(query, regularFilters);
+          if (Object.keys(metaFilters).length > 0) {
+            const metaQuery = await metaUtils.buildMetaQuery(tenantId, 'topic', metaFilters);
+            if (metaQuery) {
+              Object.assign(query, metaQuery);
+            }
+          }
+        } catch (err: any) {
+          res.status(400).json({
+            error: 'Bad Request',
+            message: err?.message || 'Invalid filter format'
+          });
+          return;
+        }
+      }
+
+      let sortOptions: Record<string, 1 | -1> = { createdAt: -1 };
+      if (req.query.sort) {
+        const sortStr = parseSort(String(req.query.sort));
+        if (sortStr) {
+          sortOptions = sortStr.startsWith('-')
+            ? { [sortStr.slice(1)]: -1 }
+            : { [sortStr]: 1 };
+        }
+      }
+
+      const total = await Topic.countDocuments(query);
+      const topics = await Topic.find(query)
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      const topicsWithMeta = await Promise.all(
+        (topics as any[]).map(async (topic) => {
+          const meta = await metaUtils.getEntityMeta(tenantId, 'topic', topic.topicId);
+          return { ...topic, meta: meta || {} };
+        })
+      );
+
+      log(`Отправка ответа: ${topicsWithMeta.length} топиков, total=${total}`);
+      res.json({
+        data: sanitizeResponse(topicsWithMeta),
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit) || 1
+        }
+      });
+    } catch (error: any) {
+      log(`Ошибка обработки запроса:`, error.message);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    } finally {
+      log('>>>>> end');
+    }
+  },
+
   /**
    * Получение списка топиков диалога
    */

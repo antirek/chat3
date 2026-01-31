@@ -1,9 +1,23 @@
 <template>
   <div class="filter-panel" :style="containerStyle">
     <div class="form-section">
-      <label :for="inputId">
-        🔍 {{ label }}
-      </label>
+      <div ref="labelRowRef" class="label-row">
+        <label :for="inputId">
+          🔍 {{ label }}
+        </label>
+        <button
+          v-if="hint"
+          type="button"
+          class="hint-button"
+          title="Правила фильтров"
+          @click="showHintPopover = !showHintPopover"
+        >
+          ?
+        </button>
+        <div v-if="hint && showHintPopover" class="hint-popover" role="tooltip">
+          {{ hint }}
+        </div>
+      </div>
       <select
         v-if="examples.length > 0"
         :id="selectId"
@@ -36,9 +50,6 @@
         />
         <button class="clear-field" type="button" @click="clear" title="Очистить поле">✕</button>
       </div>
-      <small v-if="hint" class="filter-hint">
-        {{ hint }}
-      </small>
     </div>
     <div v-if="showActions" class="form-actions">
       <button class="btn-primary" type="button" @click="apply">Применить</button>
@@ -47,6 +58,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue';
+
 export interface FilterOption {
   value: string;
   label: string;
@@ -71,6 +84,23 @@ export interface BaseFilterProps {
   containerStyle?: string;
   showActions?: boolean;
 }
+
+const showHintPopover = ref(false);
+const labelRowRef = ref<HTMLElement | null>(null);
+
+function handleClickOutside(e: MouseEvent) {
+  if (labelRowRef.value && !labelRowRef.value.contains(e.target as Node)) {
+    showHintPopover.value = false;
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 
 const props = withDefaults(defineProps<BaseFilterProps>(), {
   selectId: '',
@@ -124,12 +154,61 @@ function apply() {
   margin-bottom: 0;
 }
 
+.label-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.label-row label {
+  margin-bottom: 0;
+}
+
 .form-section label {
   display: block;
-  margin-bottom: 8px;
   font-weight: 500;
   color: #495057;
   font-size: 13px;
+}
+
+.hint-button {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid #ced4da;
+  border-radius: 50%;
+  background: #fff;
+  color: #6c757d;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.hint-button:hover {
+  color: #495057;
+  border-color: #adb5bd;
+  background: #f8f9fa;
+}
+
+.hint-popover {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  max-width: 320px;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-size: 11px;
+  color: #495057;
+  line-height: 1.45;
+  z-index: 100;
 }
 
 .filter-select {
@@ -180,13 +259,6 @@ function apply() {
 
 .clear-field:hover {
   color: #495057;
-}
-
-.filter-hint {
-  display: block;
-  margin-top: 6px;
-  color: #6c757d;
-  font-size: 11px;
 }
 
 .form-actions {

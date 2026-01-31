@@ -101,6 +101,14 @@
           </router-link>
 
           <router-link
+            to="/topics-messages"
+            class="nav-link"
+            title="Топики + Сообщения"
+          >
+            <span class="nav-link-icon">📌</span>
+          </router-link>
+
+          <router-link
             to="/messages"
             class="nav-link"
             title="Сообщения"

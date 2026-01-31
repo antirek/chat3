@@ -19,6 +19,7 @@ export function useUtils(
   apiKey: Ref<string>,
   tenantId: Ref<string>,
   loadDialogsWithFilter: (filter: string) => void,
+  filterValue?: Ref<string>,
 ) {
   // Утилиты для копирования
   function copyToClipboard(text: string) {
@@ -129,7 +130,8 @@ export function useUtils(
     console.log('API Key set from external:', apiKey.value);
     console.log('Tenant ID set from external:', tenantId.value);
 
-    loadDialogsWithFilter('');
+    const initialFilter = filterValue?.value?.trim() ?? '';
+    loadDialogsWithFilter(initialFilter);
   }
 
   return {

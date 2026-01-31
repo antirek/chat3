@@ -33,6 +33,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/dialogs-messages'),
   },
   {
+    path: '/topics-messages',
+    name: 'topics-messages',
+    component: () => import('@/pages/topics-messages'),
+  },
+  {
     path: '/user-dialogs',
     name: 'user-dialogs',
     component: () => import('@/pages/user-dialogs'),

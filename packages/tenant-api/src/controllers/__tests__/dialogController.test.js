@@ -381,7 +381,8 @@ describe('dialogController.getById', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data.dialogId).toBe(dialog.dialogId);
     expect(res.body.data.meta).toEqual({ priority: 'high' });
-    expect(res.body.data.memberCount).toBe(1);
+    expect(res.body.data.stats).toBeDefined();
+    expect(res.body.data.stats.memberCount).toBe(1);
     expect(res.body.data.members).toBeUndefined();
   });
 

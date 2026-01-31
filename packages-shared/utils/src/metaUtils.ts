@@ -263,12 +263,14 @@ export async function buildMetaQuery(
       if (metaRecords.length === 0) {
         // Если нет записей для этого фильтра, возвращаем пустой результат
         console.log(`No records found for ${key}=${JSON.stringify(value)}, returning empty result`);
-        if (entityType === 'message') {
-          return { messageId: { $in: [] } };
+if (entityType === 'message') {
+        return { messageId: { $in: [] } };
         } else if (entityType === 'dialog') {
           return { dialogId: { $in: [] } };
         } else if (entityType === 'dialogMember') {
           return { _id: { $in: [] } }; // Пустой результат для DialogMember
+        } else if (entityType === 'topic') {
+          return { topicId: { $in: [] } };
         } else {
           return { _id: { $in: [] } };
         }
@@ -290,6 +292,9 @@ export async function buildMetaQuery(
     } else if (entityType === 'dialog') {
       // Для диалогов entityId это dialogId (строка), а не _id
       return { dialogId: { $in: entityIds } };
+    } else if (entityType === 'topic') {
+      // Для топиков entityId это topicId (строка)
+      return { topicId: { $in: entityIds } };
     } else if (entityType === 'dialogMember') {
       // Для DialogMember entityId это составной ключ dialogId:userId
       // Нужно распарсить и использовать dialogId и userId

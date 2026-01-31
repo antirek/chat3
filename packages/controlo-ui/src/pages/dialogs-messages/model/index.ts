@@ -1,4 +1,5 @@
 import { ref, computed, onMounted, toRef } from 'vue';
+import { useRoute } from 'vue-router';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { useModal } from '@/shared/lib/composables/useModal';
@@ -11,6 +12,7 @@ import { useMessageModals } from './useMessageModals';
 import { useUtils } from './useUtils';
 
 export function useDialogsMessagesPage() {
+  const route = useRoute();
   // Конфигурация
   const configStore = useConfigStore();
   const credentialsStore = useCredentialsStore();
@@ -127,6 +129,7 @@ export function useDialogsMessagesPage() {
     apiKey,
     tenantId,
     loadDialogsWithFilter,
+    filterValue,
   );
   const {
     getUrlParams,
@@ -289,14 +292,21 @@ export function useDialogsMessagesPage() {
 
     credentialsStore.loadFromStorage();
 
+    // Фильтр из query (например, переход с Топики+Сообщения по кнопке «Переход»)
+    const routeFilter = route.query.filter ? String(route.query.filter) : '';
+    if (routeFilter) {
+      filterValue.value = routeFilter;
+      selectedFilterExample.value = 'custom';
+    }
+
     const params = getUrlParams();
     if (params.apiKey) {
       setApiKeyFromExternal(params.apiKey, params.tenantId);
     } else {
       const key = getApiKey();
       if (key && key.trim()) {
-        // Если API Key уже есть в store, загружаем диалоги
-        loadDialogsWithFilter('');
+        // Если API Key уже есть в store, загружаем диалоги (с учётом filter из URL)
+        loadDialogsWithFilter(filterValue.value.trim() || '');
       } else {
         // Если API Key нет, не показываем загрузку
         loadingDialogs.value = false;

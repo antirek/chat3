@@ -12,7 +12,7 @@
         <FilterPanel
           input-id="userFilterInput"
           select-id="userFilterExample"
-          label="Фильтр пользователей (формат: (поле,оператор,значение))"
+          label="Фильтр"
           :filter-value="userFilterInput"
           :selected-example="selectedUserFilterExample"
           :examples="userFilterExamples"
@@ -74,6 +74,7 @@
           :selected-example="selectedFilterExample"
           :examples="dialogFilterExamples"
           placeholder="Введите или выберите фильтр"
+          hint="Поддерживаются поля dialogId, meta.*. Операторы: eq, regex, in, nin, gt, gte, lt, lte, ne и др."
           @update:filter-value="filterValue = $event"
           @update:selected-example="selectedFilterExample = $event"
           @select-example="selectFilterExample"

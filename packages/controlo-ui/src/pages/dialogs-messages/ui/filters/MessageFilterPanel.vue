@@ -7,6 +7,7 @@
     :selected-example="selectedExample"
     :examples="examples"
     placeholder="Введите или выберите фильтр"
+    hint="Поддерживаются поля content, type, senderId, dialogId, meta.*, createdAt. Операторы: eq, ne, regex, in, nin, gt, lt, gte, lte."
     @update:filter-value="(v) => emit('update:filterValue', v)"
     @update:selected-example="(v) => emit('update:selectedExample', v)"
     @select-example="onSelectExample"
