@@ -234,8 +234,9 @@ export async function buildMetaQuery(
             
             // Добавляем entityId, которые не имеют этого ключа вообще
             allMessageIds.forEach(id => {
-              if (!withKeyIds.has(id)) {
-                allEntityIds.add(id);
+              const idStr = String(id);
+              if (!withKeyIds.has(idStr)) {
+                allEntityIds.add(idStr);
               }
             });
           } else {
