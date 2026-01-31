@@ -36,7 +36,7 @@
           {{ (item as User).type || 'user' }}
         </span>
       </td>
-      <td>{{ formatTimestamp((item as User).createdAt) }}</td>
+      <td :title="(item as User).createdAt != null ? String((item as User).createdAt) : undefined">{{ formatTimestamp((item as User).createdAt) }}</td>
       <td>
         <span class="dialog-count-badge">
           {{ (item as User).dialogCount !== undefined ? (item as User).dialogCount : '-' }}

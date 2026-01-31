@@ -2,7 +2,7 @@
 import { Message, Dialog, MessageStatus, User, DialogMember, } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
-import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
+import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { buildStatusMessageMatrix, buildReactionSet } from '@chat3/utils/userDialogUtils.js';
@@ -132,15 +132,10 @@ const messageController = {
       log(`Получены параметры: page=${page}, limit=${limit}, filter=${req.query.filter || 'нет'}, sort=${req.query.sort || 'нет'}`);
 
       // Build base query
-      let query = {
+      let query: Record<string, unknown> = {
         tenantId: req.tenantId!
       };
 
-      console.log('base query:', query);
-
-      // Initialize metaFilters variable
-      let metaFilters = {};
-      
       // Parse sort parameter
       let sortOptions = { createdAt: -1 }; // Default sort by newest first
       if (req.query.sort) {
@@ -159,34 +154,15 @@ const messageController = {
       // Apply filters if provided
       if (req.query.filter) {
         try {
-          console.log('Filter string:', req.query.filter);
           const parsedFilters = parseFilters(String(req.query.filter));
-          console.log('Parsed filters:', parsedFilters);
-          const { regularFilters, metaFilters: extractedMetaFilters } = extractMetaFilters(parsedFilters);
-          console.log('Regular filters:', regularFilters);
-          console.log('Meta filters:', extractedMetaFilters);
-          
-          // Assign metaFilters to the outer scope
-          metaFilters = extractedMetaFilters;
-          
-          // Apply regular filters
-          Object.assign(query, regularFilters);
-          
-          // Apply meta filters if any
-          if (Object.keys(metaFilters).length > 0) {
-            console.log('Applying meta filters:', metaFilters);
-            const metaQuery = await metaUtils.buildMetaQuery(req.tenantId, 'message', metaFilters);
-            console.log('Meta query result:', metaQuery);
-            if (metaQuery) {
-              query = { ...query, ...metaQuery };
-              console.log('Final query with meta filters:', query);
-            }
-          }
-          
-          console.log('Final query:', query);
-        } catch (error) {
-          console.log('Filter parsing error:', error.message);
-          // Continue without filters if parsing fails
+          const filterQuery = await buildFilterQuery(req.tenantId!, 'message', parsedFilters);
+          Object.assign(query, filterQuery);
+        } catch (err: any) {
+          res.status(400).json({
+            error: 'Bad Request',
+            message: err?.message || 'Invalid filter format'
+          });
+          return;
         }
       }
 
@@ -196,28 +172,6 @@ const messageController = {
         .sort(sortOptions as any)
         .skip(skip)
         .limit(limit);
-
-      console.log('Found messages:', messages.length);
-
-      // Дополнительная проверка: проверим мета-теги найденных сообщений
-      if (Object.keys(metaFilters).length > 0) {
-        console.log('Verifying meta filters for found messages...');
-        for (const message of messages) {
-          const messageMeta = await metaUtils.getEntityMeta(req.tenantId, 'message', message.messageId);
-          console.log(`Message ${message.messageId} meta:`, messageMeta);
-          
-          // Проверяем каждый мета-фильтр
-          for (const [key, expectedValue] of Object.entries(metaFilters)) {
-            const actualValue = messageMeta[key];
-            if (actualValue !== expectedValue) {
-              console.error(`❌ META FILTER MISMATCH for message ${message.messageId}:`);
-              console.error(`   Expected ${key}=${expectedValue}, got ${key}=${actualValue}`);
-            } else {
-              console.log(`✅ Meta filter OK for message ${message.messageId}: ${key}=${actualValue}`);
-            }
-          }
-        }
-      }
 
       // Add meta data and message statuses for each message
       const messagesWithMeta = await enrichMessagesWithMetaAndStatuses(messages, req.tenantId);
@@ -284,33 +238,16 @@ const messageController = {
       if (req.query.filter) {
         try {
           const parsedFilters = parseFilters(String(req.query.filter));
-          const { regularFilters, metaFilters } = extractMetaFilters(parsedFilters);
-          
-          // Apply regular filters
-          Object.assign(query, regularFilters);
-          
-          // Обработка фильтра по topicId
-          if (regularFilters.topicId !== undefined) {
-            if (regularFilters.topicId === null || regularFilters.topicId === 'null') {
-              query.topicId = null;
-            } else {
-              query.topicId = regularFilters.topicId;
-            }
-            delete regularFilters.topicId; // Удаляем из regularFilters, чтобы не дублировать
+          const filterQuery = await buildFilterQuery(req.tenantId!, 'message', parsedFilters);
+          Object.assign(query, filterQuery);
+          // Обработка фильтра по topicId (если есть в query после buildFilterQuery)
+          if (query.topicId === 'null') {
+            query.topicId = null;
           }
-          
-          // Apply meta filters if any
-          if (Object.keys(metaFilters).length > 0) {
-            const metaQuery = await metaUtils.buildMetaQuery(req.tenantId, 'message', metaFilters);
-            if (metaQuery) {
-              query = { ...query, ...metaQuery };
-            }
-          }
-         
-        } catch (error) {
+        } catch (err: any) {
           res.status(400).json({
             error: 'Bad Request',
-            message: 'Invalid filter format'
+            message: err?.message || 'Invalid filter format'
           });
           return;
         }

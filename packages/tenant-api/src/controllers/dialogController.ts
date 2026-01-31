@@ -3,7 +3,7 @@ import { Dialog, Meta, DialogMember,
   UserDialogStats, UserDialogActivity, DialogStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
-import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort } from '../utils/queryParser.js';
+import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort, buildFilterQuery } from '../utils/queryParser.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 
 import * as userUtils from '../utils/userUtils.js';
@@ -34,15 +34,19 @@ export const dialogController = {
 
       let dialogIds: string[] | null = null;
       let regularFilters: any = {};
+      let queryFromOrFilter: any = null;
 
       // Фильтрация по метаданным и участникам
       if (req.query.filter) {
         try {
-          // Парсим фильтры (поддержка как JSON, так и (field,operator,value) формата)
           const parsedFilters = parseFilters(String(req.query.filter));
-          
-          // Извлекаем meta фильтры и member фильтры
-          const { metaFilters, regularFilters: extractedRegularFilters, memberFilters } = extractMetaFilters(parsedFilters);
+          const extracted = extractMetaFilters(parsedFilters);
+
+          // При $or используем buildFilterQuery (member в ветках не поддерживается)
+          if ('branches' in extracted) {
+            queryFromOrFilter = { tenantId: req.tenantId!, ...(await buildFilterQuery(req.tenantId!, 'dialog', parsedFilters)) };
+          } else {
+          const { metaFilters, regularFilters: extractedRegularFilters, memberFilters } = extracted;
           regularFilters = extractedRegularFilters;
           
           // Обрабатываем meta фильтры
@@ -133,7 +137,7 @@ export const dialogController = {
               }
             }
           }
-          
+          }
         } catch (error: any) {
           log(`Ошибка парсинга фильтров: ${error.message}`);
           res.status(400).json({
@@ -145,10 +149,13 @@ export const dialogController = {
       }
 
       log(`Построение запроса: tenantId=${req.tenantId}`);
-      const query: any = { tenantId: req.tenantId! };
+      let query: any;
+      if (queryFromOrFilter !== null) {
+        query = queryFromOrFilter;
+      } else {
+      query = { tenantId: req.tenantId! };
       
       // Применяем обычные фильтры (например, dialogId) к query
-      // Но если есть dialogId в regularFilters, обрабатываем его отдельно
       const { dialogId: regularDialogId, ...otherRegularFilters } = regularFilters;
       Object.assign(query, otherRegularFilters);
       
@@ -197,6 +204,7 @@ export const dialogController = {
       } else if (regularDialogId !== undefined) {
         // Если нет dialogIds из meta/member фильтров, но есть regularDialogId
         query.dialogId = regularDialogId;
+      }
       }
 
       // Проверяем, нужна ли сортировка по полям DialogMember

@@ -31,7 +31,7 @@
 
       <template #row="{ item }">
         <td>{{ (item as Dialog).dialogId }}</td>
-        <td>{{ formatTimestamp((item as Dialog).createdAt) }}</td>
+        <td :title="(item as Dialog).createdAt != null ? String((item as Dialog).createdAt) : undefined">{{ formatTimestamp((item as Dialog).createdAt) }}</td>
         <td style="text-align: center;">{{ (item as Dialog).stats?.memberCount ?? '—' }}</td>
         <td style="text-align: center;">{{ (item as Dialog).stats?.topicCount ?? '—' }}</td>
         <td style="text-align: center;">{{ (item as Dialog).stats?.messageCount ?? '—' }}</td>

@@ -7,7 +7,7 @@
     :selected-example="selectedExample"
     :examples="examples"
     placeholder="Введите или выберите фильтр"
-    hint="Поддерживаются поля content, type, senderId, dialogId, meta.*, createdAt. Операторы: eq, ne, regex, in, nin, gt, lt, gte, lte."
+    hint="Поля: content, type, senderId, dialogId, meta.*, createdAt. Операторы: eq, ne, in, nin, regex, gt, gte, lt, lte. И и ИЛИ: & и |; скобки задают группы, внутри группы только И или только ИЛИ (макс. 5 в группе). Пример: (type,eq,a)|(type,eq,b)."
     @update:filter-value="(v) => emit('update:filterValue', v)"
     @update:selected-example="(v) => emit('update:selectedExample', v)"
     @select-example="onSelectExample"

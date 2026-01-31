@@ -1,4 +1,4 @@
-import { parseFilter, parseFilters, extractMetaFilters, parseMemberSort, parseSort } from '../queryParser.js';
+import { parseFilter, parseFilters, extractMetaFilters, parseMemberSort, parseSort, FilterValidationError } from '../queryParser.js';
 
 describe('queryParser', () => {
   describe('parseFilter', () => {
@@ -224,6 +224,58 @@ describe('queryParser', () => {
         member: { $nin: ['carl', 'marta'] }
       });
     });
+
+    test('should parse OR: (type,eq,a)|(type,eq,b) -> $or', () => {
+      const result = parseFilters('(type,eq,a)|(type,eq,b)');
+      expect(result.$or).toBeDefined();
+      expect(result.$or).toHaveLength(2);
+      expect(result.$or[0]).toEqual({ type: 'a' });
+      expect(result.$or[1]).toEqual({ type: 'b' });
+    });
+
+    test('should parse ((a)&(b))|(c) -> $or with AND branch', () => {
+      const result = parseFilters('((type,eq,a)&(senderId,eq,c))|(type,eq,system)');
+      expect(result.$or).toBeDefined();
+      expect(result.$or).toHaveLength(2);
+      expect(result.$or[0].type).toBe('a');
+      expect(result.$or[0].senderId).toBe('c');
+      expect(result.$or[1]).toEqual({ type: 'system' });
+    });
+
+    test('should reject a&b|c without parentheses (mixed & and | at depth 0)', () => {
+      expect(() => parseFilters('(type,eq,a)&(senderId,eq,c)|(type,eq,system)')).toThrow(FilterValidationError);
+      expect(() => parseFilters('(type,eq,a)&(senderId,eq,c)|(type,eq,system)')).toThrow(/use parentheses to group/);
+    });
+
+    test('should reject (a&b|c) mixed operators in one group', () => {
+      expect(() => parseFilters('((type,eq,a)&(senderId,eq,c)|(type,eq,system))')).toThrow(FilterValidationError);
+      expect(() => parseFilters('((type,eq,a)&(senderId,eq,c)|(type,eq,system))')).toThrow(/use parentheses to group/);
+    });
+
+    test('should reject more than 5 OR branches', () => {
+      const sixOr = '(a,eq,1)|(a,eq,2)|(a,eq,3)|(a,eq,4)|(a,eq,5)|(a,eq,6)';
+      expect(() => parseFilters(sixOr)).toThrow(FilterValidationError);
+      expect(() => parseFilters(sixOr)).toThrow(/too many OR branches/);
+    });
+
+    test('should reject more than 5 operands in AND group', () => {
+      const sixAnd = '(a,eq,1)&(a,eq,2)&(a,eq,3)&(a,eq,4)&(a,eq,5)&(a,eq,6)';
+      expect(() => parseFilters(sixAnd)).toThrow(FilterValidationError);
+      expect(() => parseFilters(sixAnd)).toThrow(/too many conditions in group/);
+    });
+
+    test('should allow exactly 5 OR branches', () => {
+      const fiveOr = '(a,eq,1)|(a,eq,2)|(a,eq,3)|(a,eq,4)|(a,eq,5)';
+      const result = parseFilters(fiveOr);
+      expect(result.$or).toHaveLength(5);
+    });
+
+    test('should allow exactly 5 AND operands', () => {
+      const fiveAnd = '(a,eq,1)&(a,eq,2)&(a,eq,3)&(a,eq,4)&(a,eq,5)';
+      const result = parseFilters(fiveAnd);
+      expect(result.$and).toBeDefined();
+      expect(result.$and.length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   describe('extractMetaFilters', () => {
@@ -371,6 +423,22 @@ describe('queryParser', () => {
       expect(result.metaFilters).toEqual({});
       expect(result.regularFilters).toEqual({});
       expect(result.memberFilters).toEqual({});
+    });
+
+    test('should return branches when filter has $or', () => {
+      const filter = {
+        $or: [
+          { type: 'a', 'meta.name': 'x' },
+          { type: 'b' }
+        ]
+      };
+      const result = extractMetaFilters(filter);
+      expect(result.branches).toBeDefined();
+      expect(result.branches).toHaveLength(2);
+      expect(result.branches[0].metaFilters).toEqual({ name: 'x' });
+      expect(result.branches[0].regularFilters).toEqual({ type: 'a' });
+      expect(result.branches[1].metaFilters).toEqual({});
+      expect(result.branches[1].regularFilters).toEqual({ type: 'b' });
     });
   });
 

@@ -20,6 +20,16 @@
 
 import { DialogMember } from '@chat3/models';
 import type { FilterQuery } from 'mongoose';
+import * as metaUtils from '@chat3/utils/metaUtils.js';
+
+const MAX_GROUP_SIZE = 5;
+
+export class FilterValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FilterValidationError';
+  }
+}
 
 type MongoQueryValue = string | number | boolean | null | RegExp | { [key: string]: any };
 type MongoQuery = { [key: string]: MongoQueryValue | { [key: string]: any } };
@@ -41,6 +51,8 @@ interface ExtractedFilters {
   regularFilters: MongoQuery;
   memberFilters: MongoQuery;
 }
+
+export type ExtractedFiltersResult = ExtractedFilters | { branches: ExtractedFilters[] };
 
 /**
  * Парсит строку фильтра в MongoDB query
@@ -264,8 +276,144 @@ function stripInlineRegexFlags(input: string): string {
   return input.replace(/\(\?[a-z]*i[a-z]*\)/gi, '');
 }
 
+/** Разделяет строку по разделителю только на глубине 0 (вне скобок). */
+function splitAtDepth0(str: string, sep: string): string[] {
+  const parts: string[] = [];
+  let current = '';
+  let depth = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (char === '(') {
+      depth++;
+      current += char;
+    } else if (char === ')') {
+      depth--;
+      current += char;
+    } else if (char === sep && depth === 0) {
+      if (current.trim()) parts.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+/** Проверяет, есть ли на глубине 0 и & и | (смешанные операторы без скобок). */
+function atDepth0HasBothAndOr(str: string): boolean {
+  let hasAnd = false;
+  let hasOr = false;
+  let depth = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (char === '(') depth++;
+    else if (char === ')') depth--;
+    else if (depth === 0) {
+      if (char === '&') hasAnd = true;
+      else if (char === '|') hasOr = true;
+    }
+    if (hasAnd && hasOr) return true;
+  }
+  return false;
+}
+
+/** Если строка целиком в одной паре скобок ( ... ), возвращает внутреннюю часть. */
+function stripOuterParens(str: string): string {
+  const s = str.trim();
+  if (s.length < 2 || s[0] !== '(') return s;
+  let depth = 1;
+  for (let i = 1; i < s.length; i++) {
+    if (s[i] === '(') depth++;
+    else if (s[i] === ')') {
+      depth--;
+      if (depth === 0) return i === s.length - 1 ? s.slice(1, -1).trim() : s;
+    }
+  }
+  return s;
+}
+
+/** Проверяет, что строка — одна сбалансированная пара скобок ( ... ). */
+function isSingleBalancedParens(str: string): boolean {
+  const s = str.trim();
+  if (s.length < 2 || s[0] !== '(') return false;
+  let depth = 1;
+  for (let i = 1; i < s.length; i++) {
+    if (s[i] === '(') depth++;
+    else if (s[i] === ')') {
+      depth--;
+      if (depth === 0) return i === s.length - 1;
+    }
+  }
+  return false;
+}
+
+/** Объединяет несколько MongoQuery в один (при конфликте ключей — в $and). */
+function mergeAndOperands(queries: MongoQuery[]): MongoQuery {
+  const result: MongoQuery = {};
+  for (const q of queries) {
+    for (const [key, value] of Object.entries(q)) {
+      if (result[key]) {
+        if (!result.$and) result.$and = [];
+        (result.$and as any[]).push({ [key]: value });
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result;
+}
+
+/** Парсит один операнд: либо группа ( ... ) с рекурсией, либо атом через parseFilter. */
+function parseOneOperand(part: string): MongoQuery {
+  const p = part.trim();
+  if (isSingleBalancedParens(p)) {
+    const inner = stripOuterParens(p);
+    if (atDepth0HasBothAndOr(inner)) {
+      throw new FilterValidationError('Filter validation failed: use parentheses to group when mixing & and |');
+    }
+    // Если внутри нет & и | — это один атом (field,op,value), парсим со скобками
+    if (!/[&|]/.test(inner)) {
+      return parseFilter(p);
+    }
+    return parseFiltersInternal(inner);
+  }
+  return parseFilter(p);
+}
+
+function parseFiltersInternal(filterString: string): MongoQuery {
+  const trimmed = filterString.trim();
+  if (!trimmed) return {};
+
+  // На глубине 0 не допускаем смешивание & и |
+  if (atDepth0HasBothAndOr(trimmed)) {
+    throw new FilterValidationError('Filter validation failed: use parentheses to group when mixing & and |');
+  }
+
+  const orParts = splitAtDepth0(trimmed, '|');
+  if (orParts.length > 1) {
+    if (orParts.length > MAX_GROUP_SIZE) {
+      throw new FilterValidationError(`Filter validation failed: too many OR branches (max ${MAX_GROUP_SIZE})`);
+    }
+    const branches = orParts.map(parseOneOperand);
+    return { $or: branches };
+  }
+
+  const andParts = splitAtDepth0(trimmed, '&');
+  if (andParts.length > MAX_GROUP_SIZE) {
+    throw new FilterValidationError(`Filter validation failed: too many conditions in group (max ${MAX_GROUP_SIZE})`);
+  }
+  if (andParts.length === 1) {
+    return parseOneOperand(andParts[0]);
+  }
+  const andQueries = andParts.map(parseOneOperand);
+  return mergeAndOperands(andQueries);
+}
+
 /**
- * Парсит множественные фильтры, разделенные &
+ * Парсит множественные фильтры, разделенные & и |
+ * Группировка только скобками; внутри одной группы — один тип оператора (& или |).
+ * Лимит 5 на число веток $or и операндов в группе.
  * @param filterString - Строка с фильтрами
  * @returns Объединенный MongoDB query
  */
@@ -274,8 +422,9 @@ export function parseFilters(filterString: string | undefined | null): MongoQuer
     return {};
   }
 
-  // Если это JSON, парсим как JSON
   const trimmed = filterString.trim();
+  if (!trimmed) return {};
+
   if (trimmed.startsWith('{')) {
     try {
       return JSON.parse(trimmed) as MongoQuery;
@@ -284,63 +433,26 @@ export function parseFilters(filterString: string | undefined | null): MongoQuer
     }
   }
 
-  // Разделяем по & (но не внутри скобок)
-  const filters: string[] = [];
-  let current = '';
-  let depth = 0;
-
-  for (let i = 0; i < filterString.length; i++) {
-    const char = filterString[i];
-    
-    if (char === '(') {
-      depth++;
-      current += char;
-    } else if (char === ')') {
-      depth--;
-      current += char;
-    } else if (char === '&' && depth === 0) {
-      if (current.trim()) {
-        filters.push(current.trim());
-      }
-      current = '';
-    } else {
-      current += char;
-    }
+  let normalized = trimmed;
+  if (isSingleBalancedParens(trimmed)) {
+    const inner = stripOuterParens(trimmed);
+    if (/[&|]/.test(inner)) normalized = inner;
   }
-  
-  if (current.trim()) {
-    filters.push(current.trim());
-  }
-
-  // Парсим каждый фильтр и объединяем
-  const result: MongoQuery = {};
-  
-  for (const filter of filters) {
-    const parsed = parseFilter(filter);
-    
-    // Объединяем результаты
-    for (const [key, value] of Object.entries(parsed)) {
-      if (result[key]) {
-        // Если ключ уже существует, объединяем условия через $and
-        if (!result.$and) {
-          result.$and = [];
-        }
-        (result.$and as any[]).push({ [key]: value });
-      } else {
-        result[key] = value;
-      }
-    }
-  }
-
-  return result;
+  return parseFiltersInternal(normalized);
 }
 
 /**
- * Извлекает meta фильтры из общего фильтра
+ * Извлекает meta фильтры из общего фильтра.
+ * При наличии $or возвращает { branches: ExtractedFilters[] } для сборки запроса по веткам.
  * @param filter - Фильтр объект
- * @returns Объект с разделенными фильтрами
+ * @returns Объект с разделенными фильтрами или ветки при $or
  */
-export function extractMetaFilters(filter: MongoQuery): ExtractedFilters {
+export function extractMetaFilters(filter: MongoQuery): ExtractedFiltersResult {
+  if (filter.$or && Array.isArray(filter.$or)) {
+    const branches = (filter.$or as MongoQuery[]).map((branch) => extractMetaFilters(branch) as ExtractedFilters);
+    return { branches };
+  }
+
   const metaFilters: MongoQuery = {};
   const regularFilters: MongoQuery = {};
   const memberFilters: MongoQuery = {};
@@ -374,9 +486,10 @@ export function extractMetaFilters(filter: MongoQuery): ExtractedFilters {
       // Фильтр по участникам: { member: "carl" } или { member: { $in: ["carl", "marta"] } }
       memberFilters[key] = value;
     } else if (key === '$and' && Array.isArray(value)) {
-      // Обрабатываем $and массив
+      // Обрабатываем $and массив (элементы $and не содержат $or на верхнем уровне)
       for (const andCondition of value as MongoQuery[]) {
-        const { metaFilters: nestedMeta, memberFilters: nestedMember, regularFilters: nestedRegular } = extractMetaFilters(andCondition);
+        const extractedAnd = extractMetaFilters(andCondition) as ExtractedFilters;
+        const { metaFilters: nestedMeta, memberFilters: nestedMember, regularFilters: nestedRegular } = extractedAnd;
         Object.assign(metaFilters, nestedMeta);
         Object.assign(memberFilters, nestedMember);
         // Обрабатываем nested regularFilters для topic.meta.*
@@ -393,6 +506,44 @@ export function extractMetaFilters(filter: MongoQuery): ExtractedFilters {
   }
 
   return { metaFilters, regularFilters, memberFilters };
+}
+
+export type EntityTypeForFilter = 'topic' | 'message' | 'dialog' | 'user' | 'dialogMember' | 'tenant';
+
+/**
+ * Собирает итоговый MongoDB-запрос из распарсенных фильтров с учётом meta по веткам.
+ * При $or каждая ветка обрабатывается отдельно (regular + buildMetaQuery), member в ветках не поддерживается.
+ * @param tenantId - ID тенанта
+ * @param entityType - Тип сущности для meta-запроса
+ * @param parsedFilters - Результат parseFilters
+ * @returns Итоговый query для find/countDocuments
+ */
+export async function buildFilterQuery(
+  tenantId: string,
+  entityType: EntityTypeForFilter,
+  parsedFilters: MongoQuery
+): Promise<MongoQuery> {
+  const extracted = extractMetaFilters(parsedFilters);
+
+  if ('branches' in extracted) {
+    const branchQueries: MongoQuery[] = [];
+    for (const branch of extracted.branches) {
+      const query: MongoQuery = { ...branch.regularFilters };
+      if (Object.keys(branch.metaFilters).length > 0) {
+        const metaQuery = await metaUtils.buildMetaQuery(tenantId, entityType as any, branch.metaFilters);
+        if (metaQuery) Object.assign(query, metaQuery);
+      }
+      branchQueries.push(query);
+    }
+    return { $or: branchQueries };
+  }
+
+  const query: MongoQuery = { ...extracted.regularFilters };
+  if (Object.keys(extracted.metaFilters).length > 0) {
+    const metaQuery = await metaUtils.buildMetaQuery(tenantId, entityType as any, extracted.metaFilters);
+    if (metaQuery) Object.assign(query, metaQuery);
+  }
+  return query;
 }
 
 /**
@@ -578,8 +729,10 @@ export default {
   parseFilter,
   parseFilters,
   extractMetaFilters,
+  buildFilterQuery,
   processMemberFilters,
   parseSort,
   parseMemberSort,
   operatorToMongo,
+  FilterValidationError,
 };

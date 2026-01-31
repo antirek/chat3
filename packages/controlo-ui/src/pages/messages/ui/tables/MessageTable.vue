@@ -28,7 +28,7 @@
         <td class="message-id">{{ (item as Message).messageId }}</td>
         <td>{{ getDialogName((item as Message).dialogId) }}</td>
         <td>{{ (item as Message).senderId }}</td>
-        <td>{{ formatTimestamp((item as Message).createdAt) }}</td>
+        <td :title="(item as Message).createdAt != null ? String((item as Message).createdAt) : undefined">{{ formatTimestamp((item as Message).createdAt) }}</td>
         <td class="message-content">{{ (item as Message).content }}</td>
         <td>{{ (item as Message).type }}</td>
         <td>

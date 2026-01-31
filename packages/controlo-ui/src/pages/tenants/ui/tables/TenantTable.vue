@@ -24,7 +24,7 @@
 
       <template #row="{ item }">
         <td><strong>{{ (item as Tenant).tenantId || '-' }}</strong></td>
-        <td>{{ formatTimestamp((item as Tenant).createdAt) }}</td>
+        <td :title="(item as Tenant).createdAt != null ? String((item as Tenant).createdAt) : undefined">{{ formatTimestamp((item as Tenant).createdAt) }}</td>
         <td>
           <BaseButton
             variant="primary"

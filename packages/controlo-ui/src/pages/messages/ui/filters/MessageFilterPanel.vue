@@ -7,7 +7,7 @@
     :selected-example="selectedFilterExample"
     :examples="examples"
     placeholder="Введите или выберите фильтр сообщений"
-    hint="Поддерживаются поля content, type, senderId, dialogId, meta.*, createdAt. Операторы: eq, ne, in, nin, regex, gt, lt, gte, lte."
+    hint="Поля: content, type, senderId, dialogId, meta.*, createdAt. Операторы: eq, ne, in, nin, regex, gt, gte, lt, lte. И и ИЛИ: & и |; скобки задают группы (макс. 5 в группе)."
     @update:filter-value="(v) => emit('update:filterInput', v)"
     @update:selected-example="(v) => emit('update:selectedFilterExample', v)"
     @clear="clear"

@@ -211,16 +211,15 @@ describe('messageController.getAll - filter combinations', () => {
     expect(res.body.data[0].messageId).toBe(message1.messageId);
   });
 
-  test('returns all messages when filter parsing fails', async () => {
+  test('returns 400 when filter parsing fails', async () => {
     const req = createMockReq({ filter: '(senderId,invalid_operator,alice)', page: 1, limit: 10 });
     const res = createMockRes();
 
     await messageController.getAll(req, res);
 
-    expect(res.body.data).toHaveLength(3);
-    res.body.data.forEach((message) => {
-      expect(message.senderInfo?.userId).toBe(message.senderId);
-    });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.message).toBeDefined();
   });
 
   test('supports sorting by createdAt asc', async () => {

@@ -31,7 +31,7 @@
           {{ item.senderId }}
           <span v-if="item.context?.isMine" style="color: #4fc3f7; margin-left: 5px;" title="Ваше сообщение">👤</span>
         </td>
-        <td>{{ formatTimestamp(item.createdAt) }}</td>
+        <td :title="item.createdAt != null ? String(item.createdAt) : undefined">{{ formatTimestamp(item.createdAt) }}</td>
         <td class="message-content">{{ item.content }}</td>
         <td>
           <span

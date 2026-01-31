@@ -35,7 +35,7 @@
         <td>{{ (item as Event).eventId || '-' }}</td>
         <td>{{ (item as Event).eventType || '-' }}</td>
         <td>{{ (item as Event).actorId || '-' }}</td>
-        <td>{{ formatTimestamp((item as Event).createdAt) }}</td>
+        <td :title="(item as Event).createdAt != null ? String((item as Event).createdAt) : undefined">{{ formatTimestamp((item as Event).createdAt) }}</td>
         <td class="actions-column">
           <BaseButton
             color="#ff9800"

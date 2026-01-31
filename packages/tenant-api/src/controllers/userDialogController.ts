@@ -10,7 +10,7 @@ import {
 } from '@chat3/models';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
-import { parseFilters, extractMetaFilters, parseSort } from '../utils/queryParser.js';
+import { parseFilters, extractMetaFilters, parseSort, buildFilterQuery } from '../utils/queryParser.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { validateGetUserDialogMessagesResponse, validateGetUserDialogMessageResponse } from '../validators/schemas/responseSchemas.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
@@ -53,11 +53,19 @@ const userDialogController = {
       // Фильтрация по метаданным
       if (req.query.filter) {
         try {
-          // Парсим фильтры (поддержка как JSON, так и (field,operator,value) формата)
           const parsedFilters = parseFilters(String(req.query.filter));
-          
-          // Извлекаем meta фильтры и member фильтры
-          const { metaFilters, regularFilters: extractedRegularFilters, memberFilters } = extractMetaFilters(parsedFilters);
+          const extracted = extractMetaFilters(parsedFilters);
+
+          // При $or используем buildFilterQuery (member в ветках не поддерживается)
+          if ('branches' in extracted) {
+            const baseQuery = await buildFilterQuery(req.tenantId!, 'dialog', parsedFilters);
+            const dialogs = await Dialog.find({ tenantId: req.tenantId!, ...baseQuery }).select('dialogId').lean();
+            const allDialogIds = dialogs.map((d: any) => d.dialogId);
+            const userDialogIds = (await DialogMember.find({ userId, tenantId: req.tenantId! }).select('dialogId').lean()).map((m: any) => m.dialogId);
+            dialogIds = allDialogIds.filter((id: string) => userDialogIds.includes(id));
+            regularFilters = {};
+          } else {
+          const { metaFilters, regularFilters: extractedRegularFilters, memberFilters } = extracted;
           regularFilters = extractedRegularFilters;
           
           // Обрабатываем meta фильтры (исключая topic.meta.*, которые обрабатываются отдельно)
@@ -730,6 +738,7 @@ const userDialogController = {
               }
             }
           }
+          }
           
         } catch (error: any) {
           res.status(400).json({
@@ -1018,7 +1027,11 @@ const userDialogController = {
       if (dialogIds !== null && req.query.filter) {
         try {
           const parsedFilters = parseFilters(String(req.query.filter));
-          const { memberFilters } = extractMetaFilters(parsedFilters);
+          const extracted = extractMetaFilters(parsedFilters);
+          if ('branches' in extracted) {
+            // При $or member не поддерживается — проверку пропускаем
+          } else {
+          const { memberFilters } = extracted;
           
           if (Object.keys(memberFilters).length > 0 && memberFilters.member) {
             const memberValue = memberFilters.member;
@@ -1060,6 +1073,7 @@ const userDialogController = {
             dialogMembers = dialogMembers.filter(m => verifiedDialogIdsSet.has(m.dialogId));
           }
         }
+          }
       } catch (error: any) {
         console.error('Error verifying member filter:', error);
       }
@@ -1415,7 +1429,12 @@ const userDialogController = {
       if (req.query.filter) {
         try {
           const parsedFilters = parseFilters(String(req.query.filter));
-          const { metaFilters, regularFilters } = extractMetaFilters(parsedFilters);
+          const extracted = extractMetaFilters(parsedFilters);
+          if ('branches' in extracted) {
+            const filterQuery = await buildFilterQuery(req.tenantId!, 'message', parsedFilters);
+            Object.assign(query, filterQuery);
+          } else {
+          const { metaFilters, regularFilters } = extracted;
           
           // Применяем обычные фильтры
           for (const [field, condition] of Object.entries(regularFilters)) {
@@ -1494,6 +1513,7 @@ const userDialogController = {
               });
               return;
             }
+          }
           }
         } catch (err: any) {
           console.error('Error parsing filter:', err);

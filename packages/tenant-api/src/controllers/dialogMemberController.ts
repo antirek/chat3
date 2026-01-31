@@ -3,7 +3,7 @@ import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
-import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
+import { parseFilters, extractMetaFilters, buildFilterQuery } from '../utils/queryParser.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { scheduleDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import * as userUtils from '../utils/userUtils.js';
@@ -245,13 +245,19 @@ const dialogMemberController = {
         }
       }
 
-      const { metaFilters, regularFilters } = extractMetaFilters(parsedFilters);
+      const extracted = extractMetaFilters(parsedFilters);
       const allowedFilterFields = new Set(['userId', 'role', 'unreadCount', 'lastSeenAt', 'lastMessageAt', 'joinedAt']);
 
       const memberQuery: any = {
         tenantId: req.tenantId!,
         dialogId: dialog.dialogId
       };
+
+      if ('branches' in extracted) {
+        const filterQuery = await buildFilterQuery(req.tenantId!, 'dialogMember', parsedFilters);
+        Object.assign(memberQuery, filterQuery);
+      } else {
+      const { metaFilters, regularFilters } = extracted;
 
       if (regularFilters.$and && Array.isArray(regularFilters.$and)) {
         const andConditions = regularFilters.$and.filter(condition => {
@@ -302,6 +308,7 @@ const dialogMemberController = {
 
         memberQuery.$and = memberQuery.$and || [];
         memberQuery.$and.push(metaCondition);
+      }
       }
 
       // Парсим параметр sort, который может быть в формате (field,asc) или (field,desc)

@@ -3,7 +3,7 @@ import * as topicUtils from '@chat3/utils/topicUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
-import { parseFilters, extractMetaFilters, parseSort } from '../utils/queryParser.js';
+import { parseFilters, buildFilterQuery, parseSort, FilterValidationError } from '../utils/queryParser.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
@@ -30,16 +30,11 @@ export const topicController = {
       if (req.query.filter) {
         try {
           const parsedFilters = parseFilters(String(req.query.filter));
-          const { regularFilters, metaFilters } = extractMetaFilters(parsedFilters);
-          Object.assign(query, regularFilters);
-          if (Object.keys(metaFilters).length > 0) {
-            const metaQuery = await metaUtils.buildMetaQuery(tenantId, 'topic', metaFilters);
-            if (metaQuery) {
-              Object.assign(query, metaQuery);
-            }
-          }
+          const filterQuery = await buildFilterQuery(tenantId, 'topic', parsedFilters);
+          Object.assign(query, filterQuery);
         } catch (err: any) {
-          res.status(400).json({
+          const status = err?.name === 'FilterValidationError' ? 400 : 400;
+          res.status(status).json({
             error: 'Bad Request',
             message: err?.message || 'Invalid filter format'
           });

@@ -37,7 +37,7 @@
             {{ item.stats?.topicCount || 0 }}
           </span>
         </td>
-        <td>{{ formatTimestamp(item.context?.lastSeenAt) }}</td>
+        <td :title="item.context?.lastSeenAt != null ? String(item.context.lastSeenAt) : undefined">{{ formatTimestamp(item.context?.lastSeenAt) }}</td>
         <td class="actions-column">
           <BaseButton variant="primary" size="small" @click.stop="$emit('show-info', item.dialogId)">ℹ️ Инфо</BaseButton>
           <BaseButton variant="events" size="small" @click.stop="$emit('show-events', item.dialogId)">📋 События</BaseButton>

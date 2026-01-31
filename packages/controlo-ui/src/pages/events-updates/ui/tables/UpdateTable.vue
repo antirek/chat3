@@ -34,7 +34,7 @@
         <td>{{ (item as Update).userId || '-' }}</td>
         <td>{{ (item as Update).entityId || '-' }}</td>
         <td>{{ (item as Update).eventType || '-' }}</td>
-        <td>{{ formatTimestamp((item as Update).createdAt) }}</td>
+        <td :title="(item as Update).createdAt != null ? String((item as Update).createdAt) : undefined">{{ formatTimestamp((item as Update).createdAt) }}</td>
         <td>{{ (item as Update).published ? 'Да' : 'Нет' }}</td>
         <td class="actions-column">
           <BaseButton

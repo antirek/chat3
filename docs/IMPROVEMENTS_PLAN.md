@@ -14,10 +14,12 @@
 - `(type,eq,internal.text)|(type,eq,system)` — тип равен internal.text **или** system
 - Комбинация с И: `(senderId,eq,carl)&((type,eq,a)|(type,eq,b))`
 
-**Задачи:**
+**Задачи:** см. детальный [план реализации OR в фильтрах](FILTER_OR_IMPLEMENTATION_PLAN.md).
+
 - [ ] Определить синтаксис (разделитель `|`, приоритет скобок, вложенность)
 - [ ] Обновить `parseFilters` в `packages/tenant-api/src/utils/queryParser.ts`: разбор `|`, формирование `$or` в MongoDB-запросе
-- [ ] Убедиться, что все контроллеры, использующие фильтры (userDialogController, messageController, dialogController, userController и др.), корректно обрабатывают `$or`
+- [ ] Обработка `$or` в extractMetaFilters / buildFilterQuery (meta и member по веткам)
+- [ ] Подключить сборку запроса с `$or` во всех контроллерах, использующих фильтры
 - [ ] Обновить документацию (API.md, INTEGRATION.md, TOPICS_FILTERS.md) и примеры в UI
 
 ---

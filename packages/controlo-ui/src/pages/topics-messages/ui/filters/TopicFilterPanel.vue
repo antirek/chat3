@@ -8,7 +8,7 @@
       :selected-example="selectedFilterExample"
       :examples="topicFilterExamples"
       placeholder="Введите или выберите фильтр (topicId, dialogId, meta.*)"
-      hint="Поддерживаются поля topicId, dialogId, meta.*. Операторы: eq, regex, in, nin, gt, gte, lt, lte, ne и др."
+      hint="Поля: topicId, dialogId, meta.*. Операторы: eq, ne, in, nin, regex, gt, gte, lt, lte. И и ИЛИ: & и |; скобки задают группы, внутри группы только И или только ИЛИ (макс. 5 в группе). Пример: (meta.name,eq,a)|(meta.name,eq,b)."
       container-style="padding: 0; border: none; background: transparent; margin-bottom: 12px;"
       :show-actions="false"
       @update:filter-value="(v) => emit('update:filterValue', v)"

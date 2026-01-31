@@ -7,7 +7,7 @@
     :selected-example="selectedFilterExample"
     :examples="examples"
     placeholder="Например: (userId,regex,carl)&(meta.role,eq,manager)"
-    hint="Поддерживаются поля userId, type, meta.*. Операторы: eq, ne, in, nin, regex, gt, lt, gte, lte."
+    hint="Поля: userId, type, meta.*. Операторы: eq, ne, in, nin, regex, gt, gte, lt, lte. И и ИЛИ: & и |; скобки задают группы (макс. 5 в группе)."
     @update:filter-value="(v) => emit('update:filterInput', v)"
     @update:selected-example="(v) => emit('update:selectedFilterExample', v)"
     @clear="clear"

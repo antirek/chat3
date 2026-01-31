@@ -3,7 +3,7 @@ import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { Response } from 'express';
-import { parseFilters, extractMetaFilters } from '../utils/queryParser.js';
+import { parseFilters, extractMetaFilters, buildFilterQuery } from '../utils/queryParser.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
 function appendFilterConditions(target: any[], filtersObject: any): void {
@@ -108,38 +108,41 @@ export async function getUsers(req: AuthenticatedRequest, res: Response): Promis
       }
     }
 
-    const { metaFilters, regularFilters } = extractMetaFilters(parsedFilters);
+    const extracted = extractMetaFilters(parsedFilters);
     const sort = req.query.sort ? JSON.parse(String(req.query.sort)) : { createdAt: -1 };
     const page = parseInt(String(req.query.page)) || 1;
     const limit = parseInt(String(req.query.limit)) || 50;
     log(`Получены параметры: page=${page}, limit=${limit}, sort=${JSON.stringify(sort)}, filter=${req.query.filter || 'нет'}`);
 
-    // Добавляем фильтр по tenantId
     const andConditions: any[] = [{ tenantId: req.tenantId! }];
-    
-    // Применяем regularFilters (включая type)
-    if (regularFilters && Object.keys(regularFilters).length > 0) {
-      appendFilterConditions(andConditions, regularFilters);
-    }
 
-    if (metaFilters && Object.keys(metaFilters).length > 0) {
-      log(`Поиск пользователей по мета-фильтрам: metaFilters=${JSON.stringify(metaFilters)}`);
-      const userIdsFromMeta = await findUserIdsByMeta(metaFilters, req.tenantId!);
-      if (!userIdsFromMeta || userIdsFromMeta.length === 0) {
-        log(`Нет пользователей, соответствующих мета-фильтрам`);
-        res.json({
-          data: [],
-          pagination: {
-            page,
-            limit,
-            total: 0,
-            pages: 0
-          }
-        });
-        return;
+    if ('branches' in extracted) {
+      const filterQuery = await buildFilterQuery(req.tenantId!, 'user', parsedFilters);
+      andConditions.push(filterQuery);
+    } else {
+      const { metaFilters, regularFilters } = extracted;
+      if (regularFilters && Object.keys(regularFilters).length > 0) {
+        appendFilterConditions(andConditions, regularFilters);
       }
-      log(`Найдено пользователей по мета-фильтрам: ${userIdsFromMeta.length}`);
-      andConditions.push({ userId: { $in: userIdsFromMeta } });
+      if (metaFilters && Object.keys(metaFilters).length > 0) {
+        log(`Поиск пользователей по мета-фильтрам: metaFilters=${JSON.stringify(metaFilters)}`);
+        const userIdsFromMeta = await findUserIdsByMeta(metaFilters, req.tenantId!);
+        if (!userIdsFromMeta || userIdsFromMeta.length === 0) {
+          log(`Нет пользователей, соответствующих мета-фильтрам`);
+          res.json({
+            data: [],
+            pagination: {
+              page,
+              limit,
+              total: 0,
+              pages: 0
+            }
+          });
+          return;
+        }
+        log(`Найдено пользователей по мета-фильтрам: ${userIdsFromMeta.length}`);
+        andConditions.push({ userId: { $in: userIdsFromMeta } });
+      }
     }
 
     const finalFilter = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
