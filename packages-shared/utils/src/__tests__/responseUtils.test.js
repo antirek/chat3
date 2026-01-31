@@ -1,4 +1,4 @@
-import { sanitizeResponse } from '../responseUtils.js';
+import { sanitizeResponse, timestampReplacer } from '../responseUtils.js';
 
 describe('responseUtils', () => {
   describe('sanitizeResponse', () => {
@@ -215,6 +215,27 @@ describe('responseUtils', () => {
       expect(result.optional).toBeUndefined();
       expect(typeof result.createdAt).toBe('string');
       expect(result.createdAt).toMatch(/^\d+\.\d{6}$/);
+    });
+
+    test('should remove name for User-like objects (userId + tenantId present)', () => {
+      const input = {
+        userId: 'usr_1',
+        tenantId: 'tnt_1',
+        name: 'Alice',
+        _id: 'id123'
+      };
+      const result = sanitizeResponse(input);
+      expect(result._id).toBeUndefined();
+      expect(result.userId).toBe('usr_1');
+      expect(result.tenantId).toBe('tnt_1');
+      expect(result.name).toBeUndefined();
+    });
+
+    test('should keep name when object is not User-like (no userId or tenantId)', () => {
+      const input = { name: 'Test', id: 'x' };
+      const result = sanitizeResponse(input);
+      expect(result.name).toBe('Test');
+      expect(result.id).toBeUndefined();
     });
 
     test('should handle empty objects', () => {
@@ -494,6 +515,25 @@ describe('responseUtils', () => {
       expect(result.items[3]).toBeUndefined();
       expect(result.items[4]).toBe('string');
       expect(result.items[5]).toBe(123);
+    });
+  });
+
+  describe('timestampReplacer', () => {
+    test('should format timestamp fields with toFixed(6)', () => {
+      const value = 1734567890123.123456;
+      const result = timestampReplacer('createdAt', value);
+      expect(typeof result).toBe('number');
+      expect(result).toBe(parseFloat(value.toFixed(6)));
+    });
+
+    test('should return value as-is for non-timestamp keys', () => {
+      expect(timestampReplacer('name', 'Test')).toBe('Test');
+      expect(timestampReplacer('count', 42)).toBe(42);
+    });
+
+    test('should return value as-is when number is below threshold', () => {
+      const result = timestampReplacer('createdAt', 123456789);
+      expect(result).toBe(123456789);
     });
   });
 });

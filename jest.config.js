@@ -25,8 +25,11 @@ export default {
   collectCoverageFrom: [
     'src/**/*.{js,ts}',
     'packages-shared/**/*.{js,ts}',
+    'packages/tenant-api/src/**/*.{js,ts}',
     '!src/**/*.test.{js,ts}',
     '!**/*.d.ts',
+    '!packages/tenant-api/src/**/__tests__/**',
+    '!packages/tenant-api/src/**/*.test.{js,ts}',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'text-summary', 'lcov', 'html'],

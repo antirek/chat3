@@ -353,6 +353,50 @@ describe('metaUtils - Integration Tests with MongoDB', () => {
       expect(query).toBeDefined();
     });
 
+    test('should build query for topic entity type', async () => {
+      const topicId = 'topic_test123456789012345';
+      await setEntityMeta(tenantId, 'topic', topicId, 'category', 'support', 'string');
+
+      const query = await buildMetaQuery(tenantId, 'topic', { category: 'support' });
+
+      expect(query).toBeDefined();
+      expect(query).toHaveProperty('topicId');
+      expect(query.topicId).toHaveProperty('$in');
+      expect(query.topicId.$in).toContain(topicId);
+    });
+
+    test('should return empty topicId when no matching meta for topic', async () => {
+      const query = await buildMetaQuery(tenantId, 'topic', { category: 'nonexistent' });
+
+      expect(query).toBeDefined();
+      expect(query.topicId.$in).toEqual([]);
+    });
+
+    test('should return empty dialogId when no matching meta for dialog', async () => {
+      const query = await buildMetaQuery(tenantId, 'dialog', { channel: 'nonexistent' });
+
+      expect(query).toBeDefined();
+      expect(query.dialogId.$in).toEqual([]);
+    });
+
+    test('should return _id empty for unsupported entity types (user, tenant)', async () => {
+      const query = await buildMetaQuery(tenantId, 'user', { role: 'admin' });
+
+      expect(query).toBeDefined();
+      expect(query).toHaveProperty('_id');
+      expect(query._id.$in).toEqual([]);
+    });
+
+    test('should return _id empty for dialogMember when entityId has invalid format (no colon)', async () => {
+      // entityId без ":" не парсится в dialogId:userId — memberQueries будет пуст
+      await setEntityMeta(tenantId, 'dialogMember', 'invalid-no-colon', 'role', 'admin', 'string');
+
+      const query = await buildMetaQuery(tenantId, 'dialogMember', { role: 'admin' });
+
+      expect(query).toBeDefined();
+      expect(query).toHaveProperty('_id');
+      expect(query._id.$in).toEqual([]);
+    });
   });
 
   describe('error handling', () => {

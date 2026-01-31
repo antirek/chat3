@@ -276,6 +276,98 @@ describe('queryParser', () => {
       expect(result.$and).toBeDefined();
       expect(result.$and.length).toBeGreaterThanOrEqual(1);
     });
+
+    describe('OR combinations and nesting (two levels)', () => {
+      test('OR with 3 branches: (a)|(b)|(c)', () => {
+        const result = parseFilters('(type,eq,a)|(type,eq,b)|(type,eq,c)');
+        expect(result.$or).toHaveLength(3);
+        expect(result.$or[0]).toEqual({ type: 'a' });
+        expect(result.$or[1]).toEqual({ type: 'b' });
+        expect(result.$or[2]).toEqual({ type: 'c' });
+      });
+
+      test('OR with 4 branches: (meta.name,eq,a)|...|(meta.name,eq,d)', () => {
+        const result = parseFilters('(meta.name,eq,a)|(meta.name,eq,b)|(meta.name,eq,c)|(meta.name,eq,d)');
+        expect(result.$or).toHaveLength(4);
+        expect(result.$or[0].meta).toEqual({ name: 'a' });
+        expect(result.$or[1].meta).toEqual({ name: 'b' });
+        expect(result.$or[2].meta).toEqual({ name: 'c' });
+        expect(result.$or[3].meta).toEqual({ name: 'd' });
+      });
+
+      test('(a|b)|c — OR of two atoms and one atom', () => {
+        const result = parseFilters('(type,eq,a)|(type,eq,b)|(type,eq,c)');
+        expect(result.$or).toHaveLength(3);
+        expect(result.$or.map((b) => b.type)).toEqual(['a', 'b', 'c']);
+      });
+
+      test('((a|b)|c) — outer parentheses around OR', () => {
+        const result = parseFilters('((type,eq,a)|(type,eq,b)|(type,eq,c))');
+        expect(result.$or).toHaveLength(3);
+        expect(result.$or.map((b) => b.type)).toEqual(['a', 'b', 'c']);
+      });
+
+      test('((a&b)|c) — (AND group) OR atom', () => {
+        const result = parseFilters('((status,eq,active)&(age,gte,18))|(status,eq,draft)');
+        expect(result.$or).toHaveLength(2);
+        expect(result.$or[0].status).toBe('active');
+        expect(result.$or[0].age).toEqual({ $gte: 18 });
+        expect(result.$or[1]).toEqual({ status: 'draft' });
+      });
+
+      test('((a&b)&c)|d — nested AND in first branch', () => {
+        const result = parseFilters('((status,eq,active)&(age,gte,18)&(role,eq,user))|(status,eq,admin)');
+        expect(result.$or).toHaveLength(2);
+        expect(result.$or[0].status).toBe('active');
+        expect(result.$or[0].age).toEqual({ $gte: 18 });
+        expect(result.$or[0].role).toBe('user');
+        expect(result.$or[1]).toEqual({ status: 'admin' });
+      });
+
+      test('(a|b|c|d)&e — AND with first operand as OR group: top-level status applies to all branches', () => {
+        const result = parseFilters('((type,eq,a)|(type,eq,b)|(type,eq,c)|(type,eq,d))&(status,eq,active)');
+        expect(result.$or).toBeDefined();
+        expect(result.$or).toHaveLength(4);
+        expect(result.status).toBe('active');
+        expect(result.$or.map((b) => b.type)).toEqual(['a', 'b', 'c', 'd']);
+      });
+
+      test('(a|b)|(c|d) — OR of two OR-groups: two top-level branches, each branch is $or', () => {
+        const result = parseFilters('((type,eq,a)|(type,eq,b))|((type,eq,c)|(type,eq,d))');
+        expect(result.$or).toHaveLength(2);
+        expect(result.$or[0].$or).toHaveLength(2);
+        expect(result.$or[0].$or[0].type).toBe('a');
+        expect(result.$or[0].$or[1].type).toBe('b');
+        expect(result.$or[1].$or).toHaveLength(2);
+        expect(result.$or[1].$or[0].type).toBe('c');
+        expect(result.$or[1].$or[1].type).toBe('d');
+      });
+
+      test('single atom with outer parentheses unchanged', () => {
+        const result = parseFilters('(meta.name,eq,personal)');
+        expect(result.meta).toEqual({ name: 'personal' });
+        expect(result.$or).toBeUndefined();
+      });
+
+      test('AND only without OR unchanged', () => {
+        const result = parseFilters('(meta.name,eq,a)&(meta.channel,eq,whatsapp)');
+        expect(result.meta).toBeDefined();
+        expect(result.$and).toBeDefined();
+        expect(result.$or).toBeUndefined();
+      });
+
+      test('reject 6 OR branches', () => {
+        const six = '(x,eq,1)|(x,eq,2)|(x,eq,3)|(x,eq,4)|(x,eq,5)|(x,eq,6)';
+        expect(() => parseFilters(six)).toThrow(FilterValidationError);
+        expect(() => parseFilters(six)).toThrow(/too many OR branches/);
+      });
+
+      test('reject 6 operands in one AND group', () => {
+        const six = '(x,eq,1)&(x,eq,2)&(x,eq,3)&(x,eq,4)&(x,eq,5)&(x,eq,6)';
+        expect(() => parseFilters(six)).toThrow(FilterValidationError);
+        expect(() => parseFilters(six)).toThrow(/too many conditions in group/);
+      });
+    });
   });
 
   describe('extractMetaFilters', () => {
@@ -439,6 +531,22 @@ describe('queryParser', () => {
       expect(result.branches[0].regularFilters).toEqual({ type: 'a' });
       expect(result.branches[1].metaFilters).toEqual({});
       expect(result.branches[1].regularFilters).toEqual({ type: 'b' });
+    });
+
+    test('should return branches when $or has $and in a branch', () => {
+      const filter = {
+        $or: [
+          { $and: [{ 'meta.name': 'a' }, { 'meta.channel': 'whatsapp' }] },
+          { type: 'b' }
+        ]
+      };
+      const result = extractMetaFilters(filter);
+      expect(result.branches).toBeDefined();
+      expect(result.branches).toHaveLength(2);
+      expect(result.branches[0].metaFilters).toEqual({ name: 'a', channel: 'whatsapp' });
+      expect(result.branches[0].regularFilters).toEqual({});
+      expect(result.branches[1].regularFilters).toEqual({ type: 'b' });
+      expect(result.branches[1].metaFilters).toEqual({});
     });
   });
 
