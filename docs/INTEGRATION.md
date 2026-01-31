@@ -323,11 +323,20 @@ async function handleMessageUpdate(update) {
 #### API для работы с топиками
 
 **Получение списка топиков диалога:**
+
+Поддерживается параметр `filter` в операторном формате (поля: `topicId`, `dialogId`, `meta.*`). Доступны AND (`&`), OR (`|`) и группировка скобками. Подробнее — в docs/API.md, раздел «Фильтрация».
+
 ```bash
 GET /api/dialogs/{dialogId}/topics?page=1&limit=20
+# С фильтром по meta:
+GET /api/dialogs/{dialogId}/topics?filter=(meta.priority,in,[support,general])
+GET /api/dialogs/{dialogId}/topics?filter=(meta.name,eq,a)|(meta.name,eq,b)
 ```
 
 **Получение топиков в контексте пользователя (с количеством непрочитанных сообщений):**
+
+Тот же формат `filter`, что и для списка топиков диалога.
+
 ```bash
 GET /api/users/{userId}/dialogs/{dialogId}/topics?page=1&limit=20
 ```
@@ -382,7 +391,7 @@ Content-Type: application/json
 
 #### Поиск диалогов по топикам
 
-API поддерживает поиск диалогов пользователя по топикам и их мета-тегам через фильтры в `GET /api/users/{userId}/dialogs`.
+API поддерживает поиск диалогов пользователя по топикам и их мета-тегам через фильтры в `GET /api/users/{userId}/dialogs`. Поддерживаются комбинирование через `&` (AND), `|` (OR) и группировка скобками; при одновременном использовании AND и OR скобки обязательны. Лимит: не более 5 веток в OR и 5 операндов в одной группе. Подробнее — docs/API.md, раздел «Фильтрация».
 
 **Фильтрация по topicId:**
 
@@ -432,19 +441,25 @@ GET /api/users/{userId}/dialogs?filter=(topic.topicCount,eq,0)
 GET /api/users/{userId}/dialogs?filter=(topic.topicCount,gte,5)
 ```
 
-**Комбинированные фильтры:**
+**Комбинированные фильтры (AND и OR):**
 
-Можно комбинировать несколько условий через `&` (AND логика):
+Условия можно комбинировать через `&` (AND) и `|` (OR). При одновременном использовании `&` и `|` обязательна группировка скобками.
 
 ```bash
-# Диалоги с топиками категории "support" и приоритетом "high"
+# AND: диалоги с топиками категории "support" и приоритетом "high"
 GET /api/users/{userId}/dialogs?filter=(topic.meta.category,eq,support)&(topic.meta.priority,eq,high)
 
-# Диалоги с топиками приоритета "high" или "urgent", не архивные
+# AND: диалоги с топиками приоритета "high" или "urgent", не архивные
 GET /api/users/{userId}/dialogs?filter=(topic.meta.priority,in,[high,urgent])&(topic.meta.status,ne,archived)
 
-# Диалоги с конкретным топиком, имеющим назначенного пользователя
+# AND: диалоги с конкретным топиком, имеющим назначенного пользователя
 GET /api/users/{userId}/dialogs?filter=(topic.topicId,eq,topic_abc123)&(topic.meta.assignedTo,exists,true)
+
+# OR: диалоги с топиками категории "support" или "sales"
+GET /api/users/{userId}/dialogs?filter=(topic.meta.category,eq,support)|(topic.meta.category,eq,sales)
+
+# Группировка: (support и high) или (sales и urgent)
+GET /api/users/{userId}/dialogs?filter=((topic.meta.category,eq,support)&(topic.meta.priority,eq,high))|((topic.meta.category,eq,sales)&(topic.meta.priority,eq,urgent))
 ```
 
 **Примеры использования:**
@@ -482,6 +497,17 @@ const response = await fetch(
     }
   }
 );
+
+// ИЛИ: диалоги с топиками категории "support" или "sales"
+const responseOr = await fetch(
+  `/api/users/${userId}/dialogs?filter=(topic.meta.category,eq,support)|(topic.meta.category,eq,sales)`,
+  {
+    headers: {
+      'X-API-Key': apiKey,
+      'X-Tenant-ID': tenantId
+    }
+  }
+);
 ```
 
 **Поддерживаемые операторы для фильтров топиков:**
@@ -491,7 +517,23 @@ const response = await fetch(
 - `in` - в массиве значений
 - `nin` - не в массиве значений
 - `exists` - существование поля (true/false)
+- `regex` - регулярное выражение
 - `gt`, `gte`, `lt`, `lte` - для `topic.topicCount` (количество топиков)
+
+**Фильтрация сообщений по топикам:**
+
+В `GET /api/dialogs/{dialogId}/messages` и `GET /api/users/{userId}/dialogs/{dialogId}/messages` можно фильтровать сообщения по топику; поддерживаются AND/OR и группировка:
+
+```bash
+# Сообщения конкретного топика
+GET /api/dialogs/{dialogId}/messages?filter=(topicId,eq,topic_abc123...)
+
+# Сообщения без топика
+GET /api/dialogs/{dialogId}/messages?filter=(topicId,eq,null)
+
+# Сообщения из топика A или B (ИЛИ)
+GET /api/dialogs/{dialogId}/messages?filter=(topicId,eq,topic_a)|(topicId,eq,topic_b)
+```
 
 #### Обработка топиков в вашей системе
 

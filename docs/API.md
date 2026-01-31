@@ -123,6 +123,8 @@ npm run generate-key
 - `(type,in,[user,bot])` - тип в списке
 - `(meta.role,eq,manager)` - фильтр по meta тегу
 
+**Где применяется:** один и тот же синтаксис фильтра (операторы, AND/OR, группировка скобками, лимиты) используется во всех endpoint'ах, принимающих query-параметр `filter`: пользователи, диалоги, сообщения, топики, участники диалогов, диалоги пользователя.
+
 ## Endpoints
 
 ### Tenants (Организации)
@@ -225,13 +227,14 @@ npm run generate-key
 
 **Query параметры:**
 - `page`, `limit` - пагинация
-- `filter` - фильтр
+- `filter` - фильтр в операторном формате (AND/OR и группировка скобками — см. раздел «Фильтрация»)
 - `sort` - сортировка
 
 **Примеры фильтров:**
 - `(meta.type,eq,internal)` - диалоги типа internal
 - `(meta.channelType,eq,whatsapp)` - WhatsApp диалоги
 - `(dialogId,eq,dlg_...)` - конкретный диалог
+- `(meta.type,eq,internal)|(meta.type,eq,support)` - диалоги типа internal или support
 
 #### GET /api/dialogs/:id
 Получить диалог по ID
@@ -296,7 +299,7 @@ npm run generate-key
 
 **Query параметры:**
 - `page`, `limit` - пагинация
-- `filter` - фильтр
+- `filter` - фильтр в операторном формате (AND/OR и группировка — см. раздел «Фильтрация»)
 - `sort` - сортировка
 
 **Примеры фильтров:**
@@ -305,6 +308,8 @@ npm run generate-key
 - `(meta.channelType,eq,whatsapp)` - WhatsApp сообщения
 - `(topicId,eq,topic_abc123...)` - сообщения конкретного топика
 - `(topicId,eq,null)` - сообщения без топика
+- `(topicId,eq,topic_a)|(topicId,eq,topic_b)` - сообщения из топика topic_a или topic_b
+- `(topicId,eq,null)|(topicId,eq,topic_abc)` - сообщения без топика или из указанного топика
 
 #### POST /api/dialogs/:dialogId/messages
 Создать сообщение
@@ -329,7 +334,7 @@ npm run generate-key
 
 **Query параметры:**
 - `page`, `limit` - пагинация
-- `filter` - фильтр
+- `filter` - фильтр в операторном формате (AND/OR и группировка — см. раздел «Фильтрация»)
 - `sort` - сортировка в формате `(field,direction)`
 
 **Примеры фильтров:**
@@ -337,6 +342,7 @@ npm run generate-key
 - `(senderId,eq,carl)` - сообщения от carl
 - `(content,regex,привет)` - сообщения содержащие "привет"
 - `(type,eq,internal.text)&(senderId,eq,carl)` - текстовые сообщения от carl
+- `(topicId,eq,topic_a)|(topicId,eq,topic_b)` - сообщения из одного из указанных топиков
 
 #### GET /api/messages/:messageId
 Получить сообщение по ID
@@ -444,15 +450,24 @@ npm run generate-key
 
 ### Topics (Топики)
 
-Топики позволяют организовывать сообщения внутри диалога по темам. Каждое сообщение может быть привязано к топику через поле `topicId`.
+Топики позволяют организовывать сообщения внутри диалога по темам. Каждое сообщение может быть привязано к топику через поле `topicId`. Список топиков (по диалогу и по диалогу пользователя) поддерживает фильтрацию по полям `topicId`, `dialogId` и любым meta-тегам топика (`meta.*`) в том же операторном формате, что и остальные endpoint'ы (AND/OR, группировка, лимиты).
 
 #### GET /api/dialogs/:dialogId/topics
 Получить список топиков диалога
 
 **Query параметры:**
 - `page`, `limit` - пагинация
-- `filter` - фильтр
+- `filter` - фильтр в операторном формате (AND/OR и группировка — см. раздел «Фильтрация»). Доступные поля: `topicId`, `dialogId`, `meta.*` (meta-теги топика).
 - `sort` - сортировка
+
+**Примеры фильтров по топикам:**
+- `(topicId,eq,topic_abc123...)` - конкретный топик
+- `(meta.name,eq,Важная тема)` - топики с именем по meta
+- `(meta.priority,in,[support,general])` - топики с приоритетом support или general
+- `(meta.priority,ne,archived)` - топики с приоритетом не archived
+- `(meta.name,regex,^support)` - топики, имя которых начинается с "support"
+- `(meta.name,eq,a)|(meta.name,eq,b)` - топики с именем a или b
+- `((meta.priority,eq,high)&(meta.category,eq,support))|(meta.name,eq,personal)` - (priority=high и category=support) или name=personal
 
 **Ответ:**
 ```json
@@ -481,7 +496,7 @@ npm run generate-key
 
 **Query параметры:**
 - `page`, `limit` - пагинация
-- `filter` - фильтр
+- `filter` - фильтр в том же формате, что и для GET /api/dialogs/:dialogId/topics (поля: topicId, dialogId, meta.*; AND/OR и группировка)
 - `sort` - сортировка
 
 **Ответ включает `unreadCount` для каждого топика:**
@@ -613,6 +628,8 @@ npm run generate-key
 - `(meta.members,$ne,john)` - диалоги БЕЗ участника john
 - `(dialogId,eq,dlg_abc123)` - конкретный диалог
 - Комбинированные: `(meta.type,eq,internal)&(meta.channelType,ne,telegram)`
+- С ИЛИ: `(meta.type,eq,internal)|(meta.type,eq,support)` — диалоги типа internal или support
+- Группировка: `((topic.meta.category,eq,support)&(topic.meta.priority,eq,high))|(meta.channelType,eq,whatsapp)` — (топики support и high) или WhatsApp
 
 **Фильтры по топикам:**
 - `(topic.topicId,eq,topic_abc123...)` - диалоги с конкретным топиком
@@ -627,6 +644,7 @@ npm run generate-key
 - `(topic.topicCount,eq,0)` - диалоги без топиков
 - `(topic.topicCount,gte,5)` - диалоги с 5 и более топиками
 - Комбинированные: `(topic.meta.category,eq,support)&(topic.meta.priority,eq,high)` - диалоги с топиками категории "support" и приоритетом "high"
+- С ИЛИ по топикам: `(topic.meta.category,eq,support)|(topic.meta.category,eq,sales)` - диалоги с топиками категории support или sales
 
 **Примеры сортировки:**
 - `(lastInteractionAt,desc)` - по последнему взаимодействию (новые первыми)
@@ -643,19 +661,20 @@ npm run generate-key
 - По умолчанию сортировка по `lastInteractionAt` (последнее взаимодействие) в порядке убывания
 - Если `includeLastMessage=true`, включает последнее сообщение в каждом диалоге
 - Фильтрация по `meta.members` работает только для диалогов текущего пользователя
-- Поддерживается комбинирование фильтров через `&` (AND логика)
+- Поддерживается комбинирование фильтров через `&` (AND), `|` (OR) и группировку скобками (см. раздел «Фильтрация»)
 
 #### GET /api/users/:userId/dialogs/:dialogId/messages
 Получить сообщения диалога пользователя
 
 **Query параметры:**
 - `page`, `limit` - пагинация
-- `filter` - фильтр
+- `filter` - фильтр в операторном формате (AND/OR и группировка — см. раздел «Фильтрация»)
 - `sort` - сортировка
 
 **Примеры фильтров:**
 - `(topicId,eq,topic_abc123...)` - сообщения конкретного топика
 - `(topicId,eq,null)` - сообщения без топика
+- `(topicId,eq,topic_a)|(topicId,eq,topic_b)` - сообщения из топика topic_a или topic_b
 - `(type,eq,internal.text)` - текстовые сообщения
 - `(senderId,eq,carl)` - сообщения от carl
 
