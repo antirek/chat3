@@ -17,6 +17,14 @@ export const topicFilterExamples: FilterExample[] = [
       { value: '(meta.category,in,[support,general])', label: 'meta.category в [support,general]' },
     ],
   },
+  {
+    label: 'С ИЛИ (OR)',
+    options: [
+      { value: '(meta.name,eq,personal)|(meta.name,eq,work)', label: 'meta.name = personal или work' },
+      { value: '(meta.category,eq,support)|(meta.category,eq,general)', label: 'meta.category = support или general' },
+      { value: '((meta.category,eq,support)&(meta.priority,eq,high))|(meta.name,eq,urgent)', label: '(category=support и priority=high) или name=urgent' },
+    ],
+  },
   { value: 'custom', label: '✏️ Пользовательский фильтр' },
 ];
 
