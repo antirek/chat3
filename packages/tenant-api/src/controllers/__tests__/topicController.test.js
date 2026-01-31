@@ -309,6 +309,126 @@ describe('topicController.getTenantTopics', () => {
     expect(topicIds).not.toContain(topicOther);
   });
 
+  test('filters by meta.priority ne (not equal)', async () => {
+    const dialogId = generateDialogId();
+    const topicA = generateTopicId();
+    const topicB = generateTopicId();
+    const topicC = generateTopicId();
+    await Dialog.create({ tenantId, dialogId, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicA, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicB, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicC, createdAt: generateTimestamp() });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicA, key: 'priority', value: 'support', dataType: 'string', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicB, key: 'priority', value: 'general', dataType: 'string', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicC, key: 'priority', value: 'urgent', dataType: 'string', createdBy: 'system' });
+
+    const req = createMockReq({ query: { page: 1, limit: 10, filter: '(meta.priority,ne,support)' } });
+    const res = createMockRes();
+    await topicController.getTenantTopics(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(2);
+    const ids = res.body.data.map((t) => t.topicId);
+    expect(ids).toContain(topicB);
+    expect(ids).toContain(topicC);
+    expect(ids).not.toContain(topicA);
+  });
+
+  test('filters by meta.priority nin (not in)', async () => {
+    const dialogId = generateDialogId();
+    const topicA = generateTopicId();
+    const topicB = generateTopicId();
+    const topicC = generateTopicId();
+    await Dialog.create({ tenantId, dialogId, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicA, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicB, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicC, createdAt: generateTimestamp() });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicA, key: 'priority', value: 'support', dataType: 'string', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicB, key: 'priority', value: 'general', dataType: 'string', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicC, key: 'priority', value: 'urgent', dataType: 'string', createdBy: 'system' });
+
+    const req = createMockReq({ query: { page: 1, limit: 10, filter: '(meta.priority,nin,[support,general])' } });
+    const res = createMockRes();
+    await topicController.getTenantTopics(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].topicId).toBe(topicC);
+  });
+
+  test('filters by meta.level gt and gte (numeric)', async () => {
+    const dialogId = generateDialogId();
+    const topic1 = generateTopicId();
+    const topic2 = generateTopicId();
+    const topic3 = generateTopicId();
+    await Dialog.create({ tenantId, dialogId, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topic1, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topic2, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topic3, createdAt: generateTimestamp() });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topic1, key: 'level', value: 1, dataType: 'number', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topic2, key: 'level', value: 5, dataType: 'number', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topic3, key: 'level', value: 10, dataType: 'number', createdBy: 'system' });
+
+    const req = createMockReq({ query: { page: 1, limit: 10, filter: '(meta.level,gt,1)' } });
+    const res = createMockRes();
+    await topicController.getTenantTopics(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(2);
+    const ids = res.body.data.map((t) => t.topicId);
+    expect(ids).toContain(topic2);
+    expect(ids).toContain(topic3);
+    expect(ids).not.toContain(topic1);
+  });
+
+  test('filters by meta.level lt and lte (numeric)', async () => {
+    const dialogId = generateDialogId();
+    const topic1 = generateTopicId();
+    const topic2 = generateTopicId();
+    const topic3 = generateTopicId();
+    await Dialog.create({ tenantId, dialogId, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topic1, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topic2, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topic3, createdAt: generateTimestamp() });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topic1, key: 'level', value: 1, dataType: 'number', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topic2, key: 'level', value: 5, dataType: 'number', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topic3, key: 'level', value: 10, dataType: 'number', createdBy: 'system' });
+
+    const req = createMockReq({ query: { page: 1, limit: 10, filter: '(meta.level,lte,5)' } });
+    const res = createMockRes();
+    await topicController.getTenantTopics(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(2);
+    const ids = res.body.data.map((t) => t.topicId);
+    expect(ids).toContain(topic1);
+    expect(ids).toContain(topic2);
+    expect(ids).not.toContain(topic3);
+  });
+
+  test('filters by meta.name regex', async () => {
+    const dialogId = generateDialogId();
+    const topicPersonal = generateTopicId();
+    const topicWork = generateTopicId();
+    const topicSupport = generateTopicId();
+    await Dialog.create({ tenantId, dialogId, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicPersonal, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicWork, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicSupport, createdAt: generateTimestamp() });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicPersonal, key: 'name', value: 'personal-chat', dataType: 'string', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicWork, key: 'name', value: 'work-issues', dataType: 'string', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicSupport, key: 'name', value: 'support-ticket', dataType: 'string', createdBy: 'system' });
+
+    const req = createMockReq({ query: { page: 1, limit: 10, filter: '(meta.name,regex,personal)' } });
+    const res = createMockRes();
+    await topicController.getTenantTopics(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].topicId).toBe(topicPersonal);
+    expect(res.body.data[0].meta.name).toBe('personal-chat');
+  });
+
   test('returns 400 for invalid filter format', async () => {
     const req = createMockReq({
       query: { page: 1, limit: 10, filter: '{ invalid json' }
