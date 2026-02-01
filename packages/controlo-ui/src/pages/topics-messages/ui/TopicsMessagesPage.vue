@@ -41,6 +41,7 @@
           :error="topicsError"
           :selected-topic-id="selectedTopicId"
           :selected-topic-key="selectedTopicKey"
+          :format-timestamp="formatTimestamp"
           @select-topic="selectTopic"
           @show-info="showTopicInfo"
           @show-meta="showTopicMeta"

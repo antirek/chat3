@@ -17,6 +17,7 @@
         <tr>
           <th>Topic ID</th>
           <th>Dialog ID</th>
+          <th>Создан</th>
           <th>Действия</th>
         </tr>
       </template>
@@ -24,6 +25,7 @@
       <template #row="{ item }">
         <td :title="(item as Topic).topicId">{{ shortenId((item as Topic).topicId) }}</td>
         <td :title="(item as Topic).dialogId">{{ shortenId((item as Topic).dialogId) }}</td>
+        <td :title="(item as Topic).createdAt != null ? String((item as Topic).createdAt) : undefined">{{ formatTimestamp((item as Topic).createdAt) }}</td>
         <td>
           <BaseButton variant="primary" size="small" @click.stop="showMeta(item as Topic)" title="Мета-теги">
             🏷️ Мета
@@ -44,7 +46,7 @@ interface Topic {
   topicId: string;
   dialogId: string;
   meta?: Record<string, unknown>;
-  createdAt?: number;
+  createdAt?: string | number;
 }
 
 interface Props {
@@ -53,6 +55,7 @@ interface Props {
   error: string | null;
   selectedTopicId: string | null;
   selectedTopicKey: string | null;
+  formatTimestamp: (createdAt?: string | number) => string;
 }
 
 interface Emits {
