@@ -277,8 +277,12 @@ export async function buildMetaQuery(
           continue; // Пропускаем обычную обработку
         }
       } else {
-        // Простое равенство
-        metaQuery.value = value;
+        // Простое равенство. Для чисел допускаем совпадение и со строкой в БД (phone, contact_phone и т.д. часто хранятся как строка)
+        if (typeof value === 'number' && !Number.isNaN(value)) {
+          metaQuery.value = { $in: [value, String(value)] };
+        } else {
+          metaQuery.value = value;
+        }
       }
       
       console.log('Meta query:', metaQuery);
