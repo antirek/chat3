@@ -1,7 +1,7 @@
 import express from 'express';
 import { topicController } from '../controllers/topicController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
-import { validateDialogId } from '../validators/urlValidators/index.js';
+import { validateDialogId, validateTopicId } from '../validators/urlValidators/index.js';
 import { validateQuery, validateBody } from '../validators/middleware.js';
 import { queryWithFilterSchema, patchTopicSchema } from '../validators/schemas/index.js';
 
@@ -129,6 +129,7 @@ router.get(
   apiAuth,
   requirePermission('read'),
   validateDialogId,
+  validateTopicId,
   topicController.getTopic
 );
 
@@ -173,6 +174,7 @@ router.patch(
   apiAuth,
   requirePermission('write'),
   validateDialogId,
+  validateTopicId,
   validateBody(patchTopicSchema),
   topicController.updateTopic
 );

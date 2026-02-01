@@ -3,6 +3,7 @@ import { jest } from '@jest/globals';
 import {
   validateDialogId,
   validateMessageId,
+  validateTopicId,
   validateUserId,
   validateStatus,
   validateReaction,
@@ -67,6 +68,40 @@ describe('urlValidators', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(400);
+  });
+
+  test('validateTopicId accepts valid topicId', () => {
+    const req = { params: { topicId: 'topic_abcdefghij1234567890' } };
+    const res = createRes();
+    const next = jest.fn();
+
+    validateTopicId(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+  });
+
+  test('validateTopicId rejects invalid format', () => {
+    const req = { params: { topicId: 'invalid' } };
+    const res = createRes();
+    const next = jest.fn();
+
+    validateTopicId(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(400);
+    expect(res.body.field).toBe('topicId');
+  });
+
+  test('validateTopicId rejects missing param', () => {
+    const req = { params: { dialogId: 'dlg_1234567890abcdefghij' } };
+    const res = createRes();
+    const next = jest.fn();
+
+    validateTopicId(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(400);
+    expect(res.body.field).toBe('topicId');
   });
 
     test('validateUserId rejects userId with dot', () => {

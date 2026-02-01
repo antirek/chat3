@@ -330,11 +330,22 @@ export const topicController = {
       const meta = await metaUtils.getEntityMeta(req.tenantId!, 'topic', topicId);
       log(`Метаданные получены: keys=${Object.keys(meta).length}`);
 
+      // Всегда отдаём объект dialog с метаданными (даже если документа Dialog в БД нет)
+      const dialogDoc = await Dialog.findOne({ dialogId, tenantId: req.tenantId! }).lean();
+      const dialogMeta = await metaUtils.getEntityMeta(req.tenantId!, 'dialog', dialogId);
+      const dialog = {
+        dialogId,
+        tenantId: req.tenantId!,
+        createdAt: dialogDoc ? (dialogDoc as any).createdAt : undefined,
+        meta: dialogMeta || {}
+      };
+
       log(`Отправка ответа: topicId=${topicId}`);
       res.json({
         data: sanitizeResponse({
           ...topic,
-          meta: meta || {}
+          meta: meta || {},
+          dialog
         })
       });
     } catch (error: any) {

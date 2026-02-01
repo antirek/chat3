@@ -553,8 +553,9 @@ npm run generate-key
 Получить топик по ID
 
 **Ответ включает:**
-- Основные данные топика (topicId, dialogId, createdAt)
-- `meta` - мета-теги топика
+- Основные данные топика (topicId, dialogId, tenantId, createdAt)
+- `meta` — мета-теги топика
+- `dialog` — объект диалога с метаданными: `{ dialogId, tenantId, createdAt?, meta }` (meta диалога; всегда присутствует)
 
 #### PATCH /api/dialogs/:dialogId/topics/:topicId
 Обновить мета-теги топика

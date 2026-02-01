@@ -3,6 +3,7 @@
  */
 export { validateDialogId } from './dialogId.js';
 export { validateMessageId } from './messageId.js';
+export { validateTopicId } from './topicId.js';
 export { validateUserId } from './userId.js';
 export { validateStatus } from './status.js';
 export { validateReaction } from './reaction.js';
