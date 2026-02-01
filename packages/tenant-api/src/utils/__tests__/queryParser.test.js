@@ -560,6 +560,26 @@ describe('queryParser', () => {
       expect(result.branches[1].regularFilters).toEqual({ type: 'b' });
     });
 
+    test('should merge common filters into OR branches', () => {
+      const filter = {
+        'meta.channelId': 'whatsapp.chn_123',
+        status: 'active',
+        $or: [
+          { 'meta.phone': 73437452389 },
+          { 'meta.contact_phone': 83437452389 }
+        ]
+      };
+      const result = extractMetaFilters(filter);
+      expect(result.branches).toBeDefined();
+      expect(result.branches).toHaveLength(2);
+      // Первая ветка: channelId + phone
+      expect(result.branches[0].metaFilters).toEqual({ channelId: 'whatsapp.chn_123', phone: 73437452389 });
+      expect(result.branches[0].regularFilters).toEqual({ status: 'active' });
+      // Вторая ветка: channelId + contact_phone
+      expect(result.branches[1].metaFilters).toEqual({ channelId: 'whatsapp.chn_123', contact_phone: 83437452389 });
+      expect(result.branches[1].regularFilters).toEqual({ status: 'active' });
+    });
+
     test('should return branches when $or has $and in a branch', () => {
       const filter = {
         $or: [

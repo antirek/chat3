@@ -469,17 +469,16 @@ export function parseFilters(filterString: string | undefined | null): MongoQuer
  * @returns Объект с разделенными фильтрами или ветки при $or
  */
 export function extractMetaFilters(filter: MongoQuery): ExtractedFiltersResult {
-  if (filter.$or && Array.isArray(filter.$or)) {
-    const branches = (filter.$or as MongoQuery[]).map((branch) => extractMetaFilters(branch) as ExtractedFilters);
-    return { branches };
-  }
-
   const metaFilters: MongoQuery = {};
   const regularFilters: MongoQuery = {};
   const memberFilters: MongoQuery = {};
+  let orBranches: ExtractedFilters[] | null = null;
 
   for (const [key, value] of Object.entries(filter)) {
-    if (key === 'meta') {
+    if (key === '$or' && Array.isArray(value)) {
+      // Обрабатываем $or: создаём ветки, но продолжаем извлекать общие фильтры
+      orBranches = (value as MongoQuery[]).map((branch) => extractMetaFilters(branch) as ExtractedFilters);
+    } else if (key === 'meta') {
       // Старый формат: { meta: { type: "internal" } }
       Object.assign(metaFilters, value as MongoQuery);
     } else if (key.startsWith('meta.')) {
@@ -524,6 +523,16 @@ export function extractMetaFilters(filter: MongoQuery): ExtractedFiltersResult {
     } else {
       regularFilters[key] = value;
     }
+  }
+
+  // Если есть $or, добавляем общие фильтры (meta, regular, member) в каждую ветку
+  if (orBranches) {
+    const enrichedBranches = orBranches.map((branch) => ({
+      metaFilters: { ...metaFilters, ...branch.metaFilters },
+      regularFilters: { ...regularFilters, ...branch.regularFilters },
+      memberFilters: { ...memberFilters, ...branch.memberFilters }
+    }));
+    return { branches: enrichedBranches };
   }
 
   return { metaFilters, regularFilters, memberFilters };

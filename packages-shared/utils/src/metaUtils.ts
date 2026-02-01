@@ -164,10 +164,11 @@ export async function buildMetaQuery(
     console.log('buildMetaQuery called with:', { tenantId, entityType, metaFilters });
 
     // Для каждого мета-фильтра находим соответствующие entityId
-    const allEntityIds = new Set<string>();
+    // Используем пересечение (AND): топик должен удовлетворять ВСЕМ meta-фильтрам
+    let allEntityIds: Set<string> | null = null;
     
     for (const [key, value] of Object.entries(metaFilters)) {
-      console.log(`Looking for ${key}=${JSON.stringify(value)}`);
+      console.log(`Looking for ${key}=${JSON.stringify(value)}, type=${typeof value}`);
       
       // Строим запрос с учетом операторов MongoDB
       const metaQuery: {
@@ -216,10 +217,11 @@ export async function buildMetaQuery(
           console.log(`Found ${allWithKey.length} records with key ${key}`);
           console.log(`Found ${excludeRecords.length} records to exclude`);
           
-          // Добавляем все entityId с этим ключом, кроме исключаемых
+          // Собираем entityId для $ne: все с ключом, кроме исключаемых
+          const neEntityIds = new Set<string>();
           allWithKey.forEach(record => {
             if (!excludeIds.has(String(record.entityId))) {
-              allEntityIds.add(String(record.entityId));
+              neEntityIds.add(String(record.entityId));
             }
           });
           
@@ -236,7 +238,7 @@ export async function buildMetaQuery(
             allMessageIds.forEach(id => {
               const idStr = String(id);
               if (!withKeyIds.has(idStr)) {
-                allEntityIds.add(idStr);
+                neEntityIds.add(idStr);
               }
             });
           } else {
@@ -246,6 +248,30 @@ export async function buildMetaQuery(
             const withKeyIds = new Set(allWithKey.map(r => String(r.entityId)));
             // Для других типов просто не добавляем пустые значения
             // Эта логика может быть расширена при необходимости
+          }
+          
+          // Пересечение с neEntityIds (как для обычного фильтра)
+          if (allEntityIds === null) {
+            allEntityIds = neEntityIds;
+            console.log(`First key ${key} ($ne): initialized with ${allEntityIds.size} entityIds`);
+          } else {
+            const beforeSize = allEntityIds.size;
+            allEntityIds = new Set([...allEntityIds].filter(id => neEntityIds.has(id)));
+            console.log(`After ${key} ($ne): intersection ${beforeSize} ∩ ${neEntityIds.size} = ${allEntityIds.size}`);
+            if (allEntityIds.size === 0) {
+              console.log(`Intersection is empty after ${key} ($ne), returning empty result`);
+              if (entityType === 'message') {
+                return { messageId: { $in: [] } };
+              } else if (entityType === 'dialog') {
+                return { dialogId: { $in: [] } };
+              } else if (entityType === 'topic') {
+                return { topicId: { $in: [] } };
+              } else if (entityType === 'dialogMember') {
+                return { _id: { $in: [] } };
+              } else {
+                return { _id: { $in: [] } };
+              }
+            }
           }
           
           continue; // Пропускаем обычную обработку
@@ -261,15 +287,17 @@ export async function buildMetaQuery(
       
       console.log(`Found ${metaRecords.length} records for ${key}=${JSON.stringify(value)}`);
       
-      if (metaRecords.length === 0) {
-        // Если нет записей для этого фильтра, возвращаем пустой результат
+      const currentEntityIds = new Set(metaRecords.map(r => String(r.entityId)));
+      
+      if (currentEntityIds.size === 0) {
+        // Если нет записей для этого фильтра, возвращаем пустой результат (пересечение с пустым = пусто)
         console.log(`No records found for ${key}=${JSON.stringify(value)}, returning empty result`);
-if (entityType === 'message') {
-        return { messageId: { $in: [] } };
+        if (entityType === 'message') {
+          return { messageId: { $in: [] } };
         } else if (entityType === 'dialog') {
           return { dialogId: { $in: [] } };
         } else if (entityType === 'dialogMember') {
-          return { _id: { $in: [] } }; // Пустой результат для DialogMember
+          return { _id: { $in: [] } };
         } else if (entityType === 'topic') {
           return { topicId: { $in: [] } };
         } else {
@@ -277,10 +305,30 @@ if (entityType === 'message') {
         }
       }
       
-      // Добавляем entityId в множество
-      metaRecords.forEach(record => {
-        allEntityIds.add(String(record.entityId));
-      });
+      // Пересечение (AND): оставляем только те entityId, которые есть в текущем множестве
+      if (allEntityIds === null) {
+        allEntityIds = currentEntityIds;
+        console.log(`First key ${key}: initialized with ${allEntityIds.size} entityIds`);
+      } else {
+        const beforeSize = allEntityIds.size;
+        allEntityIds = new Set([...allEntityIds].filter(id => currentEntityIds.has(id)));
+        console.log(`After ${key}: intersection ${beforeSize} ∩ ${currentEntityIds.size} = ${allEntityIds.size}`);
+        if (allEntityIds.size === 0) {
+          // Пересечение пусто — возвращаем пустой результат
+          console.log(`Intersection is empty after ${key}, returning empty result`);
+          if (entityType === 'message') {
+            return { messageId: { $in: [] } };
+          } else if (entityType === 'dialog') {
+            return { dialogId: { $in: [] } };
+          } else if (entityType === 'topic') {
+            return { topicId: { $in: [] } };
+          } else if (entityType === 'dialogMember') {
+            return { _id: { $in: [] } };
+          } else {
+            return { _id: { $in: [] } };
+          }
+        }
+      }
     }
     
     const entityIds = Array.from(allEntityIds);

@@ -406,6 +406,105 @@ describe('topicController.getTenantTopics', () => {
     expect(ids).not.toContain(topic3);
   });
 
+  test('filters by meta with dot in value (channelId=whatsapp.chn_xxx)', async () => {
+    const dialogId = generateDialogId();
+    const topicWhatsApp = generateTopicId();
+    const topicTelegram = generateTopicId();
+    const topicNoChannel = generateTopicId();
+    
+    await Dialog.create({ tenantId, dialogId, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicWhatsApp, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicTelegram, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicNoChannel, createdAt: generateTimestamp() });
+    
+    // Значение с точкой: whatsapp.chn_6kgxljk
+    await Meta.create({ 
+      tenantId, entityType: 'topic', entityId: topicWhatsApp, 
+      key: 'channelId', value: 'whatsapp.chn_6kgxljk', dataType: 'string', createdBy: 'system' 
+    });
+    await Meta.create({ 
+      tenantId, entityType: 'topic', entityId: topicTelegram, 
+      key: 'channelId', value: 'telegram.chn_abc123', dataType: 'string', createdBy: 'system' 
+    });
+
+    const req = createMockReq({ 
+      query: { page: 1, limit: 10, filter: '(meta.channelId,eq,whatsapp.chn_6kgxljk)' } 
+    });
+    const res = createMockRes();
+    await topicController.getTenantTopics(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].topicId).toBe(topicWhatsApp);
+    expect(res.body.data[0].meta.channelId).toBe('whatsapp.chn_6kgxljk');
+  });
+
+  test('filters by channelId AND phone with OR (real search scenario)', async () => {
+    const dialogId = generateDialogId();
+    const topicMatch1 = generateTopicId(); // channelId + phone
+    const topicMatch2 = generateTopicId(); // channelId + contact_phone
+    const topicNoMatch = generateTopicId(); // channelId, но другой phone
+    const topicOtherChannel = generateTopicId(); // другой channelId
+    
+    await Dialog.create({ tenantId, dialogId, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicMatch1, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicMatch2, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicNoMatch, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicOtherChannel, createdAt: generateTimestamp() });
+    
+    // topicMatch1: channelId=whatsapp.chn_6kgxljk, phone=73437452389 (число)
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicMatch1, key: 'channelId', value: 'whatsapp.chn_6kgxljk', dataType: 'string', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicMatch1, key: 'phone', value: 73437452389, dataType: 'number', createdBy: 'system' });
+    
+    // topicMatch2: channelId=whatsapp.chn_6kgxljk, contact_phone=83437452389 (число)
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicMatch2, key: 'channelId', value: 'whatsapp.chn_6kgxljk', dataType: 'string', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicMatch2, key: 'contact_phone', value: 83437452389, dataType: 'number', createdBy: 'system' });
+    
+    // topicNoMatch: channelId=whatsapp.chn_6kgxljk, phone=99999999999 (не совпадает)
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicNoMatch, key: 'channelId', value: 'whatsapp.chn_6kgxljk', dataType: 'string', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicNoMatch, key: 'phone', value: 99999999999, dataType: 'number', createdBy: 'system' });
+    
+    // topicOtherChannel: channelId=telegram.chn_abc, phone=73437452389
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicOtherChannel, key: 'channelId', value: 'telegram.chn_abc', dataType: 'string', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicOtherChannel, key: 'phone', value: 73437452389, dataType: 'number', createdBy: 'system' });
+
+    // Фильтр: channelId=whatsapp.chn_6kgxljk AND (phone=73437452389 OR contact_phone=73437452389 OR phone=83437452389 OR contact_phone=83437452389)
+    const filter = '(meta.channelId,eq,whatsapp.chn_6kgxljk)&((meta.phone,eq,73437452389)|(meta.contact_phone,eq,73437452389)|(meta.phone,eq,83437452389)|(meta.contact_phone,eq,83437452389))';
+    const req = createMockReq({ query: { page: 1, limit: 10, filter } });
+    const res = createMockRes();
+    await topicController.getTenantTopics(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(2);
+    const topicIds = res.body.data.map((t) => t.topicId);
+    expect(topicIds).toContain(topicMatch1); // phone=73437452389
+    expect(topicIds).toContain(topicMatch2); // contact_phone=83437452389
+    expect(topicIds).not.toContain(topicNoMatch); // phone не совпадает
+    expect(topicIds).not.toContain(topicOtherChannel); // другой channelId
+  });
+
+  test('filters by meta with underscore in key (contact_phone)', async () => {
+    const dialogId = generateDialogId();
+    const topicA = generateTopicId();
+    const topicB = generateTopicId();
+    
+    await Dialog.create({ tenantId, dialogId, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicA, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId, topicId: topicB, createdAt: generateTimestamp() });
+    
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicA, key: 'contact_phone', value: 73437452389, dataType: 'number', createdBy: 'system' });
+    await Meta.create({ tenantId, entityType: 'topic', entityId: topicB, key: 'contact_phone', value: 88005553535, dataType: 'number', createdBy: 'system' });
+
+    const req = createMockReq({ query: { page: 1, limit: 10, filter: '(meta.contact_phone,eq,73437452389)' } });
+    const res = createMockRes();
+    await topicController.getTenantTopics(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].topicId).toBe(topicA);
+    expect(res.body.data[0].meta.contact_phone).toBe(73437452389);
+  });
+
   test('filters by meta.name regex', async () => {
     const dialogId = generateDialogId();
     const topicPersonal = generateTopicId();
