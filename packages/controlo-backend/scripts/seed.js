@@ -679,7 +679,7 @@ async function seed() {
 
     // Add meta for each dialog
      
-    allDialogs.forEach((dialog, index) => {
+    allDialogs.forEach((dialog, _index) => {
       // Meta type (internal/external)
       metaEntries.push({
         tenantId: dialog.tenantId,
@@ -846,12 +846,12 @@ async function seed() {
     });
 
      
-    console.log(`   - Messages with reactions: ${messages.filter((m, i) => {
+    console.log(`   - Messages with reactions: ${messages.filter((m, _i) => {
       const messageReactions = allReactions.filter(r => r.messageId.toString() === m._id.toString());
       return messageReactions.length > 0;
     }).length} out of ${messages.length}`);
      
-    console.log(`   - Average reactions per message: ${allReactions.length > 0 ? Math.round(allReactions.length / messages.filter((m, i) => {
+    console.log(`   - Average reactions per message: ${allReactions.length > 0 ? Math.round(allReactions.length / messages.filter((m, _i) => {
       const messageReactions = allReactions.filter(r => r.messageId.toString() === m._id.toString());
       return messageReactions.length > 0;
     }).length * 10) / 10 : 0}`);

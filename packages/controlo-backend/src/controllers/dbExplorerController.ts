@@ -190,7 +190,7 @@ export async function getModelItem(req: Request, res: Response): Promise<void> {
       // Пытаемся найти по _id только если это валидный ObjectId
       try {
         item = await Model.findById(id).lean();
-      } catch (error) {
+      } catch (_error) {
         // Игнорируем ошибки при поиске по _id
       }
     }
@@ -205,7 +205,7 @@ export async function getModelItem(req: Request, res: Response): Promise<void> {
           try {
             item = await Model.findOne({ [field]: id } as any).lean();
             if (item) break;
-          } catch (error) {
+          } catch (_error) {
             // Продолжаем поиск по следующему полю
             continue;
           }
@@ -298,7 +298,7 @@ export async function updateModelItem(req: Request, res: Response): Promise<void
           { $set: data },
           { new: true, runValidators: true }
         ).lean();
-      } catch (error) {
+      } catch (_error) {
         // Игнорируем ошибки при поиске по _id
       }
     }
@@ -317,7 +317,7 @@ export async function updateModelItem(req: Request, res: Response): Promise<void
               { new: true, runValidators: true }
             ).lean();
             if (item) break;
-          } catch (error) {
+          } catch (_error) {
             // Продолжаем поиск по следующему полю
             continue;
           }
@@ -373,7 +373,7 @@ export async function deleteModelItem(req: Request, res: Response): Promise<void
       // Пытаемся удалить по _id только если это валидный ObjectId
       try {
         item = await Model.findByIdAndDelete(id).lean();
-      } catch (error) {
+      } catch (_error) {
         // Игнорируем ошибки при поиске по _id
       }
     }
@@ -388,7 +388,7 @@ export async function deleteModelItem(req: Request, res: Response): Promise<void
           try {
             item = await Model.findOneAndDelete({ [field]: id } as any).lean();
             if (item) break;
-          } catch (error) {
+          } catch (_error) {
             // Продолжаем поиск по следующему полю
             continue;
           }

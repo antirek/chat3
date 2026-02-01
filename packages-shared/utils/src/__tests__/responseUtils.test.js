@@ -1,3 +1,4 @@
+/* eslint-disable no-loss-of-precision */
 import { sanitizeResponse, timestampReplacer } from '../responseUtils.js';
 
 describe('responseUtils', () => {
@@ -54,7 +55,6 @@ describe('responseUtils', () => {
     test('should format timestamp fields with 6 decimal places', () => {
       // Timestamp должен быть > 1000000000000 для форматирования
       const input = {
-        // eslint-disable-next-line no-loss-of-precision
         createdAt: 1734567890123.123456,
         name: 'Test'
       };

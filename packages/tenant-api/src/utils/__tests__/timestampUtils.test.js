@@ -1,3 +1,4 @@
+/* eslint-disable no-loss-of-precision */
 import { 
   generateTimestamp, 
   formatTimestampFixed, 
@@ -92,7 +93,6 @@ describe('timestampUtils', () => {
     });
 
     test('should handle timestamps with more than 6 decimal places', () => {
-      // eslint-disable-next-line no-loss-of-precision
       const timestamp = 1234567890.123456789;
       const formatted = formatTimestampFixed(timestamp);
       
