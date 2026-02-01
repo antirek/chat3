@@ -1,7 +1,7 @@
 /**
  * Список топиков по тенанту (GET /api/topics). Страница «Топики + Сообщения».
  */
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { usePagination, useApiSort } from '@/shared/lib/composables';
@@ -35,7 +35,7 @@ export function useTopicsList(getApiKey: () => string) {
     initialPage: 1,
     initialLimit: 20,
     onPageChange: (page, limit) => {
-      const filterVal = filterValue.value.trim();
+      const _filterVal = filterValue.value.trim();
       loadTopics(page, topicsSort.currentSort.value || null, limit);
     },
   });

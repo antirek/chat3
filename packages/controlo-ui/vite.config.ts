@@ -41,7 +41,7 @@ function configJsPlugin() {
   return {
     name: 'config-js-plugin',
     configureServer(server) {
-      server.middlewares.use('/config.js', (req, res, next) => {
+      server.middlewares.use('/config.js', (req, res, _next) => {
         res.setHeader('Content-Type', 'application/javascript');
         res.end(generateConfigJs());
       });

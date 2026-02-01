@@ -1337,7 +1337,7 @@ const userDialogController = {
 
           // Удаляем временное поле dialogObjectId из ответа
            
-          const { dialogObjectId, ...dialogWithoutObjectId } = dialog;
+          const { dialogObjectId: _dialogObjectId, ...dialogWithoutObjectId } = dialog;
 
           return {
             ...dialogWithoutObjectId,
@@ -1731,13 +1731,13 @@ const userDialogController = {
 
       // 3. Получаем все статусы сообщения (для всех пользователей)
        
-      const allStatuses = await MessageStatus.find({
+      const _allStatuses = await MessageStatus.find({
         tenantId: req.tenantId,
         messageId: messageId
       }).select('messageId userId userType tenantId status createdAt').lean();
 
       // 4. Фильтруем статусы для текущего пользователя
-      // const myStatuses = allStatuses.filter(s => s.userId === userId);
+      // const myStatuses = _allStatuses.filter(s => s.userId === userId);
 
       // 4.5. Формируем матрицу статусов по userType и status (исключая статусы отправителя сообщения)
       const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, messageId, message.senderId);

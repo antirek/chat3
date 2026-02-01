@@ -1,6 +1,5 @@
 import { Event, Update, ApiJournal } from '@chat3/models';
 import { Request, Response } from 'express';
-import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
 /**
  * Вспомогательная функция для заполнения пропущенных дней нулями

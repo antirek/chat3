@@ -41,7 +41,7 @@ export function validateGetUserDialogMessagesResponse(response: ResponseData): V
 
   for (const message of response.data) {
     // Проверяем, что context.statuses отсутствует
-    if (message.context && message.context.hasOwnProperty('statuses')) {
+    if (message.context && Object.prototype.hasOwnProperty.call(message.context, 'statuses')) {
       return {
         valid: false,
         error: `Message ${message.messageId}: context.statuses field should not be present`
@@ -49,7 +49,7 @@ export function validateGetUserDialogMessagesResponse(response: ResponseData): V
     }
 
     // Проверяем наличие statusMessageMatrix
-    if (!message.hasOwnProperty('statusMessageMatrix')) {
+    if (!Object.prototype.hasOwnProperty.call(message, 'statusMessageMatrix')) {
       return {
         valid: false,
         error: `Message ${message.messageId}: missing statusMessageMatrix field`
@@ -66,7 +66,9 @@ export function validateGetUserDialogMessagesResponse(response: ResponseData): V
 
     // Проверяем структуру элементов statusMessageMatrix
     for (const item of message.statusMessageMatrix) {
-      if (!item.hasOwnProperty('userType') || !item.hasOwnProperty('status') || !item.hasOwnProperty('count')) {
+      if (!Object.prototype.hasOwnProperty.call(item, 'userType') || 
+          !Object.prototype.hasOwnProperty.call(item, 'status') || 
+          !Object.prototype.hasOwnProperty.call(item, 'count')) {
         return {
           valid: false,
           error: `Message ${message.messageId}: statusMessageMatrix items must have userType, status, and count fields`
@@ -102,7 +104,7 @@ export function validateGetUserDialogMessageResponse(response: ResponseData): Va
   const message = response.data as MessageData;
 
   // Проверяем, что context.statuses отсутствует
-  if (message.context && message.context.hasOwnProperty('statuses')) {
+  if (message.context && Object.prototype.hasOwnProperty.call(message.context, 'statuses')) {
     return {
       valid: false,
       error: 'context.statuses field should not be present'
@@ -110,7 +112,7 @@ export function validateGetUserDialogMessageResponse(response: ResponseData): Va
   }
 
   // Проверяем наличие statusMessageMatrix
-  if (!message.hasOwnProperty('statusMessageMatrix')) {
+  if (!Object.prototype.hasOwnProperty.call(message, 'statusMessageMatrix')) {
     return {
       valid: false,
       error: 'Missing statusMessageMatrix field'
@@ -127,7 +129,9 @@ export function validateGetUserDialogMessageResponse(response: ResponseData): Va
 
   // Проверяем структуру элементов statusMessageMatrix
   for (const item of message.statusMessageMatrix) {
-    if (!item.hasOwnProperty('userType') || !item.hasOwnProperty('status') || !item.hasOwnProperty('count')) {
+    if (!Object.prototype.hasOwnProperty.call(item, 'userType') || 
+        !Object.prototype.hasOwnProperty.call(item, 'status') || 
+        !Object.prototype.hasOwnProperty.call(item, 'count')) {
       return {
         valid: false,
         error: 'statusMessageMatrix items must have userType, status, and count fields'

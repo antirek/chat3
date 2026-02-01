@@ -41,7 +41,7 @@ export async function getEntityMetaFull(
   tenantId: string, 
   entityType: EntityType, 
   entityId: string, 
-  options: GetEntityMetaOptions = {}
+  _options: GetEntityMetaOptions = {}
 ): Promise<unknown[]> {
   try {
     const query = {
@@ -107,7 +107,7 @@ export async function deleteEntityMeta(
   entityType: EntityType, 
   entityId: string, 
   key: string, 
-  options: GetEntityMetaOptions = {}
+  _options: GetEntityMetaOptions = {}
 ): Promise<boolean> {
   try {
     const result = await Meta.deleteOne({
@@ -131,7 +131,7 @@ export async function getEntityMetaValue(
   entityId: string, 
   key: string, 
   defaultValue: unknown = null, 
-  options: GetEntityMetaOptions = {}
+  _options: GetEntityMetaOptions = {}
 ): Promise<unknown> {
   try {
     const query = {
@@ -154,7 +154,7 @@ export async function buildMetaQuery(
   tenantId: string, 
   entityType: EntityType, 
   metaFilters: Record<string, unknown>, 
-  options: GetEntityMetaOptions = {}
+  _options: GetEntityMetaOptions = {}
 ): Promise<Record<string, unknown> | null> {
   try {
     if (!metaFilters || Object.keys(metaFilters).length === 0) {
@@ -245,7 +245,7 @@ export async function buildMetaQuery(
             // Для других типов (dialog, user и т.д.) entityId уже строки в Meta коллекции
             // Просто добавляем все entityId из Meta, которые не имеют этого ключа
              
-            const withKeyIds = new Set(allWithKey.map(r => String(r.entityId)));
+            const _withKeyIds = new Set(allWithKey.map(r => String(r.entityId)));
             // Для других типов просто не добавляем пустые значения
             // Эта логика может быть расширена при необходимости
           }

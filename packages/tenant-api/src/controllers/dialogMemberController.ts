@@ -571,7 +571,7 @@ const dialogMemberController = {
     try {
       const { dialogId, userId } = req.params;
        
-      const { unreadCount, lastSeenAt, reason } = req.body;
+      const { unreadCount, lastSeenAt, reason: _reason } = req.body;
       log(`Получены параметры: dialogId=${dialogId}, userId=${userId}, unreadCount=${unreadCount}, lastSeenAt=${lastSeenAt}`);
 
       log(`Поиск диалога: dialogId=${dialogId}, tenantId=${req.tenantId}`);

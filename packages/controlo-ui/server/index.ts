@@ -17,7 +17,7 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const IS_DOCKER = process.env.DOCKER === 'true'; // Флаг для определения, запущен ли в Docker
 
 // TENANT_API_URL: в Docker используем имя сервиса, в dev - localhost
-const TENANT_API_URL = process.env.TENANT_API_URL || (IS_DOCKER ? 'http://tenant-api:3000' : 'http://localhost:3000');
+const _TENANT_API_URL = process.env.TENANT_API_URL || (IS_DOCKER ? 'http://tenant-api:3000' : 'http://localhost:3000');
 const RABBITMQ_MANAGEMENT_URL = process.env.RABBITMQ_MANAGEMENT_URL || 'http://localhost:15672';
 const PROJECT_NAME = process.env.MMS3_PROJECT_NAME || 'chat3';
 const APP_VERSION = pkg.version || '0.0.0';

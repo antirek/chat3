@@ -1,6 +1,6 @@
 import { DialogMember, UserDialogActivity, UserDialogStats } from '@chat3/models';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
-import { updateUnreadCount, finalizeCounterUpdateContext } from '@chat3/utils/counterUtils.js';
+import { updateUnreadCount } from '@chat3/utils/counterUtils.js';
 
 /**
  * Утилиты для управления участниками диалогов

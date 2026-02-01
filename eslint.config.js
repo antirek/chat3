@@ -4,6 +4,21 @@ import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
 
 export default [
+  {
+    ignores: [
+      'node_modules/**',
+      'coverage/**',
+      '*.min.js',
+      '**/dist/**',
+      'dist/**',
+      'build/**',
+      'packages/*/dist/**',
+      'packages-shared/*/dist/**',
+      'packages/tenant-api-client/node_modules/**',
+      'packages/tenant-api-client/coverage/**',
+      '**/*.d.ts',
+    ],
+  },
   js.configs.recommended,
   {
     files: ['**/*.js', '**/*.ts'],
@@ -11,8 +26,7 @@ export default [
       parser: tsparser,
       parserOptions: {
         ecmaVersion: 2022,
-        sourceType: 'module',
-        project: './tsconfig.json'
+        sourceType: 'module'
       },
       globals: {
         console: 'readonly',
@@ -31,6 +45,7 @@ export default [
         fetch: 'readonly',
         URL: 'readonly',
         URLSearchParams: 'readonly',
+        structuredClone: 'readonly',
       },
     },
     plugins: {
@@ -70,6 +85,9 @@ export default [
         history: 'readonly',
         alert: 'readonly',
         confirm: 'readonly',
+        HTMLElement: 'readonly',
+        KeyboardEvent: 'readonly',
+        structuredClone: 'readonly',
       },
     },
   },
@@ -98,17 +116,5 @@ export default [
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
     },
-  },
-  {
-    ignores: [
-      'node_modules/**',
-      'coverage/**',
-      '*.min.js',
-      'dist/**',
-      'build/**',
-      'packages/tenant-api-client/node_modules/**',
-      'packages/tenant-api-client/coverage/**',
-      '**/*.d.ts',
-    ],
   },
 ];

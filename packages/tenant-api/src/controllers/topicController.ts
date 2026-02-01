@@ -3,7 +3,7 @@ import * as topicUtils from '@chat3/utils/topicUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
-import { parseFilters, buildFilterQuery, parseSort, FilterValidationError } from '../utils/queryParser.js';
+import { parseFilters, buildFilterQuery, parseSort } from '../utils/queryParser.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 

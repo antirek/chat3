@@ -4,7 +4,7 @@ import { useCredentialsStore } from '@/app/stores/credentials';
 import { getTenantApiUrl } from '@/shared/lib/utils/url';
 
 export function useUsers() {
-  const configStore = useConfigStore();
+  const _configStore = useConfigStore();
   const credentialsStore = useCredentialsStore();
 
   const loadingUsers = ref(false);

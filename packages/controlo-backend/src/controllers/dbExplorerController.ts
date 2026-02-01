@@ -119,7 +119,7 @@ export async function getModelData(req: Request, res: Response): Promise<void> {
       try {
         const parsedFilter = JSON.parse(String(filter));
         query = { ...query, ...parsedFilter };
-      } catch (e) {
+      } catch (_e) {
         // Игнорируем ошибки парсинга фильтра
       }
     }

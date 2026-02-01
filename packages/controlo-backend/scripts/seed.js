@@ -212,7 +212,7 @@ async function seed() {
     console.log('\n🏷️  Creating DialogMember meta tags...');
     const dialogMemberMetaEntries = [];
      
-    const roles = ['admin', 'member', 'moderator'];
+    const _roles = ['admin', 'member', 'moderator'];
     
     savedDialogMembers.forEach((member, _index) => {
       // entityId для DialogMember meta = dialogId:userId (составной ключ)

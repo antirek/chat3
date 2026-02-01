@@ -48,13 +48,17 @@ export async function initRabbitMQ(): Promise<boolean> {
     if (channel) {
       try {
         await channel.close().catch(() => {});
-      } catch (_e) {}
+      } catch (_e) {
+        // Игнорируем ошибки закрытия канала
+      }
       channel = null;
     }
     if (connection) {
       try {
         await (connection as unknown as { close: () => Promise<void> }).close().catch(() => {});
-      } catch (_e) {}
+      } catch (_e) {
+        // Игнорируем ошибки закрытия соединения
+      }
       connection = null;
     }
     
@@ -743,7 +747,9 @@ export async function createConsumer(
       if (consumerTag) {
         try {
           await channel.cancel(consumerTag).catch(() => {});
-        } catch (_e) {}
+        } catch (_e) {
+          // Игнорируем ошибки отмены consumer
+        }
       }
       
       // Запускаем заново

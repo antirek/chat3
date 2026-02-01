@@ -15,7 +15,7 @@ export function useTopicsMessagesPage() {
   const configStore = useConfigStore();
   const credentialsStore = useCredentialsStore();
   const apiKey = toRef(credentialsStore, 'apiKey');
-  const tenantId = toRef(credentialsStore, 'tenantId');
+  const _tenantId = toRef(credentialsStore, 'tenantId');
 
   function getApiKey() {
     return apiKey.value;

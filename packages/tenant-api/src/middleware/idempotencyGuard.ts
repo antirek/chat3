@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 
 interface RequestRecord {
   timestamp: number;
-  timeoutId: NodeJS.Timeout;
+  timeoutId: ReturnType<typeof setTimeout>;
   ttlMs: number;
 }
 

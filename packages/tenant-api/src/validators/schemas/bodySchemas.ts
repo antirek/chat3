@@ -187,7 +187,7 @@ export const createTenantSchema = Joi.object({
   // Если указан как пустая строка - преобразуется в undefined для автогенерации
   tenantId: Joi.string().trim().max(20).allow('').optional(),
   meta: Joi.object().pattern(META_KEY_SCHEMA, Joi.any()).optional()
-}).custom((value, helpers) => {
+}).custom((value, _helpers) => {
   // Преобразуем пустую строку tenantId в undefined для автогенерации
   if ((value as any).tenantId === '') {
     (value as any).tenantId = undefined;

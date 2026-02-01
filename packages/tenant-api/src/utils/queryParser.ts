@@ -216,7 +216,7 @@ function dateToTimestamp(dateStr: string): number | null {
     }
     // Возвращаем timestamp в миллисекундах (без дробной части, т.к. не знаем микросекунды)
     return date.getTime();
-  } catch (e) {
+  } catch (_e) {
     return null;
   }
 }

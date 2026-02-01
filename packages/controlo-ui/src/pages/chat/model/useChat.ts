@@ -41,7 +41,7 @@ export function useChat() {
   // Автообновление сообщений
   const autoRefreshEnabled = ref(false);
   
-  const { startRefresh, stopRefresh } = useAutoRefresh(
+  const { startRefresh: _startRefresh, stopRefresh: _stopRefresh } = useAutoRefresh(
     autoRefreshInterval,
     loadMessages,
     autoRefreshEnabled

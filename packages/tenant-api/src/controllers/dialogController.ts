@@ -452,7 +452,7 @@ export const dialogController = {
           // Для агрегации dialog уже является объектом, для обычного запроса - Mongoose документ
           const dialogObj = dialog.toObject ? dialog.toObject() : dialog;
            
-          const { members, ...dialogWithoutMembers } = dialogObj;
+          const { members: _members, ...dialogWithoutMembers } = dialogObj;
           
           // Вычисляем общую статистику по диалогу
           // const totalUnreadCount = members.reduce((total, member) => total + (member.unreadCount || 0), 0);

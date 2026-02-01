@@ -18,7 +18,7 @@ export function useMembers(getApiKey: () => string) {
   const membersPagination = usePagination({
     initialPage: 1,
     initialLimit: 10,
-    onPageChange: (page, limit) => {
+    onPageChange: (_page, _limit) => {
       // Вызывается при смене страницы; dialogId для загрузки передаёт страница
     },
   });

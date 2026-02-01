@@ -47,7 +47,7 @@ async function processEvent(eventData: EventData): Promise<void> {
     const memberPayload = data.member || {};
     const messagePayload = data.message || {};
     const typingPayload = data.typing || {};
-    const topicPayload = data.topic || {};
+    const _topicPayload = data.topic || {};
 
     console.log(`📩 Processing event: ${eventType} (${entityId})`);
 

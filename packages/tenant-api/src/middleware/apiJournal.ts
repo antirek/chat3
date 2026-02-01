@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { ApiJournal } from '@chat3/models';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import type { AuthenticatedRequest } from './apiAuth.js';

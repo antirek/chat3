@@ -36,7 +36,7 @@ export function useTenantsPage() {
     filterInput,
     selectedFilterExample,
     currentFilter,
-    sort,
+    sort: _sort,
     currentSort,
     loadTenants,
     formatTimestamp,
