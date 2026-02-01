@@ -67,7 +67,8 @@ export const topicController = {
       );
 
       log(`Отправка ответа: ${topicsWithMeta.length} топиков, total=${total}`);
-      res.json({
+
+      const body: Record<string, unknown> = {
         data: sanitizeResponse(topicsWithMeta),
         pagination: {
           page,
@@ -75,7 +76,12 @@ export const topicController = {
           total,
           pages: Math.ceil(total / limit) || 1
         }
-      });
+      };
+      // Подсказка при пустом результате с фильтром по meta (диагностика)
+      if (total === 0 && req.query.filter && String(req.query.filter).includes('meta.')) {
+        body.hint = 'No topics matched the filter. Check: 1) Meta records exist for entityType=topic with this key/value (e.g. GET /api/meta/topic/:topicId); 2) Same tenant (X-TENANT-ID or API key) as when meta was set. Set meta via PATCH .../topics/:topicId with body.meta or PUT /api/meta/topic/:topicId/:key.';
+      }
+      res.json(body);
     } catch (error: any) {
       log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({

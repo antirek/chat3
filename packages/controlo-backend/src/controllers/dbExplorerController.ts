@@ -18,7 +18,8 @@ import {
   UserDialogActivity,
   MessageReactionStats,
   MessageStatusStats,
-  CounterHistory
+  CounterHistory,
+  Topic
 } from '@chat3/models';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { Request, Response } from 'express';
@@ -43,13 +44,14 @@ const MODELS_MAP: Record<string, Model<any>> = {
   'UserDialogActivity': UserDialogActivity,
   'MessageReactionStats': MessageReactionStats,
   'MessageStatusStats': MessageStatusStats,
-  'CounterHistory': CounterHistory
+  'CounterHistory': CounterHistory,
+  'Topic': Topic
 };
 
 // Группировка моделей по категориям
 const MODEL_CATEGORIES: Record<string, string[]> = {
   'Система': ['ApiKey', 'Tenant', 'User'],
-  'Чаты': ['Dialog', 'DialogMember', 'Message', 'MessageStatus', 'MessageReaction', 'Meta'],
+  'Чаты': ['Dialog', 'Topic', 'DialogMember', 'Message', 'MessageStatus', 'MessageReaction', 'Meta'],
   'События': ['Event', 'Update'],
   'Журналы': ['ApiJournal', 'DialogReadTask'],
   'Счетчики': ['UserStats', 'UserDialogStats', 'UserDialogActivity', 'MessageReactionStats', 'MessageStatusStats', 'CounterHistory']
@@ -144,8 +146,9 @@ export async function getModelData(req: Request, res: Response): Promise<void> {
         .lean()
     ]);
 
+    // Не используем sanitizeResponse: _id нужен фронту для однозначного удаления/редактирования строки
     res.json({
-      data: sanitizeResponse(data),
+      data,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -198,7 +201,7 @@ export async function getModelItem(req: Request, res: Response): Promise<void> {
     // Если не найдено по _id или id не является ObjectId, пробуем найти по основному полю
     if (!item) {
       const schema: Schema = Model.schema;
-      const idFields = ['userId', 'dialogId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId'];
+      const idFields = ['userId', 'dialogId', 'topicId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId'];
       
       for (const field of idFields) {
         if (schema.paths[field]) {
@@ -306,7 +309,7 @@ export async function updateModelItem(req: Request, res: Response): Promise<void
     if (!item) {
       // Если не найдено по _id или id не является ObjectId, пробуем найти по основному полю
       const schema: Schema = Model.schema;
-      const idFields = ['userId', 'dialogId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId'];
+      const idFields = ['userId', 'dialogId', 'topicId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId'];
       
       for (const field of idFields) {
         if (schema.paths[field]) {
@@ -381,7 +384,7 @@ export async function deleteModelItem(req: Request, res: Response): Promise<void
     if (!item) {
       // Если не найдено по _id или id не является ObjectId, пробуем найти по основному полю
       const schema: Schema = Model.schema;
-      const idFields = ['userId', 'dialogId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId'];
+      const idFields = ['userId', 'dialogId', 'topicId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId'];
       
       for (const field of idFields) {
         if (schema.paths[field]) {

@@ -201,7 +201,8 @@ export function useData(deps: UseDataDependencies) {
   }
 
   function getItemId(item: any, index: number): string {
-    return item._id || item.userId || item.dialogId || item.messageId || item.tenantId || item.key || String(index);
+    const id = item._id ?? item.userId ?? item.dialogId ?? item.topicId ?? item.messageId ?? item.tenantId ?? item.key ?? item.eventId ?? item.updateId ?? item.taskId ?? String(index);
+    return id != null && typeof id === 'object' && typeof (id as any).toString === 'function' ? (id as any).toString() : String(id);
   }
 
   return {

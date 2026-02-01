@@ -466,11 +466,18 @@ npm run generate-key
 **Примеры фильтров по топикам:**
 - `(topicId,eq,topic_abc123...)` - конкретный топик
 - `(meta.name,eq,Важная тема)` - топики с именем по meta
+- `(meta.channelId,eq,whatsapp.chn_6kgxljk)` — по meta-ключу (значение с точкой можно писать без кавычек)
 - `(meta.priority,in,[support,general])` - топики с приоритетом support или general
 - `(meta.priority,ne,archived)` - топики с приоритетом не archived
 - `(meta.name,regex,^support)` - топики, имя которых начинается с "support"
 - `(meta.name,eq,a)|(meta.name,eq,b)` - топики с именем a или b
 - `((meta.priority,eq,high)&(meta.category,eq,support))|(meta.name,eq,personal)` - (priority=high и category=support) или name=personal
+
+**Если фильтр по meta ничего не находит (ни с кавычками, ни без):**
+1. **Проверьте, что meta вообще заданы у топиков.** Фильтр ищет записи в коллекции `Meta` (`entityType=topic`, `key`, `value`). Если meta ни разу не задавали — записей нет и результат пустой. Задать meta: **PATCH** `/api/dialogs/:dialogId/topics/:topicId` с телом `{ "meta": { "channelId": "whatsapp.chn_6kgxljk" } }` или **PUT** `/api/meta/topic/:topicId/channelId` с телом `{ "value": "whatsapp.chn_6kgxljk" }`.
+2. **Проверьте tenant.** Список топиков и фильтр работают в контексте tenant из заголовка `X-TENANT-ID` (или `tnt_default`, если заголовка нет). В коллекции `Meta` у записей должен быть тот же `tenantId`. Убедитесь, что запрос к `GET /api/topics` идёт с тем же tenant, с которым создавали/обновляли meta.
+3. **Проверка через API:** возьмите любой `topicId` из `GET /api/topics` (без фильтра) или из `GET /api/dialogs/:dialogId/topics`, затем вызовите **GET** `/api/meta/topic/:topicId`. В ответе должно быть поле `channelId` со значением `whatsapp.chn_6kgxljk`. Если его нет — meta для этого топика не задан.
+4. При пустом результате с фильтром по `meta.*` API возвращает в теле ответа поле `hint` с краткой подсказкой.
 
 **Ответ:**
 ```json
