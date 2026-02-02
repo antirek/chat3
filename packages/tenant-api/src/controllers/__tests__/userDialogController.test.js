@@ -1793,6 +1793,73 @@ describe('userDialogController', () => {
         // Should return dialogs with topics that don't have priority meta tag
         expect(res.body.data.length).toBeGreaterThanOrEqual(0);
       });
+
+      test('should filter dialogs by topic.meta.contactIds (in) when topic meta value is array', async () => {
+        const dialogNew = await Dialog.create({
+          dialogId: generateDialogId(),
+          tenantId,
+          createdBy: userId1,
+          createdAt: generateTimestamp()
+        });
+        await DialogMember.create({
+          userId: userId1,
+          dialogId: dialogNew.dialogId,
+          tenantId,
+          role: 'member',
+          isActive: true,
+          unreadCount: 0,
+          joinedAt: generateTimestamp(),
+          lastSeenAt: generateTimestamp(),
+          lastMessageAt: generateTimestamp(),
+          createdAt: generateTimestamp()
+        });
+        const topicWithArrayMeta = await Topic.create({
+          topicId: generateTopicId(),
+          dialogId: dialogNew.dialogId,
+          tenantId,
+          createdAt: generateTimestamp()
+        });
+        await Meta.create({
+          tenantId,
+          entityType: 'topic',
+          entityId: topicWithArrayMeta.topicId,
+          key: 'contactIds',
+          value: ['id1', 'id2'],
+          dataType: 'array',
+          createdAt: generateTimestamp()
+        });
+        await DialogStats.create({
+          tenantId,
+          dialogId: dialogNew.dialogId,
+          topicCount: 1,
+          memberCount: 1,
+          messageCount: 0
+        });
+
+        const req = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.meta.contactIds,in,[id1,id2])' }
+        );
+        const res = createMockRes();
+
+        await userDialogController.getUserDialogs(req, res);
+
+        expect(res.statusCode).toBeUndefined();
+        expect(res.body).toBeDefined();
+        expect(res.body.data).toHaveLength(1);
+        expect(res.body.data[0].dialogId).toBe(dialogNew.dialogId);
+
+        const req2 = createMockReq(
+          { userId: userId1 },
+          { page: 1, limit: 10, filter: '(topic.meta.contactIds,in,[id1])' }
+        );
+        const res2 = createMockRes();
+        await userDialogController.getUserDialogs(req2, res2);
+
+        expect(res2.statusCode).toBeUndefined();
+        expect(res2.body.data).toHaveLength(1);
+        expect(res2.body.data[0].dialogId).toBe(dialogNew.dialogId);
+      });
     });
 
     describe('topic.topicCount filters', () => {

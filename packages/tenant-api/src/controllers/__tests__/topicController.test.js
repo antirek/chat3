@@ -356,6 +356,55 @@ describe('topicController.getTenantTopics', () => {
     expect(res.body.data[0].topicId).toBe(topicC);
   });
 
+  test('filters by meta.contactIds (in) when meta value is array', async () => {
+    const dialogA = generateDialogId();
+    const topicMatch = generateTopicId();
+    const topicNoMatch = generateTopicId();
+    await Dialog.create({ tenantId, dialogId: dialogA, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId: dialogA, topicId: topicMatch, createdAt: generateTimestamp() });
+    await Topic.create({ tenantId, dialogId: dialogA, topicId: topicNoMatch, createdAt: generateTimestamp() });
+    // Топик с meta-массивом: contactIds = ['cid_a', 'cid_b']
+    await Meta.create({
+      tenantId,
+      entityType: 'topic',
+      entityId: topicMatch,
+      key: 'contactIds',
+      value: ['cid_a', 'cid_b'],
+      dataType: 'array',
+      createdBy: 'system'
+    });
+    // Другой топик с массивом без cid_a — не должен попадать под (meta.contactIds,in,[cid_a])
+    await Meta.create({
+      tenantId,
+      entityType: 'topic',
+      entityId: topicNoMatch,
+      key: 'contactIds',
+      value: ['cid_c'],
+      dataType: 'array',
+      createdBy: 'system'
+    });
+
+    const req = createMockReq({
+      query: { page: 1, limit: 10, filter: '(meta.contactIds,in,[cid_a,cid_b])' }
+    });
+    const res = createMockRes();
+    await topicController.getTenantTopics(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].topicId).toBe(topicMatch);
+
+    const req2 = createMockReq({
+      query: { page: 1, limit: 10, filter: '(meta.contactIds,in,[cid_a])' }
+    });
+    const res2 = createMockRes();
+    await topicController.getTenantTopics(req2, res2);
+
+    expect(res2.statusCode).toBeUndefined();
+    expect(res2.body.data).toHaveLength(1);
+    expect(res2.body.data[0].topicId).toBe(topicMatch);
+  });
+
   test('filters by meta.level gt and gte (numeric)', async () => {
     const dialogId = generateDialogId();
     const topic1 = generateTopicId();
