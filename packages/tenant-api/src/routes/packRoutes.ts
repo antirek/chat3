@@ -2,8 +2,8 @@ import express from 'express';
 import { packController } from '../controllers/packController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validatePackId, validateDialogId } from '../validators/urlValidators/index.js';
-import { validateBody } from '../validators/middleware.js';
-import { createPackSchema, addDialogToPackSchema } from '../validators/schemas/index.js';
+import { validateBody, validateQuery } from '../validators/middleware.js';
+import { createPackSchema, addDialogToPackSchema, packMessagesQuerySchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -46,6 +46,15 @@ router.get(
   requirePermission('read'),
   validatePackId,
   packController.getDialogs
+);
+
+router.get(
+  '/:packId/messages',
+  apiAuth,
+  requirePermission('read'),
+  validatePackId,
+  validateQuery(packMessagesQuerySchema),
+  packController.getMessages
 );
 
 router.get(

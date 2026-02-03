@@ -3,6 +3,7 @@ import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { usePacks } from './usePacks';
 import { usePackDialogs } from './usePackDialogs';
+import { usePackMessages } from './usePackMessages';
 import { usePackModals } from './usePackModals';
 import { useUtils } from './useUtils';
 
@@ -59,6 +60,20 @@ export function usePacksPage() {
     goToPackDialogsPage,
     changePackDialogsLimit,
   } = packDialogsModule;
+
+  const packMessagesModule = usePackMessages(getApiKey, configStore, credentialsStore, selectedPackId);
+  const {
+    packMessages,
+    packMessagesLoading,
+    packMessagesError,
+    packMessagesHasMore,
+    packMessagesCursor,
+    packMessagesLimit,
+    loadInitialPackMessages,
+    loadMorePackMessages,
+    changePackMessagesLimit,
+    resetPackMessages,
+  } = packMessagesModule;
 
   const modalsModule = usePackModals(
     getApiKey,
@@ -156,6 +171,16 @@ export function usePacksPage() {
     selectPack,
     goToPackDialogsPage,
     changePackDialogsLimit,
+    packMessages,
+    packMessagesLoading,
+    packMessagesError,
+    packMessagesHasMore,
+    packMessagesCursor,
+    packMessagesLimit,
+    loadInitialPackMessages,
+    loadMorePackMessages,
+    changePackMessagesLimit,
+    resetPackMessages,
     currentPage,
     currentLimit,
     totalPages,

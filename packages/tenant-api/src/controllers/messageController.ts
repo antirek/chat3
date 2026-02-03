@@ -2,6 +2,7 @@
 import { Message, Dialog, MessageStatus, User, DialogMember, } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
+import * as topicUtils from '@chat3/utils/topicUtils.js';
 import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
@@ -12,109 +13,9 @@ import {
   finalizeCounterUpdateContext 
 } from '@chat3/utils/counterUtils.js';
 import { updateLastMessageAt } from '../utils/dialogMemberUtils.js';
-import * as topicUtils from '@chat3/utils/topicUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
-
-/**
- * Helper function to enrich messages with meta data and statuses
- * @param {Array} messages - Array of message documents
- * @param {String} tenantId - Tenant ID
- * @returns {Promise<Array>} - Array of enriched messages with meta and statuses
- */
-async function getSenderInfo(tenantId: string, senderId: string, cache: Map<string, any> = new Map()): Promise<any> {
-  if (!senderId) {
-    return null;
-  }
-
-  if (cache.has(senderId)) {
-    return cache.get(senderId);
-  }
-
-  const user = await User.findOne({
-    tenantId,
-    userId: senderId
-  })
-    .select('userId name createdAt')
-    .lean();
-
-  if (!user) {
-    cache.set(senderId, null);
-    return null;
-  }
-
-  const userMeta = await metaUtils.getEntityMeta(tenantId, 'user', senderId);
-
-  const senderInfo = {
-    userId: user.userId,
-    createdAt: user.createdAt ?? null,
-    meta: userMeta
-  };
-
-  cache.set(senderId, senderInfo);
-  return senderInfo;
-}
-
-async function enrichMessagesWithMetaAndStatuses(messages: any[], tenantId: string, dialogId: string | null = null): Promise<any[]> {
-  const senderInfoCache = new Map();
-
-  // Собираем все уникальные topicId из сообщений для батчинга
-  const topicIds = [...new Set(messages
-    .map(msg => {
-      const msgObj = msg.toObject ? msg.toObject() : msg;
-      return (msgObj as any).topicId;
-    })
-    .filter(id => id !== null && id !== undefined)
-  )];
-
-  // Получаем все топики одним запросом (оптимизация N+1)
-  let topicsMap = new Map();
-  if (topicIds.length > 0 && dialogId) {
-    try {
-      topicsMap = await topicUtils.getTopicsWithMetaBatch(tenantId, dialogId, topicIds);
-    } catch (error) {
-      console.error('Error getting topics with meta batch:', error);
-      // Продолжаем выполнение, topicsMap останется пустым
-    }
-  }
-
-  return await Promise.all(
-    messages.map(async (message) => {
-      // Get message meta data
-      const meta = await metaUtils.getEntityMeta(
-        tenantId,
-        'message',
-        message.messageId
-      );
-      
-      const messageObj = message.toObject ? message.toObject() : message;
-      
-      // Получаем информацию о топике из map
-      let topic = null;
-      if (messageObj.topicId) {
-        topic = topicsMap.get(messageObj.topicId) || null;
-      }
-      
-      // Формируем матрицу статусов (исключая статусы отправителя сообщения)
-      const statusMessageMatrix = await buildStatusMessageMatrix(tenantId, message.messageId, messageObj.senderId);
-      
-      // Формируем reactionSet (без currentUserId, так как это общий эндпоинт)
-      const reactionSet = await buildReactionSet(tenantId, message.messageId, null);
-      
-      const senderInfo = await getSenderInfo(tenantId, messageObj.senderId, senderInfoCache);
-
-      // dialogId теперь уже строка в формате dlg_, не нужно преобразовывать
-      return {
-        ...messageObj,
-        meta,
-        topic,
-        statusMessageMatrix,
-        reactionSet,
-        senderInfo: senderInfo || null
-      };
-    })
-  );
-}
+import { getSenderInfo, enrichMessagesWithMetaAndStatuses } from '../utils/messageEnrichment.js';
 
 const messageController = {
   // Get all messages with filtering and pagination
@@ -287,7 +188,7 @@ const messageController = {
       // Add meta data and message statuses for each message
       // Передаем dialogId для батчинга топиков
       log(`Обогащение сообщений метаданными и статусами: ${messages.length} сообщений`);
-      const messagesWithMeta = await enrichMessagesWithMetaAndStatuses(messages, req.tenantId, dialog.dialogId);
+      const messagesWithMeta = await enrichMessagesWithMetaAndStatuses(messages, req.tenantId, { dialogId: dialog.dialogId });
 
       const total = await Message.countDocuments(query);
       log(`Всего сообщений: ${total}, страница: ${page}, лимит: ${limit}`);

@@ -752,6 +752,47 @@ npm run generate-key
 
 **Ответ:** массив `{ dialogId, addedAt }`, сортировка по addedAt desc
 
+#### GET /api/packs/:packId/messages
+Единый поток сообщений пака. Возвращает сообщения всех диалогов, входящих в пак, в порядке убывания `createdAt`. Пагинация — курсорная.
+
+**Query параметры:**
+- `limit` (число, по умолчанию 50, максимум 100)
+- `cursor` (base64-строка, полученная из предыдущего ответа)
+- `filter` (опционально, синтаксис как у `/api/dialogs/:dialogId/messages`)
+
+**Ответ:**
+```json
+{
+  "data": [
+    {
+      "messageId": "msg_abcd",
+      "dialogId": "dlg_main",
+      "sourceDialogId": "dlg_main",
+      "content": "Пример сообщения",
+      "senderId": "user_alpha",
+      "senderInfo": {
+        "userId": "user_alpha",
+        "createdAt": 1720000000.123456,
+        "meta": {}
+      },
+      "createdAt": 1721122334.654321,
+      "meta": {},
+      "statusMessageMatrix": [],
+      "reactionSet": []
+    }
+  ],
+  "cursor": {
+    "next": "MTcyMTEyMjMzNC42NTQzMjF8bXNnX2FiY2Q",
+    "prev": null
+  },
+  "hasMore": true
+}
+```
+
+- `cursor.next` содержит base64 курсор (`createdAt|messageId`), который нужно передать в следующем запросе для получения следующей страницы.
+- `cursor.prev` зарезервирован для обратной навигации (сейчас `null` для первой страницы).
+- Каждая запись содержит `sourceDialogId`, указывающий исходный диалог сообщения.
+
 **Мета-теги пака:** `PUT /api/meta/pack/:packId/:key`, `DELETE /api/meta/pack/:packId/:key`, `GET /api/meta/pack/:packId`
 
 #### GET /api/users/:userId/packs

@@ -4,6 +4,8 @@ import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
+import { loadPackMessages } from '../utils/packMessageUtils.js';
+import { enrichMessagesWithMetaAndStatuses } from '../utils/messageEnrichment.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
@@ -469,6 +471,72 @@ export const packController = {
       res.status(200).json({
         data: { packId, dialogId },
         message: 'Dialog removed from pack'
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  async getMessages(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { packId } = req.params;
+      const tenantId = req.tenantId!;
+
+      const limitParam = req.query.limit !== undefined ? Number(req.query.limit) : undefined;
+      const parsedLimit = Number.isFinite(limitParam) ? limitParam : undefined;
+      const filter = typeof req.query.filter === 'string' && req.query.filter.length > 0 ? String(req.query.filter) : null;
+      const cursor = typeof req.query.cursor === 'string' && req.query.cursor.length > 0 ? String(req.query.cursor) : null;
+
+      let packMessages;
+      try {
+        packMessages = await loadPackMessages({
+          tenantId,
+          packId,
+          limit: parsedLimit,
+          filter,
+          cursor
+        });
+      } catch (error: any) {
+        if (error?.message === 'PACK_NOT_FOUND') {
+          res.status(404).json({
+            error: 'Not Found',
+            message: 'Pack not found'
+          });
+          return;
+        }
+        if (error?.name === 'FILTER_ERROR') {
+          res.status(400).json({
+            error: 'Bad Request',
+            message: error?.message || 'Invalid filter format'
+          });
+          return;
+        }
+
+        throw error;
+      }
+
+      if (packMessages.messages.length === 0) {
+        res.json({
+          data: [],
+          cursor: packMessages.pageInfo.cursor,
+          hasMore: packMessages.pageInfo.hasMore
+        });
+        return;
+      }
+
+      const enriched = await enrichMessagesWithMetaAndStatuses(packMessages.messages, tenantId);
+      const dataWithSource = enriched.map((message) => ({
+        ...message,
+        sourceDialogId: message.dialogId
+      }));
+
+      res.json({
+        data: sanitizeResponse(dataWithSource),
+        cursor: packMessages.pageInfo.cursor,
+        hasMore: packMessages.pageInfo.hasMore
       });
     } catch (error: any) {
       res.status(500).json({

@@ -53,7 +53,7 @@
 
       <BasePanel class="right-panel" width="50%" min-width="350px">
         <template v-if="selectedPackId" #header-left>
-          <span>💬 Диалоги пака {{ selectedPackId }}</span>
+          <span>📂 Пак {{ selectedPackId }}</span>
         </template>
         <template v-if="selectedPackId" #header-right>
           <BaseButton variant="success" size="small" @click="showAddDialogModal(selectedPackId)">➕ Диалог</BaseButton>
@@ -64,28 +64,89 @@
         </div>
 
         <template v-else>
-          <PacksPagination
-            v-if="packDialogsTotal > 0"
-            :current-page="packDialogsPage"
-            :current-page-input="packDialogsPage"
-            :total-pages="packDialogsTotalPages"
-            :total="packDialogsTotal"
-            :pagination-start="packDialogsPaginationStart"
-            :pagination-end="packDialogsPaginationEnd"
-            :current-limit="packDialogsLimit"
-            @first="goToPackDialogsPage(1)"
-            @prev="goToPackDialogsPage(Math.max(1, packDialogsPage - 1))"
-            @next="goToPackDialogsPage(Math.min(packDialogsTotalPages, packDialogsPage + 1))"
-            @last="goToPackDialogsPage(packDialogsTotalPages)"
-            @go-to-page="goToPackDialogsPage"
-            @change-limit="changePackDialogsLimit"
-          />
-          <PackDialogsTable
-            :dialogs="packDialogs"
-            :loading="packDialogsLoading"
-            :error="packDialogsError"
-            @show-dialog-info="showDialogInfoModal"
-          />
+          <div class="right-panel-tabs">
+            <button
+              type="button"
+              class="tab-button"
+              :class="{ active: activePackTab === 'dialogs' }"
+              @click="switchPackTab('dialogs')"
+            >
+              Диалоги
+            </button>
+            <button
+              type="button"
+              class="tab-button"
+              :class="{ active: activePackTab === 'messages' }"
+              @click="switchPackTab('messages')"
+            >
+              Сообщения
+            </button>
+          </div>
+
+          <template v-if="activePackTab === 'dialogs'">
+            <PacksPagination
+              v-if="packDialogsTotal > 0"
+              :current-page="packDialogsPage"
+              :current-page-input="packDialogsPage"
+              :total-pages="packDialogsTotalPages"
+              :total="packDialogsTotal"
+              :pagination-start="packDialogsPaginationStart"
+              :pagination-end="packDialogsPaginationEnd"
+              :current-limit="packDialogsLimit"
+              @first="goToPackDialogsPage(1)"
+              @prev="goToPackDialogsPage(Math.max(1, packDialogsPage - 1))"
+              @next="goToPackDialogsPage(Math.min(packDialogsTotalPages, packDialogsPage + 1))"
+              @last="goToPackDialogsPage(packDialogsTotalPages)"
+              @go-to-page="goToPackDialogsPage"
+              @change-limit="changePackDialogsLimit"
+            />
+            <PackDialogsTable
+              :dialogs="packDialogs"
+              :loading="packDialogsLoading"
+              :error="packDialogsError"
+              @show-dialog-info="showDialogInfoModal"
+            />
+          </template>
+          <template v-else>
+            <div class="messages-toolbar">
+              <label class="messages-limit">
+                Лимит:
+                <select :value="packMessagesLimit" @change="onPackMessagesLimitChange">
+                  <option :value="20">20</option>
+                  <option :value="50">50</option>
+                  <option :value="100">100</option>
+                </select>
+              </label>
+              <BaseButton
+                size="small"
+                variant="secondary"
+                :disabled="packMessagesLoading"
+                @click="loadInitialPackMessages"
+              >
+                Обновить
+              </BaseButton>
+            </div>
+            <div v-if="packMessagesError" class="messages-error">{{ packMessagesError }}</div>
+            <PackMessagesTable
+              :messages="packMessages"
+              :loading="packMessagesLoading"
+              :error="packMessagesError"
+              :format-timestamp="formatTimestamp"
+            />
+            <div class="messages-footer">
+              <BaseButton
+                v-if="packMessagesHasMore"
+                variant="primary"
+                :disabled="packMessagesLoading"
+                @click="loadMorePackMessages"
+              >
+                {{ packMessagesLoading ? 'Загрузка...' : 'Показать ещё' }}
+              </BaseButton>
+              <span v-else-if="!packMessagesLoading && packMessages.length > 0" class="messages-end">
+                Больше сообщений нет.
+              </span>
+            </div>
+          </template>
         </template>
       </BasePanel>
     </div>
@@ -146,10 +207,11 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue';
 import { BasePanel, BaseButton } from '@/shared/ui';
 import { usePacksPage } from '../model';
 import { PackFilterPanel } from './filters';
-import { PackTable, PackDialogsTable } from './tables';
+import { PackTable, PackDialogsTable, PackMessagesTable } from './tables';
 import { PackInfoModal, PackMetaModal, PackUrlModal, CreatePackModal, AddDialogToPackModal, DialogInfoModal } from './modals';
 import { PacksPagination } from './pagination';
 
@@ -167,6 +229,15 @@ const {
   packDialogsTotalPages,
   packDialogsPaginationStart,
   packDialogsPaginationEnd,
+  packMessages,
+  packMessagesLoading,
+  packMessagesError,
+  packMessagesHasMore,
+  packMessagesLimit,
+  loadInitialPackMessages,
+  loadMorePackMessages,
+  changePackMessagesLimit,
+  resetPackMessages,
   selectPack,
   goToPackDialogsPage,
   changePackDialogsLimit,
@@ -234,6 +305,31 @@ const {
   copyUrlToClipboard,
 } = usePacksPage();
 
+const activePackTab = ref<'dialogs' | 'messages'>('dialogs');
+
+watch(selectedPackId, (packId) => {
+  activePackTab.value = 'dialogs';
+  if (!packId) {
+    resetPackMessages();
+  }
+});
+
+function switchPackTab(tab: 'dialogs' | 'messages') {
+  activePackTab.value = tab;
+  if (tab === 'messages' && !packMessagesLoading.value && packMessages.value.length === 0) {
+    loadInitialPackMessages();
+  }
+}
+
+function onPackMessagesLimitChange(event: Event) {
+  const target = event.target as HTMLSelectElement | null;
+  if (!target) return;
+  const value = Number(target.value);
+  if (!Number.isNaN(value)) {
+    changePackMessagesLimit(value);
+  }
+}
+
 function onUpdateNewMetaKey(v: string) {
   newMetaKeyForEdit.value = v;
 }
@@ -268,5 +364,53 @@ function onUpdateNewMetaValue(v: string) {
   color: #6c757d;
   font-size: 14px;
   text-align: center;
+}
+.right-panel-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.tab-button {
+  padding: 6px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: #f8f9fa;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s, color 0.2s;
+}
+.tab-button:hover {
+  background: #e9ecef;
+}
+.tab-button.active {
+  background: #667eea;
+  color: #fff;
+  border-color: #667eea;
+}
+.messages-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+.messages-limit select {
+  margin-left: 6px;
+  padding: 2px 6px;
+}
+.messages-error {
+  color: #dc3545;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.messages-footer {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.messages-end {
+  font-size: 12px;
+  color: #6c757d;
 }
 </style>

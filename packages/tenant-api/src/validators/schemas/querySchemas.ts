@@ -60,3 +60,9 @@ export const reactionsQuerySchema = Joi.object({
   reaction: Joi.string().max(50).optional(),
   userId: Joi.string().max(100).optional()
 });
+
+export const packMessagesQuerySchema = Joi.object({
+  limit: Joi.number().integer().min(1).max(100).default(50),
+  cursor: Joi.string().allow('').optional(),
+  filter: Joi.string().allow('').optional()
+});
