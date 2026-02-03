@@ -499,10 +499,10 @@
       :status="memberMetaStatus"
       @close="closeMemberMetaModal"
       @save="saveMemberMetaChangesModal"
-      @add-meta-row="addMemberMetaRowModal"
+      @add-meta-row-with-data="(key, value) => addMemberMetaRowModal(key, value)"
       @remove-meta-row="removeMemberMetaRowModal"
-      @update-meta-key="(i, v) => memberMetaTags[i].key = v"
-      @update-meta-value="(i, v) => memberMetaTags[i].value = v"
+      @update-meta-key="(i, v) => updateMemberMetaKeyModal(i, v)"
+      @update-meta-value="(i, v) => updateMemberMetaValueModal(i, v)"
     />
 
     <!-- Модальное окно для создания топика -->
@@ -843,6 +843,8 @@ const {
   showMemberMetaModal,
   closeMemberMetaModal,
   addMemberMetaRowModal,
+  updateMemberMetaKeyModal,
+  updateMemberMetaValueModal,
   removeMemberMetaRowModal,
   saveMemberMetaChangesModal,
   memberMetaModalDialogId,

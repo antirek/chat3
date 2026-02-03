@@ -70,7 +70,7 @@
                 <input type="text" v-model="arrayItems[idx]" placeholder="Элемент" class="form-input" />
                 <BaseButton type="button" variant="danger" size="small" @click="removeArrayItem(idx)">✕</BaseButton>
               </div>
-              <BaseButton type="button" variant="secondary" size="small" @click="addArrayItem">➕ Добавить элемент</BaseButton>
+              <BaseButton type="button" variant="secondary" @click="addArrayItem">➕ Добавить элемент</BaseButton>
             </div>
             <!-- Объект -->
             <div v-else-if="valueType === 'object'" class="object-editor">

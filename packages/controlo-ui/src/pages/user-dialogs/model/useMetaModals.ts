@@ -210,8 +210,28 @@ export function useMetaModals(
     memberMetaStatus.value = '';
   }
 
-  function addMemberMetaRowModal() {
-    memberMetaTags.value.push({ key: '', value: '', isExisting: false });
+  function addMemberMetaRowModal(keyFromModal?: string, valueFromModal?: any) {
+    if (keyFromModal !== undefined && keyFromModal !== null && valueFromModal !== undefined && valueFromModal !== null) {
+      memberMetaTags.value.push({
+        key: keyFromModal.trim(),
+        value: formatMetaValueForInput(valueFromModal),
+        isExisting: false,
+      });
+    } else {
+      memberMetaTags.value.push({ key: '', value: '', isExisting: false });
+    }
+  }
+
+  function updateMemberMetaKeyModal(index: number, value: string) {
+    const arr = [...memberMetaTags.value];
+    if (arr[index]) arr[index] = { ...arr[index], key: value };
+    memberMetaTags.value = arr;
+  }
+
+  function updateMemberMetaValueModal(index: number, value: string) {
+    const arr = [...memberMetaTags.value];
+    if (arr[index]) arr[index] = { ...arr[index], value };
+    memberMetaTags.value = arr;
   }
 
   function removeMemberMetaRowModal(index: number) {
@@ -293,21 +313,24 @@ export function useMetaModals(
     
     try {
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const dialogId = memberMetaModalDialogId.value;
+      const userId = memberMetaModalUserId.value;
+      const entityId = encodeURIComponent(`${dialogId}:${userId}`);
       const oldKeys = Object.keys(currentMemberMetaOriginal.value);
       for (const key of oldKeys) {
         if (!(key in newMeta)) {
-          const fullUrl = `${baseUrl}/api/dialogs/${memberMetaModalDialogId.value}/members/${memberMetaModalUserId.value}/meta/${key}`;
+          const fullUrl = `${baseUrl}/api/meta/dialogMember/${entityId}/${encodeURIComponent(key)}`;
           await fetch(fullUrl, {
             method: 'DELETE',
             headers: credentialsStore.getHeaders(),
           });
         }
       }
-      
+
       for (const [key, value] of Object.entries(newMeta)) {
         const oldValue = currentMemberMetaOriginal.value[key];
         if (oldValue !== value) {
-          const fullUrl = `${baseUrl}/api/dialogs/${memberMetaModalDialogId.value}/members/${memberMetaModalUserId.value}/meta/${key}`;
+          const fullUrl = `${baseUrl}/api/meta/dialogMember/${entityId}/${encodeURIComponent(key)}`;
           await fetch(fullUrl, {
             method: 'PUT',
             headers: {
@@ -600,6 +623,8 @@ export function useMetaModals(
     showMemberMetaModal,
     closeMemberMetaModal,
     addMemberMetaRowModal,
+    updateMemberMetaKeyModal,
+    updateMemberMetaValueModal,
     removeMemberMetaRowModal,
     formatMetaValueForInput,
     parseMetaValueFromInput,
