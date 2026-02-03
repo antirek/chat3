@@ -29,6 +29,7 @@ Chat3 использует событийно-ориентированную а�
 - `message.reaction.update`
 - `dialog.typing`
 - `user.add`, `user.update`, `user.remove`
+- `pack.create`, `pack.delete`, `pack.dialog.add`, `pack.dialog.remove`, `pack.stats.updated`, `user.pack.stats.updated`
 
 ## Соответствие событий и обновлений
 
@@ -48,6 +49,12 @@ Chat3 использует событийно-ориентированную а�
 | `user.add` | `user` | `user.add.{tenantId}` | `UserUpdate` | `update.user.{userType}.{userId}.userupdate` | Конкретный пользователь | - |
 | `user.update` | `user` | `user.update.{tenantId}` | `UserUpdate` | `update.user.{userType}.{userId}.userupdate` | Конкретный пользователь | - |
 | `user.remove` | `user` | `user.remove.{tenantId}` | `UserUpdate` | `update.user.{userType}.{userId}.userupdate` | Конкретный пользователь | - |
+| `pack.create` | `pack` | `pack.create.{tenantId}` | - | - | Сервисы, кеширующие состав паков | - |
+| `pack.delete` | `pack` | `pack.delete.{tenantId}` | - | - | Сервисы, кеширующие состав паков | - |
+| `pack.dialog.add` | `pack` | `pack.dialog.add.{tenantId}` | - | - | Обработчики синхронизации связок пак ↔ диалог | - |
+| `pack.dialog.remove` | `pack` | `pack.dialog.remove.{tenantId}` | - | - | Обработчики синхронизации связок пак ↔ диалог | - |
+| `pack.stats.updated` | `packStats` | `pack.stats.updated.{tenantId}` | - | - | Подписчики на агрегаты паков | Генерация воркером после пересчёта |
+| `user.pack.stats.updated` | `userPackStats` | `user.pack.stats.updated.{tenantId}` | - | - | UI/сервисы, показывающие unread по паку | Генерация воркером после пересчёта |
 
 **Примечания:**
 - `{userType}` - тип пользователя из модели User (user, bot, contact и т.д.)
@@ -141,6 +148,67 @@ Chat3 использует событийно-ориентированную а�
 Обновление участника диалога
 
 **Routing Key:** `dialogMember.update.{tenantId}`
+
+### Pack Events
+
+#### pack.create
+Создание пака.
+
+**Routing Key:** `pack.create.{tenantId}`
+
+Payload содержит секцию `pack` с метаданными пака и текущим количеством диалогов (на момент создания всегда `0`).
+
+#### pack.delete
+Удаление пака. Содержит секции `pack` и, при наличии, `packStats`, чтобы подписчики могли очистить кэш агрегатов.
+
+**Routing Key:** `pack.delete.{tenantId}`
+
+#### pack.dialog.add
+Привязка диалога к паку.
+
+**Routing Key:** `pack.dialog.add.{tenantId}`
+
+Секции: `pack` (актуальный список/счётчик диалогов), `dialog` (основные данные диалога).
+
+#### pack.dialog.remove
+Удаление диалога из пака.
+
+**Routing Key:** `pack.dialog.remove.{tenantId}`
+
+#### pack.stats.updated
+Актуализация агрегатов пака (messageCount, uniqueMemberCount и т.д.), генерируется update-worker после пересчёта.
+
+**Routing Key:** `pack.stats.updated.{tenantId}`
+
+**Data пример:**
+```json
+{
+  "context": {
+    "eventType": "pack.stats.updated",
+    "packId": "pck_...",
+    "entityId": "pck_...",
+    "includedSections": ["packStats"],
+    "updatedFields": ["packStats"]
+  },
+  "packStats": {
+    "packId": "pck_...",
+    "messageCount": 42,
+    "uniqueMemberCount": 10,
+    "sumMemberCount": 18,
+    "uniqueTopicCount": 5,
+    "sumTopicCount": 7,
+    "dialogCount": 3,
+    "lastUpdatedAt": 1763551369397.6482
+  }
+}
+```
+
+#### user.pack.stats.updated
+Актуализация счётчика непрочитанных сообщений пака конкретного пользователя.
+
+**Routing Key:** `user.pack.stats.updated.{tenantId}`
+
+Секция `userPackStats` содержит пару `packId`/`userId` и новое значение `unreadCount`.
 
 ### Message Events
 
@@ -397,11 +465,15 @@ channel.bindQueue(queueName, 'chat3_events', '#');
   "eventType": "dialog.create",
   "dialogId": "dlg_...",
   "entityId": "dlg_...",
+  "packId": null,
+  "userId": null,
   "messageId": null,
   "includedSections": ["dialog", "actor"],
   "updatedFields": []
 }
 ```
+
+Поля `packId` и `userId` используются для pack-событий (`pack.*`, `user.pack.*`) и указывают, к какому паку/пользователю относится изменение.
 
 ### Dialog Section
 

@@ -5,7 +5,11 @@ import {
   getUserEvents,
   getAllEvents,
   deleteOldEvents,
-  getEventStats
+  getEventStats,
+  buildPackSection,
+  buildPackStatsSection,
+  buildUserPackStatsSection,
+  buildEventContext
 } from '../eventUtils.js';
 import { Event } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '@chat3/tenant-api/src/utils/__tests__/setup.js';
@@ -25,6 +29,85 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
 
   beforeEach(async () => {
     await clearDatabase();
+  });
+
+  describe('builder helpers', () => {
+    test('buildPackSection returns normalized payload', () => {
+      const section = buildPackSection({
+        packId: 'pck_sample1234567890',
+        tenantId,
+        createdAt: 123,
+        meta: { foo: 'bar' },
+        stats: { dialogCount: 3, messageCount: 10 }
+      });
+
+      expect(section).toEqual({
+        packId: 'pck_sample1234567890',
+        tenantId,
+        createdAt: 123,
+        meta: { foo: 'bar' },
+        stats: {
+          dialogCount: 3,
+          messageCount: 10,
+          uniqueMemberCount: 0,
+          sumMemberCount: 0,
+          uniqueTopicCount: 0,
+          sumTopicCount: 0
+        }
+      });
+    });
+
+    test('buildPackStatsSection fills defaults for missing values', () => {
+      const section = buildPackStatsSection({
+        packId: 'pck_sample1234567890',
+        messageCount: 4,
+        lastUpdatedAt: 555
+      });
+
+      expect(section).toEqual({
+        packId: 'pck_sample1234567890',
+        messageCount: 4,
+        uniqueMemberCount: 0,
+        sumMemberCount: 0,
+        uniqueTopicCount: 0,
+        sumTopicCount: 0,
+        dialogCount: 0,
+        lastUpdatedAt: 555
+      });
+    });
+
+    test('buildUserPackStatsSection returns unread payload', () => {
+      const section = buildUserPackStatsSection({
+        tenantId,
+        packId: 'pck_sample1234567890',
+        userId: 'usr_1',
+        unreadCount: 7,
+        lastUpdatedAt: 789
+      });
+
+      expect(section).toEqual({
+        tenantId,
+        packId: 'pck_sample1234567890',
+        userId: 'usr_1',
+        unreadCount: 7,
+        lastUpdatedAt: 789
+      });
+    });
+
+    test('buildEventContext includes packId and userId optional fields', () => {
+      const context = buildEventContext({
+        eventType: 'pack.stats.updated',
+        entityId: 'pck_sample1234567890',
+        packId: 'pck_sample1234567890',
+        userId: 'usr_1',
+        includedSections: ['packStats'],
+        updatedFields: ['packStats']
+      });
+
+      expect(context.packId).toBe('pck_sample1234567890');
+      expect(context.userId).toBe('usr_1');
+      expect(context.includedSections).toContain('packStats');
+    });
   });
 
   describe('createEvent', () => {

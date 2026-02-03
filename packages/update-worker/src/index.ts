@@ -11,6 +11,7 @@ import {
   recalculatePackStats,
   recalculateUserPackStats
 } from '@chat3/utils/packStatsUtils.js';
+import * as eventUtils from '@chat3/utils/eventUtils.js';
 
 const WORKER_QUEUE = 'update_worker_queue';
 
@@ -53,8 +54,76 @@ async function updatePackCountersForDialog(
       actorType: 'system'
     };
 
-    await recalculatePackStats(tenantId, packId, options);
-    await recalculateUserPackStats(tenantId, packId, options);
+    const packStatsDoc = await recalculatePackStats(tenantId, packId, options);
+    const userPackMap = await recalculateUserPackStats(tenantId, packId, options);
+
+    if (packStatsDoc) {
+      const packStatsSection = eventUtils.buildPackStatsSection({
+        packId,
+        messageCount: packStatsDoc.messageCount,
+        uniqueMemberCount: packStatsDoc.uniqueMemberCount,
+        sumMemberCount: packStatsDoc.sumMemberCount,
+        uniqueTopicCount: packStatsDoc.uniqueTopicCount,
+        sumTopicCount: packStatsDoc.sumTopicCount,
+        lastUpdatedAt: packStatsDoc.lastUpdatedAt ?? null
+      });
+
+      const packStatsContext = eventUtils.buildEventContext({
+        eventType: 'pack.stats.updated',
+        entityId: packId,
+        packId,
+        includedSections: ['packStats'],
+        updatedFields: ['packStats']
+      });
+
+      await eventUtils.createEvent({
+        tenantId,
+        eventType: 'pack.stats.updated',
+        entityType: 'packStats',
+        entityId: packId,
+        actorId: options.actorId,
+        actorType: 'system',
+        data: eventUtils.composeEventData({
+          context: packStatsContext,
+          packStats: packStatsSection
+        })
+      });
+    }
+
+    const userIds = Object.keys(userPackMap);
+    for (const userId of userIds) {
+      const userStats = userPackMap[userId];
+      const userPackStatsSection = eventUtils.buildUserPackStatsSection({
+        tenantId,
+        packId,
+        userId,
+        unreadCount: userStats?.unreadCount ?? 0,
+        lastUpdatedAt: userStats?.lastUpdatedAt ?? null
+      });
+
+      const userPackContext = eventUtils.buildEventContext({
+        eventType: 'user.pack.stats.updated',
+        entityId: userId,
+        packId,
+        userId,
+        includedSections: ['userPackStats'],
+        updatedFields: ['userPackStats.unreadCount']
+      });
+
+      await eventUtils.createEvent({
+        tenantId,
+        eventType: 'user.pack.stats.updated',
+        entityType: 'userPackStats',
+        entityId: `${packId}:${userId}`,
+        actorId: options.actorId,
+        actorType: 'system',
+        data: eventUtils.composeEventData({
+          context: userPackContext,
+          userPackStats: userPackStatsSection
+        })
+      });
+    }
+
     console.log(`📦 Updated pack stats for pack ${packId} (dialog ${dialogId})`);
   }
 }

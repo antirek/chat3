@@ -13,6 +13,8 @@ interface BuildEventContextParams {
   dialogId?: string | null;
   entityId?: string | null;
   messageId?: string | null;
+  packId?: string | null;
+  userId?: string | null;
   includedSections?: string[];
   updatedFields?: string[];
 }
@@ -22,6 +24,8 @@ export function buildEventContext({
   dialogId = null,
   entityId = null,
   messageId = null,
+  packId = null,
+  userId = null,
   includedSections = [],
   updatedFields = []
 }: BuildEventContextParams): {
@@ -30,6 +34,8 @@ export function buildEventContext({
   dialogId: string | null;
   entityId: string | null;
   messageId: string | null;
+  packId: string | null;
+  userId: string | null;
   includedSections: string[];
   updatedFields: string[];
 } {
@@ -39,6 +45,8 @@ export function buildEventContext({
     dialogId: dialogId ?? null,
     entityId: entityId ?? null,
     messageId: messageId ?? null,
+    packId: packId ?? null,
+    userId: userId ?? null,
     includedSections: uniqueList(includedSections),
     updatedFields: uniqueList(updatedFields)
   };
@@ -149,6 +157,120 @@ export function buildTopicSection({
     dialogId,
     createdAt,
     meta: metaObject
+  };
+}
+
+interface BuildPackSectionParams {
+  packId: string;
+  tenantId?: string | null;
+  createdAt?: number | null;
+  meta?: Record<string, unknown>;
+  stats?: {
+    dialogCount?: number;
+    messageCount?: number;
+    uniqueMemberCount?: number;
+    sumMemberCount?: number;
+    uniqueTopicCount?: number;
+    sumTopicCount?: number;
+  } | null;
+}
+
+export function buildPackSection({
+  packId,
+  tenantId = null,
+  createdAt = null,
+  meta = {},
+  stats = null
+}: BuildPackSectionParams): Record<string, unknown> | null {
+  if (!packId) {
+    return null;
+  }
+
+  const metaObject = meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : {};
+
+  const payload: Record<string, unknown> = {
+    packId,
+    tenantId,
+    createdAt,
+    meta: metaObject
+  };
+
+  if (stats) {
+    payload.stats = {
+      dialogCount: stats.dialogCount ?? 0,
+      messageCount: stats.messageCount ?? 0,
+      uniqueMemberCount: stats.uniqueMemberCount ?? 0,
+      sumMemberCount: stats.sumMemberCount ?? 0,
+      uniqueTopicCount: stats.uniqueTopicCount ?? 0,
+      sumTopicCount: stats.sumTopicCount ?? 0
+    };
+  }
+
+  return payload;
+}
+
+interface BuildPackStatsSectionParams {
+  packId: string;
+  messageCount?: number | null;
+  uniqueMemberCount?: number | null;
+  sumMemberCount?: number | null;
+  uniqueTopicCount?: number | null;
+  sumTopicCount?: number | null;
+  dialogCount?: number | null;
+  lastUpdatedAt?: number | null;
+}
+
+export function buildPackStatsSection({
+  packId,
+  messageCount = null,
+  uniqueMemberCount = null,
+  sumMemberCount = null,
+  uniqueTopicCount = null,
+  sumTopicCount = null,
+  dialogCount = null,
+  lastUpdatedAt = null
+}: BuildPackStatsSectionParams): Record<string, unknown> | null {
+  if (!packId) {
+    return null;
+  }
+
+  return {
+    packId,
+    messageCount: messageCount ?? 0,
+    uniqueMemberCount: uniqueMemberCount ?? 0,
+    sumMemberCount: sumMemberCount ?? 0,
+    uniqueTopicCount: uniqueTopicCount ?? 0,
+    sumTopicCount: sumTopicCount ?? 0,
+    dialogCount: dialogCount ?? 0,
+    lastUpdatedAt: lastUpdatedAt ?? null
+  };
+}
+
+interface BuildUserPackStatsSectionParams {
+  tenantId?: string | null;
+  packId: string;
+  userId: string;
+  unreadCount?: number | null;
+  lastUpdatedAt?: number | null;
+}
+
+export function buildUserPackStatsSection({
+  tenantId = null,
+  packId,
+  userId,
+  unreadCount = null,
+  lastUpdatedAt = null
+}: BuildUserPackStatsSectionParams): Record<string, unknown> | null {
+  if (!packId || !userId) {
+    return null;
+  }
+
+  return {
+    tenantId,
+    packId,
+    userId,
+    unreadCount: unreadCount ?? 0,
+    lastUpdatedAt: lastUpdatedAt ?? null
   };
 }
 
@@ -348,6 +470,9 @@ interface ComposeEventDataParams {
   typing?: ReturnType<typeof buildTypingSection> | null;
   actor?: ReturnType<typeof buildActorSection> | null;
   topic?: ReturnType<typeof buildTopicSection> | null;
+  pack?: ReturnType<typeof buildPackSection> | null;
+  packStats?: ReturnType<typeof buildPackStatsSection> | null;
+  userPackStats?: ReturnType<typeof buildUserPackStatsSection> | null;
   extra?: Record<string, unknown>;
 }
 
@@ -360,6 +485,9 @@ export function composeEventData({
   typing = null,
   actor = null,
   topic = null,
+  pack = null,
+  packStats = null,
+  userPackStats = null,
   extra = {}
 }: ComposeEventDataParams): Record<string, unknown> {
   if (!context) {
@@ -401,6 +529,18 @@ export function composeEventData({
 
   if (topic) {
     payload.topic = topic;
+  }
+
+  if (pack) {
+    payload.pack = pack;
+  }
+
+  if (packStats) {
+    payload.packStats = packStats;
+  }
+
+  if (userPackStats) {
+    payload.userPackStats = userPackStats;
   }
 
   return {
@@ -721,5 +861,8 @@ export default {
   buildMessageSection,
   buildTypingSection,
   buildActorSection,
+  buildPackSection,
+  buildPackStatsSection,
+  buildUserPackStatsSection,
   composeEventData
 };

@@ -19,7 +19,13 @@ export type EventType =
   | 'dialog.topic.update'
   | 'user.add'
   | 'user.update'
-  | 'user.remove';
+  | 'user.remove'
+  | 'pack.create'
+  | 'pack.delete'
+  | 'pack.dialog.add'
+  | 'pack.dialog.remove'
+  | 'pack.stats.updated'
+  | 'user.pack.stats.updated';
 
 export type EntityType = 
   | 'dialog'
@@ -30,7 +36,9 @@ export type EntityType =
   | 'topic'
   | 'tenant'
   | 'user'
-  | 'pack';
+  | 'pack'
+  | 'packStats'
+  | 'userPackStats';
 
 export type ActorType = 'user' | 'system' | 'bot' | 'api';
 
@@ -85,14 +93,20 @@ const eventSchema = new mongoose.Schema<IEvent>({
       'dialog.topic.update',
       'user.add',
       'user.update',
-      'user.remove'
+      'user.remove',
+      'pack.create',
+      'pack.delete',
+      'pack.dialog.add',
+      'pack.dialog.remove',
+      'pack.stats.updated',
+      'user.pack.stats.updated'
     ],
     index: true
   },
   entityType: {
     type: String,
     required: true,
-    enum: ['dialog', 'message', 'dialogMember', 'messageStatus', 'messageReaction', 'topic', 'tenant', 'user'],
+    enum: ['dialog', 'message', 'dialogMember', 'messageStatus', 'messageReaction', 'topic', 'tenant', 'user', 'pack', 'packStats', 'userPackStats'],
     index: true
   },
   entityId: {
@@ -155,7 +169,13 @@ eventSchema.virtual('description').get(function() {
     'dialog.topic.update': 'Обновлен топик диалога',
     'user.add': 'Добавлен пользователь',
     'user.update': 'Обновлен пользователь',
-    'user.remove': 'Удален пользователь'
+    'user.remove': 'Удален пользователь',
+    'pack.create': 'Создан пак',
+    'pack.delete': 'Удален пак',
+    'pack.dialog.add': 'Диалог добавлен в пак',
+    'pack.dialog.remove': 'Диалог удален из пака',
+    'pack.stats.updated': 'Обновлены агрегаты пака',
+    'user.pack.stats.updated': 'Обновлены счётчики пака для пользователя'
   };
   
   return typeDescriptions[this.eventType] || this.eventType;

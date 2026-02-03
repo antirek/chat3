@@ -119,7 +119,7 @@ describe('packStatsUtils', () => {
       actorId: 'system'
     });
 
-    await recalculateUserPackStats(tenantId, packId, {
+    const userPackMap = await recalculateUserPackStats(tenantId, packId, {
       sourceOperation: 'test.pack.recalc',
       sourceEntityId: packId,
       actorId: 'system'
@@ -128,6 +128,9 @@ describe('packStatsUtils', () => {
     const packStats = await PackStats.findOne({ tenantId, packId }).lean();
     expect(packStats).toBeTruthy();
     expect(packStats?.messageCount).toBe(5);
+
+    expect(userPackMap.user_a.unreadCount).toBe(5);
+    expect(userPackMap.user_b.unreadCount).toBe(1);
 
     const userPackEntries = await UserPackStats.find({ tenantId, packId })
       .select('userId unreadCount')

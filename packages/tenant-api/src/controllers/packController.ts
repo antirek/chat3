@@ -1,6 +1,8 @@
-import { Pack, PackLink, Dialog } from '@chat3/models';
+import { Pack, PackLink, Dialog, PackStats, UserPackStats } from '@chat3/models';
+import type { ActorType } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
+import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
@@ -97,6 +99,36 @@ export const packController = {
       const pack = await Pack.create([{ tenantId }]);
 
       const created = pack[0];
+
+      const { actorId, actorType } = resolveEventActor(req);
+      const packSection = eventUtils.buildPackSection({
+        packId: created.packId,
+        tenantId,
+        createdAt: created.createdAt,
+        meta: {},
+        stats: { dialogCount: 0 }
+      });
+      const packContext = eventUtils.buildEventContext({
+        eventType: 'pack.create',
+        entityId: created.packId,
+        packId: created.packId,
+        includedSections: ['pack'],
+        updatedFields: ['pack']
+      });
+
+      await eventUtils.createEvent({
+        tenantId,
+        eventType: 'pack.create',
+        entityType: 'pack',
+        entityId: created.packId,
+        actorId,
+        actorType,
+        data: eventUtils.composeEventData({
+          context: packContext,
+          pack: packSection
+        })
+      });
+
       res.status(201).json({
         data: sanitizeResponse({
           packId: created.packId,
@@ -173,8 +205,66 @@ export const packController = {
         return;
       }
 
+      const [meta, dialogCount, packStatsDoc] = await Promise.all([
+        metaUtils.getEntityMeta(tenantId, 'pack', packId),
+        PackLink.countDocuments({ packId, tenantId }),
+        PackStats.findOne({ tenantId, packId }).lean()
+      ]);
+
+      const packSection = eventUtils.buildPackSection({
+        packId,
+        tenantId,
+        createdAt: pack.createdAt,
+        meta,
+        stats: {
+          dialogCount,
+          messageCount: packStatsDoc?.messageCount,
+          uniqueMemberCount: packStatsDoc?.uniqueMemberCount,
+          sumMemberCount: packStatsDoc?.sumMemberCount,
+          uniqueTopicCount: packStatsDoc?.uniqueTopicCount,
+          sumTopicCount: packStatsDoc?.sumTopicCount
+        }
+      });
+
+      const packStatsSection = packStatsDoc
+        ? eventUtils.buildPackStatsSection({
+            packId,
+            messageCount: packStatsDoc.messageCount,
+            uniqueMemberCount: packStatsDoc.uniqueMemberCount,
+            sumMemberCount: packStatsDoc.sumMemberCount,
+            uniqueTopicCount: packStatsDoc.uniqueTopicCount,
+            sumTopicCount: packStatsDoc.sumTopicCount,
+            lastUpdatedAt: packStatsDoc.lastUpdatedAt ?? null
+          })
+        : null;
+
+      const { actorId, actorType } = resolveEventActor(req);
+      const packContext = eventUtils.buildEventContext({
+        eventType: 'pack.delete',
+        entityId: packId,
+        packId,
+        includedSections: ['pack', 'packStats'],
+        updatedFields: ['pack', 'packStats']
+      });
+
       await PackLink.deleteMany({ packId, tenantId });
+      await PackStats.deleteOne({ tenantId, packId });
+      await UserPackStats.deleteMany({ tenantId, packId });
       await Pack.deleteOne({ packId, tenantId });
+
+      await eventUtils.createEvent({
+        tenantId,
+        eventType: 'pack.delete',
+        entityType: 'pack',
+        entityId: packId,
+        actorId,
+        actorType,
+        data: eventUtils.composeEventData({
+          context: packContext,
+          pack: packSection,
+          packStats: packStatsSection || undefined
+        })
+      });
 
       res.status(200).json({
         data: { packId },
@@ -241,6 +331,53 @@ export const packController = {
       }]);
 
       const created = link[0];
+
+      const [packMeta, dialogMeta, totalDialogs] = await Promise.all([
+        metaUtils.getEntityMeta(tenantId, 'pack', packId),
+        metaUtils.getEntityMeta(tenantId, 'dialog', dialogId),
+        PackLink.countDocuments({ packId, tenantId })
+      ]);
+
+      const packSection = eventUtils.buildPackSection({
+        packId,
+        tenantId,
+        createdAt: pack.createdAt,
+        meta: packMeta,
+        stats: { dialogCount: totalDialogs }
+      });
+
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        createdBy: (dialog as any).createdBy ?? null,
+        createdAt: dialog.createdAt,
+        meta: dialogMeta
+      });
+
+      const { actorId, actorType } = resolveEventActor(req);
+      const packContext = eventUtils.buildEventContext({
+        eventType: 'pack.dialog.add',
+        entityId: packId,
+        dialogId,
+        packId,
+        includedSections: ['pack', 'dialog'],
+        updatedFields: ['pack.dialogs']
+      });
+
+      await eventUtils.createEvent({
+        tenantId,
+        eventType: 'pack.dialog.add',
+        entityType: 'pack',
+        entityId: packId,
+        actorId,
+        actorType,
+        data: eventUtils.composeEventData({
+          context: packContext,
+          pack: packSection,
+          dialog: dialogSection
+        })
+      });
+
       res.status(201).json({
         data: sanitizeResponse({
           packId,
@@ -279,6 +416,55 @@ export const packController = {
         });
         return;
       }
+
+      const [packMeta, dialogMeta, totalDialogs, dialog] = await Promise.all([
+        metaUtils.getEntityMeta(tenantId, 'pack', packId),
+        metaUtils.getEntityMeta(tenantId, 'dialog', dialogId),
+        PackLink.countDocuments({ packId, tenantId }),
+        Dialog.findOne({ dialogId, tenantId })
+      ]);
+
+      const packSection = eventUtils.buildPackSection({
+        packId,
+        tenantId,
+        createdAt: pack.createdAt,
+        meta: packMeta,
+        stats: { dialogCount: totalDialogs }
+      });
+
+      const dialogSection = dialog
+        ? eventUtils.buildDialogSection({
+            dialogId: dialog.dialogId,
+            tenantId: dialog.tenantId,
+            createdBy: (dialog as any).createdBy ?? null,
+            createdAt: dialog.createdAt,
+            meta: dialogMeta
+          })
+        : null;
+
+      const { actorId, actorType } = resolveEventActor(req);
+      const packContext = eventUtils.buildEventContext({
+        eventType: 'pack.dialog.remove',
+        entityId: packId,
+        dialogId,
+        packId,
+        includedSections: ['pack', 'dialog'],
+        updatedFields: ['pack.dialogs']
+      });
+
+      await eventUtils.createEvent({
+        tenantId,
+        eventType: 'pack.dialog.remove',
+        entityType: 'pack',
+        entityId: packId,
+        actorId,
+        actorType,
+        data: eventUtils.composeEventData({
+          context: packContext,
+          pack: packSection,
+          dialog: dialogSection || undefined
+        })
+      });
 
       res.status(200).json({
         data: { packId, dialogId },
@@ -336,3 +522,16 @@ export const packController = {
     }
   }
 };
+
+function resolveEventActor(req: AuthenticatedRequest): { actorId: string; actorType: ActorType } {
+  if (req.userId) {
+    return { actorId: req.userId, actorType: 'user' };
+  }
+
+  const apiKeyName = typeof req.apiKey?.name === 'string' ? req.apiKey.name.trim() : '';
+  if (apiKeyName) {
+    return { actorId: apiKeyName, actorType: 'api' };
+  }
+
+  return { actorId: 'system', actorType: 'system' };
+}

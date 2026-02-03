@@ -291,11 +291,13 @@ export async function recalculatePackStats(
   return upsertPackStats(tenantId, packId, stats, options);
 }
 
+export type UserPackUnreadMap = Record<string, { unreadCount: number; lastUpdatedAt: number | null }>;
+
 export async function recalculateUserPackStats(
   tenantId: string,
   packId: string,
   options: UpdateOptions
-): Promise<void> {
+): Promise<UserPackUnreadMap> {
   const unreadMap = await calculateUserPackUnreadMap(tenantId, packId);
   const existing = await UserPackStats.find({ tenantId, packId })
     .select('userId unreadCount')
@@ -309,4 +311,22 @@ export async function recalculateUserPackStats(
     const targetUnread = unreadMap[userId] || 0;
     await upsertUserPackUnread(tenantId, packId, userId, targetUnread, options);
   }
+
+  const updatedDocs = await UserPackStats.find({
+    tenantId,
+    packId,
+    userId: { $in: allUserIds }
+  })
+    .select('userId unreadCount lastUpdatedAt')
+    .lean();
+
+  const result: UserPackUnreadMap = {};
+  for (const doc of updatedDocs) {
+    result[doc.userId] = {
+      unreadCount: doc.unreadCount ?? 0,
+      lastUpdatedAt: doc.lastUpdatedAt ?? null
+    };
+  }
+
+  return result;
 }
