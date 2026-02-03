@@ -69,13 +69,9 @@
     <UserMetaModal
       :is-open="showMetaModalFlag"
       :meta-tags="metaTags"
-      :new-meta-key="newMetaKeyForEdit"
-      :new-meta-value="newMetaValueForEdit"
       @close="closeMetaModal"
-      @add-meta-tag="addMetaTag"
+      @add-meta-tag="(key, value) => addMetaTag(key, value)"
       @delete-meta-tag="deleteMetaTag"
-      @update:newMetaKey="newMetaKeyForEdit = $event"
-      @update:newMetaValue="newMetaValueForEdit = $event"
     />
 
     <UserInfoModal
@@ -126,8 +122,6 @@ const {
   editUserId,
   editType,
   metaTags,
-  newMetaKeyForEdit,
-  newMetaValueForEdit,
   userInfoUrl,
   jsonViewerContent,
   copyJsonButtonText,

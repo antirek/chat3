@@ -92,18 +92,22 @@ export function useMetaModals(
     }
   }
 
-  async function addDialogMetaTag() {
+  async function addDialogMetaTag(keyOrEmpty?: string, valueFromModal?: any) {
     const dialogId = dialogMetaDialogId.value;
-    const key = newDialogMetaKey.value.trim();
-    const valueStr = newDialogMetaValue.value.trim();
-    
-    if (!key || !valueStr) {
-      alert('Заполните ключ и значение');
+    const key = (keyOrEmpty !== undefined && keyOrEmpty !== null ? keyOrEmpty : newDialogMetaKey.value).trim();
+    const value =
+      valueFromModal !== undefined && valueFromModal !== null
+        ? valueFromModal
+        : parseMetaValueFromInput(newDialogMetaValue.value.trim());
+
+    if (!key) {
+      alert('Заполните ключ');
       return;
     }
-    
-    // Используем улучшенную функцию парсинга вместо простого try/catch
-    const value = parseMetaValueFromInput(valueStr);
+    if (keyOrEmpty === undefined && !newDialogMetaValue.value.trim()) {
+      alert('Заполните значение');
+      return;
+    }
     
     try {
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
@@ -121,7 +125,7 @@ export function useMetaModals(
         const error = await response.json();
         throw new Error(error.message || 'Failed to set meta tag');
       }
-      
+
       newDialogMetaKey.value = '';
       newDialogMetaValue.value = '';
       await loadDialogMetaTags(dialogId);
@@ -379,18 +383,22 @@ export function useMetaModals(
     }
   }
 
-  async function addMessageMetaTag() {
+  async function addMessageMetaTag(keyOrEmpty?: string, valueFromModal?: any) {
     const messageId = messageMetaMessageId.value;
-    const key = newMessageMetaKey.value.trim();
-    const valueStr = newMessageMetaValue.value.trim();
-    
-    if (!key || !valueStr) {
-      alert('Заполните ключ и значение');
+    const key = (keyOrEmpty !== undefined && keyOrEmpty !== null ? keyOrEmpty : newMessageMetaKey.value).trim();
+    const value =
+      valueFromModal !== undefined && valueFromModal !== null
+        ? valueFromModal
+        : parseMetaValueFromInput(newMessageMetaValue.value.trim());
+
+    if (!key) {
+      alert('Заполните ключ');
       return;
     }
-    
-    // Используем улучшенную функцию парсинга
-    const value = parseMetaValueFromInput(valueStr);
+    if (keyOrEmpty === undefined && !newMessageMetaValue.value.trim()) {
+      alert('Заполните значение');
+      return;
+    }
     
     try {
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
@@ -408,7 +416,7 @@ export function useMetaModals(
         const error = await response.json();
         throw new Error(error.message || 'Failed to set meta tag');
       }
-      
+
       newMessageMetaKey.value = '';
       newMessageMetaValue.value = '';
       await loadMessageMetaTags(messageId);
@@ -487,19 +495,23 @@ export function useMetaModals(
     }
   }
 
-  async function addTopicMetaTag() {
+  async function addTopicMetaTag(keyOrEmpty?: string, valueFromModal?: any) {
     const dialogId = topicMetaDialogId.value;
     const topicId = topicMetaTopicId.value;
-    const key = newTopicMetaKey.value.trim();
-    const valueStr = newTopicMetaValue.value.trim();
-    
-    if (!key || !valueStr) {
-      alert('Заполните ключ и значение');
+    const key = (keyOrEmpty !== undefined && keyOrEmpty !== null ? keyOrEmpty : newTopicMetaKey.value).trim();
+    const value =
+      valueFromModal !== undefined && valueFromModal !== null
+        ? valueFromModal
+        : parseMetaValueFromInput(newTopicMetaValue.value.trim());
+
+    if (!key) {
+      alert('Заполните ключ');
       return;
     }
-    
-    // Используем улучшенную функцию парсинга
-    const value = parseMetaValueFromInput(valueStr);
+    if (keyOrEmpty === undefined && !newTopicMetaValue.value.trim()) {
+      alert('Заполните значение');
+      return;
+    }
     
     try {
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';

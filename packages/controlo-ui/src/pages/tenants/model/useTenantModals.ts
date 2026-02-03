@@ -179,28 +179,34 @@ export function useTenantModals(
     }
   }
 
-  async function addMetaTag() {
+  async function addMetaTag(keyFromModal?: string, valueFromModal?: any) {
     const tenantIdValue = metaTenantId.value;
-    const key = newMetaKeyForEdit.value.trim();
-    const valueStr = newMetaValueForEdit.value.trim();
+    const key = (keyFromModal !== undefined && keyFromModal !== null ? keyFromModal : newMetaKeyForEdit.value).trim();
+    const value =
+      valueFromModal !== undefined && valueFromModal !== null
+        ? valueFromModal
+        : (() => {
+            try {
+              return JSON.parse(newMetaValueForEdit.value);
+            } catch {
+              return newMetaValueForEdit.value;
+            }
+          })();
 
-    if (!key || !valueStr) {
-      alert('Заполните ключ и значение');
+    if (!tenantIdValue || !key) {
+      alert('Заполните ключ');
+      return;
+    }
+    if (keyFromModal === undefined && !newMetaValueForEdit.value.trim()) {
+      alert('Заполните значение');
       return;
     }
 
-    let value: any;
     try {
-      value = JSON.parse(valueStr);
-    } catch {
-      value = valueStr;
-    }
-
-    try {
-      getApiKey(); // Проверка наличия ключа
+      getApiKey();
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
 
-      const response = await fetch(`${baseUrl}/api/meta/tenant/${tenantIdValue}/${key}`, {
+      const response = await fetch(`${baseUrl}/api/meta/tenant/${tenantIdValue}/${encodeURIComponent(key)}`, {
         method: 'PUT',
         headers: {
           ...credentialsStore.getHeaders(),

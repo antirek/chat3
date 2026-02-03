@@ -65,13 +65,9 @@
     <TenantMetaModal
       :is-open="showMetaModalFlag"
       :meta-tags="metaTags"
-      :new-meta-key="newMetaKeyForEdit"
-      :new-meta-value="newMetaValueForEdit"
       @close="closeMetaModal"
-      @add-meta-tag="addMetaTag"
+      @add-meta-tag="(key, value) => addMetaTag(key, value)"
       @delete-meta-tag="deleteMetaTag"
-      @update:new-meta-key="newMetaKeyForEdit = $event"
-      @update:new-meta-value="newMetaValueForEdit = $event"
     />
 
     <TenantInfoModal
@@ -121,8 +117,6 @@ const {
   newMetaKey,
   newMetaValue,
   metaTags,
-  newMetaKeyForEdit,
-  newMetaValueForEdit,
   infoUrl,
   jsonViewerContent,
   copyJsonButtonText,

@@ -153,28 +153,34 @@ export function usePackModals(
     }
   }
 
-  async function addMetaTag() {
+  async function addMetaTag(keyFromModal?: string, valueFromModal?: any) {
     const packId = metaPackId.value;
-    const key = newMetaKeyForEdit.value.trim();
-    const valueStr = newMetaValueForEdit.value.trim();
+    const key = (keyFromModal !== undefined && keyFromModal !== null ? keyFromModal : newMetaKeyForEdit.value).trim();
+    const value =
+      valueFromModal !== undefined && valueFromModal !== null
+        ? valueFromModal
+        : (() => {
+            try {
+              return JSON.parse(newMetaValueForEdit.value);
+            } catch {
+              return newMetaValueForEdit.value;
+            }
+          })();
 
-    if (!key || !valueStr) {
-      alert('Заполните ключ и значение');
+    if (!packId || !key) {
+      alert('Заполните ключ');
       return;
     }
-
-    let value: any;
-    try {
-      value = JSON.parse(valueStr);
-    } catch {
-      value = valueStr;
+    if (keyFromModal === undefined && !newMetaValueForEdit.value.trim()) {
+      alert('Заполните значение');
+      return;
     }
 
     try {
       getApiKey();
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
 
-      const response = await fetch(`${baseUrl}/api/meta/pack/${packId}/${key}`, {
+      const response = await fetch(`${baseUrl}/api/meta/pack/${packId}/${encodeURIComponent(key)}`, {
         method: 'PUT',
         headers: {
           ...credentialsStore.getHeaders(),

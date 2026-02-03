@@ -210,44 +210,54 @@ export function useUserModals(
     }
   }
 
-  async function addMetaTag() {
-    if (metaUserId.value && newMetaKeyForEdit.value && newMetaValueForEdit.value) {
-      try {
-        getApiKey(); // Проверка наличия ключа
-        const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
-        const url = `${baseUrl}/api/meta/user/${metaUserId.value}/${newMetaKeyForEdit.value}`;
+  async function addMetaTag(keyFromModal?: string, valueFromModal?: any) {
+    const key = (keyFromModal !== undefined && keyFromModal !== null ? keyFromModal : newMetaKeyForEdit.value).trim();
+    const value =
+      valueFromModal !== undefined && valueFromModal !== null
+        ? valueFromModal
+        : (() => {
+            try {
+              return JSON.parse(newMetaValueForEdit.value);
+            } catch {
+              return newMetaValueForEdit.value;
+            }
+          })();
 
-        let value: any;
-        try {
-          value = JSON.parse(newMetaValueForEdit.value);
-        } catch {
-          value = newMetaValueForEdit.value;
-        }
+    if (!metaUserId.value || !key) {
+      alert('Заполните ключ');
+      return;
+    }
+    if (keyFromModal === undefined && !newMetaValueForEdit.value.trim()) {
+      alert('Заполните значение');
+      return;
+    }
 
-        const response = await fetch(url, {
-          method: 'PUT',
-          headers: {
-            ...credentialsStore.getHeaders(),
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ value }),
-        });
+    try {
+      getApiKey();
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const url = `${baseUrl}/api/meta/user/${metaUserId.value}/${encodeURIComponent(key)}`;
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to set meta tag');
-        }
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          ...credentialsStore.getHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ value }),
+      });
 
-        alert('Meta тег успешно добавлен!');
-        newMetaKeyForEdit.value = '';
-        newMetaValueForEdit.value = '';
-        await loadMetaTags(metaUserId.value);
-      } catch (err) {
-        console.error('Error adding meta tag:', err);
-        alert('Ошибка добавления meta тега: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to set meta tag');
       }
-    } else {
-      alert('Заполните ключ и значение');
+
+      alert('Meta тег успешно добавлен!');
+      newMetaKeyForEdit.value = '';
+      newMetaValueForEdit.value = '';
+      await loadMetaTags(metaUserId.value);
+    } catch (err) {
+      console.error('Error adding meta tag:', err);
+      alert('Ошибка добавления meta тега: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   }
 

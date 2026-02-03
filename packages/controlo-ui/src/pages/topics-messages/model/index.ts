@@ -51,8 +51,6 @@ export function useTopicsMessagesPage() {
     topicMetaModal,
     topicMetaTags,
     loadingTopicMeta,
-    newTopicMetaKey,
-    newTopicMetaValue,
     showTopicMetaModal,
     closeTopicMetaModal,
     addTopicMetaTag,
@@ -216,13 +214,6 @@ export function useTopicsMessagesPage() {
     showTopicMetaModal(topic.dialogId, topic.topicId);
   }
 
-  function setNewTopicMetaKey(v: string) {
-    newTopicMetaKey.value = v;
-  }
-  function setNewTopicMetaValue(v: string) {
-    newTopicMetaValue.value = v;
-  }
-
   function showCurrentUrl() {
     const url = buildTopicsUrl();
     urlModalTitle.value = 'URL запроса топиков';
@@ -291,13 +282,9 @@ export function useTopicsMessagesPage() {
     isTopicMetaModalOpen: topicMetaModal.isOpen,
     topicMetaTags,
     loadingTopicMeta,
-    newTopicMetaKey,
-    newTopicMetaValue,
     closeTopicMetaModal,
     addTopicMetaTag,
     deleteTopicMetaTag,
-    setNewTopicMetaKey,
-    setNewTopicMetaValue,
     currentRightTab,
     selectMessagesTab,
     selectMembersTab,

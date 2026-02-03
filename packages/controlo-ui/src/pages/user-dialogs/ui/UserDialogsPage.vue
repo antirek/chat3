@@ -434,7 +434,7 @@
       key-placeholder="key (например: type)"
       value-placeholder='value (прим: "internal", ["foo", "bar"], {"foo": "bar"}, 5, false)'
       @close="closeDialogMetaModal"
-      @add-tag="(key, value) => { newDialogMetaKey = key; newDialogMetaValue = value; addDialogMetaTag(); }"
+      @add-tag="(key, value) => addDialogMetaTag(key, value)"
       @delete-tag="deleteDialogMetaTag"
     />
 
@@ -469,7 +469,7 @@
       key-placeholder="key (например: channelType)"
       value-placeholder='value (например: "whatsapp" или {"foo": "bar"})'
       @close="closeMessageMetaModal"
-      @add-tag="(key, value) => { newMessageMetaKey = key; newMessageMetaValue = value; addMessageMetaTag(); }"
+      @add-tag="(key, value) => addMessageMetaTag(key, value)"
       @delete-tag="deleteMessageMetaTag"
     />
 
@@ -522,13 +522,9 @@
       :is-open="isTopicMetaModalOpen"
       :meta-tags="topicMetaTags"
       :loading="loadingTopicMeta"
-      :new-key="newTopicMetaKey"
-      :new-value="newTopicMetaValue"
       @close="closeTopicMetaModal"
       @delete-tag="deleteTopicMetaTag"
-      @add-tag="addTopicMetaTag"
-      @update:new-key="newTopicMetaKey = $event"
-      @update:new-value="newTopicMetaValue = $event"
+      @add-tag="(key, value) => addTopicMetaTag(key, value)"
     />
 
     <UrlModal
@@ -869,8 +865,6 @@ const {
   deleteTopicMetaTag,
   topicMetaTags,
   loadingTopicMeta,
-  newTopicMetaKey,
-  newTopicMetaValue,
   // Участники
   removeMemberFromPanel,
   showMembersUrlModal,

@@ -732,8 +732,6 @@ export function useUserDialogsPage() {
     topicMetaTopicId,
     topicMetaTags,
     loadingTopicMeta,
-    newTopicMetaKey,
-    newTopicMetaValue,
     // Участники
     removeMemberFromPanel,
     generateMembersApiUrl,

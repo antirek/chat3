@@ -61,22 +61,29 @@ export function useTopicMetaModal(
     }
   }
 
-  async function addTopicMetaTag() {
+  async function addTopicMetaTag(keyOrEmpty?: string, valueFromModal?: unknown) {
     const dialogId = topicMetaDialogId.value;
     const topicId = topicMetaTopicId.value;
-    const key = newTopicMetaKey.value.trim();
-    const valueStr = newTopicMetaValue.value.trim();
-
-    if (!key || !valueStr) {
-      alert('Заполните ключ и значение');
-      return;
+    const key = (keyOrEmpty !== undefined && keyOrEmpty !== null ? keyOrEmpty : newTopicMetaKey.value).trim();
+    let value: unknown;
+    if (valueFromModal !== undefined && valueFromModal !== null) {
+      value = valueFromModal;
+    } else {
+      const valueStr = newTopicMetaValue.value.trim();
+      if (!valueStr) {
+        alert('Заполните значение');
+        return;
+      }
+      try {
+        value = JSON.parse(valueStr);
+      } catch {
+        value = valueStr;
+      }
     }
 
-    let value: unknown;
-    try {
-      value = JSON.parse(valueStr);
-    } catch {
-      value = valueStr;
+    if (!key) {
+      alert('Заполните ключ');
+      return;
     }
 
     try {
@@ -142,8 +149,6 @@ export function useTopicMetaModal(
     topicMetaTopicId,
     topicMetaTags,
     loadingTopicMeta,
-    newTopicMetaKey,
-    newTopicMetaValue,
     showTopicMetaModal,
     closeTopicMetaModal,
     loadTopicMetaTags,

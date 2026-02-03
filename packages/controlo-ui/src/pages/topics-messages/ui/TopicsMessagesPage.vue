@@ -169,13 +169,9 @@
       :is-open="isTopicMetaModalOpen"
       :meta-tags="topicMetaTags"
       :loading="loadingTopicMeta"
-      :new-key="newTopicMetaKey"
-      :new-value="newTopicMetaValue"
       @close="closeTopicMetaModal"
       @delete-tag="deleteTopicMetaTag"
-      @add-tag="addTopicMetaTag"
-      @update:new-key="setNewTopicMetaKey"
-      @update:new-value="setNewTopicMetaValue"
+      @add-tag="(key, value) => addTopicMetaTag(key, value)"
     />
 
     <UrlModal
@@ -241,13 +237,9 @@ const {
   isTopicMetaModalOpen,
   topicMetaTags,
   loadingTopicMeta,
-  newTopicMetaKey,
-  newTopicMetaValue,
   closeTopicMetaModal,
   addTopicMetaTag,
   deleteTopicMetaTag,
-  setNewTopicMetaKey,
-  setNewTopicMetaValue,
   messages,
   loadingMessages,
   messagesError,

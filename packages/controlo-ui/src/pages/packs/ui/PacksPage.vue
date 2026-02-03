@@ -169,13 +169,9 @@
     <PackMetaModal
       :is-open="showMetaModalFlag"
       :meta-tags="metaTags"
-      :new-meta-key="newMetaKeyForEdit"
-      :new-meta-value="newMetaValueForEdit"
       @close="closeMetaModal"
-      @add-meta-tag="addMetaTag"
+      @add-meta-tag="(key, value) => addMetaTag(key, value)"
       @delete-meta-tag="deleteMetaTag"
-      @update:new-meta-key="onUpdateNewMetaKey"
-      @update:new-meta-value="onUpdateNewMetaValue"
     />
 
     <PackInfoModal
@@ -259,8 +255,6 @@ const {
   dialogInfoJsonContent,
   dialogInfoCopyButtonText,
   metaTags,
-  newMetaKeyForEdit,
-  newMetaValueForEdit,
   infoUrl,
   jsonViewerContent,
   copyJsonButtonText,
@@ -328,13 +322,6 @@ function onPackMessagesLimitChange(event: Event) {
   if (!Number.isNaN(value)) {
     changePackMessagesLimit(value);
   }
-}
-
-function onUpdateNewMetaKey(v: string) {
-  newMetaKeyForEdit.value = v;
-}
-function onUpdateNewMetaValue(v: string) {
-  newMetaValueForEdit.value = v;
 }
 </script>
 
