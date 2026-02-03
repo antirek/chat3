@@ -84,8 +84,8 @@ flowchart TB
     end
 
     subgraph Shared["Общие пакеты"]
-        Models[@chat3/models]
-        Utils[@chat3/utils]
+        Models["models"]
+        Utils["utils"]
     end
 
     subgraph External["Внешние системы"]
