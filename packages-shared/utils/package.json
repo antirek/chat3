@@ -20,7 +20,8 @@
     "./topicUtils.js": "./dist/topicUtils.js",
     "./updateUtils.js": "./dist/updateUtils.js",
     "./userDialogUtils.js": "./dist/userDialogUtils.js",
-    "./userTypeUtils.js": "./dist/userTypeUtils.js"
+    "./userTypeUtils.js": "./dist/userTypeUtils.js",
+    "./packStatsUtils.js": "./dist/packStatsUtils.js"
   },
   "private": true,
   "scripts": {
