@@ -252,7 +252,7 @@ npm run generate-key
   - `messageCount` - количество сообщений
 
 **Примечания:**
-- Не возвращает массив `members` - для получения участников используйте `GET /api/dialogs/:dialogId/members`
+- Ответ имеет вид `{ data: dialog }`. Не возвращает массивы `topics` и `members` — для топиков используйте `GET /api/dialogs/:dialogId/topics`, для участников — `GET /api/dialogs/:dialogId/members`
 - Статистика берется из `DialogStats` или пересчитывается при отсутствии
 
 #### POST /api/dialogs
