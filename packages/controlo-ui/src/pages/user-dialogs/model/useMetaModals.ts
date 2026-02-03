@@ -102,12 +102,8 @@ export function useMetaModals(
       return;
     }
     
-    let value: any;
-    try {
-      value = JSON.parse(valueStr);
-    } catch (_e) {
-      value = valueStr;
-    }
+    // Используем улучшенную функцию парсинга вместо простого try/catch
+    const value = parseMetaValueFromInput(valueStr);
     
     try {
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
@@ -230,11 +226,46 @@ export function useMetaModals(
   function parseMetaValueFromInput(inputValue: string): any {
     if (!inputValue || inputValue.trim() === '') return null;
     const trimmed = inputValue.trim();
-    try {
-      return JSON.parse(trimmed);
-    } catch (_e) {
-      return trimmed;
+    
+    // Попробуем распознать как массив (JSON)
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        return JSON.parse(trimmed);
+      } catch (_e) {
+        // Если не парсится как JSON, вернем строку
+        return trimmed;
+      }
     }
+    
+    // Попробуем распознать как объект (JSON)
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        return JSON.parse(trimmed);
+      } catch (_e) {
+        return trimmed;
+      }
+    }
+    
+    // Попробуем распознать как число
+    const num = Number(trimmed);
+    if (!isNaN(num) && trimmed !== '') {
+      // Проверяем, что это действительно число, а не случайность
+      const isNumber = /^-?\d+(\.\d+)?$/.test(trimmed);
+      if (isNumber) {
+        return num;
+      }
+    }
+    
+    // Попробуем распознать как boolean
+    if (trimmed.toLowerCase() === 'true') return true;
+    if (trimmed.toLowerCase() === 'false') return false;
+    
+    // Если null или undefined
+    if (trimmed.toLowerCase() === 'null') return null;
+    if (trimmed.toLowerCase() === 'undefined') return undefined;
+    
+    // В остальных случаях возвращаем строку
+    return trimmed;
   }
 
   function collectMemberMetaTagsModal(): Record<string, any> {
@@ -358,12 +389,8 @@ export function useMetaModals(
       return;
     }
     
-    let value: any;
-    try {
-      value = JSON.parse(valueStr);
-    } catch (_e) {
-      value = valueStr;
-    }
+    // Используем улучшенную функцию парсинга
+    const value = parseMetaValueFromInput(valueStr);
     
     try {
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
@@ -391,6 +418,7 @@ export function useMetaModals(
       alert(`Ошибка добавления meta тега: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+  
 
   async function deleteMessageMetaTag(key: string) {
     if (!confirm(`Удалить meta тег "${key}"?`)) {
@@ -470,12 +498,8 @@ export function useMetaModals(
       return;
     }
     
-    let value: any;
-    try {
-      value = JSON.parse(valueStr);
-    } catch (_e) {
-      value = valueStr;
-    }
+    // Используем улучшенную функцию парсинга
+    const value = parseMetaValueFromInput(valueStr);
     
     try {
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';

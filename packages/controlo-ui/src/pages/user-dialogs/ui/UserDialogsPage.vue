@@ -432,7 +432,7 @@
       :loading="loadingDialogMeta"
       :meta-tags="dialogMetaTags"
       key-placeholder="key (например: type)"
-      value-placeholder='value (например: "internal" или {"foo": "bar"})'
+      value-placeholder='value (прим: "internal", ["foo", "bar"], {"foo": "bar"}, 5, false)'
       @close="closeDialogMetaModal"
       @add-tag="(key, value) => { newDialogMetaKey = key; newDialogMetaValue = value; addDialogMetaTag(); }"
       @delete-tag="deleteDialogMetaTag"

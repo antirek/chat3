@@ -162,9 +162,9 @@ export function useTenantModals(
     try {
       getApiKey(); // Проверка наличия ключа
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
-
+      // Мета тенанта в API хранится с tenantId = id этого тенанта (см. tenantController.getById)
       const response = await fetch(`${baseUrl}/api/meta/tenant/${tenantIdValue}`, {
-        headers: credentialsStore.getHeaders(),
+        headers: { ...credentialsStore.getHeaders(), 'X-Tenant-ID': tenantIdValue },
       });
 
       if (!response.ok) {
@@ -204,6 +204,7 @@ export function useTenantModals(
         method: 'PUT',
         headers: {
           ...credentialsStore.getHeaders(),
+          'X-Tenant-ID': tenantIdValue,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ value }),
@@ -235,7 +236,7 @@ export function useTenantModals(
 
       const response = await fetch(`${baseUrl}/api/meta/tenant/${metaTenantId.value}/${key}`, {
         method: 'DELETE',
-        headers: credentialsStore.getHeaders(),
+        headers: { ...credentialsStore.getHeaders(), 'X-Tenant-ID': metaTenantId.value },
       });
 
       if (!response.ok) {
