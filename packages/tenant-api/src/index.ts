@@ -11,9 +11,11 @@ import messageRoutes from './routes/messageRoutes.js';
 import messageInfoRoutes from './routes/messageInfoRoutes.js';
 import dialogMemberRoutes from './routes/dialogMemberRoutes.js';
 import userDialogRoutes from './routes/userDialogRoutes.js';
+import userPackRoutes from './routes/userPackRoutes.js';
 import metaRoutes from './routes/metaRoutes.js';
 import topicRoutes from './routes/topicRoutes.js';
 import topicListRoutes from './routes/topicListRoutes.js';
+import packRoutes from './routes/packRoutes.js';
 import idempotencyGuard from './middleware/idempotencyGuard.js';
 import { apiJournalMiddleware } from './middleware/apiJournal.js';
 
@@ -69,14 +71,16 @@ app.use('/api-docs', swaggerUi.serve, (req, res, next) => {
 // API Routes
 // Важно: более специфичные роуты должны регистрироваться раньше общих
 app.use('/api/tenants', tenantRoutes);
-app.use('/api/users', userDialogRoutes); // Сначала специфичные роуты с /dialogs
-app.use('/api/users', userRoutes); // Затем общие роуты с /:userId
+app.use('/api/users', userPackRoutes); // Паки пользователя и паки диалога
+app.use('/api/users', userDialogRoutes); // Специфичные роуты с /dialogs
+app.use('/api/users', userRoutes); // Общие роуты с /:userId
 app.use('/api/dialogs', dialogRoutes);
 app.use('/api/dialogs', messageRoutes);
 app.use('/api/messages', messageInfoRoutes);
 app.use('/api/dialogs', dialogMemberRoutes);
 app.use('/api/dialogs', topicRoutes);
 app.use('/api/topics', topicListRoutes);
+app.use('/api/packs', packRoutes);
 app.use('/api/meta', metaRoutes);
 
 // API health check endpoint

@@ -1,14 +1,15 @@
 import mongoose from 'mongoose';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
-// TypeScript типы для MessageStatusStats
-export type MessageStatusType = 'sent' | 'unread' | 'delivered' | 'read';
+// Для обратной совместимости: статус — произвольная строка
+export type MessageStatusType = string;
 
 // TypeScript интерфейс для документа MessageStatusStats
+// status — произвольная строка (например sent, unread, delivered, read, error2)
 export interface IMessageStatusStats extends mongoose.Document {
   tenantId: string;
   messageId: string;
-  status: MessageStatusType;
+  status: string;
   count: number;
   lastUpdatedAt: number;
   createdAt: number;
@@ -32,8 +33,10 @@ const messageStatusStatsSchema = new mongoose.Schema<IMessageStatusStats>({
   status: {
     type: String,
     required: true,
-    enum: ['sent', 'unread', 'delivered', 'read'],
-    description: 'Тип статуса'
+    trim: true,
+    lowercase: true,
+    match: /^[a-z0-9_-]{1,64}$/,
+    description: 'Статус сообщения: произвольная строка (формат [a-z0-9_-], 1–64 символа)'
   },
   count: {
     type: Number,

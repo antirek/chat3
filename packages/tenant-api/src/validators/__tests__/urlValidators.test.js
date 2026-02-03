@@ -130,18 +130,22 @@ describe('urlValidators', () => {
     expect(res.body.field).toBe('userId');
   });
 
-  test('validateStatus enforces allowed values', () => {
-    const req = { params: { status: 'read' } };
-    const res = createRes();
-    const next = jest.fn();
+  test('validateStatus accepts valid format (read, error2)', () => {
+    const req1 = { params: { status: 'read' } };
+    const res1 = createRes();
+    const next1 = jest.fn();
+    validateStatus(req1, res1, next1);
+    expect(next1).toHaveBeenCalled();
 
-    validateStatus(req, res, next);
-
-    expect(next).toHaveBeenCalled();
+    const req2 = { params: { status: 'error2' } };
+    const res2 = createRes();
+    const next2 = jest.fn();
+    validateStatus(req2, res2, next2);
+    expect(next2).toHaveBeenCalled();
   });
 
-  test('validateStatus rejects unknown status', () => {
-    const req = { params: { status: 'archived' } };
+  test('validateStatus rejects invalid format (forbidden characters)', () => {
+    const req = { params: { status: 'error!' } };
     const res = createRes();
     const next = jest.fn();
 
@@ -149,7 +153,8 @@ describe('urlValidators', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(400);
-    expect(res.body.received).toBe('archived');
+    expect(res.body.field).toBe('status');
+    expect(res.body.received).toBe('error!');
   });
 
   test('validateReaction limits length', () => {

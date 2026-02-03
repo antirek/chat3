@@ -1,5 +1,5 @@
 import * as metaUtils from '@chat3/utils/metaUtils.js';
-import { Dialog, Message, DialogMember, User, Topic } from '@chat3/models';
+import { Dialog, Message, DialogMember, User, Topic, Pack } from '@chat3/models';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { Response } from 'express';
@@ -23,7 +23,7 @@ const metaController = {
       log(`Получены параметры: entityType=${entityType}, entityId=${entityId}, tenantId=${req.tenantId}`);
 
       // Validate entityType
-      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'];
+      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic', 'pack'];
       if (!validEntityTypes.includes(entityType)) {
         log(`Ошибка валидации: неверный entityType=${entityType}`);
         res.status(400).json({
@@ -33,7 +33,7 @@ const metaController = {
         return;
       }
 
-      // Optional: Verify entity exists (for dialog, message, dialogMember)
+      // Optional: Verify entity exists (for dialog, message, dialogMember, topic, pack)
       log(`Проверка существования сущности: entityType=${entityType}, entityId=${entityId}`);
       await verifyEntityExists(entityType, entityId, req.tenantId!);
 
@@ -82,7 +82,7 @@ const metaController = {
       log(`Получены параметры: entityType=${entityType}, entityId=${entityId}, key=${key}, dataType=${finalDataType}`);
 
       // Validate entityType
-      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'];
+      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic', 'pack'];
       if (!validEntityTypes.includes(entityType)) {
         log(`Ошибка валидации: неверный entityType=${entityType}`);
         res.status(400).json({
@@ -188,7 +188,7 @@ const metaController = {
       log(`Получены параметры: entityType=${entityType}, entityId=${entityId}, key=${key}, tenantId=${req.tenantId}`);
 
       // Validate entityType
-      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'];
+      const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic', 'pack'];
       if (!validEntityTypes.includes(entityType)) {
         log(`Ошибка валидации: неверный entityType=${entityType}`);
         res.status(400).json({
@@ -605,6 +605,15 @@ async function verifyEntityExists(entityType: string, entityId: string, tenantId
       const topic = await Topic.findOne({ topicId: entityId, tenantId });
       if (!topic) {
         const error = new Error(`Topic ${entityId} not found`) as ErrorWithStatusCode;
+        error.statusCode = 404;
+        throw error;
+      }
+      break;
+    }
+    case 'pack': {
+      const pack = await Pack.findOne({ packId: entityId, tenantId });
+      if (!pack) {
+        const error = new Error(`Pack ${entityId} not found`) as ErrorWithStatusCode;
         error.statusCode = 404;
         throw error;
       }

@@ -9,6 +9,8 @@ import MessageStatus from './data/MessageStatus.js';
 import DialogMember from './data/DialogMember.js';
 import MessageReaction from './data/MessageReaction.js';
 import Topic from './data/Topic.js';
+import Pack from './data/Pack.js';
+import PackLink from './data/PackLink.js';
 
 // Operational models
 import Event from './operational/Event.js';
@@ -45,6 +47,8 @@ export {
   DialogReadTask,
   CounterHistory,
   Topic,
+  Pack,
+  PackLink,
   UserStats,
   UserDialogStats,
   UserDialogActivity,
@@ -65,6 +69,8 @@ export type { IMessageStatus } from './data/MessageStatus';
 export type { IDialogMember } from './data/DialogMember';
 export type { IMessageReaction } from './data/MessageReaction';
 export type { ITopic } from './data/Topic';
+export type { IPack } from './data/Pack';
+export type { IPackLink } from './data/PackLink';
 
 // Export TypeScript interfaces - Operational models
 import type { IEvent, EventType, EntityType, ActorType } from './operational/Event';

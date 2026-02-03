@@ -37,7 +37,7 @@ export interface IMessageStatus extends mongoose.Document {
   userType?: string | null;
   tenantId: string;
   dialogId: string;
-  status: 'sent' | 'unread' | 'delivered' | 'read';
+  status: string; // произвольный статус: [a-z0-9_-], 1–64 символа (например unread, delivered, read, error2)
   createdAt: number;
   // Временное поле для передачи sourceEventId (не сохраняется в БД)
   _sourceEventId?: string | null;
@@ -79,8 +79,10 @@ const messageStatusSchema = new mongoose.Schema<IMessageStatus>({
     type: String,
     default: 'sent',
     required: true,
-    enum: ['sent', 'unread', 'delivered', 'read'],
-    description: 'Статус сообщения: sent (отправлено), unread (не прочитано, по умолчанию для новых сообщений), delivered (доставлено), read (прочитано)'
+    trim: true,
+    lowercase: true,
+    match: /^[a-z0-9_-]{1,64}$/,
+    description: 'Статус сообщения: произвольная строка (например sent, unread, delivered, read, error2). Формат: [a-z0-9_-], 1–64 символа'
   },
   createdAt: {
     type: Number,

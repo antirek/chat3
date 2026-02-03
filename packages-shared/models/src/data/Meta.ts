@@ -4,7 +4,7 @@ import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 // TypeScript интерфейс для документа Meta
 export interface IMeta extends mongoose.Document {
   tenantId: string;
-  entityType: 'user' | 'dialog' | 'message' | 'tenant' | 'system' | 'dialogMember' | 'topic';
+  entityType: 'user' | 'dialog' | 'message' | 'tenant' | 'system' | 'dialogMember' | 'topic' | 'pack';
   entityId: string;
   key: string;
   value: unknown;
@@ -21,7 +21,7 @@ const metaSchema = new mongoose.Schema<IMeta>({
   },
   entityType: {
     type: String,
-    enum: ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'],
+    enum: ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic', 'pack'],
     required: true
   },
   entityId: {

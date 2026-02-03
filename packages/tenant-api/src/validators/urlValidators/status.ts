@@ -1,11 +1,13 @@
 /**
- * Валидация status - должен быть одним из: unread, delivered, read
+ * Валидация status — произвольный статус: буквы, цифры, _ или -, 1–64 символа (например unread, delivered, read, error2). В БД сохраняется в нижнем регистре.
  */
 import { Request, Response, NextFunction } from 'express';
 
+const STATUS_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
+
 export const validateStatus = (req: Request, res: Response, next: NextFunction): void => {
   const status = req.params.status;
-  
+
   if (!status) {
     res.status(400).json({
       error: 'Bad Request',
@@ -14,19 +16,16 @@ export const validateStatus = (req: Request, res: Response, next: NextFunction):
     });
     return;
   }
-  
-  const validStatuses = ['unread', 'delivered', 'read'];
-  
-  if (!validStatuses.includes(status)) {
+
+  if (!STATUS_PATTERN.test(status)) {
     res.status(400).json({
       error: 'Bad Request',
-      message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+      message: 'Invalid status format. Use lowercase letters, digits, underscore or hyphen, 1–64 characters (e.g. unread, delivered, read, error2)',
       field: 'status',
-      received: status,
-      validValues: validStatuses
+      received: status
     });
     return;
   }
-  
+
   next();
 };

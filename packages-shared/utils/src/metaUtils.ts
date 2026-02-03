@@ -266,6 +266,8 @@ export async function buildMetaQuery(
                 return { dialogId: { $in: [] } };
               } else if (entityType === 'topic') {
                 return { topicId: { $in: [] } };
+              } else if (entityType === 'pack') {
+                return { packId: { $in: [] } };
               } else if (entityType === 'dialogMember') {
                 return { _id: { $in: [] } };
               } else {
@@ -304,6 +306,8 @@ export async function buildMetaQuery(
           return { _id: { $in: [] } };
         } else if (entityType === 'topic') {
           return { topicId: { $in: [] } };
+        } else if (entityType === 'pack') {
+          return { packId: { $in: [] } };
         } else {
           return { _id: { $in: [] } };
         }
@@ -326,6 +330,8 @@ export async function buildMetaQuery(
             return { dialogId: { $in: [] } };
           } else if (entityType === 'topic') {
             return { topicId: { $in: [] } };
+          } else if (entityType === 'pack') {
+            return { packId: { $in: [] } };
           } else if (entityType === 'dialogMember') {
             return { _id: { $in: [] } };
           } else {
@@ -348,6 +354,8 @@ export async function buildMetaQuery(
     } else if (entityType === 'topic') {
       // Для топиков entityId это topicId (строка)
       return { topicId: { $in: entityIds } };
+    } else if (entityType === 'pack') {
+      return { packId: { $in: entityIds } };
     } else if (entityType === 'dialogMember') {
       // Для DialogMember entityId это составной ключ dialogId:userId
       // Нужно распарсить и использовать dialogId и userId

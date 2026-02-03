@@ -133,6 +133,14 @@
           </router-link>
 
           <router-link
+            to="/packs"
+            class="nav-link"
+            title="Паки"
+          >
+            <span class="nav-link-icon">📦</span>
+          </router-link>
+
+          <router-link
             to="/chat"
             class="nav-link"
             title="Чат пользователя"

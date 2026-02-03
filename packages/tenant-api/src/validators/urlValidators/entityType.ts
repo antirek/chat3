@@ -15,7 +15,7 @@ export const validateEntityType = (req: Request, res: Response, next: NextFuncti
     return;
   }
   
-  const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic'];
+  const validEntityTypes = ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic', 'pack'];
   
   if (!validEntityTypes.includes(entityType)) {
     res.status(400).json({

@@ -1,5 +1,5 @@
  
-import { Dialog, Meta, DialogMember,
+import { Dialog, Meta, DialogMember, PackLink,
   UserDialogStats, UserDialogActivity, DialogStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
@@ -971,6 +971,9 @@ export const dialogController = {
       log(`Удаление метаданных диалога: id=${id}`);
       // Удаляем все метаданные диалога
       await Meta.deleteMany({ entityType: 'dialog', entityId: id });
+
+      log(`Удаление связей паков с диалогом: dialogId=${dialog.dialogId}`);
+      await PackLink.deleteMany({ dialogId: dialog.dialogId, tenantId: req.tenantId! });
 
       log(`Отправка успешного ответа: dialogId=${dialog.dialogId}`);
       res.json({

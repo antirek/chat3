@@ -1981,7 +1981,7 @@ const userDialogController = {
    * @param {string} req.params.userId - ID пользователя
    * @param {string} req.params.dialogId - ID диалога
    * @param {string} req.params.messageId - ID сообщения
-   * @param {string} req.params.status - Новый статус (unread, delivered, read)
+   * @param {string} req.params.status - Новый статус: произвольная строка [a-zA-Z0-9_-], 1–64 символа (например unread, delivered, read, error2)
    * @param {Object} res - Express response object
    */
   async updateMessageStatus(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -1995,15 +1995,7 @@ const userDialogController = {
       const { userId, dialogId, messageId, status } = req.params;
       log(`Получены параметры: userId=${userId}, dialogId=${dialogId}, messageId=${messageId}, status=${status}`);
 
-      // Basic validation
-      if (!['unread', 'delivered', 'read'].includes(status)) {
-        log(`Ошибка валидации: неверный status=${status}`);
-        res.status(400).json({
-          error: 'Bad Request',
-          message: 'Invalid status. Must be one of: unread, delivered, read'
-        });
-        return;
-      }
+      // Формат status проверяется validateStatus в роуте (произвольный статус: [a-z0-9_-], 1–64 символа)
 
       // Check if message exists and belongs to dialog and tenant
       log(`Поиск сообщения: messageId=${messageId}, dialogId=${dialogId}, tenantId=${req.tenantId}`);

@@ -11,3 +11,4 @@ export { validateAction } from './action.js';
 export { validateEntityType } from './entityType.js';
 export { validateEntityId } from './entityId.js';
 export { validateMetaKey } from './metaKey.js';
+export { validatePackId } from './packId.js';

@@ -1,4 +1,4 @@
-import { User, Meta, UserStats } from '@chat3/models';
+import { User, Meta, UserStats, Pack, PackLink, DialogMember } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
@@ -634,6 +634,175 @@ export async function deleteUser(req: AuthenticatedRequest, res: Response): Prom
   } catch (error: any) {
     log(`Ошибка обработки запроса:`, error.message);
     console.error('Error in deleteUser:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message
+    });
+  } finally {
+    log('>>>>> end');
+  }
+}
+
+/**
+ * Получить список паков пользователя (паки, в диалогах которых пользователь участвует)
+ * GET /api/users/:userId/packs
+ */
+export async function getUserPacks(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const routePath = 'get /users/:userId/packs';
+  const log = (...args: any[]) => {
+    console.log(`[${routePath}]`, ...args);
+  };
+  log('>>>>> start');
+
+  try {
+    const { userId } = req.params;
+    const tenantId = req.tenantId!;
+    const page = Math.max(1, parseInt(String(req.query.page)) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit)) || 10));
+    const skip = (page - 1) * limit;
+    const sortField = req.query.sort ? String(req.query.sort) : 'createdAt';
+    const sortDirection = req.query.sortDirection === 'asc' ? 1 : -1;
+    const sort: Record<string, 1 | -1> = { [sortField]: sortDirection };
+
+    log(`userId=${userId}, page=${page}, limit=${limit}, filter=${req.query.filter || 'нет'}`);
+
+    const userDialogIds = (await DialogMember.find({ userId, tenantId }).select('dialogId').lean())
+      .map((m: any) => m.dialogId);
+
+    if (userDialogIds.length === 0) {
+      res.json({
+        data: [],
+        pagination: { page, limit, total: 0, pages: 0 }
+      });
+      return;
+    }
+
+    const candidatePackIds = await PackLink.find({
+      dialogId: { $in: userDialogIds },
+      tenantId
+    })
+      .distinct('packId')
+      .exec();
+
+    if (candidatePackIds.length === 0) {
+      res.json({
+        data: [],
+        pagination: { page, limit, total: 0, pages: 0 }
+      });
+      return;
+    }
+
+    let packIdsFilter: string[] = candidatePackIds;
+    if (req.query.filter) {
+      try {
+        const parsedFilters = parseFilters(String(req.query.filter));
+        const metaQuery = await buildFilterQuery(tenantId, 'pack', parsedFilters);
+        const metaPackIds = (await Pack.find({ tenantId, ...metaQuery }).select('packId').lean())
+          .map((p: any) => p.packId);
+        packIdsFilter = candidatePackIds.filter((id) => metaPackIds.includes(id));
+      } catch (err: any) {
+        res.status(400).json({
+          error: 'Bad Request',
+          message: err.message || 'Invalid filter format'
+        });
+        return;
+      }
+    }
+
+    const total = packIdsFilter.length;
+    const packs = await Pack.find({ packId: { $in: packIdsFilter }, tenantId })
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .select('-__v')
+      .lean();
+
+    const packIds = packs.map((p: any) => p.packId);
+    const metaByPack: Record<string, Record<string, unknown>> = {};
+    for (const packId of packIds) {
+      metaByPack[packId] = await metaUtils.getEntityMeta(tenantId, 'pack', packId);
+    }
+
+    const data = packs.map((p: any) => ({
+      ...p,
+      meta: metaByPack[p.packId] || {}
+    }));
+
+    res.json({
+      data: data.map((item) => sanitizeResponse(item)),
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error: any) {
+    console.error('Error in getUserPacks:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message
+    });
+  } finally {
+    log('>>>>> end');
+  }
+}
+
+/**
+ * Получить список паков для диалога (паки, в которые входит данный диалог)
+ * GET /api/users/:userId/dialogs/:dialogId/packs
+ */
+export async function getDialogPacks(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const routePath = 'get /users/:userId/dialogs/:dialogId/packs';
+  const log = (...args: any[]) => {
+    console.log(`[${routePath}]`, ...args);
+  };
+  log('>>>>> start');
+
+  try {
+    const { userId, dialogId } = req.params;
+    const tenantId = req.tenantId!;
+
+    const isMember = await DialogMember.findOne({ userId, dialogId, tenantId });
+    if (!isMember) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Dialog not found or user is not a member'
+      });
+      return;
+    }
+
+    const links = await PackLink.find({ dialogId, tenantId })
+      .sort({ addedAt: -1 })
+      .select('packId addedAt')
+      .lean();
+
+    const packIds = links.map((l: any) => l.packId);
+    const metaByPack: Record<string, Record<string, unknown>> = {};
+    for (const packId of packIds) {
+      metaByPack[packId] = await metaUtils.getEntityMeta(tenantId, 'pack', packId);
+    }
+
+    const packs = await Pack.find({ packId: { $in: packIds }, tenantId })
+      .select('-__v')
+      .lean();
+
+    const packMap = new Map(packs.map((p: any) => [p.packId, p]));
+    const data = links.map((l: any) => {
+      const pack = packMap.get(l.packId);
+      return {
+        packId: l.packId,
+        addedAt: l.addedAt,
+        ...(pack ? { createdAt: pack.createdAt } : {}),
+        meta: metaByPack[l.packId] || {}
+      };
+    });
+
+    res.json({
+      data: data.map((item) => sanitizeResponse(item))
+    });
+  } catch (error: any) {
+    console.error('Error in getDialogPacks:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message

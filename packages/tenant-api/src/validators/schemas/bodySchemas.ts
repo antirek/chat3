@@ -232,3 +232,22 @@ export const setUnreadCountSchema = Joi.object({
   lastSeenAt: Joi.number().integer().min(0).optional(),
   reason: Joi.string().trim().min(1).max(100).optional()
 });
+
+/**
+ * Схема валидации создания пака
+ */
+export const createPackSchema = Joi.object({});
+
+/**
+ * Схема валидации добавления диалога в пак
+ */
+export const addDialogToPackSchema = Joi.object({
+  dialogId: Joi.string()
+    .trim()
+    .lowercase()
+    .pattern(/^dlg_[a-z0-9]{20}$/)
+    .required()
+    .messages({
+      'string.pattern.base': 'dialogId must be in format dlg_ followed by 20 lowercase alphanumeric characters'
+    })
+});

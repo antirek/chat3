@@ -29,7 +29,8 @@ export type EntityType =
   | 'messageReaction'
   | 'topic'
   | 'tenant'
-  | 'user';
+  | 'user'
+  | 'pack';
 
 export type ActorType = 'user' | 'system' | 'bot' | 'api';
 

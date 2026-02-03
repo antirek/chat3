@@ -402,10 +402,11 @@ npm run generate-key
 #### POST /api/users/:userId/dialogs/:dialogId/messages/:messageId/status/:status
 Создать новую запись в истории статусов сообщения
 
-**Статусы:**
-- `unread` - не прочитано (по умолчанию для новых сообщений)
-- `delivered` - доставлено
-- `read` - прочитано
+**Параметр status:** произвольный статус. Формат: буквы, цифры, `_` или `-`, 1–64 символа (в БД сохраняется в нижнем регистре). Примеры:
+- `unread` — не прочитано (по умолчанию для новых сообщений)
+- `delivered` — доставлено
+- `read` — прочитано
+- `error2`, `failed`, `pending` и т.п. — любые свои статусы по формату
 
 **Примечания:**
 - Каждое изменение статуса создает новую запись в истории (не обновляет существующую)
@@ -703,6 +704,72 @@ npm run generate-key
 
 ---
 
+### Packs (Паки)
+
+Пак — сущность, объединяющая 0, 1 или более диалогов в один «виртуальный» диалог. Состав хранится в PackLink (packId, dialogId, addedAt). Мета-теги для паков: `entityType=pack`, `entityId=packId` (формат `pck_[a-z0-9]{20}`).
+
+#### POST /api/packs
+Создать пак
+
+**Body:** пустой объект `{}` или не передавать.
+
+**Ответ:** `packId`, `tenantId`, `createdAt`
+
+#### GET /api/packs
+Список паков тенанта (все паки по текущему X-Tenant-ID).
+
+**Query параметры:** `page`, `limit` (макс. 50), `filter` (по meta, напр. `(meta.category,eq,support)`), `sort` (поле, по умолчанию `createdAt`), `sortDirection` (`asc` / `desc`).
+
+**Ответ:** массив паков с полями пака и `meta`; `pagination`: page, limit, total, pages.
+
+#### GET /api/packs/:packId
+Получить пак по ID
+
+**Ответ включает:** данные пака (packId, tenantId, createdAt), объект `meta`, объект `stats` (dialogCount). Список диалогов — отдельный endpoint GET /api/packs/:packId/dialogs с пагинацией.
+
+#### DELETE /api/packs/:packId
+Удалить пак (каскадно удаляются PackLink)
+
+#### POST /api/packs/:packId/dialogs
+Добавить диалог в пак
+
+**Body:**
+```json
+{
+  "dialogId": "dlg_abcdefghij1234567890"
+}
+```
+- Диалог и пак должны принадлежать одному tenantId
+- Идемпотентно: если диалог уже в паке — успех без смены addedAt
+
+#### DELETE /api/packs/:packId/dialogs/:dialogId
+Убрать диалог из пака
+
+#### GET /api/packs/:packId/dialogs
+Список диалогов пака (с пагинацией)
+
+**Query параметры:** `page`, `limit` (по умолчанию 10, макс. 50)
+
+**Ответ:** массив `{ dialogId, addedAt }`, сортировка по addedAt desc
+
+**Мета-теги пака:** `PUT /api/meta/pack/:packId/:key`, `DELETE /api/meta/pack/:packId/:key`, `GET /api/meta/pack/:packId`
+
+#### GET /api/users/:userId/packs
+Список паков пользователя (паки, в диалогах которых пользователь участвует)
+
+**Query параметры:** `page`, `limit` (макс. 50), `filter` (по meta, напр. `(meta.category,eq,support)`), `sort` (поле, по умолчанию `createdAt`), `sortDirection` (`asc` / `desc`)
+
+**Ответ:** массив паков с полями пака и `meta`; `pagination`: page, limit, total, pages
+
+#### GET /api/users/:userId/dialogs/:dialogId/packs
+Список паков, в которые входит данный диалог
+
+**Доступ:** только если пользователь — участник диалога (иначе 404)
+
+**Ответ:** массив объектов `{ packId, addedAt, createdAt?, meta }`
+
+---
+
 ### Meta Tags (Мета-теги)
 
 #### GET /api/meta/:entityType/:entityId
@@ -718,6 +785,8 @@ npm run generate-key
 - `tenant` - тенант
 - `system` - системная сущность
 - `dialogMember` - участник диалога
+- `topic` - топик
+- `pack` - пак
 
 **Пример:**
 ```

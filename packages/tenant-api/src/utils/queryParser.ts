@@ -538,7 +538,7 @@ export function extractMetaFilters(filter: MongoQuery): ExtractedFiltersResult {
   return { metaFilters, regularFilters, memberFilters };
 }
 
-export type EntityTypeForFilter = 'topic' | 'message' | 'dialog' | 'user' | 'dialogMember' | 'tenant';
+export type EntityTypeForFilter = 'topic' | 'message' | 'dialog' | 'user' | 'dialogMember' | 'tenant' | 'pack';
 
 /**
  * Собирает итоговый MongoDB-запрос из распарсенных фильтров с учётом meta по веткам.
