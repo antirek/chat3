@@ -9,7 +9,13 @@ export type CounterType =
   | 'userStats.dialogCount'
   | 'userStats.unreadDialogsCount'
   | 'userStats.totalUnreadCount'
-  | 'userStats.totalMessagesCount';
+  | 'userStats.totalMessagesCount'
+  | 'userPackStats.unreadCount'
+  | 'packStats.messageCount'
+  | 'packStats.uniqueMemberCount'
+  | 'packStats.sumMemberCount'
+  | 'packStats.uniqueTopicCount'
+  | 'packStats.sumTopicCount';
 
 export type CounterEntityType = 
   | 'dialogMember'
@@ -17,7 +23,9 @@ export type CounterEntityType =
   | 'user'
   | 'userDialogStats'
   | 'messageReactionStats'
-  | 'messageStatusStats';
+  | 'messageStatusStats'
+  | 'userPackStats'
+  | 'packStats';
 
 export type CounterOperation = 'increment' | 'decrement' | 'set' | 'reset' | 'computed';
 
@@ -58,7 +66,13 @@ const counterHistorySchema = new mongoose.Schema<ICounterHistory>({
       'userStats.dialogCount',
       'userStats.unreadDialogsCount',
       'userStats.totalUnreadCount',
-      'userStats.totalMessagesCount'
+      'userStats.totalMessagesCount',
+      'userPackStats.unreadCount',
+      'packStats.messageCount',
+      'packStats.uniqueMemberCount',
+      'packStats.sumMemberCount',
+      'packStats.uniqueTopicCount',
+      'packStats.sumTopicCount'
     ],
     index: true,
     description: 'Тип счетчика'
@@ -66,7 +80,7 @@ const counterHistorySchema = new mongoose.Schema<ICounterHistory>({
   entityType: {
     type: String,
     required: true,
-    enum: ['dialogMember', 'message', 'user', 'userDialogStats', 'messageReactionStats', 'messageStatusStats'],
+    enum: ['dialogMember', 'message', 'user', 'userDialogStats', 'messageReactionStats', 'messageStatusStats', 'userPackStats', 'packStats'],
     index: true,
     description: 'Тип сущности'
   },

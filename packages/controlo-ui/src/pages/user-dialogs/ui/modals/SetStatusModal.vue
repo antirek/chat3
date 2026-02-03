@@ -1,20 +1,38 @@
 <template>
-  <BaseModal :is-open="isOpen" title="✏️ Установить статус сообщения" max-width="500px" @close="$emit('close')">
+  <BaseModal :is-open="isOpen" title="✏️ Установить статус сообщения" max-width="500px" @close="handleClose">
     <div v-if="url" class="url-info">{{ url }}</div>
-    
+
     <div class="status-section">
       <p class="status-hint">Выберите статус для текущего пользователя:</p>
       <div class="status-buttons">
-        <BaseButton color="#6c757d" @click="$emit('set-status', 'unread')">
+        <BaseButton color="#6c757d" @click="emit('set-status', 'unread')">
           📤 Sent (unread)
         </BaseButton>
-        <BaseButton color="#17a2b8" @click="$emit('set-status', 'delivered')">
+        <BaseButton color="#17a2b8" @click="emit('set-status', 'delivered')">
           📥 Received (delivered)
         </BaseButton>
-        <BaseButton color="#28a745" @click="$emit('set-status', 'read')">
+        <BaseButton color="#28a745" @click="emit('set-status', 'read')">
           ✓ Read
         </BaseButton>
       </div>
+    </div>
+
+    <div class="custom-status-section">
+      <p class="status-hint">Или введите произвольный статус (буквы, цифры, _ или -, до 64 символов):</p>
+      <div class="custom-status-row">
+        <input
+          v-model="customStatus"
+          type="text"
+          class="custom-status-input"
+          placeholder="например error2, pending"
+          maxlength="64"
+          @keydown.enter="submitCustomStatus"
+        />
+        <BaseButton variant="primary" size="small" :disabled="!canSubmitCustom" @click="submitCustomStatus">
+          Установить
+        </BaseButton>
+      </div>
+      <p v-if="customStatusError" class="custom-status-error">{{ customStatusError }}</p>
     </div>
 
     <div v-if="result" class="result-message" :class="{ error: result.startsWith('✗') }" v-html="formatResult(result)">
@@ -23,7 +41,10 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch } from 'vue';
 import { BaseModal, BaseButton } from '@/shared/ui';
+
+const CUSTOM_STATUS_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 
 interface Props {
   isOpen: boolean;
@@ -32,10 +53,40 @@ interface Props {
 }
 
 defineProps<Props>();
-defineEmits<{
+const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'set-status', status: 'unread' | 'delivered' | 'read'): void;
+  (e: 'set-status', status: string): void;
 }>();
+
+const customStatus = ref('');
+const customStatusError = ref('');
+
+watch(customStatus, (val) => {
+  customStatusError.value = '';
+  if (!val.trim()) return;
+  if (!CUSTOM_STATUS_PATTERN.test(val)) {
+    customStatusError.value = 'Только буквы, цифры, _ или -, до 64 символов';
+  }
+});
+
+const canSubmitCustom = computed(() => {
+  const s = customStatus.value.trim();
+  return s.length > 0 && CUSTOM_STATUS_PATTERN.test(s);
+});
+
+function submitCustomStatus() {
+  if (!canSubmitCustom.value) return;
+  const s = customStatus.value.trim();
+  emit('set-status', s);
+  customStatus.value = '';
+  customStatusError.value = '';
+}
+
+function handleClose() {
+  customStatus.value = '';
+  customStatusError.value = '';
+  emit('close');
+}
 
 function formatResult(result: string): string {
   const lines = result.split('\n');
@@ -76,6 +127,37 @@ function formatResult(result: string): string {
   flex-wrap: wrap;
 }
 
+.custom-status-section {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.custom-status-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.custom-status-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.custom-status-input:focus {
+  outline: none;
+  border-color: #17a2b8;
+}
+
+.custom-status-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #dc3545;
+}
 
 .result-message {
   margin-top: 20px;

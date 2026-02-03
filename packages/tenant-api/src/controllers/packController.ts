@@ -37,7 +37,7 @@ export const packController = {
       ]);
 
       const packIds = (packs as any[]).map((p) => p.packId);
-      const [metaByPack, countByPack] = await Promise.all([
+      const [metaByPack, countByPack, statsByPack] = await Promise.all([
         (async () => {
           const out: Record<string, Record<string, unknown>> = {};
           for (const packId of packIds) {
@@ -50,13 +50,27 @@ export const packController = {
               { $match: { tenantId, packId: { $in: packIds } } },
               { $group: { _id: '$packId', dialogCount: { $sum: 1 } } }
             ]).then((rows) => Object.fromEntries((rows as any[]).map((r) => [r._id, r.dialogCount])))
+          : Promise.resolve({}),
+        packIds.length > 0
+          ? PackStats.find({ tenantId, packId: { $in: packIds } })
+              .select('-__v')
+              .lean()
+              .then((rows) => Object.fromEntries((rows as any[]).map((row) => [row.packId, row])))
           : Promise.resolve({})
       ]);
 
       const data = (packs as any[]).map((p) => ({
         ...p,
         meta: metaByPack[p.packId] || {},
-        stats: { dialogCount: countByPack[p.packId] ?? 0 }
+        stats: {
+          dialogCount: countByPack[p.packId] ?? 0,
+          messageCount: statsByPack[p.packId]?.messageCount ?? 0,
+          uniqueMemberCount: statsByPack[p.packId]?.uniqueMemberCount ?? 0,
+          sumMemberCount: statsByPack[p.packId]?.sumMemberCount ?? 0,
+          uniqueTopicCount: statsByPack[p.packId]?.uniqueTopicCount ?? 0,
+          sumTopicCount: statsByPack[p.packId]?.sumTopicCount ?? 0,
+          lastUpdatedAt: statsByPack[p.packId]?.lastUpdatedAt ?? null
+        }
       }));
 
       res.json({
@@ -115,16 +129,25 @@ export const packController = {
         return;
       }
 
-      const [meta, dialogCount] = await Promise.all([
+      const [meta, dialogCount, packStats] = await Promise.all([
         metaUtils.getEntityMeta(tenantId, 'pack', packId),
-        PackLink.countDocuments({ packId, tenantId })
+        PackLink.countDocuments({ packId, tenantId }),
+        PackStats.findOne({ tenantId, packId }).select('-__v').lean()
       ]);
 
       res.json({
         data: sanitizeResponse({
           ...pack,
           meta,
-          stats: { dialogCount }
+          stats: {
+            dialogCount,
+            messageCount: packStats?.messageCount ?? 0,
+            uniqueMemberCount: packStats?.uniqueMemberCount ?? 0,
+            sumMemberCount: packStats?.sumMemberCount ?? 0,
+            uniqueTopicCount: packStats?.uniqueTopicCount ?? 0,
+            sumTopicCount: packStats?.sumTopicCount ?? 0,
+            lastUpdatedAt: packStats?.lastUpdatedAt ?? null
+          }
         })
       });
     } catch (error: any) {

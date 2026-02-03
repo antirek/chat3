@@ -29,6 +29,8 @@ import MessageReactionStats from './stats/MessageReactionStats.js';
 import MessageStatusStats from './stats/MessageStatusStats.js';
 import UserTopicStats from './stats/UserTopicStats.js';
 import DialogStats from './stats/DialogStats.js';
+import UserPackStats from './stats/UserPackStats.js';
+import PackStats from './stats/PackStats.js';
 
 // Export models
 export {
@@ -55,7 +57,9 @@ export {
   MessageReactionStats,
   MessageStatusStats,
   UserTopicStats,
-  DialogStats
+  DialogStats,
+  UserPackStats,
+  PackStats
 };
 
 // Export TypeScript interfaces - Data models
@@ -91,6 +95,8 @@ export type { IMessageReactionStats } from './stats/MessageReactionStats';
 export type { IMessageStatusStats, MessageStatusType } from './stats/MessageStatusStats';
 export type { IUserTopicStats } from './stats/UserTopicStats';
 export type { IDialogStats } from './stats/DialogStats';
+export type { IUserPackStats } from './stats/UserPackStats';
+export type { IPackStats } from './stats/PackStats';
 
 // Export TypeScript interfaces - Journals
 export type { IApiJournal, HttpMethod } from './journals/ApiJournal';

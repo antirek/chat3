@@ -1,4 +1,4 @@
-import { User, Meta, UserStats, Pack, PackLink, DialogMember } from '@chat3/models';
+import { User, Meta, UserStats, Pack, PackLink, DialogMember, UserPackStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
@@ -723,9 +723,17 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
       metaByPack[packId] = await metaUtils.getEntityMeta(tenantId, 'pack', packId);
     }
 
+    const unreadByPack = packIds.length
+      ? await UserPackStats.find({ tenantId, packId: { $in: packIds }, userId })
+          .select('packId unreadCount')
+          .lean()
+          .then((rows) => Object.fromEntries(rows.map((row: any) => [row.packId, row.unreadCount || 0])))
+      : {};
+
     const data = packs.map((p: any) => ({
       ...p,
-      meta: metaByPack[p.packId] || {}
+      meta: metaByPack[p.packId] || {},
+      unreadCount: unreadByPack[p.packId] ?? 0
     }));
 
     res.json({

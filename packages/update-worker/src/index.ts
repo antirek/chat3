@@ -6,6 +6,11 @@ import {
   updateDialogMemberCount,
   updateDialogMessageCount
 } from '@chat3/utils/counterUtils.js';
+import {
+  getPackIdsForDialog,
+  recalculatePackStats,
+  recalculateUserPackStats
+} from '@chat3/utils/packStatsUtils.js';
 
 const WORKER_QUEUE = 'update_worker_queue';
 
@@ -26,6 +31,32 @@ interface EventData {
   actorId?: string;
   data?: any; // Гибкий тип, так как структура data зависит от типа события
   [key: string]: any;
+}
+
+async function updatePackCountersForDialog(
+  tenantId: string,
+  dialogId: string,
+  sourceOperation: string,
+  sourceEntityId: string,
+  actorId?: string
+): Promise<void> {
+  const packIds = await getPackIdsForDialog(tenantId, dialogId);
+  if (!packIds.length) {
+    return;
+  }
+
+  for (const packId of packIds) {
+    const options = {
+      sourceOperation,
+      sourceEntityId,
+      actorId: actorId || 'system',
+      actorType: 'system'
+    };
+
+    await recalculatePackStats(tenantId, packId, options);
+    await recalculateUserPackStats(tenantId, packId, options);
+    console.log(`📦 Updated pack stats for pack ${packId} (dialog ${dialogId})`);
+  }
 }
 
 /**
@@ -52,30 +83,46 @@ async function processEvent(eventData: EventData): Promise<void> {
     console.log(`📩 Processing event: ${eventType} (${entityId})`);
 
     // Обновление DialogStats при событиях
+    let dialogIdForPackUpdate: string | null = null;
+
     if (eventType === 'dialog.topic.create') {
       const dialogId = context.dialogId || dialogPayload.dialogId;
       if (dialogId) {
         await updateDialogTopicCount(tenantId, dialogId, 1);
         console.log(`✅ Updated DialogStats.topicCount for dialog ${dialogId}`);
+        dialogIdForPackUpdate = dialogId;
       }
     } else if (eventType === 'dialog.member.add') {
       const dialogId = context.dialogId || dialogPayload.dialogId;
       if (dialogId) {
         await updateDialogMemberCount(tenantId, dialogId, 1);
         console.log(`✅ Updated DialogStats.memberCount for dialog ${dialogId}`);
+        dialogIdForPackUpdate = dialogId;
       }
     } else if (eventType === 'dialog.member.remove') {
       const dialogId = context.dialogId || dialogPayload.dialogId;
       if (dialogId) {
         await updateDialogMemberCount(tenantId, dialogId, -1);
         console.log(`✅ Updated DialogStats.memberCount for dialog ${dialogId}`);
+        dialogIdForPackUpdate = dialogId;
       }
     } else if (eventType === 'message.create') {
       const dialogId = context.dialogId || dialogPayload.dialogId || messagePayload.dialogId;
       if (dialogId) {
         await updateDialogMessageCount(tenantId, dialogId, 1);
         console.log(`✅ Updated DialogStats.messageCount for dialog ${dialogId}`);
+        dialogIdForPackUpdate = dialogId;
       }
+    }
+
+    if (dialogIdForPackUpdate) {
+      await updatePackCountersForDialog(
+        tenantId,
+        dialogIdForPackUpdate,
+        eventType,
+        String(entityId),
+        eventData.actorId
+      );
     }
 
     // Определяем, нужно ли создавать update
