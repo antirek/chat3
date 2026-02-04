@@ -3,6 +3,7 @@ import { useCredentialsStore } from '@/app/stores/credentials';
 import { useUsers } from './useUsers';
 import { useDialogs } from './useDialogs';
 import { usePacks } from './usePacks';
+import { usePackDialogs } from './usePackDialogs';
 import { useMessages } from './useMessages';
 import { useMembers } from './useMembers';
 import { useTopics } from './useTopics';
@@ -102,6 +103,42 @@ export function useUserDialogsPage() {
     showPacksCurrentUrl,
     showPackInfo,
   } = packsModule;
+
+  // Выбранный пак (для отображения диалогов пака в третьей колонке)
+  const currentPackId = ref<string | null>(null);
+  const packDialogsModule = usePackDialogs();
+  const {
+    packDialogs,
+    loadingPackDialogs,
+    packDialogsError,
+    packDialogsTotal,
+    packDialogsPage,
+    packDialogsLimit,
+    packDialogsTotalPages,
+    packDialogsPaginationStart,
+    packDialogsPaginationEnd,
+    loadPackDialogs,
+    clearPackDialogs,
+    setPackDialogsLimit,
+  } = packDialogsModule;
+
+  function selectPack(packId: string) {
+    currentPackId.value = packId;
+    loadPackDialogs(packId, 1);
+  }
+
+  function goToPackDialogsPage(page: number) {
+    if (currentPackId.value) {
+      loadPackDialogs(currentPackId.value, page);
+    }
+  }
+
+  function changePackDialogsLimit(limit: number) {
+    setPackDialogsLimit(limit);
+    if (currentPackId.value) {
+      loadPackDialogs(currentPackId.value, 1);
+    }
+  }
 
   // Page-specific state для диалогов
   const currentDialogId = ref<string | null>(null);
@@ -387,7 +424,10 @@ export function useUserDialogsPage() {
   // Переключение таба средней панели (диалоги / паки)
   function selectMiddlePanelTab(tab: 'dialogs' | 'packs') {
     middlePanelTab.value = tab;
-    if (tab === 'packs' && currentUserId.value) {
+    if (tab === 'dialogs') {
+      currentPackId.value = null;
+      clearPackDialogs();
+    } else if (tab === 'packs' && currentUserId.value) {
       loadUserPacks(currentUserId.value, 1);
     }
   }
@@ -516,6 +556,21 @@ export function useUserDialogsPage() {
     currentPackSort,
     togglePackSort,
     getPackSortIndicator,
+    currentPackId,
+    selectPack,
+    packDialogs,
+    loadingPackDialogs,
+    packDialogsError,
+    packDialogsTotal,
+    packDialogsPage,
+    packDialogsLimit,
+    packDialogsTotalPages,
+    packDialogsPaginationStart,
+    packDialogsPaginationEnd,
+    loadPackDialogs,
+    clearPackDialogs,
+    goToPackDialogsPage,
+    changePackDialogsLimit,
     // Messages
     loadingMessages,
     messagesError,

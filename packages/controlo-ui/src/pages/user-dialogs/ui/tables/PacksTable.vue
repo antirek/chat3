@@ -8,9 +8,11 @@
       :loading="loading"
       :error="error"
       :get-item-key="(item) => item.packId"
-      :selectable="false"
+      :selectable="true"
+      :selected-key="selectedPackId"
       loading-text="Загрузка паков..."
       empty-text="Паки не найдены"
+      @row-click="handleRowClick"
     >
       <template #header>
         <tr>
@@ -59,16 +61,22 @@ interface Props {
   loading: boolean;
   error: string | null;
   hasUser: boolean;
+  selectedPackId: string | null;
   currentSort: string | null;
   getSortIndicator: (field: string) => string;
 }
 
 defineProps<Props>();
 const emit = defineEmits<{
+  (e: 'select', packId: string): void;
   (e: 'show-info', packId: string): void;
   (e: 'show-meta', packId: string): void;
   (e: 'toggle-sort', field: string): void;
 }>();
+
+function handleRowClick(item: Pack) {
+  emit('select', item.packId);
+}
 
 function toggleSort(field: string) {
   emit('toggle-sort', field);

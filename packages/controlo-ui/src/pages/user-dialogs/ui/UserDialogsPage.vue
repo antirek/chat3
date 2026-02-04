@@ -179,8 +179,10 @@
             :loading="loadingPacks"
             :error="packsError"
             :has-user="!!currentUserId"
+            :selected-pack-id="currentPackId"
             :current-sort="currentPackSort"
             :get-sort-indicator="getPackSortIndicator"
+            @select="selectPack"
             @show-info="showPackInfo"
             @show-meta="showPackMetaModal"
             @toggle-sort="togglePackSort"
@@ -188,8 +190,39 @@
         </template>
       </BasePanel>
 
-      <!-- Сообщения / Участники / Топики -->
+      <!-- Сообщения / Участники / Топики или Диалоги пака -->
       <BasePanel class="messages-panel">
+        <!-- Диалоги пака (при выборе пака на табе «Паки пользователя») -->
+        <template v-if="middlePanelTab === 'packs' && currentPackId">
+          <div class="section-header" style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;">
+            <h3 style="margin: 0; font-size: 16px;">📦 Диалоги пака</h3>
+          </div>
+          <ExtendedPagination
+            v-show="packDialogsTotal > 0"
+            :current-page="packDialogsPage"
+            :current-page-input="packDialogsPage"
+            :total-pages="packDialogsTotalPages"
+            :total="packDialogsTotal"
+            :pagination-start="packDialogsPaginationStart"
+            :pagination-end="packDialogsPaginationEnd"
+            :limit="packDialogsLimit"
+            container-style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;"
+            @first="goToPackDialogsPage(1)"
+            @prev="goToPackDialogsPage(Math.max(1, packDialogsPage - 1))"
+            @next="goToPackDialogsPage(Math.min(packDialogsTotalPages, packDialogsPage + 1))"
+            @last="goToPackDialogsPage(packDialogsTotalPages)"
+            @go-to-page="goToPackDialogsPage"
+            @change-limit="changePackDialogsLimit"
+          />
+          <PackDialogsTable
+            :items="packDialogs"
+            :loading="loadingPackDialogs"
+            :error="packDialogsError"
+            :has-pack="!!currentPackId"
+          />
+        </template>
+        <!-- Вкладки диалога (Сообщения / Участники / Топики) -->
+        <template v-else>
         <!-- Вкладки -->
         <div v-if="currentDialogId" class="tabs-container">
           <button
@@ -406,6 +439,7 @@
             />
           </div>
         </div>
+        </template>
       </BasePanel>
     </div>
 
@@ -656,7 +690,7 @@ import {
   packFilterExamples,
 } from './filters';
 import { ExtendedPagination } from './pagination';
-import { UsersTable, DialogsTable, PacksTable, MessagesTable, TopicsTable, MembersTable } from './tables';
+import { UsersTable, DialogsTable, PacksTable, PackDialogsTable, MessagesTable, TopicsTable, MembersTable } from './tables';
 
 // Используем composable
 const pageData = useUserDialogsPage();
@@ -719,6 +753,19 @@ const {
   currentPackSort,
   togglePackSort,
   getPackSortIndicator,
+  currentPackId,
+  selectPack,
+  packDialogs,
+  loadingPackDialogs,
+  packDialogsError,
+  packDialogsTotal,
+  packDialogsPage,
+  packDialogsLimit,
+  packDialogsTotalPages,
+  packDialogsPaginationStart,
+  packDialogsPaginationEnd,
+  goToPackDialogsPage,
+  changePackDialogsLimit,
   selectPacksFilterExample,
   clearPacksFilter,
   applyPacksFilter,
