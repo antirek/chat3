@@ -166,4 +166,22 @@ router.post('/seed', initController.seed);
  */
 router.post('/recalculate-stats', initController.recalculateUserStats);
 
+/**
+ * @swagger
+ * /api/init/sync-pack-stats:
+ *   post:
+ *     summary: Sync pack stats (UserPackStats) from UserDialogStats
+ *     tags: [Initialization]
+ *     description: |
+ *       Синхронизирует счетчики непрочитанных паков (UserPackStats.unreadCount) из счетчиков диалогов (UserDialogStats).
+ *       Для каждого пака суммирует unreadCount по всем диалогам пака для каждого пользователя.
+ *       Операция выполняется асинхронно (202 Accepted).
+ *     responses:
+ *       202:
+ *         description: Sync pack stats started
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post('/sync-pack-stats', initController.syncPackStats);
+
 export default router;

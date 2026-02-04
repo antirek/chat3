@@ -90,12 +90,28 @@
               <span v-else>🔄</span>
               <span>{{ recalculateLoading ? 'Пересчет счетчиков...' : 'Пересчитать счетчики для всех пользователей' }}</span>
             </button>
+            <button 
+              id="syncPackStatsBtn" 
+              class="btn-primary" 
+              :disabled="syncPackStatsLoading"
+              @click="syncPackStats"
+            >
+              <span v-if="syncPackStatsLoading" class="loading"></span>
+              <span v-else>📦</span>
+              <span>{{ syncPackStatsLoading ? 'Синхронизация...' : 'Синхронизировать счетчики паков' }}</span>
+            </button>
           </div>
           <div 
             v-if="recalculateResult.show" 
             :class="['result', recalculateResult.type]"
           >
             <div v-html="recalculateResult.content"></div>
+          </div>
+          <div 
+            v-if="syncPackStatsResult.show" 
+            :class="['result', syncPackStatsResult.type]"
+          >
+            <div v-html="syncPackStatsResult.content"></div>
           </div>
         </div>
       </div>
@@ -113,9 +129,12 @@ const {
   seedResult,
   recalculateLoading,
   recalculateResult,
+  syncPackStatsLoading,
+  syncPackStatsResult,
   initialize,
   runSeed,
   recalculateUserStats,
+  syncPackStats,
 } = useInitPage();
 </script>
 

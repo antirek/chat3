@@ -2,6 +2,7 @@ import { ref, computed, onMounted, toRef } from 'vue';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { useUsers } from './useUsers';
 import { useDialogs } from './useDialogs';
+import { usePacks } from './usePacks';
 import { useMessages } from './useMessages';
 import { useMembers } from './useMembers';
 import { useTopics } from './useTopics';
@@ -77,6 +78,30 @@ export function useUserDialogsPage() {
     showCurrentUrl,
     showDialogInfo,
   } = dialogsModule;
+
+  // Таб средней панели: диалоги или паки
+  const middlePanelTab = ref<'dialogs' | 'packs'>('dialogs');
+
+  // Паки пользователя
+  const packsModule = usePacks(currentUserId, showModal, showUrlModal);
+  const {
+    loadingPacks,
+    packsError,
+    packs,
+    packsPagination,
+    packsFilter,
+    visiblePackPages,
+    currentSort: currentPackSort,
+    toggleSort: togglePackSort,
+    getPackSortIndicator,
+    loadUserPacks,
+    selectPacksFilterExample,
+    clearPacksFilter,
+    applyPacksFilter,
+    changePackPage,
+    showPacksCurrentUrl,
+    showPackInfo,
+  } = packsModule;
 
   // Page-specific state для диалогов
   const currentDialogId = ref<string | null>(null);
@@ -286,6 +311,17 @@ export function useUserDialogsPage() {
     loadTopicMetaTags,
     addTopicMetaTag,
     deleteTopicMetaTag,
+    packMetaModal,
+    packMetaPackId,
+    packMetaTags,
+    loadingPackMeta,
+    newPackMetaKey,
+    newPackMetaValue,
+    showPackMetaModal,
+    closePackMetaModal,
+    loadPackMetaTags,
+    addPackMetaTag,
+    deletePackMetaTag,
   } = metaModals;
 
   // Модалки для создания сущностей
@@ -341,9 +377,19 @@ export function useUserDialogsPage() {
     currentUserId.value = userId;
     currentUserName.value = userName;
     currentDialogId.value = null;
+    middlePanelTab.value = 'dialogs';
     dialogs.value = [];
+    packs.value = [];
     messages.value = [];
     await loadUserDialogs(userId, 1);
+  }
+
+  // Переключение таба средней панели (диалоги / паки)
+  function selectMiddlePanelTab(tab: 'dialogs' | 'packs') {
+    middlePanelTab.value = tab;
+    if (tab === 'packs' && currentUserId.value) {
+      loadUserPacks(currentUserId.value, 1);
+    }
   }
 
   // Функции для диалогов (координация с другими модулями)
@@ -435,6 +481,41 @@ export function useUserDialogsPage() {
     currentSort,
     toggleSort,
     getDialogSortIndicator,
+    // Middle panel tab (dialogs / packs)
+    middlePanelTab,
+    selectMiddlePanelTab,
+    // Packs
+    loadingPacks,
+    packsError,
+    packs,
+    packsPagination,
+    packsFilter,
+    visiblePackPages,
+    loadUserPacks,
+    selectPacksFilterExample,
+    clearPacksFilter,
+    applyPacksFilter,
+    changePackPage,
+    showPacksCurrentUrl,
+    showPackInfo,
+    goToPacksFirstPage: packsPagination.goToFirstPage,
+    goToPacksPreviousPage: packsPagination.goToPreviousPage,
+    goToPacksNextPage: packsPagination.goToNextPage,
+    goToPacksLastPage: packsPagination.goToLastPage,
+    goToPacksPage: packsPagination.goToPage,
+    changePackLimit: packsPagination.changeLimit,
+    currentPackPage: packsPagination.currentPage,
+    currentPackPageInput: packsPagination.currentPageInput,
+    currentPackLimit: packsPagination.currentLimit,
+    totalPackPages: packsPagination.totalPages,
+    totalPacks: packsPagination.totalItems,
+    packPaginationStart: packsPagination.paginationStart,
+    packPaginationEnd: packsPagination.paginationEnd,
+    packFilterValue: packsFilter.filterInput,
+    selectedPackFilterExample: packsFilter.selectedFilterExample,
+    currentPackSort,
+    togglePackSort,
+    getPackSortIndicator,
     // Messages
     loadingMessages,
     messagesError,
@@ -504,6 +585,7 @@ export function useUserDialogsPage() {
     isMemberMetaModalOpen: memberMetaModal.isOpen,
     isMessageMetaModalOpen: messageMetaModal.isOpen,
     isTopicMetaModalOpen: topicMetaModal.isOpen,
+    isPackMetaModalOpen: packMetaModal.isOpen,
     modalTitle,
     modalUrl,
     modalJsonContent,
@@ -736,13 +818,24 @@ export function useUserDialogsPage() {
     topicMetaTopicId,
     topicMetaTags,
     loadingTopicMeta,
+    // Мета-теги пака
+    showPackMetaModal,
+    closePackMetaModal,
+    loadPackMetaTags,
+    addPackMetaTag,
+    deletePackMetaTag,
+    packMetaTags,
+    loadingPackMeta,
+    newPackMetaKey,
+    newPackMetaValue,
     // Участники
     removeMemberFromPanel,
     generateMembersApiUrl,
     showMembersUrlModal,
     showTopicsUrlModal,
     // URL модалка
-    showUrlModal: urlModal.isOpen,
+    isUrlModalOpen: urlModal.isOpen,
+    showUrlModal,
     urlModalTitle,
     urlModalUrl,
     urlCopyButtonText,

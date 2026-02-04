@@ -177,3 +177,23 @@ export const memberFilterExamples: FilterExample[] = [
   },
   { value: 'custom', label: '✏️ Пользовательский фильтр' },
 ];
+
+// Примеры фильтров для паков пользователя (GET /api/users/:userId/packs)
+export const packFilterExamples: FilterExample[] = [
+  {
+    label: 'Непрочитанные',
+    options: [
+      { value: '(unreadCount,gt,0)', label: 'С непрочитанными' },
+      { value: '(unreadCount,eq,0)', label: 'Без непрочитанных' },
+      { value: '(unreadCount,gte,1)', label: '≥ 1 непрочитанное' },
+    ],
+  },
+  {
+    label: 'Мета пака (meta.*)',
+    options: [
+      { value: '(meta.name,eq,support)', label: 'meta.name = support' },
+      { value: '(meta.category,eq,general)', label: 'meta.category = general' },
+    ],
+  },
+  { value: 'custom', label: '✏️ Пользовательский фильтр' },
+];

@@ -1,4 +1,5 @@
 import {
+  Pack,
   PackLink,
   UserDialogStats,
   UserPackStats,
@@ -329,4 +330,30 @@ export async function recalculateUserPackStats(
   }
 
   return result;
+}
+
+/**
+ * Синхронизирует UserPackStats для всех паков тенанта из UserDialogStats.
+ * Для каждого пака: unreadCount пака = сумма unreadCount по диалогам пака для каждого пользователя.
+ * Вызывать после пересчета счетчиков пользователей или при рассинхронизации.
+ */
+export async function syncAllUserPackStats(tenantId: string): Promise<{ packsProcessed: number; errors: string[] }> {
+  const packIds = await Pack.find({ tenantId }).distinct('packId').exec();
+  const errors: string[] = [];
+  let packsProcessed = 0;
+
+  for (const packId of packIds) {
+    try {
+      await recalculateUserPackStats(tenantId, packId, {
+        sourceOperation: 'sync-pack-stats',
+        sourceEntityId: packId
+      });
+      packsProcessed++;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      errors.push(`Pack ${packId}: ${message}`);
+    }
+  }
+
+  return { packsProcessed, errors };
 }

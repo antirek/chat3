@@ -776,9 +776,9 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
       metaByPack[packId] = await metaUtils.getEntityMeta(tenantId, 'pack', packId);
     }
 
-    const statsByPack =
+    const [statsByPack, dialogCountByPack] = await Promise.all([
       pagePackIds.length > 0
-        ? await UserPackStats.find({ tenantId, userId, packId: { $in: pagePackIds } })
+        ? UserPackStats.find({ tenantId, userId, packId: { $in: pagePackIds } })
             .select('packId unreadCount lastUpdatedAt createdAt')
             .lean()
             .then((rows) => {
@@ -792,17 +792,26 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
               }
               return map;
             })
-        : new Map<string, { unreadCount: number; lastUpdatedAt: number | null; createdAt: number | null }>();
+        : Promise.resolve(new Map<string, { unreadCount: number; lastUpdatedAt: number | null; createdAt: number | null }>()),
+      pagePackIds.length > 0
+        ? PackLink.aggregate([
+            { $match: { packId: { $in: pagePackIds }, tenantId } },
+            { $group: { _id: '$packId', dialogCount: { $sum: 1 } } }
+          ]).then((rows: any[]) => Object.fromEntries(rows.map((r) => [r._id, r.dialogCount ?? 0])))
+        : Promise.resolve({} as Record<string, number>)
+    ]);
 
     const data = packs.map((p: any) => {
       const st = statsByPack.get(p.packId);
+      const dialogCount = dialogCountByPack[p.packId] ?? 0;
       return {
         ...p,
         meta: metaByPack[p.packId] || {},
         stats: {
           unreadCount: st?.unreadCount ?? 0,
           lastUpdatedAt: st?.lastUpdatedAt ?? null,
-          createdAt: st?.createdAt ?? null
+          createdAt: st?.createdAt ?? null,
+          dialogCount
         }
       };
     });

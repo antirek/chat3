@@ -27,6 +27,9 @@ export function useInitPage() {
     recalculateLoading,
     recalculateResult,
     recalculateUserStats,
+    syncPackStatsLoading,
+    syncPackStatsResult,
+    syncPackStats,
   } = recalculateModule;
 
   // Делаем функцию копирования доступной глобально для вызова из v-html
@@ -41,8 +44,11 @@ export function useInitPage() {
     seedResult,
     recalculateLoading,
     recalculateResult,
+    syncPackStatsLoading,
+    syncPackStatsResult,
     initialize,
     runSeed,
     recalculateUserStats,
+    syncPackStats,
   };
 }

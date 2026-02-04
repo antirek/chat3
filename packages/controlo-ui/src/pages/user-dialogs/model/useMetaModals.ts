@@ -24,6 +24,7 @@ export function useMetaModals(
   const memberMetaModal = useModal();
   const messageMetaModal = useModal();
   const topicMetaModal = useModal();
+  const packMetaModal = useModal();
 
   // Мета-теги диалога
   const dialogMetaDialogId = ref('');
@@ -53,6 +54,13 @@ export function useMetaModals(
   const newTopicMetaKey = ref('');
   const newTopicMetaValue = ref('');
   const loadingTopicMeta = ref(false);
+
+  // Мета-теги пака
+  const packMetaPackId = ref('');
+  const packMetaTags = ref<Record<string, any>>({});
+  const newPackMetaKey = ref('');
+  const newPackMetaValue = ref('');
+  const loadingPackMeta = ref(false);
 
   // Функции для модального окна мета-тегов диалога
   async function showDialogMetaModal(dialogId: string) {
@@ -597,12 +605,101 @@ export function useMetaModals(
     }
   }
 
+  // Мета-теги пака
+  async function showPackMetaModal(packId: string) {
+    packMetaPackId.value = packId;
+    packMetaModal.open();
+    await loadPackMetaTags(packId);
+  }
+
+  function closePackMetaModal() {
+    packMetaModal.close();
+    packMetaPackId.value = '';
+    packMetaTags.value = {};
+    newPackMetaKey.value = '';
+    newPackMetaValue.value = '';
+  }
+
+  async function loadPackMetaTags(packId: string) {
+    try {
+      loadingPackMeta.value = true;
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/meta/pack/${packId}`;
+      const response = await fetch(fullUrl, { headers: credentialsStore.getHeaders() });
+      if (!response.ok) throw new Error('Failed to load pack meta');
+      const { data: meta } = await response.json();
+      packMetaTags.value = meta || {};
+    } catch (error) {
+      console.error('Error loading pack meta tags:', error);
+      packMetaTags.value = {};
+    } finally {
+      loadingPackMeta.value = false;
+    }
+  }
+
+  async function addPackMetaTag(keyOrEmpty?: string, valueFromModal?: any) {
+    const packId = packMetaPackId.value;
+    const key = (keyOrEmpty !== undefined && keyOrEmpty !== null ? keyOrEmpty : newPackMetaKey.value).trim();
+    const value =
+      valueFromModal !== undefined && valueFromModal !== null
+        ? valueFromModal
+        : parseMetaValueFromInput(newPackMetaValue.value.trim());
+    if (!key) {
+      alert('Заполните ключ');
+      return;
+    }
+    if (keyOrEmpty === undefined && !newPackMetaValue.value.trim()) {
+      alert('Заполните значение');
+      return;
+    }
+    try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/meta/pack/${packId}/${encodeURIComponent(key)}`;
+      const response = await fetch(fullUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...credentialsStore.getHeaders() },
+        body: JSON.stringify({ value }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to set meta tag');
+      }
+      newPackMetaKey.value = '';
+      newPackMetaValue.value = '';
+      await loadPackMetaTags(packId);
+      alert('Meta тег успешно добавлен!');
+    } catch (error) {
+      console.error('Error adding pack meta tag:', error);
+      alert(`Ошибка добавления meta тега: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async function deletePackMetaTag(key: string) {
+    if (!confirm(`Удалить meta тег "${key}"?`)) return;
+    const packId = packMetaPackId.value;
+    try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const fullUrl = `${baseUrl}/api/meta/pack/${packId}/${encodeURIComponent(key)}`;
+      const response = await fetch(fullUrl, { method: 'DELETE', headers: credentialsStore.getHeaders() });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete meta tag');
+      }
+      await loadPackMetaTags(packId);
+      alert('Meta тег успешно удален!');
+    } catch (error) {
+      console.error('Error deleting pack meta tag:', error);
+      alert(`Ошибка удаления meta тега: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   return {
     // Modals
     dialogMetaModal,
     memberMetaModal,
     messageMetaModal,
     topicMetaModal,
+    packMetaModal,
     // Dialog meta
     dialogMetaDialogId,
     dialogMetaTags,
@@ -653,5 +750,16 @@ export function useMetaModals(
     loadTopicMetaTags,
     addTopicMetaTag,
     deleteTopicMetaTag,
+    // Pack meta
+    packMetaPackId,
+    packMetaTags,
+    loadingPackMeta,
+    newPackMetaKey,
+    newPackMetaValue,
+    showPackMetaModal,
+    closePackMetaModal,
+    loadPackMetaTags,
+    addPackMetaTag,
+    deletePackMetaTag,
   };
 }

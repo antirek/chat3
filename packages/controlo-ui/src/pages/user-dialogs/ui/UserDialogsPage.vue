@@ -50,13 +50,14 @@
         />
       </BasePanel>
 
-      <!-- Диалоги -->
+      <!-- Диалоги / Паки пользователя -->
       <BasePanel width="33%" min-width="350px">
         <template #header-left>
-          <span>💬 Диалоги{{ currentUserName ? ` пользователя ${currentUserName}` : '' }}</span>
+          <span>💬 {{ middlePanelTab === 'dialogs' ? 'Диалоги' : 'Паки' }}{{ currentUserName ? ` пользователя ${currentUserName}` : '' }}</span>
         </template>
         <template #header-right>
           <BaseButton
+            v-if="middlePanelTab === 'dialogs'"
             id="viewUrlBtn"
             variant="url"
             @click="showCurrentUrl"
@@ -64,53 +65,127 @@
           >
             🔗 URL
           </BaseButton>
+          <BaseButton
+            v-if="middlePanelTab === 'packs'"
+            variant="url"
+            @click="showPacksCurrentUrl"
+            title="Просмотреть текущий URL запроса паков"
+          >
+            🔗 URL
+          </BaseButton>
         </template>
-        <FilterPanel
-          v-show="currentUserId"
-          input-id="filterValue"
-          select-id="filterExample"
-          label="Фильтр:"
-          :filter-value="filterValue"
-          :selected-example="selectedFilterExample"
-          :examples="dialogFilterExamples"
-          placeholder="Введите или выберите фильтр"
-          hint="Поля: dialogId, meta.*. Операторы: eq, ne, in, nin, regex, gt, gte, lt, lte. И и ИЛИ: & и |; скобки задают группы (макс. 5 в группе)."
-          @update:filter-value="filterValue = $event"
-          @update:selected-example="selectedFilterExample = $event"
-          @select-example="selectFilterExample"
-          @clear="clearFilter"
-          @apply="applyFilter"
-        />
-        <ExtendedPagination
-          v-show="showDialogsPagination"
-          :current-page="currentDialogPage"
-          :current-page-input="currentDialogPageInput"
-          :total-pages="totalDialogPages"
-          :total="totalDialogs"
-          :pagination-start="dialogPaginationStart"
-          :pagination-end="dialogPaginationEnd"
-          :limit="currentDialogLimit"
-          @first="goToDialogsFirstPage"
-          @prev="goToDialogsPreviousPage"
-          @next="goToDialogsNextPage"
-          @last="goToDialogsLastPage"
-          @go-to-page="goToDialogsPage"
-          @change-limit="changeDialogLimit"
-        />
-        <DialogsTable
-          :dialogs="dialogs"
-          :loading="loadingDialogs"
-          :error="dialogsError"
-          :selected-dialog-id="currentDialogId"
-          :has-user="!!currentUserId"
-          :current-sort="currentSort"
-          :get-sort-indicator="getDialogSortIndicator"
-          @select="selectDialog"
-          @show-info="showDialogInfo"
-          @show-events="showDialogEventsModal"
-          @show-meta="showDialogMetaModal"
-          @toggle-sort="toggleSort"
-        />
+        <!-- Табы: Диалоги / Паки -->
+        <div v-if="currentUserId" class="tabs-container middle-tabs">
+          <button
+            class="tab-button"
+            :class="{ active: middlePanelTab === 'dialogs' }"
+            @click="selectMiddlePanelTab('dialogs')"
+          >
+            💬 Диалоги пользователя
+          </button>
+          <button
+            class="tab-button"
+            :class="{ active: middlePanelTab === 'packs' }"
+            @click="selectMiddlePanelTab('packs')"
+          >
+            📦 Паки пользователя
+          </button>
+        </div>
+        <!-- Диалоги: фильтр, пагинация, таблица -->
+        <template v-if="middlePanelTab === 'dialogs'">
+          <FilterPanel
+            v-show="currentUserId"
+            input-id="filterValue"
+            select-id="filterExample"
+            label="Фильтр:"
+            :filter-value="filterValue"
+            :selected-example="selectedFilterExample"
+            :examples="dialogFilterExamples"
+            placeholder="Введите или выберите фильтр"
+            hint="Поля: dialogId, meta.*. Операторы: eq, ne, in, nin, regex, gt, gte, lt, lte. И и ИЛИ: & и |; скобки задают группы (макс. 5 в группе)."
+            @update:filter-value="filterValue = $event"
+            @update:selected-example="selectedFilterExample = $event"
+            @select-example="selectFilterExample"
+            @clear="clearFilter"
+            @apply="applyFilter"
+          />
+          <ExtendedPagination
+            v-show="showDialogsPagination"
+            :current-page="currentDialogPage"
+            :current-page-input="currentDialogPageInput"
+            :total-pages="totalDialogPages"
+            :total="totalDialogs"
+            :pagination-start="dialogPaginationStart"
+            :pagination-end="dialogPaginationEnd"
+            :limit="currentDialogLimit"
+            @first="goToDialogsFirstPage"
+            @prev="goToDialogsPreviousPage"
+            @next="goToDialogsNextPage"
+            @last="goToDialogsLastPage"
+            @go-to-page="goToDialogsPage"
+            @change-limit="changeDialogLimit"
+          />
+          <DialogsTable
+            :dialogs="dialogs"
+            :loading="loadingDialogs"
+            :error="dialogsError"
+            :selected-dialog-id="currentDialogId"
+            :has-user="!!currentUserId"
+            :current-sort="currentSort"
+            :get-sort-indicator="getDialogSortIndicator"
+            @select="selectDialog"
+            @show-info="showDialogInfo"
+            @show-events="showDialogEventsModal"
+            @show-meta="showDialogMetaModal"
+            @toggle-sort="toggleSort"
+          />
+        </template>
+        <!-- Паки: фильтр, пагинация, таблица -->
+        <template v-if="middlePanelTab === 'packs'">
+          <FilterPanel
+            v-show="currentUserId"
+            input-id="packFilterValue"
+            select-id="packFilterExample"
+            label="Фильтр:"
+            :filter-value="packFilterValue"
+            :selected-example="selectedPackFilterExample"
+            :examples="packFilterExamples"
+            placeholder="Например: (unreadCount,gt,0)"
+            hint="Поля: unreadCount, meta.*. Операторы: eq, ne, gt, gte, lt, lte."
+            @update:filter-value="packFilterValue = $event"
+            @update:selected-example="selectedPackFilterExample = $event"
+            @select-example="selectPacksFilterExample"
+            @clear="clearPacksFilter"
+            @apply="applyPacksFilter"
+          />
+          <ExtendedPagination
+            v-show="currentUserId && totalPacks > 0"
+            :current-page="currentPackPage"
+            :current-page-input="currentPackPageInput"
+            :total-pages="totalPackPages"
+            :total="totalPacks"
+            :pagination-start="packPaginationStart"
+            :pagination-end="packPaginationEnd"
+            :limit="currentPackLimit"
+            @first="goToPacksFirstPage"
+            @prev="goToPacksPreviousPage"
+            @next="goToPacksNextPage"
+            @last="goToPacksLastPage"
+            @go-to-page="goToPacksPage"
+            @change-limit="changePackLimit"
+          />
+          <PacksTable
+            :packs="packs"
+            :loading="loadingPacks"
+            :error="packsError"
+            :has-user="!!currentUserId"
+            :current-sort="currentPackSort"
+            :get-sort-indicator="getPackSortIndicator"
+            @show-info="showPackInfo"
+            @show-meta="showPackMetaModal"
+            @toggle-sort="togglePackSort"
+          />
+        </template>
       </BasePanel>
 
       <!-- Сообщения / Участники / Топики -->
@@ -527,8 +602,21 @@
       @add-tag="(key, value) => addTopicMetaTag(key, value)"
     />
 
+    <!-- Модальное окно мета-тегов пака -->
+    <MetaModal
+      :is-open="isPackMetaModalOpen"
+      title="🏷️ Meta теги пака"
+      :loading="loadingPackMeta"
+      :meta-tags="packMetaTags"
+      key-placeholder="key (например: name)"
+      value-placeholder='value (например: "Support Pack")'
+      @close="closePackMetaModal"
+      @add-tag="(key, value) => addPackMetaTag(key, value)"
+      @delete-tag="deletePackMetaTag"
+    />
+
     <UrlModal
-      :is-open="showUrlModal"
+      :is-open="isUrlModalOpen"
       :title="urlModalTitle"
       :url="urlModalUrl"
       :copy-button-text="urlCopyButtonText"
@@ -565,9 +653,10 @@ import {
   dialogFilterExamples,
   messageFilterExamples,
   memberFilterExamples,
+  packFilterExamples,
 } from './filters';
 import { ExtendedPagination } from './pagination';
-import { UsersTable, DialogsTable, MessagesTable, TopicsTable, MembersTable } from './tables';
+import { UsersTable, DialogsTable, PacksTable, MessagesTable, TopicsTable, MembersTable } from './tables';
 
 // Используем composable
 const pageData = useUserDialogsPage();
@@ -612,6 +701,45 @@ const {
   currentSort,
   toggleSort,
   getDialogSortIndicator,
+  // Middle panel tab and Packs
+  middlePanelTab,
+  selectMiddlePanelTab,
+  loadingPacks,
+  packsError,
+  packs,
+  packFilterValue,
+  selectedPackFilterExample,
+  currentPackPage,
+  currentPackPageInput,
+  currentPackLimit,
+  totalPackPages,
+  totalPacks,
+  packPaginationStart,
+  packPaginationEnd,
+  currentPackSort,
+  togglePackSort,
+  getPackSortIndicator,
+  selectPacksFilterExample,
+  clearPacksFilter,
+  applyPacksFilter,
+  changePackPage,
+  showPacksCurrentUrl,
+  showPackInfo,
+  goToPacksFirstPage,
+  goToPacksPreviousPage,
+  goToPacksNextPage,
+  goToPacksLastPage,
+  goToPacksPage,
+  changePackLimit,
+  showPackMetaModal,
+  closePackMetaModal,
+  packMetaTags,
+  loadingPackMeta,
+  newPackMetaKey,
+  newPackMetaValue,
+  addPackMetaTag,
+  deletePackMetaTag,
+  isPackMetaModalOpen,
   // Messages
   loadingMessages,
   messagesError,
@@ -872,6 +1000,7 @@ const {
   showMembersUrlModal,
   showTopicsUrlModal,
   // URL модалка
+  isUrlModalOpen,
   showUrlModal,
   urlModalTitle,
   urlModalUrl,

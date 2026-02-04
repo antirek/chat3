@@ -6,6 +6,7 @@ import connectDB from '@chat3/utils/databaseUtils.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { recalculateUserStats } from '@chat3/utils/counterUtils.js';
+import { syncAllUserPackStats } from '@chat3/utils/packStatsUtils.js';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { Request, Response } from 'express';
@@ -226,6 +227,55 @@ export const initController = {
       })();
     } catch (error: any) {
       // Если ошибка произошла до отправки ответа
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Internal Server Error',
+          message: error.message
+        });
+      } else {
+        console.error('Error after response sent:', error);
+      }
+    }
+  },
+
+  async syncPackStats(req: Request, res: Response): Promise<void> {
+    try {
+      await connectDB();
+
+      const tenants = await Tenant.find({}).select('tenantId').lean();
+      const results = {
+        tenantsProcessed: 0,
+        packsProcessed: 0,
+        errors: [] as string[]
+      };
+
+      res.status(202).json({
+        message: 'Sync pack stats started',
+        data: {
+          status: 'processing',
+          note: 'UserPackStats.unreadCount is recalculated from UserDialogStats for all packs. Check server logs for progress.'
+        }
+      });
+
+      (async () => {
+        try {
+          for (const tenant of tenants) {
+            results.tenantsProcessed++;
+            console.log(`🔄 Sync pack stats: tenant ${tenant.tenantId}`);
+            const { packsProcessed, errors } = await syncAllUserPackStats(tenant.tenantId);
+            results.packsProcessed += packsProcessed;
+            results.errors.push(...errors);
+            if (errors.length) {
+              errors.forEach((e) => console.error(`❌ ${e}`));
+            }
+            console.log(`✅ Tenant ${tenant.tenantId}: ${packsProcessed} packs synced`);
+          }
+          console.log(`✅ Sync pack stats completed: ${results.packsProcessed} packs, ${results.errors.length} errors`);
+        } catch (error: any) {
+          console.error('❌ Error in sync pack stats background task:', error);
+        }
+      })();
+    } catch (error: any) {
       if (!res.headersSent) {
         res.status(500).json({
           error: 'Internal Server Error',

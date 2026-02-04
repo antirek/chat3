@@ -171,6 +171,7 @@ app.get('/health', (req, res) => {
       init: `${CONTROL_APP_URL}/api/init`,
       seed: `${CONTROL_APP_URL}/api/init/seed`,
       recalculateStats: `${CONTROL_APP_URL}/api/init/recalculate-stats`,
+      syncPackStats: `${CONTROL_APP_URL}/api/init/sync-pack-stats`,
       dialogEvents: `${CONTROL_APP_URL}/api/dialogs/{dialogId}/events`,
       dialogUpdates: `${CONTROL_APP_URL}/api/dialogs/{dialogId}/updates`,
       messageEvents: `${CONTROL_APP_URL}/api/messages/{messageId}/events`,
@@ -195,6 +196,7 @@ const startServer = async () => {
       console.log(`   POST /api/init - Initialize system (create tenant and API key)`);
       console.log(`   POST /api/init/seed - Run database seed script`);
       console.log(`   POST /api/init/recalculate-stats - Recalculate user stats for all users`);
+      console.log(`   POST /api/init/sync-pack-stats - Sync pack stats (UserPackStats) from UserDialogStats`);
       console.log(`   GET  /api/dialogs/{dialogId}/events - Get events for a dialog`);
       console.log(`   GET  /api/dialogs/{dialogId}/updates - Get updates for a dialog`);
       console.log(`   GET  /api/messages/{messageId}/events - Get events for a message`);
