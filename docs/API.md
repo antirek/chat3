@@ -798,9 +798,19 @@ npm run generate-key
 #### GET /api/users/:userId/packs
 Список паков пользователя (паки, в диалогах которых пользователь участвует)
 
-**Query параметры:** `page`, `limit` (макс. 50), `filter` (по meta, напр. `(meta.category,eq,support)`), `sort` (поле, по умолчанию `createdAt`), `sortDirection` (`asc` / `desc`)
+**Query параметры:** `page`, `limit` (макс. 50), `filter`, `sort` (по умолчанию `createdAt`), `sortDirection` (`asc` / `desc`)
 
-**Ответ:** массив паков с полями пака и `meta`; `pagination`: page, limit, total, pages
+**Фильтр:**
+- по meta пака: `(meta.category,eq,support)`
+- по unreadCount (UserPackStats): `(unreadCount,gt,0)`, `(unreadCount,gte,1)`, `(unreadCount,eq,0)` и т.д.
+
+**Сортировка:** `sort=createdAt` (по умолчанию) или `sort=unreadCount`; `sortDirection=asc` / `desc`
+
+**Ответ:** массив паков с полями пака, `meta` и секцией **`stats`** (данные UserPackStats для пользователя):
+- `stats.unreadCount` — количество непрочитанных сообщений в паке
+- `stats.lastUpdatedAt`, `stats.createdAt` — timestamps
+
+`pagination`: page, limit, total, pages
 
 #### GET /api/users/:userId/dialogs/:dialogId/packs
 Список паков, в которые входит данный диалог

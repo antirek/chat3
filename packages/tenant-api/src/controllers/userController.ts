@@ -646,6 +646,8 @@ export async function deleteUser(req: AuthenticatedRequest, res: Response): Prom
 /**
  * Получить список паков пользователя (паки, в диалогах которых пользователь участвует)
  * GET /api/users/:userId/packs
+ * Ответ: для каждого пака секция stats (UserPackStats: unreadCount, lastUpdatedAt, createdAt).
+ * Поддерживаются фильтр по unreadCount и сортировка по unreadCount.
  */
 export async function getUserPacks(req: AuthenticatedRequest, res: Response): Promise<void> {
   const routePath = 'get /users/:userId/packs';
@@ -664,7 +666,7 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
     const sortDirection = req.query.sortDirection === 'asc' ? 1 : -1;
     const sort: Record<string, 1 | -1> = { [sortField]: sortDirection };
 
-    log(`userId=${userId}, page=${page}, limit=${limit}, filter=${req.query.filter || 'нет'}`);
+    log(`userId=${userId}, page=${page}, limit=${limit}, filter=${req.query.filter || 'нет'}, sort=${sortField}`);
 
     const userDialogIds = (await DialogMember.find({ userId, tenantId }).select('dialogId').lean())
       .map((m: any) => m.dialogId);
@@ -693,13 +695,37 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
     }
 
     let packIdsFilter: string[] = candidatePackIds;
+    let unreadCountCondition: Record<string, unknown> | undefined;
+
     if (req.query.filter) {
       try {
-        const parsedFilters = parseFilters(String(req.query.filter));
-        const metaQuery = await buildFilterQuery(tenantId, 'pack', parsedFilters);
-        const metaPackIds = (await Pack.find({ tenantId, ...metaQuery }).select('packId').lean())
-          .map((p: any) => p.packId);
-        packIdsFilter = candidatePackIds.filter((id) => metaPackIds.includes(id));
+        const parsedFilters = parseFilters(String(req.query.filter)) as Record<string, unknown>;
+        unreadCountCondition = parsedFilters.unreadCount as Record<string, unknown> | undefined;
+        const restFilters = { ...parsedFilters };
+        delete restFilters.unreadCount;
+
+        const hasRestFilters = Object.keys(restFilters).length > 0;
+        if (hasRestFilters) {
+          const packQuery = await buildFilterQuery(tenantId, 'pack', restFilters);
+          const metaPackIds = (
+            await Pack.find({ tenantId, packId: { $in: candidatePackIds }, ...packQuery })
+              .select('packId')
+              .lean()
+          ).map((p: any) => p.packId);
+          packIdsFilter = metaPackIds;
+        }
+
+        if (unreadCountCondition !== undefined && packIdsFilter.length > 0) {
+          const unreadPackIds = await UserPackStats.find({
+            tenantId,
+            userId,
+            packId: { $in: packIdsFilter },
+            unreadCount: unreadCountCondition as any
+          })
+            .distinct('packId')
+            .exec();
+          packIdsFilter = unreadPackIds;
+        }
       } catch (err: any) {
         res.status(400).json({
           error: 'Bad Request',
@@ -710,31 +736,76 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
     }
 
     const total = packIdsFilter.length;
-    const packs = await Pack.find({ packId: { $in: packIdsFilter }, tenantId })
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .select('-__v')
-      .lean();
 
-    const packIds = packs.map((p: any) => p.packId);
+    let pagePackIds: string[];
+    let packs: any[];
+
+    if (sortField === 'unreadCount') {
+      const statsRows = await UserPackStats.find({
+        tenantId,
+        userId,
+        packId: { $in: packIdsFilter }
+      })
+        .select('packId unreadCount lastUpdatedAt createdAt')
+        .lean();
+      const statsByPack = new Map(
+        (statsRows as any[]).map((r) => [r.packId, { unreadCount: r.unreadCount ?? 0, lastUpdatedAt: r.lastUpdatedAt ?? null, createdAt: r.createdAt ?? null }])
+      );
+      const sortedPackIds = [...packIdsFilter].sort((a, b) => {
+        const uA = statsByPack.get(a)?.unreadCount ?? 0;
+        const uB = statsByPack.get(b)?.unreadCount ?? 0;
+        return sortDirection === -1 ? uB - uA : uA - uB;
+      });
+      pagePackIds = sortedPackIds.slice(skip, skip + limit);
+      packs = await Pack.find({ packId: { $in: pagePackIds }, tenantId })
+        .select('-__v')
+        .lean();
+      packs.sort((a: any, b: any) => pagePackIds.indexOf(a.packId) - pagePackIds.indexOf(b.packId));
+    } else {
+      packs = await Pack.find({ packId: { $in: packIdsFilter }, tenantId })
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .select('-__v')
+        .lean();
+      pagePackIds = packs.map((p: any) => p.packId);
+    }
+
     const metaByPack: Record<string, Record<string, unknown>> = {};
-    for (const packId of packIds) {
+    for (const packId of pagePackIds) {
       metaByPack[packId] = await metaUtils.getEntityMeta(tenantId, 'pack', packId);
     }
 
-    const unreadByPack = packIds.length
-      ? await UserPackStats.find({ tenantId, packId: { $in: packIds }, userId })
-          .select('packId unreadCount')
-          .lean()
-          .then((rows) => Object.fromEntries(rows.map((row: any) => [row.packId, row.unreadCount || 0])))
-      : {};
+    const statsByPack =
+      pagePackIds.length > 0
+        ? await UserPackStats.find({ tenantId, userId, packId: { $in: pagePackIds } })
+            .select('packId unreadCount lastUpdatedAt createdAt')
+            .lean()
+            .then((rows) => {
+              const map = new Map<string, { unreadCount: number; lastUpdatedAt: number | null; createdAt: number | null }>();
+              for (const row of rows as any[]) {
+                map.set(row.packId, {
+                  unreadCount: row.unreadCount ?? 0,
+                  lastUpdatedAt: row.lastUpdatedAt ?? null,
+                  createdAt: row.createdAt ?? null
+                });
+              }
+              return map;
+            })
+        : new Map<string, { unreadCount: number; lastUpdatedAt: number | null; createdAt: number | null }>();
 
-    const data = packs.map((p: any) => ({
-      ...p,
-      meta: metaByPack[p.packId] || {},
-      unreadCount: unreadByPack[p.packId] ?? 0
-    }));
+    const data = packs.map((p: any) => {
+      const st = statsByPack.get(p.packId);
+      return {
+        ...p,
+        meta: metaByPack[p.packId] || {},
+        stats: {
+          unreadCount: st?.unreadCount ?? 0,
+          lastUpdatedAt: st?.lastUpdatedAt ?? null,
+          createdAt: st?.createdAt ?? null
+        }
+      };
+    });
 
     res.json({
       data: data.map((item) => sanitizeResponse(item)),
