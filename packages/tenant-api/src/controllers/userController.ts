@@ -875,7 +875,9 @@ export async function getDialogPacks(req: AuthenticatedRequest, res: Response): 
       .select('-__v')
       .lean();
 
-    const packMap = new Map(packs.map((p: any) => [p.packId, p]));
+    const packMap = new Map<string, { packId: string; createdAt?: number }>(
+      (packs as { packId: string; createdAt?: number }[]).map((p) => [p.packId, p])
+    );
     const data = links.map((l: any) => {
       const pack = packMap.get(l.packId);
       return {
