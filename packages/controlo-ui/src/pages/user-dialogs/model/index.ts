@@ -432,6 +432,18 @@ export function useUserDialogsPage() {
     }
   }
 
+  /** Переход к табу «Диалоги пользователя» с фильтром по dialogId */
+  function goToDialogInDialogsTab(dialogId: string) {
+    currentPackId.value = null;
+    clearPackDialogs();
+    middlePanelTab.value = 'dialogs';
+    dialogsFilter.filterInput.value = `(dialogId,eq,${dialogId})`;
+    dialogsFilter.applyFilter(); // синхронизирует currentFilter из filterInput
+    if (currentUserId.value) {
+      loadUserDialogs(currentUserId.value, 1);
+    }
+  }
+
   // Функции для диалогов (координация с другими модулями)
   function selectDialog(dialogId: string) {
     currentDialogId.value = dialogId;
@@ -571,6 +583,7 @@ export function useUserDialogsPage() {
     clearPackDialogs,
     goToPackDialogsPage,
     changePackDialogsLimit,
+    goToDialogInDialogsTab,
     // Messages
     loadingMessages,
     messagesError,

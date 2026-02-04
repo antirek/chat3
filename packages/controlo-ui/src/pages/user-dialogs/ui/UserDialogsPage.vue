@@ -219,6 +219,9 @@
             :loading="loadingPackDialogs"
             :error="packDialogsError"
             :has-pack="!!currentPackId"
+            @show-info="showDialogInfo"
+            @show-meta="showDialogMetaModal"
+            @go-to-dialog="goToDialogInDialogsTab"
           />
         </template>
         <!-- Вкладки диалога (Сообщения / Участники / Топики) -->
@@ -766,6 +769,7 @@ const {
   packDialogsPaginationEnd,
   goToPackDialogsPage,
   changePackDialogsLimit,
+  goToDialogInDialogsTab,
   selectPacksFilterExample,
   clearPacksFilter,
   applyPacksFilter,

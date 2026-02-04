@@ -16,18 +16,24 @@
         <tr>
           <th>dialogId</th>
           <th>Добавлен в пак</th>
+          <th>Действия</th>
         </tr>
       </template>
       <template #row="{ item }">
         <td>{{ shortenDialogId(item.dialogId) }}</td>
         <td>{{ formatTimestamp(item.addedAt) }}</td>
+        <td class="actions-column">
+          <BaseButton variant="primary" size="small" @click.stop="$emit('show-info', item.dialogId)">ℹ️ Инфо</BaseButton>
+          <BaseButton variant="success" size="small" @click.stop="$emit('show-meta', item.dialogId)">🏷️ Мета</BaseButton>
+          <BaseButton variant="secondary" size="small" @click.stop="$emit('go-to-dialog', item.dialogId)">↗️ Переход</BaseButton>
+        </td>
       </template>
     </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
-import { BaseTable } from '@/shared/ui';
+import { BaseTable, BaseButton } from '@/shared/ui';
 import { formatTimestamp } from '@/shared/lib/utils/date';
 
 interface PackDialogItem {
@@ -43,6 +49,11 @@ interface Props {
 }
 
 defineProps<Props>();
+defineEmits<{
+  (e: 'show-info', dialogId: string): void;
+  (e: 'show-meta', dialogId: string): void;
+  (e: 'go-to-dialog', dialogId: string): void;
+}>();
 
 function shortenDialogId(dialogId: string): string {
   if (!dialogId) return '-';
@@ -64,5 +75,9 @@ function shortenDialogId(dialogId: string): string {
   padding: 40px 20px;
   text-align: center;
   color: #6c757d;
+}
+
+.actions-column {
+  white-space: normal;
 }
 </style>
