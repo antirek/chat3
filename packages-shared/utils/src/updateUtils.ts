@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { Message, DialogMember, 
-  MessageStatus, Update, User, UserStats, Event, UserDialogStats } from '@chat3/models';
+  MessageStatus, Update, User, UserStats, Event, UserDialogStats, UserPackStats } from '@chat3/models';
 import type { IUpdate } from '@chat3/models';
 import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
@@ -921,6 +921,145 @@ export async function createUserStatsUpdate(
 }
 
 /**
+ * Создает PackStatsUpdate для всех пользователей, у которых есть этот пак.
+ * Вызывается при изменении агрегатов пака (следствие базового события), без создания Event.
+ */
+export async function createPackStatsUpdate(
+  tenantId: string,
+  packId: string,
+  sourceEventId: string | mongoose.Types.ObjectId,
+  sourceEventType: string,
+  packStatsData: {
+    messageCount: number;
+    uniqueMemberCount: number;
+    sumMemberCount: number;
+    uniqueTopicCount: number;
+    sumTopicCount: number;
+    lastUpdatedAt: number | null;
+  }
+): Promise<void> {
+  try {
+    const eventIdString = await getEventIdString(sourceEventId, tenantId);
+    if (!eventIdString) {
+      return;
+    }
+
+    const packStatsSection = eventUtils.buildPackStatsSection({
+      packId,
+      messageCount: packStatsData.messageCount,
+      uniqueMemberCount: packStatsData.uniqueMemberCount,
+      sumMemberCount: packStatsData.sumMemberCount,
+      uniqueTopicCount: packStatsData.uniqueTopicCount,
+      sumTopicCount: packStatsData.sumTopicCount,
+      lastUpdatedAt: packStatsData.lastUpdatedAt
+    });
+    if (!packStatsSection) {
+      return;
+    }
+
+    const context = eventUtils.buildEventContext({
+      eventType: 'pack.stats.updated' as Parameters<typeof eventUtils.buildEventContext>[0]['eventType'],
+      entityId: packId,
+      packId,
+      includedSections: ['packStats'],
+      updatedFields: ['packStats']
+    });
+
+    const userPackStatsList = await UserPackStats.find({ tenantId, packId })
+      .select('userId')
+      .lean();
+    const userIds = userPackStatsList.map((doc) => (doc as { userId: string }).userId);
+    if (userIds.length === 0) {
+      return;
+    }
+
+    const updates = userIds.map((userId) => ({
+      tenantId,
+      userId,
+      entityId: packId,
+      eventId: eventIdString,
+      eventType: 'pack.stats.updated',
+      data: {
+        packStats: cloneSection(packStatsSection),
+        context: cloneSection(context)
+      },
+      published: false
+    }));
+
+    const savedUpdates = await Update.insertMany(updates);
+    savedUpdates.forEach((update) => {
+      publishUpdate(update).catch((err) => {
+        console.error(`Error publishing pack stats update ${update._id}:`, err);
+      });
+    });
+    console.log(`Created ${savedUpdates.length} PackStatsUpdate for pack ${packId}`);
+  } catch (error) {
+    console.error('Error creating PackStatsUpdate:', error);
+  }
+}
+
+/**
+ * Создает UserPackStatsUpdate для одного пользователя.
+ * Вызывается при изменении счётчиков пака для пользователя (следствие базового события), без создания Event.
+ */
+export async function createUserPackStatsUpdate(
+  tenantId: string,
+  userId: string,
+  packId: string,
+  sourceEventId: string | mongoose.Types.ObjectId,
+  sourceEventType: string,
+  userPackStatsData: { unreadCount: number; lastUpdatedAt: number | null }
+): Promise<void> {
+  try {
+    const eventIdString = await getEventIdString(sourceEventId, tenantId);
+    if (!eventIdString) {
+      return;
+    }
+
+    const userPackStatsSection = eventUtils.buildUserPackStatsSection({
+      tenantId,
+      packId,
+      userId,
+      unreadCount: userPackStatsData.unreadCount,
+      lastUpdatedAt: userPackStatsData.lastUpdatedAt
+    });
+    if (!userPackStatsSection) {
+      return;
+    }
+
+    const context = eventUtils.buildEventContext({
+      eventType: 'user.pack.stats.updated' as Parameters<typeof eventUtils.buildEventContext>[0]['eventType'],
+      entityId: userId,
+      packId,
+      userId,
+      includedSections: ['userPackStats'],
+      updatedFields: ['userPackStats.unreadCount']
+    });
+
+    const updateData = {
+      tenantId,
+      userId,
+      entityId: userId,
+      eventId: eventIdString,
+      eventType: 'user.pack.stats.updated',
+      data: {
+        userPackStats: cloneSection(userPackStatsSection),
+        context: cloneSection(context)
+      },
+      published: false
+    };
+
+    const savedUpdate = await Update.create(updateData);
+    await publishUpdate(savedUpdate).catch((err) => {
+      console.error(`Error publishing user pack stats update ${savedUpdate._id}:`, err);
+    });
+    console.log(`Created UserPackStatsUpdate for user ${userId} pack ${packId}`);
+  } catch (error) {
+    console.error('Error creating UserPackStatsUpdate:', error);
+  }
+}
+
+/**
  * Создает UserUpdate для события user.*
  */
 export async function createUserUpdate(
@@ -1064,6 +1203,12 @@ export function getUpdateTypeFromEventType(eventType: string): string | null {
   }
   if (eventType === 'user.stats.update') {
     return 'UserStatsUpdate';
+  }
+  if (eventType === 'pack.stats.updated') {
+    return 'PackStatsUpdate';
+  }
+  if (eventType === 'user.pack.stats.updated') {
+    return 'UserPackStatsUpdate';
   }
   return null;
 }
