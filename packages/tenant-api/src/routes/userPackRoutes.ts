@@ -1,7 +1,7 @@
 import express from 'express';
 import * as userController from '../controllers/userController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
-import { validateUserId, validateDialogId } from '../validators/urlValidators/index.js';
+import { validateUserId, validateDialogId, validatePackId } from '../validators/urlValidators/index.js';
 import { validateQuery } from '../validators/middleware.js';
 import { queryWithFilterSchema } from '../validators/schemas/index.js';
 
@@ -101,6 +101,72 @@ router.get(
   validateUserId,
   validateQuery(queryWithFilterSchema),
   userController.getUserPacks
+);
+
+/**
+ * @swagger
+ * /api/users/{userId}/packs/{packId}:
+ *   get:
+ *     summary: Пак в контексте пользователя
+ *     description: |
+ *       Возвращает данные пака (meta, stats по паку) и данные в контексте пользователя (userStats: unreadCount, lastUpdatedAt).
+ *       Доступно только если пользователь участвует хотя бы в одном диалоге этого пака.
+ *     tags: [UserPacks]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: string }
+ *         description: User ID
+ *       - in: path
+ *         name: packId
+ *         required: true
+ *         schema: { type: string }
+ *         description: Pack ID (pck_xxx)
+ *     responses:
+ *       200:
+ *         description: Пак с meta, stats и userStats
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     packId: { type: string }
+ *                     meta: { type: object }
+ *                     stats:
+ *                       type: object
+ *                       properties:
+ *                         dialogCount: { type: integer }
+ *                         messageCount: { type: integer }
+ *                         uniqueMemberCount: { type: integer }
+ *                         sumMemberCount: { type: integer }
+ *                         uniqueTopicCount: { type: integer }
+ *                         sumTopicCount: { type: integer }
+ *                         lastUpdatedAt: { type: number, nullable: true }
+ *                     userStats:
+ *                       type: object
+ *                       properties:
+ *                         unreadCount: { type: integer }
+ *                         lastUpdatedAt: { type: number, nullable: true }
+ *                         createdAt: { type: number, nullable: true }
+ *       401: { description: Unauthorized }
+ *       403: { description: Forbidden }
+ *       404: { description: Pack not found or user has no access }
+ *       500: { description: Internal Server Error }
+ */
+router.get(
+  '/:userId/packs/:packId',
+  apiAuth,
+  requirePermission('read'),
+  validateUserId,
+  validatePackId,
+  userController.getUserPackById
 );
 
 /**

@@ -1,4 +1,4 @@
-import { User, Meta, UserStats, Pack, PackLink, DialogMember, UserPackStats } from '@chat3/models';
+import { User, Meta, UserStats, Pack, PackLink, PackStats, DialogMember, UserPackStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
@@ -634,6 +634,87 @@ export async function deleteUser(req: AuthenticatedRequest, res: Response): Prom
   } catch (error: any) {
     log(`Ошибка обработки запроса:`, error.message);
     console.error('Error in deleteUser:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message
+    });
+  } finally {
+    log('>>>>> end');
+  }
+}
+
+/**
+ * Получить пак в контексте пользователя
+ * GET /api/users/:userId/packs/:packId
+ * Ответ: данные пака (meta, stats по паку) + userStats (unreadCount, lastUpdatedAt для пользователя).
+ */
+export async function getUserPackById(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const routePath = 'get /users/:userId/packs/:packId';
+  const log = (...args: any[]) => {
+    console.log(`[${routePath}]`, ...args);
+  };
+  log('>>>>> start');
+
+  try {
+    const { userId, packId } = req.params;
+    const tenantId = req.tenantId!;
+
+    const pack = await Pack.findOne({ packId, tenantId }).select('-__v').lean();
+    if (!pack) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Pack not found'
+      });
+      return;
+    }
+
+    const userDialogIds = (await DialogMember.find({ userId, tenantId }).select('dialogId').lean())
+      .map((m: { dialogId: string }) => m.dialogId);
+    const packDialogIds = (await PackLink.find({ packId, tenantId }).select('dialogId').lean())
+      .map((l: { dialogId: string }) => l.dialogId);
+    const hasAccess = userDialogIds.some((d) => packDialogIds.includes(d));
+    if (!hasAccess) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Pack not found or user has no access (user is not in any dialog of this pack)'
+      });
+      return;
+    }
+
+    const [meta, dialogCount, packStatsDoc, userPackStatsDoc] = await Promise.all([
+      metaUtils.getEntityMeta(tenantId, 'pack', packId),
+      PackLink.countDocuments({ packId, tenantId }),
+      PackStats.findOne({ tenantId, packId }).select('-__v').lean(),
+      UserPackStats.findOne({ tenantId, userId, packId }).select('unreadCount lastUpdatedAt createdAt').lean()
+    ]);
+
+    const packStats = packStatsDoc as { messageCount?: number; uniqueMemberCount?: number; sumMemberCount?: number; uniqueTopicCount?: number; sumTopicCount?: number; lastUpdatedAt?: number } | null;
+    const userStats = userPackStatsDoc as { unreadCount?: number; lastUpdatedAt?: number; createdAt?: number } | null;
+
+    const data = {
+      ...(pack as Record<string, unknown>),
+      meta: meta || {},
+      stats: {
+        dialogCount,
+        messageCount: packStats?.messageCount ?? 0,
+        uniqueMemberCount: packStats?.uniqueMemberCount ?? 0,
+        sumMemberCount: packStats?.sumMemberCount ?? 0,
+        uniqueTopicCount: packStats?.uniqueTopicCount ?? 0,
+        sumTopicCount: packStats?.sumTopicCount ?? 0,
+        lastUpdatedAt: packStats?.lastUpdatedAt ?? null
+      },
+      userStats: {
+        unreadCount: userStats?.unreadCount ?? 0,
+        lastUpdatedAt: userStats?.lastUpdatedAt ?? null,
+        createdAt: userStats?.createdAt ?? null
+      }
+    };
+
+    res.json({
+      data: sanitizeResponse(data)
+    });
+  } catch (error: any) {
+    console.error('Error in getUserPackById:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message

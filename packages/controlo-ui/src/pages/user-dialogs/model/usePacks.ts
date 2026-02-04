@@ -149,16 +149,24 @@ export function usePacks(
   }
 
   async function showPackInfo(packId: string) {
+    const userId = currentUserId.value;
+    if (!userId) {
+      showModal('Ошибка', 'Сначала выберите пользователя', null);
+      return;
+    }
     try {
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
-      const url = `${baseUrl}/api/packs/${packId}`;
+      const url = `${baseUrl}/api/users/${userId}/packs/${packId}`;
       const response = await fetch(url, { headers: credentialsStore.getHeaders() });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const pack = await response.json();
-      const packData = pack.data ?? pack;
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || `HTTP ${response.status}`);
+      }
+      const result = await response.json();
+      const packData = result.data ?? result;
       showModal(
-        `Информация о паке: ${packId}`,
-        `<div class="json-content">${JSON.stringify(pack, null, 2)}</div>`,
+        `Пак в контексте пользователя: ${packId}`,
+        `<div class="json-content">${JSON.stringify(result, null, 2)}</div>`,
         url,
         packData
       );
@@ -168,7 +176,7 @@ export function usePacks(
       showModal(
         'Ошибка',
         `Не удалось загрузить информацию о паке: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        `${baseUrl}/api/packs/${packId}`
+        `${baseUrl}/api/users/${userId}/packs/${packId}`
       );
     }
   }
