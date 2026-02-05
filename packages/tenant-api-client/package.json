@@ -1,6 +1,6 @@
 {
   "name": "@chottodev/chat3-tenant-api-client",
-  "version": "0.0.38",
+  "version": "0.0.39",
   "description": "TypeScript/JavaScript client library for Chat3 Tenant API",
   "main": "dist/Chat3Client.js",
   "types": "dist/Chat3Client.d.ts",
