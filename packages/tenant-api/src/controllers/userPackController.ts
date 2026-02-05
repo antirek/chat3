@@ -150,12 +150,13 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
         const hasRestFilters = Object.keys(restFilters).length > 0;
         if (hasRestFilters) {
           const packQuery = await buildFilterQuery(tenantId, 'pack', restFilters);
-          const metaPackIds = (
-            await Pack.find({ tenantId, packId: { $in: candidatePackIds }, ...packQuery })
-              .select('packId')
-              .lean()
-          ).map((p: any) => p.packId);
-          packIdsFilter = metaPackIds;
+          const candidateSet = new Set(candidatePackIds);
+          const matchedByFilter = await Pack.find({ tenantId, ...packQuery })
+            .select('packId')
+            .lean();
+          packIdsFilter = (matchedByFilter as any[])
+            .map((p) => p.packId)
+            .filter((id) => candidateSet.has(id));
         }
 
         if (unreadCountCondition !== undefined && packIdsFilter.length > 0) {
