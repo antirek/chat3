@@ -148,6 +148,12 @@ async function processEvent(eventData: EventData): Promise<void> {
         console.log(`✅ Updated DialogStats.messageCount for dialog ${dialogId}`);
         dialogIdForPackUpdate = dialogId;
       }
+    } else if (eventType === 'message.status.update') {
+      // UserDialogStats уже обновлён в MessageStatus.post('save'); пересчитываем счётчики пака и шлём update
+      const dialogId = context.dialogId || dialogPayload.dialogId || messagePayload.dialogId;
+      if (dialogId) {
+        dialogIdForPackUpdate = dialogId;
+      }
     }
 
     if (dialogIdForPackUpdate) {

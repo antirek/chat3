@@ -7,7 +7,9 @@ import {
   UserDialogStats,
   UserPackStats,
   PackStats,
-  CounterHistory
+  CounterHistory,
+  Message,
+  MessageStatus
 } from '@chat3/models';
 import {
   calculatePackStats,
@@ -28,6 +30,10 @@ function createDialogId(suffix) {
 
 function createPackId(suffix) {
   return `pck_${suffix.padEnd(20, 'b')}`;
+}
+
+function createMessageId(suffix) {
+  return `msg_${suffix.padEnd(20, 'c')}`;
 }
 
 describe('packStatsUtils', () => {
@@ -143,5 +149,61 @@ describe('packStatsUtils', () => {
 
     const historyEntries = await CounterHistory.find({ tenantId, counterType: 'userPackStats.unreadCount' });
     expect(historyEntries.length).toBeGreaterThan(0);
+  });
+
+  it('decrements unread counts for dialog and pack when message is read', async () => {
+    const packId = createPackId('read');
+    const dialogId = createDialogId('read');
+    const messageId = createMessageId('1');
+    const userId = 'user_reader';
+
+    await Pack.create({ tenantId, packId });
+    await PackLink.create({ tenantId, packId, dialogId });
+    await DialogStats.create({ tenantId, dialogId, messageCount: 1, memberCount: 1, topicCount: 0 });
+    await DialogMember.create({ tenantId, dialogId, userId });
+    await Topic.create({ tenantId, dialogId, topicId: `topic_${'r'.padEnd(20, 'x')}` });
+
+    await UserDialogStats.create({ tenantId, userId, dialogId, unreadCount: 1 });
+    await Message.create({
+      tenantId,
+      messageId,
+      dialogId,
+      senderId: 'user_sender',
+      content: 'Hello',
+      type: 'internal.text'
+    });
+
+    await recalculateUserPackStats(tenantId, packId, {
+      sourceOperation: 'test.setup',
+      sourceEntityId: packId,
+      actorId: 'system'
+    });
+
+    const dialogStatsBefore = await UserDialogStats.findOne({ tenantId, userId, dialogId }).lean();
+    const packStatsBefore = await UserPackStats.findOne({ tenantId, packId, userId }).lean();
+    expect(dialogStatsBefore?.unreadCount).toBe(1);
+    expect(packStatsBefore?.unreadCount).toBe(1);
+
+    await MessageStatus.create({
+      tenantId,
+      messageId,
+      userId,
+      dialogId,
+      status: 'read'
+    });
+
+    const dialogStatsAfter = await UserDialogStats.findOne({ tenantId, userId, dialogId }).lean();
+    expect(dialogStatsAfter?.unreadCount).toBe(0);
+
+    // Симулируем update-worker: при message.status.update пересчёт пака и рассылка update
+    // (см. update-worker: updatePackCountersForDialog → recalculateUserPackStats → createUserPackStatsUpdate)
+    await recalculateUserPackStats(tenantId, packId, {
+      sourceOperation: 'message.status.update',
+      sourceEntityId: messageId,
+      actorId: userId
+    });
+
+    const packStatsAfter = await UserPackStats.findOne({ tenantId, packId, userId }).lean();
+    expect(packStatsAfter?.unreadCount).toBe(0);
   });
 });
