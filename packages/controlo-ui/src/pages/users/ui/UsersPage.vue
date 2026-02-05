@@ -66,12 +66,15 @@
       @update:type="editType = $event"
     />
 
-    <UserMetaModal
+    <MetaModal
       :is-open="showMetaModalFlag"
+      :title="'🏷️ Meta теги пользователя'"
+      :loading="false"
       :meta-tags="metaTags"
+      :key-placeholder="'key (например: department)'"
       @close="closeMetaModal"
-      @add-meta-tag="(key, value) => addMetaTag(key, value)"
-      @delete-meta-tag="deleteMetaTag"
+      @add-tag="(key, value) => addMetaTag(key, value)"
+      @delete-tag="deleteMetaTag"
     />
 
     <UserInfoModal
@@ -98,8 +101,9 @@ import { BasePanel, BaseButton } from '@/shared/ui';
 import { useUsersPage } from '../model';
 import { UserFilterPanel } from './filters';
 import { UserTable } from './tables';
-import { UserInfoModal, UserMetaModal, UserUrlModal, CreateUserModal, EditUserModal } from './modals';
+import { UserInfoModal, UserUrlModal, CreateUserModal, EditUserModal } from './modals';
 import { UsersPagination } from './pagination';
+import { MetaModal } from '@/widgets/meta-modal';
 
 const {
   // State

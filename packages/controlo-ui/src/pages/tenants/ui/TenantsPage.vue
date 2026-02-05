@@ -62,12 +62,16 @@
       @update:new-meta-value="newMetaValue = $event"
     />
 
-    <TenantMetaModal
+    <MetaModal
       :is-open="showMetaModalFlag"
+      title="🏷️ Meta теги тенанта"
+      :loading="loading"
       :meta-tags="metaTags"
+      key-placeholder="key (например: company)"
+      value-placeholder='value (прим: "internal", ["foo", "bar"], {"foo": "bar"}, 5, false)'
       @close="closeMetaModal"
-      @add-meta-tag="(key, value) => addMetaTag(key, value)"
-      @delete-meta-tag="deleteMetaTag"
+      @add-tag="(key, value) => addMetaTag(key, value)"
+      @delete-tag="deleteMetaTag"
     />
 
     <TenantInfoModal
@@ -94,8 +98,9 @@ import { BasePanel, BaseButton } from '@/shared/ui';
 import { useTenantsPage } from '../model';
 import { TenantFilterPanel } from './filters';
 import { TenantTable } from './tables';
-import { TenantInfoModal, TenantMetaModal, TenantUrlModal, CreateTenantModal } from './modals';
+import { TenantInfoModal, TenantUrlModal, CreateTenantModal } from './modals';
 import { TenantsPagination } from './pagination';
+import { MetaModal } from '@/widgets/meta-modal';
 
 const {
   // State

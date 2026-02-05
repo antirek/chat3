@@ -166,12 +166,14 @@
       @update:dialog-id="onUpdateAddDialogDialogId"
     />
 
-    <PackMetaModal
+    <MetaModal
       :is-open="showMetaModalFlag"
+      :title="'🏷️ Meta теги пака'"
+      :loading="false"
       :meta-tags="metaTags"
       @close="closeMetaModal"
-      @add-meta-tag="(key, value) => addMetaTag(key, value)"
-      @delete-meta-tag="deleteMetaTag"
+      @add-tag="addMetaTag"
+      @delete-tag="deleteMetaTag"
     />
 
     <PackInfoModal
@@ -208,8 +210,9 @@ import { BasePanel, BaseButton } from '@/shared/ui';
 import { usePacksPage } from '../model';
 import { PackFilterPanel } from './filters';
 import { PackTable, PackDialogsTable, PackMessagesTable } from './tables';
-import { PackInfoModal, PackMetaModal, PackUrlModal, CreatePackModal, AddDialogToPackModal, DialogInfoModal } from './modals';
+import { PackInfoModal, PackUrlModal, CreatePackModal, AddDialogToPackModal, DialogInfoModal } from './modals';
 import { PacksPagination } from './pagination';
+import { MetaModal } from '@/widgets/meta-modal';
 
 const {
   packs,

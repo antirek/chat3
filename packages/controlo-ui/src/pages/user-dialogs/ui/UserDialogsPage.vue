@@ -688,13 +688,16 @@
     />
 
     <!-- Модальное окно для мета-тегов топика -->
-    <TopicMetaModal
+    <MetaModal
       :is-open="isTopicMetaModalOpen"
-      :meta-tags="topicMetaTags"
+      title="🏷️ Meta теги топика"
       :loading="loadingTopicMeta"
+      :meta-tags="topicMetaTags"
+      key-placeholder="key (например: type)"
+      value-placeholder='value (например: "discussion", ["tag1", "tag2"], {"priority": "high"})'
       @close="closeTopicMetaModal"
-      @delete-tag="deleteTopicMetaTag"
       @add-tag="(key, value) => addTopicMetaTag(key, value)"
+      @delete-tag="deleteTopicMetaTag"
     />
 
     <!-- Модальное окно мета-тегов пака -->
@@ -725,11 +728,11 @@
 import { onMounted } from 'vue';
 import { BasePanel, BaseButton } from '@/shared/ui';
 import { useUserDialogsPage } from '../model';
+import { MetaModal } from '@/widgets/meta-modal';
 import {
   InfoModal,
   AddMessageModal,
   ReactionModal,
-  MetaModal,
   SetStatusModal,
   MessageTopicModal,
   EventsModal,
@@ -740,7 +743,6 @@ import {
   MemberMetaModal,
   DialogMembersModal,
   AddTopicModal,
-  TopicMetaModal,
   UrlModal,
 } from './modals';
 import {

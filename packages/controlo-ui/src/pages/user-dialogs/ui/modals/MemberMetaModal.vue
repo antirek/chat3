@@ -14,16 +14,23 @@
         </thead>
         <tbody>
           <tr v-for="(metaTag, index) in metaTags" :key="index">
-            <td><strong v-if="metaTag.isExisting">{{ metaTag.key }}</strong><input v-else type="text" :value="metaTag.key" class="form-input cell-input" placeholder="key" @input="emit('update-meta-key', index, ($event.target as HTMLInputElement).value)" /></td>
-            <td><input type="text" :value="metaTag.value" class="form-input cell-input" placeholder="value" @input="emit('update-meta-value', index, ($event.target as HTMLInputElement).value)" /></td>
-            <td><BaseButton type="button" variant="danger" size="small" @click="emit('remove-meta-row', index)">🗑️ Удалить</BaseButton></td>
+            <td><strong>{{ metaTag.key }}</strong></td>
+            <td class="value-cell">
+              <span class="value-text">{{ formatValueForDisplay(metaTag.value) }}</span>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <BaseButton type="button" variant="secondary" size="small" @click="editMetaTag(index)">✏️ Изменить</BaseButton>
+                <BaseButton type="button" variant="danger" size="small" @click="emit('remove-meta-row', index)">🗑️ Удалить</BaseButton>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <div class="meta-section">
-      <h3>Добавить Meta тег</h3>
+      <h3>{{ isEditing ? 'Редактировать Meta тег' : 'Добавить Meta тег' }}</h3>
       <div class="meta-tag-form">
         <div class="form-row">
           <label class="form-label">Ключ</label>
@@ -75,7 +82,9 @@
           </div>
         </div>
         <div class="form-row form-actions">
-          <BaseButton type="button" variant="success" @click="addTag">➕ Добавить</BaseButton>
+          <BaseButton v-if="isEditing" type="button" variant="success" @click="updateTag">💾 Обновить</BaseButton>
+          <BaseButton v-else type="button" variant="success" @click="addTag">➕ Добавить</BaseButton>
+          <BaseButton v-if="isEditing" type="button" variant="secondary" @click="cancelEdit">❌ Отмена</BaseButton>
           <span v-if="addError" class="form-error">{{ addError }}</span>
         </div>
       </div>
@@ -84,8 +93,7 @@
     <div v-if="status" class="status-message">{{ status }}</div>
 
     <template #footer>
-      <BaseButton variant="secondary" @click="close">Отмена</BaseButton>
-      <BaseButton variant="primary" @click="emit('save')">Сохранить</BaseButton>
+      <BaseButton variant="secondary" @click="close">Закрыть</BaseButton>
     </template>
   </BaseModal>
 </template>
@@ -102,7 +110,7 @@ interface MetaTag {
   isExisting?: boolean;
 }
 
-defineProps<{
+const props = defineProps<{
   isOpen: boolean;
   dialogId: string;
   userId: string;
@@ -115,6 +123,7 @@ const emit = defineEmits<{
   (e: 'save'): void;
   (e: 'add-meta-row'): void;
   (e: 'add-meta-row-with-data', key: string, value: any): void;
+  (e: 'update-meta-row', index: number, key: string, value: any): void;
   (e: 'remove-meta-row', index: number): void;
   (e: 'update-meta-key', index: number, value: string): void;
   (e: 'update-meta-value', index: number, value: string): void;
@@ -127,34 +136,121 @@ const arrayItems = ref<string[]>([]);
 const objectPairs = ref<Array<{ key: string; value: string }>>([]);
 const valueError = ref('');
 const addError = ref('');
+const isEditing = ref(false);
+const editingIndex = ref(-1);
 
 watch(valueType, () => {
-  scalarValue.value = valueType.value === 'boolean' ? 'true' : '';
-  arrayItems.value = [];
-  objectPairs.value = [];
+  if (!isEditing.value) {
+    scalarValue.value = valueType.value === 'boolean' ? 'true' : '';
+    arrayItems.value = [];
+    objectPairs.value = [];
+  }
   valueError.value = '';
   addError.value = '';
 });
 
+function formatValueForDisplay(value: string): string {
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed) || (parsed !== null && typeof parsed === 'object')) {
+      return JSON.stringify(parsed);
+    }
+  } catch {
+    // Не JSON, оставляем как есть
+  }
+  return value;
+}
+
 function parseMetaValueFromInput(inputValue: string): any {
   if (!inputValue || inputValue.trim() === '') return null;
-  const trimmed = inputValue.trim();
+  
+  // Гарантируем, что работаем со строкой
+  const trimmed = String(inputValue).trim();
+  
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    try { return JSON.parse(trimmed); } catch { return trimmed; }
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed;
+    }
   }
+  
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-    try { return JSON.parse(trimmed); } catch { return trimmed; }
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed;
+    }
   }
+  
   const num = Number(trimmed);
   if (!isNaN(num) && trimmed !== '' && /^-?\d+(\.\d+)?$/.test(trimmed)) return num;
+  
   if (trimmed.toLowerCase() === 'true') return true;
   if (trimmed.toLowerCase() === 'false') return false;
   if (trimmed.toLowerCase() === 'null') return null;
   if (trimmed.toLowerCase() === 'undefined') return undefined;
+  
   return trimmed;
 }
 
-function close() {
+function valueToForm(value: any) {
+  // По умолчанию используем тип "Общий" и сохраняем исходное значение как строку
+  valueType.value = 'any';
+  
+  if (Array.isArray(value)) {
+    scalarValue.value = JSON.stringify(value);
+    return;
+  }
+  
+  if (value !== null && typeof value === 'object') {
+    scalarValue.value = JSON.stringify(value);
+    return;
+  }
+  
+  if (typeof value === 'string') {
+    scalarValue.value = value;
+    return;
+  }
+  
+  if (typeof value === 'number') {
+    scalarValue.value = String(value);
+    return;
+  }
+  
+  if (typeof value === 'boolean') {
+    scalarValue.value = value ? 'true' : 'false';
+    return;
+  }
+  
+  if (value === null) scalarValue.value = 'null';
+  else if (value === undefined) scalarValue.value = 'undefined';
+  else scalarValue.value = String(value);
+}
+
+function editMetaTag(index: number) {
+  const metaTag = props.metaTags[index];
+  if (!metaTag) return;
+  
+  newKey.value = metaTag.key;
+  
+  try {
+    const parsedValue = JSON.parse(metaTag.value);
+    valueToForm(parsedValue);
+  } catch {
+    valueToForm(metaTag.value);
+  }
+  
+  isEditing.value = true;
+  editingIndex.value = index;
+  addError.value = '';
+}
+
+function cancelEdit() {
+  resetForm();
+}
+
+function resetForm() {
   newKey.value = '';
   valueType.value = 'any';
   scalarValue.value = '';
@@ -162,6 +258,12 @@ function close() {
   objectPairs.value = [];
   valueError.value = '';
   addError.value = '';
+  isEditing.value = false;
+  editingIndex.value = -1;
+}
+
+function close() {
+  resetForm();
   emit('close');
 }
 
@@ -172,17 +274,36 @@ function removeObjectPair(index: number) { objectPairs.value.splice(index, 1); }
 
 function buildValue(): any {
   valueError.value = '';
-  if (valueType.value === 'any') return parseMetaValueFromInput(scalarValue.value);
-  if (valueType.value === 'string') return scalarValue.value;
+  
+  if (valueType.value === 'any') {
+    // Гарантируем, что работаем со строкой
+    return parseMetaValueFromInput(String(scalarValue.value));
+  }
+  
+  if (valueType.value === 'string') {
+    return String(scalarValue.value);
+  }
+  
   if (valueType.value === 'number') {
-    const v = scalarValue.value.trim();
+    // Преобразуем scalarValue в строку для проверки
+    const v = String(scalarValue.value).trim();
     if (v === '') return null;
     const n = Number(v);
-    if (Number.isNaN(n)) { valueError.value = 'Введите число'; return undefined; }
+    if (Number.isNaN(n)) {
+      valueError.value = 'Введите число';
+      return undefined;
+    }
     return n;
   }
-  if (valueType.value === 'boolean') return scalarValue.value === 'true';
-  if (valueType.value === 'array') return arrayItems.value.map((s) => s.trim()).filter(Boolean);
+  
+  if (valueType.value === 'boolean') {
+    return scalarValue.value === 'true';
+  }
+  
+  if (valueType.value === 'array') {
+    return arrayItems.value.map((s) => s.trim()).filter(Boolean);
+  }
+  
   if (valueType.value === 'object') {
     const obj: Record<string, string> = {};
     for (const p of objectPairs.value) {
@@ -191,28 +312,72 @@ function buildValue(): any {
     }
     return obj;
   }
+  
   return null;
 }
 
 function addTag() {
   addError.value = '';
   const key = newKey.value.trim();
-  if (!key) { addError.value = 'Введите ключ'; return; }
+  if (!key) { 
+    addError.value = 'Введите ключ'; 
+    return; 
+  }
+  
   const value = buildValue();
   if (value === undefined) return;
+  
   if (valueType.value === 'array' && Array.isArray(value) && value.length === 0) {
     addError.value = 'Добавьте хотя бы один элемент массива';
     return;
   }
-  if (valueType.value === 'any' && scalarValue.value.trim() === '') {
+  
+  if (valueType.value === 'any' && String(scalarValue.value).trim() === '') {
     addError.value = 'Введите значение';
     return;
   }
+  
   emit('add-meta-row-with-data', key, value);
-  newKey.value = '';
-  scalarValue.value = '';
-  arrayItems.value = [];
-  objectPairs.value = [];
+  emit('save');
+  resetForm();
+}
+
+function updateTag() {
+  addError.value = '';
+  const key = newKey.value.trim();
+  if (!key) { 
+    addError.value = 'Введите ключ'; 
+    return; 
+  }
+  
+  const value = buildValue();
+  if (value === undefined) return;
+  
+  if (valueType.value === 'array' && Array.isArray(value) && value.length === 0) {
+    addError.value = 'Добавьте хотя бы один элемент массива';
+    return;
+  }
+  
+  if (valueType.value === 'any' && String(scalarValue.value).trim() === '') {
+    addError.value = 'Введите значение';
+    return;
+  }
+  
+  if (editingIndex.value >= 0) {
+    // Обновляем ключ, если он изменился
+    const oldMetaTag = props.metaTags[editingIndex.value];
+    if (oldMetaTag && key !== oldMetaTag.key) {
+      emit('update-meta-key', editingIndex.value, key);
+    }
+    
+    // Обновляем значение
+    const valueStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    emit('update-meta-value', editingIndex.value, valueStr);
+    
+    // Сохраняем изменения
+    emit('save');
+    resetForm();
+  }
 }
 </script>
 
@@ -233,7 +398,28 @@ function addTag() {
 .meta-table thead tr { border-bottom: 2px solid #dee2e6; background: #f8f9fa; }
 .meta-table th { font-weight: 600; color: #495057; }
 .meta-table tbody tr { border-bottom: 1px solid #e9ecef; }
-.meta-table .cell-input { width: 100%; min-width: 0; box-sizing: border-box; }
+
+.value-cell {
+  word-break: break-all;
+}
+
+.value-text {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  background: #f8f9fa;
+  padding: 4px 8px;
+  border-radius: 3px;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
 
 .meta-section {
   margin-top: 20px;

@@ -49,12 +49,16 @@
       @copy="(button) => copyJsonToClipboard(button)"
     />
 
-    <MessageMetaModal
+    <MetaModal
       :is-open="showMetaModalFlag"
+      :title="'🏷️ Meta теги сообщения'"
+      :loading="false"
       :meta-tags="metaTags"
+      key-placeholder="key (например: channelType)"
+      value-placeholder='value (прим: "internal", ["foo", "bar"], {"foo": "bar"}, 5, false)'
       @close="closeMetaModal"
-      @add-meta-tag="(key, value) => addMetaTag(key, value)"
-      @delete-meta-tag="deleteMetaTag"
+      @add-tag="(key, value) => addMetaTag(key, value)"
+      @delete-tag="deleteMetaTag"
     />
 
     <MessageUrlModal
@@ -77,8 +81,9 @@ import { BasePanel, BaseButton } from '@/shared/ui';
 import { useMessagesPage } from '../model';
 import { MessageFilterPanel } from './filters';
 import { MessageTable } from './tables';
-import { MessageInfoModal, MessageMetaModal, MessageUrlModal } from './modals';
+import { MessageInfoModal, MessageUrlModal } from './modals';
 import { MessagesPagination } from './pagination';
+import { MetaModal } from '@/widgets/meta-modal';
 
 const {
   // State
@@ -144,5 +149,4 @@ const {
   flex-direction: column;
   overflow: hidden;
 }
-
 </style>

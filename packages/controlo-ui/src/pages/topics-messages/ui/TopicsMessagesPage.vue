@@ -165,13 +165,16 @@
       @close="closeModal"
     />
 
-    <TopicMetaModal
+    <MetaModal
       :is-open="isTopicMetaModalOpen"
-      :meta-tags="topicMetaTags"
+      title="🏷️ Meta теги топика"
       :loading="loadingTopicMeta"
+      :meta-tags="topicMetaTags"
+      key-placeholder="key (например: category)"
+      value-placeholder='value (например: "business", ["tag1", "tag2"], {"custom": true})'
       @close="closeTopicMetaModal"
-      @delete-tag="deleteTopicMetaTag"
       @add-tag="(key, value) => addTopicMetaTag(key, value)"
+      @delete-tag="deleteTopicMetaTag"
     />
 
     <UrlModal
@@ -194,7 +197,7 @@ import { ExtendedPagination } from '@/pages/dialogs-messages/ui/pagination';
 import { MessageFilterPanel } from '@/pages/dialogs-messages/ui/filters';
 import { MessagesTableSimple, MembersTableSimple } from '@/pages/dialogs-messages/ui/tables';
 import { DialogInfoModal, UrlModal } from '@/pages/dialogs-messages/ui/modals';
-import { TopicMetaModal } from '@/pages/user-dialogs/ui/modals';
+import { MetaModal } from '@/widgets/meta-modal';
 
 const {
   topics,
