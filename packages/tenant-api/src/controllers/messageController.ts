@@ -689,20 +689,22 @@ const messageController = {
     log('>>>>> start');
     
     try {
-      const { messageId } = req.params;
-      log(`Получены параметры: messageId=${messageId}, tenantId=${req.tenantId}`);
+      const rawMessageId = req.params.messageId;
+      const messageId = typeof rawMessageId === 'string' ? rawMessageId.trim().toLowerCase() : rawMessageId;
+      const tenantId = req.tenantId!;
+      log(`Получены параметры: messageId=${messageId}, tenantId=${tenantId}`);
 
-      log(`Поиск сообщения: messageId=${messageId}, tenantId=${req.tenantId}`);
+      log(`Поиск сообщения: messageId=${messageId}, tenantId=${tenantId}`);
       const message = await Message.findOne({
-        messageId: messageId,
-        tenantId: req.tenantId!
+        messageId,
+        tenantId
       });
 
       if (!message) {
         log(`Сообщение не найдено: messageId=${messageId}`);
         res.status(404).json({
           error: 'Not Found',
-          message: 'Message not found'
+          message: 'Message not found. Check that the message exists and that X-TENANT-ID (or API key tenant) matches the tenant where the message was created.'
         });
         return;
       }

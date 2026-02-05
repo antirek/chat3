@@ -25,6 +25,7 @@
         <td class="actions-column">
           <BaseButton variant="primary" size="small" @click.stop="$emit('show-info', item.dialogId)">ℹ️ Инфо</BaseButton>
           <BaseButton variant="success" size="small" @click.stop="$emit('show-meta', item.dialogId)">🏷️ Мета</BaseButton>
+          <BaseButton variant="secondary" size="small" @click.stop="$emit('show-members', item.dialogId)">👥 Участники</BaseButton>
           <BaseButton variant="secondary" size="small" @click.stop="$emit('go-to-dialog', item.dialogId)">↗️ Переход</BaseButton>
         </td>
       </template>
@@ -52,6 +53,7 @@ defineProps<Props>();
 defineEmits<{
   (e: 'show-info', dialogId: string): void;
   (e: 'show-meta', dialogId: string): void;
+  (e: 'show-members', dialogId: string): void;
   (e: 'go-to-dialog', dialogId: string): void;
 }>();
 

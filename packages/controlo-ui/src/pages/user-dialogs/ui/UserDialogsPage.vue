@@ -190,39 +190,90 @@
         </template>
       </BasePanel>
 
-      <!-- Сообщения / Участники / Топики или Диалоги пака -->
+      <!-- Сообщения / Участники / Топики или Диалоги пака / Сообщения пака -->
       <BasePanel class="messages-panel">
-        <!-- Диалоги пака (при выборе пака на табе «Паки пользователя») -->
+        <!-- Табы третьей колонки при выборе пака: Диалоги пака | Сообщения пака -->
         <template v-if="middlePanelTab === 'packs' && currentPackId">
-          <div class="section-header" style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;">
-            <h3 style="margin: 0; font-size: 16px;">📦 Диалоги пака</h3>
+          <div class="tabs-container" style="padding: 12px 20px; border-bottom: 1px solid #e9ecef;">
+            <button
+              class="tab-button"
+              :class="{ active: rightPanelPackTab === 'dialogs' }"
+              @click="selectRightPanelPackTab('dialogs')"
+            >
+              📋 Диалоги пака
+            </button>
+            <button
+              class="tab-button"
+              :class="{ active: rightPanelPackTab === 'messages' }"
+              @click="selectRightPanelPackTab('messages')"
+            >
+              📝 Сообщения пака
+            </button>
           </div>
-          <ExtendedPagination
-            v-show="packDialogsTotal > 0"
-            :current-page="packDialogsPage"
-            :current-page-input="packDialogsPage"
-            :total-pages="packDialogsTotalPages"
-            :total="packDialogsTotal"
-            :pagination-start="packDialogsPaginationStart"
-            :pagination-end="packDialogsPaginationEnd"
-            :limit="packDialogsLimit"
-            container-style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;"
-            @first="goToPackDialogsPage(1)"
-            @prev="goToPackDialogsPage(Math.max(1, packDialogsPage - 1))"
-            @next="goToPackDialogsPage(Math.min(packDialogsTotalPages, packDialogsPage + 1))"
-            @last="goToPackDialogsPage(packDialogsTotalPages)"
-            @go-to-page="goToPackDialogsPage"
-            @change-limit="changePackDialogsLimit"
-          />
-          <PackDialogsTable
-            :items="packDialogs"
-            :loading="loadingPackDialogs"
-            :error="packDialogsError"
-            :has-pack="!!currentPackId"
-            @show-info="showDialogInfo"
-            @show-meta="showDialogMetaModal"
-            @go-to-dialog="goToDialogInDialogsTab"
-          />
+          <template v-if="rightPanelPackTab === 'dialogs'">
+            <ExtendedPagination
+              v-show="packDialogsTotal > 0"
+              :current-page="packDialogsPage"
+              :current-page-input="packDialogsPage"
+              :total-pages="packDialogsTotalPages"
+              :total="packDialogsTotal"
+              :pagination-start="packDialogsPaginationStart"
+              :pagination-end="packDialogsPaginationEnd"
+              :limit="packDialogsLimit"
+              container-style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;"
+              @first="goToPackDialogsPage(1)"
+              @prev="goToPackDialogsPage(Math.max(1, packDialogsPage - 1))"
+              @next="goToPackDialogsPage(Math.min(packDialogsTotalPages, packDialogsPage + 1))"
+              @last="goToPackDialogsPage(packDialogsTotalPages)"
+              @go-to-page="goToPackDialogsPage"
+              @change-limit="changePackDialogsLimit"
+            />
+            <PackDialogsTable
+              :items="packDialogs"
+              :loading="loadingPackDialogs"
+              :error="packDialogsError"
+              :has-pack="!!currentPackId"
+              @show-info="showDialogInfo"
+              @show-meta="showDialogMetaModal"
+              @show-members="showPackDialogMembersModal"
+              @go-to-dialog="goToDialogInDialogsTab"
+            />
+          </template>
+          <template v-else-if="rightPanelPackTab === 'messages'">
+            <div style="padding: 15px 20px; border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 14px; color: #666;">Сообщения из всех диалогов пака (контекст пользователя)</span>
+              <BaseButton
+                v-if="packMessagesForUserHasMore"
+                variant="primary"
+                size="small"
+                :disabled="loadingPackMessagesForUser"
+                @click="loadMorePackMessagesForUser"
+              >
+                {{ loadingPackMessagesForUser ? 'Загрузка…' : 'Загрузить ещё' }}
+              </BaseButton>
+            </div>
+            <div class="panel-content">
+              <MessagesTable
+                :messages="packMessagesForUser"
+                :loading="loadingPackMessagesForUser"
+                :error="packMessagesForUserError"
+                :has-dialog="!!currentPackId"
+                :current-sort="null"
+                :get-sort-indicator="() => ''"
+                :show-dialog-column="true"
+                :shorten-dialog-id="shortenDialogId"
+                @show-info="showMessageInfo"
+                @show-meta="showMessageMetaModal"
+                @show-reactions="showReactionModal"
+                @show-events="showEventsModal"
+                @show-status-matrix="showStatusMatrixModal"
+                @show-statuses="showStatusesModal"
+                @show-set-status="showSetStatusModal"
+                @show-topic="showMessageTopicModal"
+                @toggle-sort="() => {}"
+              />
+            </div>
+          </template>
         </template>
         <!-- Вкладки диалога (Сообщения / Участники / Топики) -->
         <template v-else>
@@ -456,6 +507,13 @@
       @close="closeModal"
     />
 
+    <!-- Модальное окно «Участники диалога» (в контексте «Диалоги пака») -->
+    <DialogMembersModal
+      :is-open="packDialogMembersModalOpen"
+      :dialog-id="packDialogMembersModalDialogId"
+      @close="closePackDialogMembersModal"
+    />
+
     <!-- Модальное окно для добавления сообщения -->
     <AddMessageModal
       :is-open="isAddMessageModalOpen"
@@ -680,6 +738,7 @@ import {
   StatusesModal,
   AddMemberModal,
   MemberMetaModal,
+  DialogMembersModal,
   AddTopicModal,
   TopicMetaModal,
   UrlModal,
@@ -769,7 +828,19 @@ const {
   packDialogsPaginationEnd,
   goToPackDialogsPage,
   changePackDialogsLimit,
+  rightPanelPackTab,
+  selectRightPanelPackTab,
+  packMessagesForUser,
+  loadingPackMessagesForUser,
+  packMessagesForUserError,
+  packMessagesForUserHasMore,
+  loadInitialPackMessagesForUser,
+  loadMorePackMessagesForUser,
   goToDialogInDialogsTab,
+  packDialogMembersModalOpen,
+  packDialogMembersModalDialogId,
+  showPackDialogMembersModal,
+  closePackDialogMembersModal,
   selectPacksFilterExample,
   clearPacksFilter,
   applyPacksFilter,
@@ -1058,6 +1129,7 @@ const {
   urlCopyButtonText,
   closeUrlModal,
   copyUrlToClipboard,
+  shortenDialogId,
 } = pageData;
 
 // Инициализация

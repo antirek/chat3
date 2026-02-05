@@ -10,6 +10,7 @@ export { default as StatusMatrixModal } from './StatusMatrixModal.vue';
 export { default as StatusesModal } from './StatusesModal.vue';
 export { default as AddMemberModal } from './AddMemberModal.vue';
 export { default as MemberMetaModal } from './MemberMetaModal.vue';
+export { default as DialogMembersModal } from './DialogMembersModal.vue';
 export { default as AddTopicModal } from './AddTopicModal.vue';
 export { default as TopicMetaModal } from './TopicMetaModal.vue';
 export { default as UrlModal } from './UrlModal.vue';

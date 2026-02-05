@@ -1,6 +1,8 @@
 import { Pack, PackLink, PackStats, DialogMember, UserPackStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
+import { loadPackMessages } from '../utils/packMessageUtils.js';
+import { enrichMessagesWithMetaAndStatuses } from '../utils/messageEnrichment.js';
 import { Response } from 'express';
 import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
@@ -337,6 +339,174 @@ export async function getDialogPacks(req: AuthenticatedRequest, res: Response): 
     });
   } catch (error: any) {
     console.error('Error in getDialogPacks:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message
+    });
+  } finally {
+    log('>>>>> end');
+  }
+}
+
+/**
+ * Диалоги пака в контексте пользователя — только те диалоги пака, где пользователь участник
+ * GET /api/users/:userId/packs/:packId/dialogs
+ */
+export async function getPackDialogs(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const routePath = 'get /users/:userId/packs/:packId/dialogs';
+  const log = (...args: any[]) => {
+    console.log(`[${routePath}]`, ...args);
+  };
+  log('>>>>> start');
+
+  try {
+    const { userId, packId } = req.params;
+    const tenantId = req.tenantId!;
+    const page = Math.max(1, parseInt(String(req.query.page)) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit)) || 10));
+    const skip = (page - 1) * limit;
+
+    const userDialogIds = (await DialogMember.find({ userId, tenantId }).select('dialogId').lean()).map(
+      (m: { dialogId: string }) => m.dialogId
+    );
+    if (userDialogIds.length === 0) {
+      res.json({
+        data: [],
+        pagination: { page, limit, total: 0, pages: 0 }
+      });
+      return;
+    }
+
+    const [links, total] = await Promise.all([
+      PackLink.find({
+        tenantId,
+        packId,
+        dialogId: { $in: userDialogIds }
+      })
+        .sort({ addedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select('dialogId addedAt')
+        .lean(),
+      PackLink.countDocuments({
+        tenantId,
+        packId,
+        dialogId: { $in: userDialogIds }
+      })
+    ]);
+
+    res.json({
+      data: (links as { dialogId: string; addedAt: number }[]).map((l) => ({ dialogId: l.dialogId, addedAt: l.addedAt })),
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error: any) {
+    console.error('Error in getPackDialogs:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message
+    });
+  } finally {
+    log('>>>>> end');
+  }
+}
+
+/**
+ * Сообщения пака в контексте пользователя (cursor pagination)
+ * GET /api/users/:userId/packs/:packId/messages
+ * Доступно только если пользователь участвует хотя бы в одном диалоге этого пака.
+ */
+export async function getPackMessages(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const routePath = 'get /users/:userId/packs/:packId/messages';
+  const log = (...args: any[]) => {
+    console.log(`[${routePath}]`, ...args);
+  };
+  log('>>>>> start');
+
+  try {
+    const { userId, packId } = req.params;
+    const tenantId = req.tenantId!;
+    const limitParam = req.query.limit !== undefined ? Number(req.query.limit) : undefined;
+    const parsedLimit = Number.isFinite(limitParam) ? limitParam : undefined;
+    const filter =
+      typeof req.query.filter === 'string' && req.query.filter.length > 0 ? String(req.query.filter) : null;
+    const cursor =
+      typeof req.query.cursor === 'string' && req.query.cursor.length > 0 ? String(req.query.cursor) : null;
+
+    const userDialogIds = (await DialogMember.find({ userId, tenantId }).select('dialogId').lean()).map(
+      (m: { dialogId: string }) => m.dialogId
+    );
+    const packDialogIds = (await PackLink.find({ packId, tenantId }).select('dialogId').lean()).map(
+      (l: { dialogId: string }) => l.dialogId
+    );
+    const userDialogSet = new Set(userDialogIds);
+    const allowedDialogIds = packDialogIds.filter((d) => userDialogSet.has(d));
+    if (allowedDialogIds.length === 0) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Pack not found or user has no access (user is not in any dialog of this pack)'
+      });
+      return;
+    }
+
+    let packMessages;
+    try {
+      packMessages = await loadPackMessages({
+        tenantId,
+        packId,
+        dialogIds: allowedDialogIds,
+        limit: parsedLimit,
+        filter,
+        cursor
+      });
+    } catch (error: any) {
+      if (error?.message === 'PACK_NOT_FOUND') {
+        res.status(404).json({
+          error: 'Not Found',
+          message: 'Pack not found'
+        });
+        return;
+      }
+      if (error?.name === 'FILTER_ERROR') {
+        res.status(400).json({
+          error: 'Bad Request',
+          message: error?.message || 'Invalid filter format'
+        });
+        return;
+      }
+      throw error;
+    }
+
+    if (packMessages.messages.length === 0) {
+      res.json({
+        data: [],
+        cursor: packMessages.pageInfo.cursor,
+        hasMore: packMessages.pageInfo.hasMore
+      });
+      return;
+    }
+
+    const enriched = await enrichMessagesWithMetaAndStatuses(packMessages.messages, tenantId);
+    const dataWithSource = enriched.map((message) => ({
+      ...message,
+      sourceDialogId: message.dialogId,
+      context: {
+        userId,
+        isMine: message.senderId === userId
+      }
+    }));
+
+    res.json({
+      data: sanitizeResponse(dataWithSource),
+      cursor: packMessages.pageInfo.cursor,
+      hasMore: packMessages.pageInfo.hasMore
+    });
+  } catch (error: any) {
+    console.error('Error in getPackMessages:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message

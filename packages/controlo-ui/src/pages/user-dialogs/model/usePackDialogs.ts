@@ -1,8 +1,8 @@
 /**
- * Модуль загрузки диалогов пака
- * GET /api/packs/:packId/dialogs
+ * Модуль загрузки диалогов пака в контексте пользователя
+ * GET /api/users/:userId/packs/:packId/dialogs — только диалоги, где пользователь участник
  */
-import { ref, computed } from 'vue';
+import { ref, computed, type Ref } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 
@@ -11,7 +11,7 @@ export interface PackDialogItem {
   addedAt: number;
 }
 
-export function usePackDialogs() {
+export function usePackDialogs(userId: Ref<string | null>) {
   const configStore = useConfigStore();
   const credentialsStore = useCredentialsStore();
 
@@ -34,7 +34,8 @@ export function usePackDialogs() {
   });
 
   async function loadPackDialogs(packId: string | null, page = 1, limit?: number) {
-    if (!packId) {
+    const uid = userId.value;
+    if (!packId || !uid) {
       packDialogs.value = [];
       packDialogsTotal.value = 0;
       packDialogsPage.value = 1;
@@ -46,7 +47,7 @@ export function usePackDialogs() {
       packDialogsError.value = null;
       const currentLimit = limit ?? packDialogsLimit.value;
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
-      const url = `${baseUrl}/api/packs/${encodeURIComponent(packId)}/dialogs?page=${page}&limit=${currentLimit}`;
+      const url = `${baseUrl}/api/users/${encodeURIComponent(uid)}/packs/${encodeURIComponent(packId)}/dialogs?page=${page}&limit=${currentLimit}`;
       const response = await fetch(url, { headers: credentialsStore.getHeaders() });
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));

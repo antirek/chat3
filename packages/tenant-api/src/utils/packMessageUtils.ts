@@ -8,6 +8,8 @@ const MAX_LIMIT = 100;
 export interface PackMessagesQueryOptions {
   tenantId: string;
   packId: string;
+  /** Если задано — берём сообщения только из этих диалогов (иначе из всех диалогов пака) */
+  dialogIds?: string[];
   limit?: number;
   cursor?: string | null;
   filter?: string | null;
@@ -54,22 +56,28 @@ export function decodePackMessagesCursor(cursor?: string | null): DecodedCursor 
 export async function loadPackMessages({
   tenantId,
   packId,
+  dialogIds: dialogIdsOverride,
   limit = DEFAULT_LIMIT,
   cursor,
   filter
 }: PackMessagesQueryOptions): Promise<PackMessagesResult> {
   const normalizedLimit = Math.min(Math.max(limit, 1), MAX_LIMIT);
 
-  const pack = await Pack.findOne({ tenantId, packId }).select('_id').lean();
-  if (!pack) {
-    throw new Error('PACK_NOT_FOUND');
+  let dialogIds: string[];
+  if (dialogIdsOverride !== undefined && Array.isArray(dialogIdsOverride)) {
+    dialogIds = dialogIdsOverride.length ? dialogIdsOverride : [];
+  } else {
+    const pack = await Pack.findOne({ tenantId, packId }).select('_id').lean();
+    if (!pack) {
+      throw new Error('PACK_NOT_FOUND');
+    }
+    const links = await PackLink.find({ tenantId, packId })
+      .select('dialogId')
+      .lean();
+    dialogIds = links.map((link) => link.dialogId);
   }
 
-  const links = await PackLink.find({ tenantId, packId })
-    .select('dialogId')
-    .lean();
-
-  if (links.length === 0) {
+  if (dialogIds.length === 0) {
     return {
       messages: [],
       pageInfo: {
@@ -81,8 +89,6 @@ export async function loadPackMessages({
       }
     };
   }
-
-  const dialogIds = links.map((link) => link.dialogId);
 
   const query: Record<string, unknown> = {
     tenantId,

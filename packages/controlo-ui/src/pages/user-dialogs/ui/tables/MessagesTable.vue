@@ -14,6 +14,7 @@
     >
       <template #header>
         <tr>
+          <th v-if="showDialogColumn" style="text-align: center;">Диалог</th>
           <th style="text-align: center;">Отправитель</th>
           <th @click="toggleSort('createdAt')" style="cursor: pointer; text-align: center;">
             Время
@@ -27,6 +28,9 @@
         </tr>
       </template>
       <template #row="{ item }">
+        <td v-if="showDialogColumn" :title="getMessageDialogId(item)" class="dialog-id-cell">
+          {{ displayDialogId(item) }}
+        </td>
         <td>
           {{ item.senderId }}
           <span v-if="item.context?.isMine" style="color: #4fc3f7; margin-left: 5px;" title="Ваше сообщение">👤</span>
@@ -68,6 +72,8 @@ interface Message {
   content: string;
   createdAt: string | number;
   topicId?: string | null;
+  dialogId?: string;
+  sourceDialogId?: string;
   context?: {
     isMine?: boolean;
     status?: string;
@@ -81,9 +87,26 @@ interface Props {
   hasDialog: boolean;
   currentSort: string | null;
   getSortIndicator: (field: string) => string;
+  /** Показывать колонку «Диалог» (для сообщений пака) */
+  showDialogColumn?: boolean;
+  /** Функция сокращения dialogId для отображения */
+  shortenDialogId?: (id: string) => string;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  showDialogColumn: false
+});
+
+function getMessageDialogId(item: Message): string {
+  return item.sourceDialogId || item.dialogId || '';
+}
+
+function displayDialogId(item: Message): string {
+  const id = getMessageDialogId(item);
+  if (!id) return '—';
+  return props.shortenDialogId ? props.shortenDialogId(id) : (id.length <= 20 ? id : id.substring(0, 8) + '…' + id.slice(-8));
+}
+
 const emit = defineEmits<{
   (e: 'show-info', messageId: string): void;
   (e: 'show-meta', messageId: string): void;
@@ -149,6 +172,13 @@ function getStatusIcon(status: string | null): string {
 
 .message-content {
   max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dialog-id-cell {
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

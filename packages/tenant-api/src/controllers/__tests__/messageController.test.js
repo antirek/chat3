@@ -742,7 +742,7 @@ describe('messageController.updateMessageTopic', () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.body.error).toBe('Not Found');
-    expect(res.body.message).toBe('Message not found');
+    expect(res.body.message).toContain('Message not found');
   });
 
   test('creates message.update event with updatedFields message.topicId when setting topic', async () => {
@@ -1390,7 +1390,7 @@ describe('messageController.getMessageById - error handling', () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.body.error).toBe('Not Found');
-    expect(res.body.message).toBe('Message not found');
+    expect(res.body.message).toContain('Message not found');
   });
 
   test('handles database errors', async () => {

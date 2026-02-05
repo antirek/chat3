@@ -4,6 +4,7 @@ import { useUsers } from './useUsers';
 import { useDialogs } from './useDialogs';
 import { usePacks } from './usePacks';
 import { usePackDialogs } from './usePackDialogs';
+import { usePackMessagesForUser } from './usePackMessagesForUser';
 import { useMessages } from './useMessages';
 import { useMembers } from './useMembers';
 import { useTopics } from './useTopics';
@@ -106,7 +107,7 @@ export function useUserDialogsPage() {
 
   // Выбранный пак (для отображения диалогов пака в третьей колонке)
   const currentPackId = ref<string | null>(null);
-  const packDialogsModule = usePackDialogs();
+  const packDialogsModule = usePackDialogs(currentUserId);
   const {
     packDialogs,
     loadingPackDialogs,
@@ -122,9 +123,32 @@ export function useUserDialogsPage() {
     setPackDialogsLimit,
   } = packDialogsModule;
 
+  // Таб третьей колонки при выборе пака: Диалоги пака | Сообщения пака
+  const rightPanelPackTab = ref<'dialogs' | 'messages'>('dialogs');
+
+  const packMessagesForUserModule = usePackMessagesForUser(currentUserId, currentPackId);
+  const {
+    packMessages: packMessagesForUser,
+    loadingPackMessages: loadingPackMessagesForUser,
+    packMessagesError: packMessagesForUserError,
+    packMessagesHasMore: packMessagesForUserHasMore,
+    loadInitialPackMessagesForUser,
+    loadMorePackMessagesForUser,
+    resetPackMessagesForUser,
+    setPackMessagesLimitForUser: setPackMessagesLimitForUserPanel,
+  } = packMessagesForUserModule;
+
   function selectPack(packId: string) {
     currentPackId.value = packId;
+    rightPanelPackTab.value = 'dialogs';
     loadPackDialogs(packId, 1);
+  }
+
+  function selectRightPanelPackTab(tab: 'dialogs' | 'messages') {
+    rightPanelPackTab.value = tab;
+    if (tab === 'messages' && currentUserId.value && currentPackId.value) {
+      loadInitialPackMessagesForUser();
+    }
   }
 
   function goToPackDialogsPage(page: number) {
@@ -138,6 +162,18 @@ export function useUserDialogsPage() {
     if (currentPackId.value) {
       loadPackDialogs(currentPackId.value, 1);
     }
+  }
+
+  // Модальное окно «Участники диалога» (в контексте «Диалоги пака»)
+  const packDialogMembersModalOpen = ref(false);
+  const packDialogMembersModalDialogId = ref<string | null>(null);
+  function showPackDialogMembersModal(dialogId: string) {
+    packDialogMembersModalDialogId.value = dialogId;
+    packDialogMembersModalOpen.value = true;
+  }
+  function closePackDialogMembersModal() {
+    packDialogMembersModalOpen.value = false;
+    packDialogMembersModalDialogId.value = null;
   }
 
   // Page-specific state для диалогов
@@ -583,7 +619,21 @@ export function useUserDialogsPage() {
     clearPackDialogs,
     goToPackDialogsPage,
     changePackDialogsLimit,
+    rightPanelPackTab,
+    selectRightPanelPackTab,
+    packMessagesForUser,
+    loadingPackMessagesForUser,
+    packMessagesForUserError,
+    packMessagesForUserHasMore,
+    loadInitialPackMessagesForUser,
+    loadMorePackMessagesForUser,
+    resetPackMessagesForUser,
+    setPackMessagesLimitForUserPanel,
     goToDialogInDialogsTab,
+    packDialogMembersModalOpen,
+    packDialogMembersModalDialogId,
+    showPackDialogMembersModal,
+    closePackDialogMembersModal,
     // Messages
     loadingMessages,
     messagesError,

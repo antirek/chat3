@@ -3,7 +3,7 @@ import * as userPackController from '../controllers/userPackController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validateUserId, validateDialogId, validatePackId } from '../validators/urlValidators/index.js';
 import { validateQuery } from '../validators/middleware.js';
-import { queryWithFilterSchema } from '../validators/schemas/index.js';
+import { queryWithFilterSchema, packMessagesQuerySchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -167,6 +167,95 @@ router.get(
   validateUserId,
   validatePackId,
   userPackController.getUserPackById
+);
+
+/**
+ * @swagger
+ * /api/users/{userId}/packs/{packId}/dialogs:
+ *   get:
+ *     summary: Диалоги пака в контексте пользователя
+ *     description: |
+ *       Возвращает только те диалоги пака, где пользователь является участником.
+ *       Параметры: page, limit.
+ *     tags: [UserPacks]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: packId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 10 }
+ *     responses:
+ *       200: { description: data (dialogId, addedAt), pagination }
+ *       401: { description: Unauthorized }
+ *       403: { description: Forbidden }
+ *       500: { description: Internal Server Error }
+ */
+router.get(
+  '/:userId/packs/:packId/dialogs',
+  apiAuth,
+  requirePermission('read'),
+  validateUserId,
+  validatePackId,
+  userPackController.getPackDialogs
+);
+
+/**
+ * @swagger
+ * /api/users/{userId}/packs/{packId}/messages:
+ *   get:
+ *     summary: Сообщения пака в контексте пользователя (cursor pagination)
+ *     description: |
+ *       Сообщения из всех диалогов пака. Доступно только если пользователь участвует хотя бы в одном диалоге этого пака.
+ *       Параметры: limit, cursor, filter.
+ *     tags: [UserPacks]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: packId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 50 }
+ *       - in: query
+ *         name: cursor
+ *         schema: { type: string }
+ *       - in: query
+ *         name: filter
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: data, hasMore, cursor }
+ *       401: { description: Unauthorized }
+ *       403: { description: Forbidden }
+ *       404: { description: Pack not found or user has no access }
+ *       500: { description: Internal Server Error }
+ */
+router.get(
+  '/:userId/packs/:packId/messages',
+  apiAuth,
+  requirePermission('read'),
+  validateUserId,
+  validatePackId,
+  validateQuery(packMessagesQuerySchema),
+  userPackController.getPackMessages
 );
 
 /**

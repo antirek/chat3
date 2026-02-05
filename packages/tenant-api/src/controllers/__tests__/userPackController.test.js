@@ -5,7 +5,9 @@ import {
   PackLink,
   Dialog,
   DialogMember,
-  Meta
+  Meta,
+  Message,
+  User
 } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
@@ -35,6 +37,22 @@ const createMockReq = (userId, query = {}) => ({
   params: { userId },
   query
 });
+
+/** Для getPackDialogs и getPackMessages: params { userId, packId } */
+const createMockReqWithPack = (userId, packId, query = {}) => ({
+  tenantId,
+  params: { userId, packId },
+  query
+});
+
+function messageId(seed) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let value = 'msg_';
+  for (let i = 0; i < 20; i++) {
+    value += chars.charAt((seed * 3 + i) % chars.length);
+  }
+  return value;
+}
 
 const createMockRes = () => {
   const res = { statusCode: 200, body: null };
@@ -143,5 +161,294 @@ describe('userPackController.getUserPacks - filter by meta', () => {
     expect(packIds).toContain(packB);
     expect(packIds).not.toContain(packC);
     expect(res.body.pagination.total).toBe(2);
+  });
+});
+
+describe('userPackController.getPackDialogs', () => {
+  const userId = 'user_dialogs';
+
+  test('returns only dialogs of the pack where user is member', async () => {
+    const dialogA = createDialogId(10);
+    const dialogB = createDialogId(11);
+    const dialogC = createDialogId(12);
+
+    await Dialog.create([
+      { tenantId, dialogId: dialogA, createdAt: generateTimestamp() },
+      { tenantId, dialogId: dialogB, createdAt: generateTimestamp() },
+      { tenantId, dialogId: dialogC, createdAt: generateTimestamp() }
+    ]);
+
+    await DialogMember.create([
+      { tenantId, dialogId: dialogA, userId },
+      { tenantId, dialogId: dialogB, userId }
+      // dialogC — пользователь не участник
+    ]);
+
+    const packId = createPackId(10);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+
+    await PackLink.create([
+      { tenantId, packId, dialogId: dialogA },
+      { tenantId, packId, dialogId: dialogB },
+      { tenantId, packId, dialogId: dialogC }
+    ]);
+
+    const req = createMockReqWithPack(userId, packId, { page: 1, limit: 10 });
+    const res = createMockRes();
+
+    await userPackController.getPackDialogs(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+    const dialogIds = res.body.data.map((d) => d.dialogId);
+    expect(dialogIds).toContain(dialogA);
+    expect(dialogIds).toContain(dialogB);
+    expect(dialogIds).not.toContain(dialogC);
+    expect(res.body.pagination.total).toBe(2);
+    res.body.data.forEach((d) => expect(typeof d.addedAt).toBe('number'));
+  });
+
+  test('pagination (page, limit)', async () => {
+    const dialog1 = createDialogId(20);
+    const dialog2 = createDialogId(21);
+    const dialog3 = createDialogId(22);
+
+    await Dialog.create([
+      { tenantId, dialogId: dialog1, createdAt: generateTimestamp() },
+      { tenantId, dialogId: dialog2, createdAt: generateTimestamp() },
+      { tenantId, dialogId: dialog3, createdAt: generateTimestamp() }
+    ]);
+
+    await DialogMember.create([
+      { tenantId, dialogId: dialog1, userId },
+      { tenantId, dialogId: dialog2, userId },
+      { tenantId, dialogId: dialog3, userId }
+    ]);
+
+    const packId = createPackId(20);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+
+    await PackLink.create([
+      { tenantId, packId, dialogId: dialog1 },
+      { tenantId, packId, dialogId: dialog2 },
+      { tenantId, packId, dialogId: dialog3 }
+    ]);
+
+    const req1 = createMockReqWithPack(userId, packId, { page: 1, limit: 2 });
+    const res1 = createMockRes();
+    await userPackController.getPackDialogs(req1, res1);
+
+    expect(res1.statusCode).toBe(200);
+    expect(res1.body.data).toHaveLength(2);
+    expect(res1.body.pagination.total).toBe(3);
+    expect(res1.body.pagination.pages).toBe(2);
+
+    const req2 = createMockReqWithPack(userId, packId, { page: 2, limit: 2 });
+    const res2 = createMockRes();
+    await userPackController.getPackDialogs(req2, res2);
+
+    expect(res2.statusCode).toBe(200);
+    expect(res2.body.data).toHaveLength(1);
+  });
+
+  test('returns empty when user is not in any dialog of the pack', async () => {
+    const dialogA = createDialogId(30);
+    await Dialog.create({ tenantId, dialogId: dialogA, createdAt: generateTimestamp() });
+    // пользователь userId не добавлен в DialogMember для dialogA
+
+    const packId = createPackId(30);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await PackLink.create({ tenantId, packId, dialogId: dialogA });
+
+    const req = createMockReqWithPack(userId, packId, { page: 1, limit: 10 });
+    const res = createMockRes();
+
+    await userPackController.getPackDialogs(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toEqual([]);
+    expect(res.body.pagination.total).toBe(0);
+  });
+
+  test('returns empty when user has no dialogs at all', async () => {
+    const dialogA = createDialogId(31);
+    await Dialog.create({ tenantId, dialogId: dialogA, createdAt: generateTimestamp() });
+
+    const packId = createPackId(31);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await PackLink.create({ tenantId, packId, dialogId: dialogA });
+
+    const req = createMockReqWithPack('user_without_any_dialogs', packId, { page: 1, limit: 10 });
+    const res = createMockRes();
+
+    await userPackController.getPackDialogs(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toEqual([]);
+    expect(res.body.pagination.total).toBe(0);
+  });
+});
+
+describe('userPackController.getPackMessages', () => {
+  const userId = 'user_messages';
+
+  beforeEach(async () => {
+    await User.create({
+      tenantId,
+      userId,
+      name: 'User Messages',
+      createdAt: generateTimestamp()
+    });
+  });
+
+  test('returns only messages from dialogs where user is member', async () => {
+    const dialogA = createDialogId(40);
+    const dialogB = createDialogId(41);
+
+    await Dialog.create([
+      { tenantId, dialogId: dialogA, createdAt: generateTimestamp() },
+      { tenantId, dialogId: dialogB, createdAt: generateTimestamp() }
+    ]);
+
+    await DialogMember.create([
+      { tenantId, dialogId: dialogA, userId }
+      // пользователь не в dialogB
+    ]);
+
+    const packId = createPackId(40);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+
+    await PackLink.create([
+      { tenantId, packId, dialogId: dialogA },
+      { tenantId, packId, dialogId: dialogB }
+    ]);
+
+    const baseTs = generateTimestamp();
+    await Message.create([
+      {
+        tenantId,
+        dialogId: dialogA,
+        messageId: messageId(40),
+        senderId: userId,
+        type: 'internal.text',
+        content: 'In dialog A',
+        createdAt: baseTs + 2
+      },
+      {
+        tenantId,
+        dialogId: dialogB,
+        messageId: messageId(41),
+        senderId: userId,
+        type: 'internal.text',
+        content: 'In dialog B',
+        createdAt: baseTs + 1
+      }
+    ]);
+
+    const req = createMockReqWithPack(userId, packId, { limit: 10 });
+    const res = createMockRes();
+
+    await userPackController.getPackMessages(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].content).toBe('In dialog A');
+    expect(res.body.data[0].dialogId).toBe(dialogA);
+  });
+
+  test('returns 404 when user is not in any dialog of the pack', async () => {
+    const dialogA = createDialogId(50);
+    await Dialog.create({ tenantId, dialogId: dialogA, createdAt: generateTimestamp() });
+    // userId не участник dialogA
+
+    const packId = createPackId(50);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await PackLink.create({ tenantId, packId, dialogId: dialogA });
+
+    const req = createMockReqWithPack(userId, packId, { limit: 10 });
+    const res = createMockRes();
+
+    await userPackController.getPackMessages(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body?.message).toMatch(/no access|not in any dialog/);
+  });
+
+  test('cursor pagination', async () => {
+    const dialogA = createDialogId(60);
+    await Dialog.create({ tenantId, dialogId: dialogA, createdAt: generateTimestamp() });
+    await DialogMember.create({ tenantId, dialogId: dialogA, userId });
+
+    const packId = createPackId(60);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await PackLink.create({ tenantId, packId, dialogId: dialogA });
+
+    const baseTs = generateTimestamp();
+    await Message.create([
+      {
+        tenantId,
+        dialogId: dialogA,
+        messageId: messageId(60),
+        senderId: userId,
+        type: 'internal.text',
+        content: 'First',
+        createdAt: baseTs + 3
+      },
+      {
+        tenantId,
+        dialogId: dialogA,
+        messageId: messageId(61),
+        senderId: userId,
+        type: 'internal.text',
+        content: 'Second',
+        createdAt: baseTs + 2
+      },
+      {
+        tenantId,
+        dialogId: dialogA,
+        messageId: messageId(62),
+        senderId: userId,
+        type: 'internal.text',
+        content: 'Third',
+        createdAt: baseTs + 1
+      }
+    ]);
+
+    const req1 = createMockReqWithPack(userId, packId, { limit: 2 });
+    const res1 = createMockRes();
+    await userPackController.getPackMessages(req1, res1);
+
+    expect(res1.statusCode).toBe(200);
+    expect(res1.body.data).toHaveLength(2);
+    expect(res1.body.hasMore).toBe(true);
+    expect(res1.body.cursor?.next).toBeTruthy();
+
+    const req2 = createMockReqWithPack(userId, packId, { limit: 2, cursor: res1.body.cursor.next });
+    const res2 = createMockRes();
+    await userPackController.getPackMessages(req2, res2);
+
+    expect(res2.statusCode).toBe(200);
+    expect(res2.body.data).toHaveLength(1);
+    expect(res2.body.hasMore).toBe(false);
+  });
+
+  test('returns empty list when pack has no messages in allowed dialogs', async () => {
+    const dialogA = createDialogId(70);
+    await Dialog.create({ tenantId, dialogId: dialogA, createdAt: generateTimestamp() });
+    await DialogMember.create({ tenantId, dialogId: dialogA, userId });
+
+    const packId = createPackId(70);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await PackLink.create({ tenantId, packId, dialogId: dialogA });
+    // сообщений нет
+
+    const req = createMockReqWithPack(userId, packId, { limit: 10 });
+    const res = createMockRes();
+
+    await userPackController.getPackMessages(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toEqual([]);
+    expect(res.body.hasMore).toBe(false);
   });
 });
