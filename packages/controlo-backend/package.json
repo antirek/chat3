@@ -1,6 +1,6 @@
 {
   "name": "@chat3/controlo-backend",
-  "version": "0.0.39",
+  "version": "0.0.40",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
