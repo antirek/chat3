@@ -40,6 +40,8 @@ Updates - это персонализированные обновления д�
 | `user.update` | `UserUpdate` | `user` | `update.user.{userType}.{userId}.userupdate` | Конкретный пользователь | `user`, `context` |
 | `user.remove` | `UserUpdate` | `user` | `update.user.{userType}.{userId}.userupdate` | Конкретный пользователь | `user`, `context` |
 | `user.stats.update`* | `UserStatsUpdate` | `user` | `update.user.{userType}.{userId}.userstatsupdate` | Конкретный пользователь | `user` (с `stats`), `context` |
+| `pack.stats.updated` | `PackStatsUpdate` | `pack` | `update.pack.{userType}.{userId}.packstatsupdate` | Все пользователи, у которых есть этот пак (UserPackStats) | `packStats`, `context` |
+| `user.pack.stats.updated` | `UserPackStatsUpdate` | `pack` | `update.pack.{userType}.{userId}.userpackstatsupdate` | Конкретный пользователь (изменился unreadCount по паку) | `userPackStats`, `context` |
 
 **Примечания:**
 - `{userType}` - тип пользователя из модели User (user, bot, contact и т.д.)
@@ -49,6 +51,7 @@ Updates - это персонализированные обновления д�
   - `dialog.member.remove` → `UserStatsUpdate` (обновляется `dialogCount`)
   - `dialog.member.update` → `UserStatsUpdate` (если изменился `unreadCount`, обновляется `unreadDialogsCount`)
   - `message.create` → `UserStatsUpdate` (если диалог стал непрочитанным, обновляется `unreadDialogsCount`)
+- **Pack Updates** (`update.pack.*`): создаются воркером при пересчёте PackStats и UserPackStats (после изменений в диалогах пака). Чтобы получать все updates по пакам, где состоит пользователь, подписывайтесь на `update.pack.{userType}.{userId}.*`.
 
 ## Типы Updates
 
@@ -299,6 +302,24 @@ Updates - это персонализированные обновления д�
 - Изменении `unreadCount` участника диалога (изменяется `unreadDialogsCount`)
 - Создании нового сообщения (может измениться `unreadDialogsCount`)
 
+### Pack Updates
+
+Создаются воркером при пересчёте PackStats и UserPackStats (после изменений в диалогах пака). Адресованы пользователям, у которых есть этот пак (UserPackStats).
+
+**PackStatsUpdate** — для события `pack.stats.updated`. Создаётся для всех пользователей, у которых есть запись UserPackStats по данному packId.
+
+**UserPackStatsUpdate** — для события `user.pack.stats.updated`. Создаётся для одного пользователя при изменении unreadCount по паку.
+
+**Структура data (PackStatsUpdate):**
+- `packStats`: packId, messageCount, uniqueMemberCount, sumMemberCount, uniqueTopicCount, sumTopicCount, dialogCount, lastUpdatedAt
+- `context`: eventType, entityId (packId), includedSections, updatedFields
+
+**Структура data (UserPackStatsUpdate):**
+- `userPackStats`: packId, userId, unreadCount, lastUpdatedAt
+- `context`: eventType, entityId (userId), packId, userId, includedSections, updatedFields
+
+**Подписка на все pack updates пользователя:** привяжите очередь к exchange `chat3_updates` с routing key `update.pack.{userType}.{userId}.*` (например `update.pack.user.carl.*`). Так вы получите все PackStatsUpdate и UserPackStatsUpdate по пакам, где состоит этот пользователь.
+
 ## RabbitMQ Exchange
 
 ### Exchange: chat3_updates
@@ -311,16 +332,18 @@ Updates - это персонализированные обновления д�
 Формат: `update.{category}.{userType}.{userId}.{updateType}`
 
 **Компоненты:**
-- `category` - категория обновления: `dialog` (DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate) или `user` (UserUpdate, UserStatsUpdate)
+- `category` - категория обновления: `dialog` (DialogUpdate, …), `user` (UserUpdate, UserStatsUpdate), `pack` (PackStatsUpdate, UserPackStatsUpdate)
 - `userType` - тип пользователя из модели User (user, bot, contact и т.д.)
-- `userId` - ID пользователя
-- `updateType` - тип обновления в нижнем регистре: `dialogupdate`, `dialogmemberupdate`, `messageupdate`, `typingupdate`, `userupdate`, `userstatsupdate`
+- `userId` - ID пользователя-получателя
+- `updateType` - тип обновления в нижнем регистре: `dialogupdate`, `dialogmemberupdate`, `messageupdate`, `typingupdate`, `userupdate`, `userstatsupdate`, `packstatsupdate`, `userpackstatsupdate`
 
 **Примеры:**
 - `update.dialog.user.carl.dialogupdate` - обновление диалога для пользователя carl типа user
 - `update.dialog.user.carl.messageupdate` - обновление сообщения для пользователя carl
 - `update.dialog.bot.bot_123.messageupdate` - обновление сообщения для бота bot_123
 - `update.user.user.carl.userstatsupdate` - обновление статистики для пользователя carl
+- `update.pack.user.carl.packstatsupdate` - обновление агрегатов пака для пользователя carl (пак, где он состоит)
+- `update.pack.user.carl.userpackstatsupdate` - обновление unreadCount по паку для пользователя carl
 
 **Примечание:** Если пользователь не найден в модели User, используется тип `user` по умолчанию.
 
@@ -554,4 +577,30 @@ function handleUserStatsUpdate(data) {
   updateUserStats(user.userId, user.stats);
 }
 ```
+
+---
+
+## Для интегрируемых приложений
+
+**Updates** — персонализированные уведомления для пользователей. Каждый Update адресован конкретному `userId` и содержит полные данные (диалог, сообщение, участник и т.д.) с учётом контекста получателя.
+
+**Где смотреть:**
+- **Полный справочник по обновлениям** — этот документ (UPDATES.md).
+- **Справочник по событиям (источники Updates)** — [EVENTS.md](EVENTS.md).
+- **Пошаговая интеграция, подписка на очередь, примеры обработки** — [INTEGRATION.md](INTEGRATION.md).
+
+**Updates — ключевые данные для интегратора:**
+
+| Параметр | Значение |
+|----------|----------|
+| Exchange | `chat3_updates` (type: topic) |
+| Формат routing key | `update.{category}.{userType}.{userId}.{updateType}` |
+| category | `dialog` (DialogUpdate, …), `user` (UserUpdate, UserStatsUpdate), `pack` (PackStatsUpdate, UserPackStatsUpdate) |
+| updateType | `dialogupdate`, `dialogmemberupdate`, `messageupdate`, `typingupdate`, `userupdate`, `userstatsupdate`, `packstatsupdate`, `userpackstatsupdate` |
+| Подписка (все обновления пользователя) | `update.*.{userType}.{userId}.*` (например `update.*.user.carl.*`) |
+| Подписка (все pack updates пользователя) | `update.pack.{userType}.{userId}.*` — все обновления по пакам, где состоит пользователь (PackStatsUpdate, UserPackStatsUpdate) |
+
+**Типы Updates (кратко):** DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate, UserUpdate, UserStatsUpdate, PackStatsUpdate, UserPackStatsUpdate. Соответствие «событие → update» и секции в `data` описаны в таблице в начале этого документа.
+
+**Рекомендация:** Подписывайтесь на Updates по `userId` (и при необходимости `userType`), создавайте отдельную очередь на пользователя или сервис, обрабатывайте payload по `eventType` и типу update — примеры в [INTEGRATION.md](INTEGRATION.md).
 

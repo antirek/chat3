@@ -1,5 +1,5 @@
 import express from 'express';
-import * as userController from '../controllers/userController.js';
+import * as userPackController from '../controllers/userPackController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validateUserId, validateDialogId, validatePackId } from '../validators/urlValidators/index.js';
 import { validateQuery } from '../validators/middleware.js';
@@ -100,7 +100,7 @@ router.get(
   requirePermission('read'),
   validateUserId,
   validateQuery(queryWithFilterSchema),
-  userController.getUserPacks
+  userPackController.getUserPacks
 );
 
 /**
@@ -166,7 +166,7 @@ router.get(
   requirePermission('read'),
   validateUserId,
   validatePackId,
-  userController.getUserPackById
+  userPackController.getUserPackById
 );
 
 /**
@@ -229,7 +229,7 @@ router.get(
   requirePermission('read'),
   validateUserId,
   validateDialogId,
-  userController.getDialogPacks
+  userPackController.getDialogPacks
 );
 
 export default router;

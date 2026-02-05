@@ -1144,9 +1144,17 @@ async function publishUpdate(update: IUpdate | mongoose.Document): Promise<void>
     // Получаем тип пользователя из модели User или используем fallback
     const userType = await getUserType(sanitizedUpdate.tenantId as string, sanitizedUpdate.userId as string);
     
-    // Определяем категорию update (dialog или user)
+    // Определяем категорию update (dialog, user или pack)
     const dialogUpdates = ['DialogUpdate', 'DialogMemberUpdate', 'MessageUpdate', 'TypingUpdate'];
-    const category = dialogUpdates.includes(updateType) ? 'dialog' : 'user';
+    const packUpdates = ['PackStatsUpdate', 'UserPackStatsUpdate'];
+    let category: string;
+    if (dialogUpdates.includes(updateType)) {
+      category = 'dialog';
+    } else if (packUpdates.includes(updateType)) {
+      category = 'pack';
+    } else {
+      category = 'user';
+    }
     
     // Публикуем в exchange (из конфига RABBITMQ_UPDATES_EXCHANGE или по умолчанию chat3_updates)
     // с routing key update.{category}.{type}.{userId}.{updateType}

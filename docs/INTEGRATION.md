@@ -4,6 +4,11 @@
 
 Этот документ описывает процесс интеграции внешних систем с Chat3 через RabbitMQ для получения событий и обновлений в реальном времени.
 
+**Events и Updates — где что искать:**
+- **[EVENTS.md](EVENTS.md)** — полный справочник по событиям: типы событий, структура `data`, routing keys в `chat3_events`, соответствие событий и создаваемых Updates. Для интеграторов в конце документа есть раздел «Для интегрируемых приложений».
+- **[UPDATES.md](UPDATES.md)** — полный справочник по обновлениям: типы Updates, структура `data`, routing keys в `chat3_updates`, соответствие событий и Updates. Для интеграторов в конце — раздел «Для интегрируемых приложений».
+- **Ниже** — пошаговая настройка подключения к RabbitMQ, подписка на Updates по пользователю, примеры обработки в коде.
+
 ## Архитектура интеграции
 
 ```mermaid
@@ -63,24 +68,22 @@ update.{category}.{userType}.{userId}.{updateType}
 - `category` - категория обновления:
   - `dialog` - для DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate
   - `user` - для UserUpdate, UserStatsUpdate
+  - `pack` - для PackStatsUpdate, UserPackStatsUpdate (обновления по пакам, где состоит пользователь)
 - `userType` - тип пользователя из модели User (user, bot, contact и т.д.)
 - `userId` - ID пользователя-получателя
 - `updateType` - тип обновления в нижнем регистре:
-  - `dialogupdate` - DialogUpdate
-  - `dialogmemberupdate` - DialogMemberUpdate
-  - `messageupdate` - MessageUpdate
-  - `typingupdate` - TypingUpdate
-  - `userupdate` - UserUpdate
-  - `userstatsupdate` - UserStatsUpdate
+  - `dialogupdate`, `dialogmemberupdate`, `messageupdate`, `typingupdate`, `userupdate`, `userstatsupdate`, `packstatsupdate`, `userpackstatsupdate`
 
 **Примеры routing keys:**
 - `update.dialog.user.carl.dialogupdate` - обновление диалога для пользователя carl
 - `update.dialog.user.carl.messageupdate` - обновление сообщения для пользователя carl
 - `update.user.user.carl.userstatsupdate` - обновление статистики для пользователя carl
+- `update.pack.user.carl.userpackstatsupdate` - обновление unreadCount по паку для пользователя carl
 
 Для подписки используйте wildcards:
-- `update.*.user.carl.*` - все обновления для пользователя carl
-- `update.dialog.user.carl.*` - все обновления диалогов для пользователя carl
+- `update.*.{userType}.{userId}.*` - все обновления для пользователя (dialog, user, pack)
+- `update.dialog.{userType}.{userId}.*` - все обновления диалогов для пользователя
+- `update.pack.{userType}.{userId}.*` - все pack updates для пользователя (по пакам, где он состоит): PackStatsUpdate, UserPackStatsUpdate
 
 ## Подписка на обновления пользователя
 
@@ -149,6 +152,23 @@ async function consumeUserUpdates(channel, queueName, userId) {
   console.log(`👂 Listening for updates on queue: ${queueName}`);
 }
 ```
+
+### Подписка только на pack updates пользователя
+
+Чтобы получать **все updates по пакам, где состоит конкретный пользователь** (PackStatsUpdate, UserPackStatsUpdate), привяжите очередь к exchange `chat3_updates` с routing key `update.pack.{userType}.{userId}.*`:
+
+```javascript
+async function subscribeToUserPackUpdates(channel, userId, userType = 'user') {
+  const queueName = `user_${userId}_pack_updates`;
+  await channel.assertQueue(queueName, { durable: true, arguments: { 'x-message-ttl': 3600000 } });
+  const routingKey = `update.pack.${userType}.${userId}.*`;
+  await channel.bindQueue(queueName, 'chat3_updates', routingKey);
+  console.log(`✅ Subscribed to pack updates for user ${userId}: ${routingKey}`);
+  return queueName;
+}
+```
+
+В такую очередь будут приходить только PackStatsUpdate и UserPackStatsUpdate для этого пользователя (по всем пакам, где он состоит). Подробнее см. [UPDATES.md](UPDATES.md) — раздел «Pack Updates».
 
 ## Обработка различных типов обновлений
 
@@ -799,6 +819,14 @@ class Chat3Integration {
       case 'user.stats.update':
         await this.handleUserStatsUpdate(update);
         break;
+        
+      // Pack Updates (по пакам, где состоит пользователь)
+      case 'pack.stats.updated':
+        await this.handlePackStatsUpdate(update);
+        break;
+      case 'user.pack.stats.updated':
+        await this.handleUserPackStatsUpdate(update);
+        break;
     }
   }
   
@@ -841,6 +869,18 @@ class Chat3Integration {
   async handleUserStatsUpdate(update) {
     // Ваша реализация
     console.log('User stats update:', update.data.user.stats);
+  }
+  
+  async handlePackStatsUpdate(update) {
+    // pack.stats.updated — обновлены агрегаты пака (messageCount, dialogCount и т.д.)
+    const { packStats } = update.data;
+    console.log('Pack stats update:', packStats?.packId, packStats);
+  }
+  
+  async handleUserPackStatsUpdate(update) {
+    // user.pack.stats.updated — изменился unreadCount по паку для этого пользователя
+    const { userPackStats } = update.data;
+    console.log('User pack stats update:', userPackStats?.packId, 'unreadCount:', userPackStats?.unreadCount);
   }
   
   async disconnect() {
