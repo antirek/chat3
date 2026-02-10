@@ -79,12 +79,17 @@ export function removeIdFields(obj: unknown): unknown {
     if (key === '_id' || key === 'id' || key === '__v') {
       continue;
     }
-    
+
+    // Не отдаём поля с null
+    if (value === null) {
+      continue;
+    }
+
     // Удаляем name только для объектов User
     if (key === 'name' && isUserObject) {
       continue;
     }
-    
+
     // Форматируем timestamp поля: всегда строка с 6 знаками после точки (микросекунды)
     if (TIMESTAMP_FIELDS.includes(key as (typeof TIMESTAMP_FIELDS)[number])) {
       const formatted = formatTimestampValue(value);
@@ -94,7 +99,11 @@ export function removeIdFields(obj: unknown): unknown {
       }
     }
     // Рекурсивно обрабатываем вложенные объекты и массивы
-    result[key] = removeIdFields(value);
+    const processed = removeIdFields(value);
+    if (processed === null) {
+      continue;
+    }
+    result[key] = processed;
   }
 
   return result;

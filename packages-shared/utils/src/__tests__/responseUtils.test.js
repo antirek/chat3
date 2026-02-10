@@ -236,7 +236,8 @@ describe('responseUtils', () => {
       const result = sanitizeResponse(input);
       
       expect(result.name).toBe('Test');
-      expect(result.value).toBeNull();
+      // Поля с null не отдаются в response — ключ отсутствует
+      expect(result.value).toBeUndefined();
       expect(result.optional).toBeUndefined();
       expect(typeof result.createdAt).toBe('string');
       expect(result.createdAt).toMatch(/^\d+\.\d{6}$/);
