@@ -19,7 +19,13 @@ import {
   MessageReactionStats,
   MessageStatusStats,
   CounterHistory,
-  Topic
+  Topic,
+  Pack,
+  PackLink,
+  UserTopicStats,
+  DialogStats,
+  UserPackStats,
+  PackStats
 } from '@chat3/models';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { Request, Response } from 'express';
@@ -45,16 +51,23 @@ const MODELS_MAP: Record<string, Model<any>> = {
   'MessageReactionStats': MessageReactionStats,
   'MessageStatusStats': MessageStatusStats,
   'CounterHistory': CounterHistory,
-  'Topic': Topic
+  'Topic': Topic,
+  'Pack': Pack,
+  'PackLink': PackLink,
+  'UserTopicStats': UserTopicStats,
+  'DialogStats': DialogStats,
+  'UserPackStats': UserPackStats,
+  'PackStats': PackStats
 };
 
 // Группировка моделей по категориям
 const MODEL_CATEGORIES: Record<string, string[]> = {
   'Система': ['ApiKey', 'Tenant', 'User'],
   'Чаты': ['Dialog', 'Topic', 'DialogMember', 'Message', 'MessageStatus', 'MessageReaction', 'Meta'],
+  'Паки': ['Pack', 'PackLink'],
   'События': ['Event', 'Update'],
   'Журналы': ['ApiJournal', 'DialogReadTask'],
-  'Счетчики': ['UserStats', 'UserDialogStats', 'UserDialogActivity', 'MessageReactionStats', 'MessageStatusStats', 'CounterHistory']
+  'Счетчики': ['UserStats', 'UserDialogStats', 'UserDialogActivity', 'MessageReactionStats', 'MessageStatusStats', 'CounterHistory', 'UserTopicStats', 'DialogStats', 'UserPackStats', 'PackStats']
 };
 
 /**
@@ -120,7 +133,34 @@ export async function getModelData(req: Request, res: Response): Promise<void> {
     if (filter) {
       try {
         const parsedFilter = JSON.parse(String(filter));
-        query = { ...query, ...parsedFilter };
+        const schema: Schema = Model.schema;
+        const normalized: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(parsedFilter)) {
+          const path = schema.paths[key];
+          if (path?.instance === 'Number') {
+            // Фронт может передать строку или { $regex: "200", $options: "i" } — приводим к числу
+            let num: number | undefined;
+            if (typeof value === 'number' && !Number.isNaN(value)) {
+              num = value;
+            } else if (typeof value === 'string') {
+              num = Number(value);
+            } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+              const obj = value as Record<string, unknown>;
+              if ('$regex' in obj && typeof obj.$regex === 'string') {
+                num = Number(obj.$regex);
+              } else if ('$gte' in obj || '$lte' in obj || '$gt' in obj || '$lt' in obj) {
+                normalized[key] = value;
+                continue;
+              }
+            }
+            if (num !== undefined && !Number.isNaN(num)) {
+              normalized[key] = num;
+            }
+          } else {
+            normalized[key] = value;
+          }
+        }
+        query = { ...query, ...normalized };
       } catch (_e) {
         // Игнорируем ошибки парсинга фильтра
       }
@@ -201,7 +241,7 @@ export async function getModelItem(req: Request, res: Response): Promise<void> {
     // Если не найдено по _id или id не является ObjectId, пробуем найти по основному полю
     if (!item) {
       const schema: Schema = Model.schema;
-      const idFields = ['userId', 'dialogId', 'topicId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId'];
+      const idFields = ['userId', 'dialogId', 'topicId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId', 'packId'];
       
       for (const field of idFields) {
         if (schema.paths[field]) {
@@ -309,7 +349,7 @@ export async function updateModelItem(req: Request, res: Response): Promise<void
     if (!item) {
       // Если не найдено по _id или id не является ObjectId, пробуем найти по основному полю
       const schema: Schema = Model.schema;
-      const idFields = ['userId', 'dialogId', 'topicId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId'];
+      const idFields = ['userId', 'dialogId', 'topicId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId', 'packId'];
       
       for (const field of idFields) {
         if (schema.paths[field]) {
@@ -384,7 +424,7 @@ export async function deleteModelItem(req: Request, res: Response): Promise<void
     if (!item) {
       // Если не найдено по _id или id не является ObjectId, пробуем найти по основному полю
       const schema: Schema = Model.schema;
-      const idFields = ['userId', 'dialogId', 'topicId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId'];
+      const idFields = ['userId', 'dialogId', 'topicId', 'messageId', 'tenantId', 'key', 'eventId', 'updateId', 'taskId', 'packId'];
       
       for (const field of idFields) {
         if (schema.paths[field]) {

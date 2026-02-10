@@ -7,15 +7,26 @@
       <div v-else-if="Object.keys(modelsByCategory).length === 0" class="empty">Модели не найдены</div>
       <template v-else>
         <div v-for="(categoryModels, categoryName) in modelsByCategory" :key="categoryName" class="model-category">
-          <div class="model-category-header">{{ categoryName }}</div>
-          <div
-            v-for="model in categoryModels"
-            :key="model.name"
-            class="model-item"
-            :class="{ active: currentModel === model.name }"
-            @click="$emit('select-model', model.name)"
+          <button
+            type="button"
+            class="model-category-header"
+            :aria-expanded="expanded[categoryName]"
+            @click="toggleCategory(categoryName)"
           >
-            {{ model.name }}
+            <span class="category-chevron" :class="{ collapsed: !expanded[categoryName] }">▼</span>
+            <span class="category-title">{{ categoryName }}</span>
+            <span class="category-count">({{ categoryModels.length }})</span>
+          </button>
+          <div v-show="expanded[categoryName]" class="model-category-body">
+            <div
+              v-for="model in categoryModels"
+              :key="model.name"
+              class="model-item"
+              :class="{ active: currentModel === model.name }"
+              @click="$emit('select-model', model.name)"
+            >
+              {{ model.name }}
+            </div>
           </div>
         </div>
       </template>
@@ -24,6 +35,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue';
+
 interface Props {
   loading: boolean;
   error: string | null;
@@ -35,8 +48,32 @@ interface Emits {
   (e: 'select-model', modelName: string): void;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 defineEmits<Emits>();
+
+const expanded = ref<Record<string, boolean>>({});
+
+function toggleCategory(categoryName: string) {
+  expanded.value[categoryName] = !expanded.value[categoryName];
+  expanded.value = { ...expanded.value };
+}
+
+watch(
+  () => props.modelsByCategory,
+  (categories) => {
+    const keys = Object.keys(categories || {});
+    if (keys.length > 0 && Object.keys(expanded.value).length === 0) {
+      expanded.value = Object.fromEntries(keys.map((k) => [k, true]));
+    }
+    keys.forEach((k) => {
+      if (expanded.value[k] === undefined) {
+        expanded.value[k] = true;
+      }
+    });
+    expanded.value = { ...expanded.value };
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>
@@ -67,10 +104,14 @@ defineEmits<Emits>();
 }
 
 .model-category {
-  margin-bottom: 10px;
+  margin-bottom: 2px;
 }
 
 .model-category-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
   padding: 10px 20px;
   font-weight: 600;
   font-size: 12px;
@@ -78,6 +119,37 @@ defineEmits<Emits>();
   text-transform: uppercase;
   letter-spacing: 0.5px;
   background: #f8f9fa;
+  border: none;
+  border-bottom: 1px solid #e9ecef;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.2s;
+}
+
+.model-category-header:hover {
+  background: #e9ecef;
+}
+
+.category-chevron {
+  font-size: 10px;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.category-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.category-title {
+  flex: 1;
+}
+
+.category-count {
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.model-category-body {
   border-bottom: 1px solid #e9ecef;
 }
 
