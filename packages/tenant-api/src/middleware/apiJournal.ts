@@ -14,8 +14,7 @@ export function apiJournalMiddleware(req: AuthenticatedRequest, res: Response, n
   // Получаем информацию о запросе
   const method = req.method;
   const endpoint = req.originalUrl || req.url;
-  const tenantId = req.tenantId || null;
-  
+
   // Получаем размер запроса
   const requestSize = req.headers['content-length'] ? parseInt(req.headers['content-length'], 10) : null;
 
@@ -64,8 +63,8 @@ export function apiJournalMiddleware(req: AuthenticatedRequest, res: Response, n
       }
 
       // Создаем запись в журнале асинхронно (не блокируем ответ)
-      // Используем 'tnt_default' если tenantId отсутствует (соответствует логике apiAuth)
-      const journalTenantId = tenantId || 'tnt_default';
+      // req.tenantId задаётся в apiAuth (маршрутный middleware), к моменту finish он уже установлен
+      const journalTenantId = req.tenantId || 'tnt_default';
       
       // Сохраняем body только для POST/PUT/PATCH запросов с JSON body
       let requestBody: any = null;
