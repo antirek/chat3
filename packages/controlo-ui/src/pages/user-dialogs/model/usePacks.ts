@@ -35,12 +35,14 @@ export function usePacks(
   const sortField = ref<string>('createdAt');
   const sortDirection = ref<'asc' | 'desc'>('desc');
 
-  const currentSort = computed(() => (sortField.value === 'unreadCount' ? sortField.value : null));
+  const currentSort = computed(() =>
+    sortField.value === 'unreadCount' || sortField.value === 'lastActivityAt' ? sortField.value : null
+  );
 
   function toggleSort(field: string) {
-    if (field !== 'unreadCount') return;
-    if (sortField.value !== 'unreadCount') {
-      sortField.value = 'unreadCount';
+    if (field !== 'unreadCount' && field !== 'lastActivityAt') return;
+    if (sortField.value !== field) {
+      sortField.value = field;
       sortDirection.value = 'desc';
     } else if (sortDirection.value === 'desc') {
       sortDirection.value = 'asc';

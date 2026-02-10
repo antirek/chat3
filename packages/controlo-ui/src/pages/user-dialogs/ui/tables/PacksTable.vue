@@ -27,6 +27,15 @@
               {{ getSortIndicator('unreadCount') }}
             </span>
           </th>
+          <th
+            style="cursor: pointer; white-space: nowrap;"
+            @click="toggleSort('lastActivityAt')"
+          >
+            Последняя активность
+            <span class="sort-indicator" :class="{ active: currentSort === 'lastActivityAt' }">
+              {{ getSortIndicator('lastActivityAt') }}
+            </span>
+          </th>
           <th>Действия</th>
         </tr>
       </template>
@@ -34,6 +43,7 @@
         <td>{{ shortenPackId(item.packId) }}</td>
         <td style="text-align: center;">{{ item.stats?.dialogCount ?? 0 }}</td>
         <td style="text-align: center;">{{ item.stats?.unreadCount ?? 0 }}</td>
+        <td>{{ formatLastActivity(item.lastActivityAt) }}</td>
         <td class="actions-column">
           <BaseButton variant="primary" size="small" @click.stop="$emit('show-info', item.packId)">ℹ️ Инфо</BaseButton>
           <BaseButton variant="success" size="small" @click.stop="$emit('show-meta', item.packId)">🏷️ Мета</BaseButton>
@@ -48,6 +58,7 @@ import { BaseTable, BaseButton } from '@/shared/ui';
 
 interface Pack {
   packId: string;
+  lastActivityAt?: number | null;
   stats?: {
     unreadCount?: number;
     dialogCount?: number;
@@ -88,6 +99,21 @@ function shortenPackId(packId: string): string {
     return `pck_${packId.substring(4, 8)}...`;
   }
   return packId.length > 16 ? packId.substring(0, 16) + '...' : packId;
+}
+
+function formatLastActivity(ts: number | null | undefined): string {
+  if (ts == null || ts === 0) return '—';
+  const date = new Date(ts > 1000000000000 ? ts : ts * 1000);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
 }
 </script>
 

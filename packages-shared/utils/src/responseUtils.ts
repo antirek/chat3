@@ -2,7 +2,7 @@
  * Удаляет поля _id, id и __v из объекта и всех его вложенных объектов
  */
 
-// Список полей, которые являются timestamps и должны быть форматированы с 6 знаками
+// Список полей, которые являются timestamps и должны быть форматированы строками с 6 знаками после точки (микросекунды)
 const TIMESTAMP_FIELDS = [
   'createdAt',
   'lastSeenAt',
@@ -13,8 +13,28 @@ const TIMESTAMP_FIELDS = [
   'lastUsedAt',
   'readAt',
   'deliveredAt',
-  'joinedAt'
+  'joinedAt',
+  'lastUpdatedAt',
+  'lastActivityAt',
+  'addedAt'
 ] as const;
+
+/** Приводит значение timestamp к строке с 6 знаками после точки */
+function formatTimestampValue(value: unknown): string | undefined {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return undefined;
+    return value.toFixed(6);
+  }
+  if (typeof value === 'string') {
+    const match = value.match(/^(\d+)(?:\.(\d+))?$/);
+    if (match) {
+      const intPart = match[1];
+      const fracPart = (match[2] || '').padEnd(6, '0').slice(0, 6);
+      return `${intPart}.${fracPart}`;
+    }
+  }
+  return undefined;
+}
 
 export function removeIdFields(obj: unknown): unknown {
   if (obj === null || obj === undefined) {
@@ -65,14 +85,16 @@ export function removeIdFields(obj: unknown): unknown {
       continue;
     }
     
-    // Форматируем timestamp поля с 6 знаками после точки
-    if (TIMESTAMP_FIELDS.includes(key as typeof TIMESTAMP_FIELDS[number]) && typeof value === 'number' && value > 1000000000000) {
-      // Возвращаем строку с 6 знаками для гарантии отображения всех микросекунд
-      result[key] = value.toFixed(6);
-    } else {
-      // Рекурсивно обрабатываем вложенные объекты и массивы
-      result[key] = removeIdFields(value);
+    // Форматируем timestamp поля: всегда строка с 6 знаками после точки (микросекунды)
+    if (TIMESTAMP_FIELDS.includes(key as (typeof TIMESTAMP_FIELDS)[number])) {
+      const formatted = formatTimestampValue(value);
+      if (formatted !== undefined) {
+        result[key] = formatted;
+        continue;
+      }
     }
+    // Рекурсивно обрабатываем вложенные объекты и массивы
+    result[key] = removeIdFields(value);
   }
 
   return result;
@@ -88,14 +110,13 @@ export function sanitizeResponse(data: unknown): unknown {
 }
 
 /**
- * JSON.stringify replacer для форматирования timestamps с 6 знаками
+ * JSON.stringify replacer для форматирования timestamps строками с 6 знаками после точки
  * Использовать: JSON.stringify(data, timestampReplacer)
  */
 export function timestampReplacer(key: string, value: unknown): unknown {
-  if (TIMESTAMP_FIELDS.includes(key as typeof TIMESTAMP_FIELDS[number]) && typeof value === 'number' && value > 1000000000000) {
-    // Возвращаем число, но JSON.stringify покажет его с максимальной точностью
-    // Для гарантии 6 знаков нужно было бы вернуть строку, но это нарушает типизацию
-    return parseFloat(value.toFixed(6));
+  if (TIMESTAMP_FIELDS.includes(key as (typeof TIMESTAMP_FIELDS)[number])) {
+    const formatted = formatTimestampValue(value);
+    if (formatted !== undefined) return formatted;
   }
   return value;
 }

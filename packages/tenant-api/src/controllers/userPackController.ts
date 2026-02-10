@@ -45,15 +45,40 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
       return;
     }
 
-    const [meta, dialogCount, packStatsDoc, userPackStatsDoc] = await Promise.all([
+    const allowedDialogIds = packDialogIds.filter((d) => userDialogIds.includes(d));
+
+    const [meta, dialogCount, packStatsDoc, userPackStatsDoc, lastMsgDoc] = await Promise.all([
       metaUtils.getEntityMeta(tenantId, 'pack', packId),
       PackLink.countDocuments({ packId, tenantId }),
       PackStats.findOne({ tenantId, packId }).select('-__v').lean(),
-      UserPackStats.findOne({ tenantId, userId, packId }).select('unreadCount lastUpdatedAt createdAt').lean()
+      UserPackStats.findOne({ tenantId, userId, packId }).select('unreadCount lastUpdatedAt createdAt').lean(),
+      allowedDialogIds.length > 0
+        ? Message.findOne({ tenantId, dialogId: { $in: allowedDialogIds } })
+            .sort({ createdAt: -1 })
+            .select('messageId content senderId type createdAt dialogId')
+            .lean()
+        : Promise.resolve(null)
     ]);
 
     const packStats = packStatsDoc as { messageCount?: number; uniqueMemberCount?: number; sumMemberCount?: number; uniqueTopicCount?: number; sumTopicCount?: number; lastUpdatedAt?: number } | null;
     const userStats = userPackStatsDoc as { unreadCount?: number; lastUpdatedAt?: number; createdAt?: number } | null;
+
+    let lastMessage: any = null;
+    let lastActivityAt: number | null = null;
+    if (lastMsgDoc) {
+      const lastMsg = lastMsgDoc as { messageId: string; content?: string; senderId: string; type: string; createdAt: number; dialogId: string };
+      lastActivityAt = lastMsg.createdAt;
+      lastMessage = {
+        messageId: lastMsg.messageId,
+        content: lastMsg.content,
+        senderId: lastMsg.senderId,
+        type: lastMsg.type,
+        createdAt: lastMsg.createdAt,
+        dialogId: lastMsg.dialogId
+      };
+      const senderInfo = await getSenderInfo(tenantId, lastMsg.senderId);
+      if (senderInfo) lastMessage.senderInfo = senderInfo;
+    }
 
     const data = {
       ...(pack as Record<string, unknown>),
@@ -71,7 +96,9 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
         unreadCount: userStats?.unreadCount ?? 0,
         lastUpdatedAt: userStats?.lastUpdatedAt ?? null,
         createdAt: userStats?.createdAt ?? null
-      }
+      },
+      lastMessage,
+      lastActivityAt
     };
 
     res.json({
@@ -186,7 +213,51 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
     let pagePackIds: string[];
     let packs: any[];
 
-    if (sortField === 'unreadCount') {
+    if (sortField === 'lastActivityAt') {
+      const allPackLinks = await PackLink.find({
+        packId: { $in: packIdsFilter },
+        tenantId
+      })
+        .select('packId dialogId')
+        .lean();
+      const userDialogIdsSetForSort = new Set(userDialogIds);
+      const packToDialogIdsSort = new Map<string, string[]>();
+      const dialogToPackIdsSort = new Map<string, string[]>();
+      for (const link of allPackLinks as { packId: string; dialogId: string }[]) {
+        if (!userDialogIdsSetForSort.has(link.dialogId)) continue;
+        if (!packToDialogIdsSort.has(link.packId)) packToDialogIdsSort.set(link.packId, []);
+        packToDialogIdsSort.get(link.packId)!.push(link.dialogId);
+        if (!dialogToPackIdsSort.has(link.dialogId)) dialogToPackIdsSort.set(link.dialogId, []);
+        dialogToPackIdsSort.get(link.dialogId)!.push(link.packId);
+      }
+      const allDialogIdsForSort = [...dialogToPackIdsSort.keys()];
+      let lastActivityByPack = new Map<string, number>();
+      if (allDialogIdsForSort.length > 0) {
+        const dialogMaxCreated = await Message.aggregate([
+          { $match: { tenantId, dialogId: { $in: allDialogIdsForSort } } },
+          { $sort: { createdAt: -1 } },
+          { $group: { _id: '$dialogId', maxCreated: { $first: '$createdAt' } } }
+        ]);
+        const dialogMaxMap = new Map<string, number>(
+          (dialogMaxCreated as { _id: string; maxCreated: number }[]).map((r) => [r._id, r.maxCreated])
+        );
+        for (const packId of packIdsFilter) {
+          const dialogIds = packToDialogIdsSort.get(packId) || [];
+          const maxAt = dialogIds.length > 0 ? Math.max(...dialogIds.map((d) => dialogMaxMap.get(d) ?? 0)) : 0;
+          if (maxAt > 0) lastActivityByPack.set(packId, maxAt);
+        }
+      }
+      const sortedPackIds = [...packIdsFilter].sort((a, b) => {
+        const atA = lastActivityByPack.get(a) ?? 0;
+        const atB = lastActivityByPack.get(b) ?? 0;
+        return sortDirection === -1 ? atB - atA : atA - atB;
+      });
+      pagePackIds = sortedPackIds.slice(skip, skip + limit);
+      packs = await Pack.find({ packId: { $in: pagePackIds }, tenantId })
+        .select('-__v')
+        .lean();
+      packs.sort((a: any, b: any) => pagePackIds.indexOf(a.packId) - pagePackIds.indexOf(b.packId));
+    } else if (sortField === 'unreadCount') {
       const statsRows = await UserPackStats.find({
         tenantId,
         userId,

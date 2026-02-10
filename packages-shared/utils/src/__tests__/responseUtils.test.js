@@ -115,6 +115,33 @@ describe('responseUtils', () => {
       expect(result.name).toBe('Test');
     });
 
+    test('should format lastUpdatedAt, lastActivityAt, addedAt as strings with 6 decimals', () => {
+      const baseTimestamp = 1770183594041;
+      const input = {
+        createdAt: baseTimestamp + 0.63916,
+        stats: {
+          lastUpdatedAt: 1770267266818.3872,
+        },
+        userStats: {
+          lastUpdatedAt: 1770267266836.3672,
+          createdAt: 1770184097049.082764,
+        },
+        lastActivityAt: 1770191367978.037842,
+        addedAt: baseTimestamp + 0.5,
+      };
+      const result = sanitizeResponse(input);
+      expect(typeof result.createdAt).toBe('string');
+      expect(result.createdAt).toMatch(/^\d+\.\d{6}$/);
+      expect(typeof result.stats.lastUpdatedAt).toBe('string');
+      expect(result.stats.lastUpdatedAt).toMatch(/^\d+\.\d{6}$/);
+      expect(typeof result.userStats.lastUpdatedAt).toBe('string');
+      expect(typeof result.userStats.createdAt).toBe('string');
+      expect(typeof result.lastActivityAt).toBe('string');
+      expect(result.lastActivityAt).toMatch(/^\d+\.\d{6}$/);
+      expect(typeof result.addedAt).toBe('string');
+      expect(result.addedAt).toMatch(/^\d+\.\d{6}$/);
+    });
+
     test('should pad timestamp fields with zeros', () => {
       // Timestamp должен быть > 1000000000000 для форматирования
       const baseTimestamp = 1734567890123;
@@ -129,19 +156,16 @@ describe('responseUtils', () => {
       // Проверяем формат, а не точное значение (может быть небольшое округление)
     });
 
-    test('should not format timestamps less than threshold', () => {
-      // Timestamp < 1000000000000 не должен форматироваться
+    test('should format all numeric timestamp fields as string with 6 decimals', () => {
+      // Любой числовой timestamp форматируется строкой с 6 знаками после точки
       const input = {
-        createdAt: 123456789012.123456, // меньше порога
+        createdAt: 123456789012.123456,
       };
       
       const result = sanitizeResponse(input);
       
-      // createdAt не форматируется (меньше порога)
-      expect(typeof result.createdAt).toBe('number');
-      expect(result.createdAt).toBe(123456789012.123456);
-      
-      // updatedAt форматируется (больше порога)
+      expect(typeof result.createdAt).toBe('string');
+      expect(result.createdAt).toMatch(/^\d+\.\d{6}$/);
     });
 
     test('should handle nested timestamp fields', () => {
@@ -320,17 +344,21 @@ describe('responseUtils', () => {
       expect(result.users[1].name).toBe('User 2');
     });
 
-    test('should handle string timestamp fields (should not format)', () => {
-      // Timestamp должен быть > 1000000000000 для форматирования
+    test('should normalize string timestamp to 6 decimals', () => {
       const baseTimestamp = 1734567890123;
       const input = {
-        createdAt: `${baseTimestamp}.123456`, // уже строка
+        createdAt: `${baseTimestamp}.123456`, // уже строка с 6 знаками
       };
       
       const result = sanitizeResponse(input);
       
-      // Строковые timestamp не должны форматироваться (проверка только для чисел)
       expect(result.createdAt).toBe(`${baseTimestamp}.123456`);
+    });
+
+    test('should pad short fractional part to 6 digits', () => {
+      const input = { createdAt: '1734567890123.12' };
+      const result = sanitizeResponse(input);
+      expect(result.createdAt).toBe('1734567890123.120000');
     });
 
     test('should handle very large timestamp values', () => {
@@ -520,11 +548,11 @@ describe('responseUtils', () => {
   });
 
   describe('timestampReplacer', () => {
-    test('should format timestamp fields with toFixed(6)', () => {
+    test('should format timestamp fields as string with 6 decimals', () => {
       const value = 1734567890123.123456;
       const result = timestampReplacer('createdAt', value);
-      expect(typeof result).toBe('number');
-      expect(result).toBe(parseFloat(value.toFixed(6)));
+      expect(typeof result).toBe('string');
+      expect(result).toMatch(/^\d+\.\d{6}$/);
     });
 
     test('should return value as-is for non-timestamp keys', () => {
@@ -532,9 +560,10 @@ describe('responseUtils', () => {
       expect(timestampReplacer('count', 42)).toBe(42);
     });
 
-    test('should return value as-is when number is below threshold', () => {
+    test('should format any numeric timestamp with 6 decimals', () => {
       const result = timestampReplacer('createdAt', 123456789);
-      expect(result).toBe(123456789);
+      expect(typeof result).toBe('string');
+      expect(result).toBe('123456789.000000');
     });
   });
 });

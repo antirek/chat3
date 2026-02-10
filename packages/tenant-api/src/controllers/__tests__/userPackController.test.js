@@ -452,3 +452,109 @@ describe('userPackController.getPackMessages', () => {
     expect(res.body.hasMore).toBe(false);
   });
 });
+
+/** params: { userId, packId } для getUserPackById */
+describe('userPackController.getUserPackById', () => {
+  const userId = 'user_pack_by_id';
+
+  test('returns pack with userStats when user has access', async () => {
+    const dialogA = createDialogId(80);
+    const packId = createPackId(80);
+    await Dialog.create({ tenantId, dialogId: dialogA, createdAt: generateTimestamp() });
+    await DialogMember.create({ tenantId, dialogId: dialogA, userId });
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await PackLink.create({ tenantId, packId, dialogId: dialogA });
+
+    const req = createMockReqWithPack(userId, packId);
+    req.params = { userId, packId };
+    const res = createMockRes();
+
+    await userPackController.getUserPackById(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data.packId).toBe(packId);
+    expect(res.body.data.meta).toBeDefined();
+    expect(res.body.data.stats).toBeDefined();
+    expect(res.body.data.userStats).toBeDefined();
+    expect(typeof res.body.data.userStats.unreadCount).toBe('number');
+  });
+
+  test('returns 404 when pack not found', async () => {
+    const req = createMockReqWithPack(userId, createPackId(99));
+    req.params = { userId, packId: createPackId(99) };
+    const res = createMockRes();
+
+    await userPackController.getUserPackById(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body?.message).toMatch(/Pack not found/);
+  });
+
+  test('returns 404 when user has no access to pack', async () => {
+    const dialogA = createDialogId(81);
+    const packId = createPackId(81);
+    await Dialog.create({ tenantId, dialogId: dialogA, createdAt: generateTimestamp() });
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await PackLink.create({ tenantId, packId, dialogId: dialogA });
+    // userId не в DialogMember для dialogA
+
+    const req = createMockReqWithPack(userId, packId);
+    req.params = { userId, packId };
+    const res = createMockRes();
+
+    await userPackController.getUserPackById(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body?.message).toMatch(/no access|not in any dialog/);
+  });
+});
+
+/** params: { userId, dialogId } для getDialogPacks */
+describe('userPackController.getDialogPacks', () => {
+  const userId = 'user_dialog_packs';
+
+  test('returns packs that contain the dialog when user is member', async () => {
+    const dialogA = createDialogId(90);
+    const pack1 = createPackId(90);
+    const pack2 = createPackId(91);
+    await Dialog.create({ tenantId, dialogId: dialogA, createdAt: generateTimestamp() });
+    await DialogMember.create({ tenantId, dialogId: dialogA, userId });
+    await Pack.create([
+      { tenantId, packId: pack1, createdAt: generateTimestamp() },
+      { tenantId, packId: pack2, createdAt: generateTimestamp() }
+    ]);
+    await PackLink.create([
+      { tenantId, packId: pack1, dialogId: dialogA },
+      { tenantId, packId: pack2, dialogId: dialogA }
+    ]);
+
+    const req = { tenantId, params: { userId, dialogId: dialogA }, query: {} };
+    const res = createMockRes();
+
+    await userPackController.getDialogPacks(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+    const packIds = res.body.data.map((d) => d.packId);
+    expect(packIds).toContain(pack1);
+    expect(packIds).toContain(pack2);
+    res.body.data.forEach((d) => {
+      expect(d.addedAt).toBeDefined();
+      expect(d.meta).toBeDefined();
+    });
+  });
+
+  test('returns 404 when user is not member of dialog', async () => {
+    const dialogA = createDialogId(91);
+    await Dialog.create({ tenantId, dialogId: dialogA, createdAt: generateTimestamp() });
+    // userId не участник
+
+    const req = { tenantId, params: { userId, dialogId: dialogA }, query: {} };
+    const res = createMockRes();
+
+    await userPackController.getDialogPacks(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body?.message).toMatch(/not a member|Dialog not found/);
+  });
+});
