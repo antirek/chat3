@@ -9,7 +9,8 @@ export interface EventsUpdatesStats {
 
 export interface ApiRequestsStats {
   dates: string[];
-  requests: number[];
+  requests2xx3xx: number[];
+  requests4xx5xx: number[];
 }
 
 export function useActivityStats() {

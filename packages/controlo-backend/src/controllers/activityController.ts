@@ -185,7 +185,7 @@ export const activityController = {
    *     description: |
    *       Возвращает статистику API запросов из ApiJournal за последние 30 дней.
    *       Данные агрегируются по всем тенантам вместе.
-   *       Для каждого дня возвращается общее количество запросов.
+   *       Для каждого дня возвращается количество запросов по группам кодов: 2XX+3XX, 4XX+5XX.
    *     responses:
    *       200:
    *         description: Statistics data
@@ -203,11 +203,14 @@ export const activityController = {
    *                         type: string
    *                         format: date
    *                         example: "2024-01-16"
-   *                     requests:
+   *                     requests2xx3xx:
    *                       type: array
    *                       items:
    *                         type: number
-   *                       example: [100, 150, 200]
+   *                     requests4xx5xx:
+   *                       type: array
+   *                       items:
+   *                         type: number
    *       500:
    *         description: Internal Server Error
    */
@@ -230,7 +233,7 @@ export const activityController = {
       endOfToday.setHours(23, 59, 59, 999);
       const endTimestamp = endOfToday.getTime();
       
-      // Агрегация ApiJournal
+      // Агрегация ApiJournal по дате и группе кода ответа (2XX+3XX, 4XX+5XX)
       const apiRequestsData = await ApiJournal.aggregate([
         {
           $match: {
@@ -238,31 +241,70 @@ export const activityController = {
           }
         },
         {
-          $group: {
-            _id: {
+          $addFields: {
+            dateStr: {
               $dateToString: {
                 format: '%Y-%m-%d',
                 date: { $toDate: { $floor: '$createdAt' } }
               }
             },
+            statusGroup: {
+              $switch: {
+                branches: [
+                  {
+                    case: {
+                      $and: [
+                        { $gte: ['$statusCode', 200] },
+                        { $lt: ['$statusCode', 400] }
+                      ]
+                    },
+                    then: '2XX+3XX'
+                  },
+                  {
+                    case: {
+                      $and: [
+                        { $gte: ['$statusCode', 400] },
+                        { $lt: ['$statusCode', 600] }
+                      ]
+                    },
+                    then: '4XX+5XX'
+                  }
+                ],
+                default: 'other'
+              }
+            }
+          }
+        },
+        {
+          $match: { statusGroup: { $in: ['2XX+3XX', '4XX+5XX'] } }
+        },
+        {
+          $group: {
+            _id: { date: '$dateStr', statusGroup: '$statusGroup' },
             count: { $sum: 1 }
           }
         }
       ]);
-      
-      // Создаем Map для быстрого доступа
-      const requestsMap = new Map<string, number>();
+
+      const map2xx3xx = new Map<string, number>();
+      const map4xx5xx = new Map<string, number>();
       apiRequestsData.forEach((item: any) => {
-        requestsMap.set(item._id, item.count);
+        const { date, statusGroup } = item._id;
+        if (statusGroup === '2XX+3XX') {
+          map2xx3xx.set(date, item.count);
+        } else if (statusGroup === '4XX+5XX') {
+          map4xx5xx.set(date, item.count);
+        }
       });
-      
-      // Заполняем пропущенные дни
-      const { dates, values: requestsValues } = fillMissingDays(requestsMap, 30);
-      
+
+      const { dates, values: requests2xx3xx } = fillMissingDays(map2xx3xx, 30);
+      const { values: requests4xx5xx } = fillMissingDays(map4xx5xx, 30);
+
       res.json({
         data: {
           dates,
-          requests: requestsValues
+          requests2xx3xx,
+          requests4xx5xx
         }
       });
     } catch (error: any) {

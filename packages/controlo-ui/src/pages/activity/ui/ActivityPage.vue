@@ -24,7 +24,8 @@
         </div>
         <ApiRequestsChart
           :dates="apiRequestsStats?.dates || []"
-          :requests="apiRequestsStats?.requests || []"
+          :requests2xx3xx="apiRequestsStats?.requests2xx3xx || []"
+          :requests4xx5xx="apiRequestsStats?.requests4xx5xx || []"
           :loading="loadingApiRequests"
           :error="apiRequestsError"
         />

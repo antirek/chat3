@@ -39,14 +39,14 @@
       <td :title="(item as User).createdAt != null ? String((item as User).createdAt) : undefined">{{ formatTimestamp((item as User).createdAt) }}</td>
       <td>
         <span class="dialog-count-badge">
-          {{ (item as User).dialogCount !== undefined ? (item as User).dialogCount : '-' }}
+          {{ (item as User).stats?.dialogCount ?? '-' }}
         </span>
       </td>
       <td>
         <span
-          :class="['unread-count-badge', { 'has-unread': ((item as User).unreadDialogsCount || 0) > 0 }]"
+          :class="['unread-count-badge', { 'has-unread': ((item as User).stats?.unreadDialogsCount ?? 0) > 0 }]"
         >
-          {{ (item as User).unreadDialogsCount !== undefined ? (item as User).unreadDialogsCount : '-' }}
+          {{ (item as User).stats?.unreadDialogsCount ?? '-' }}
         </span>
       </td>
       <td>
@@ -91,8 +91,10 @@ interface User {
   userId: string;
   type?: string;
   createdAt?: string | number;
-  dialogCount?: number;
-  unreadDialogsCount?: number;
+  stats?: {
+    dialogCount?: number;
+    unreadDialogsCount?: number;
+  };
 }
 
 interface Props {

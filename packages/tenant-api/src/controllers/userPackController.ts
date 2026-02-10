@@ -1,8 +1,8 @@
-import { Pack, PackLink, PackStats, DialogMember, UserPackStats } from '@chat3/models';
+import { Pack, PackLink, PackStats, DialogMember, UserPackStats, Message } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { loadPackMessages } from '../utils/packMessageUtils.js';
-import { enrichMessagesWithMetaAndStatuses } from '../utils/messageEnrichment.js';
+import { enrichMessagesWithMetaAndStatuses, getSenderInfo } from '../utils/messageEnrichment.js';
 import { Response } from 'express';
 import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
@@ -222,7 +222,7 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
       metaByPack[packId] = await metaUtils.getEntityMeta(tenantId, 'pack', packId);
     }
 
-    const [statsByPack, dialogCountByPack] = await Promise.all([
+    const [statsByPack, dialogCountByPack, packLinksForPage] = await Promise.all([
       pagePackIds.length > 0
         ? UserPackStats.find({ tenantId, userId, packId: { $in: pagePackIds } })
             .select('packId unreadCount lastUpdatedAt createdAt')
@@ -244,12 +244,79 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
             { $match: { packId: { $in: pagePackIds }, tenantId } },
             { $group: { _id: '$packId', dialogCount: { $sum: 1 } } }
           ]).then((rows: any[]) => Object.fromEntries(rows.map((r) => [r._id, r.dialogCount ?? 0])))
-        : Promise.resolve({} as Record<string, number>)
+        : Promise.resolve({} as Record<string, number>),
+      pagePackIds.length > 0
+        ? PackLink.find({ packId: { $in: pagePackIds }, tenantId })
+            .select('packId dialogId')
+            .lean()
+        : Promise.resolve([])
     ]);
+
+    const userDialogIdsSet = new Set(userDialogIds);
+    const dialogToPackIds = new Map<string, string[]>();
+    for (const link of packLinksForPage as { packId: string; dialogId: string }[]) {
+      if (!userDialogIdsSet.has(link.dialogId)) continue;
+      if (!dialogToPackIds.has(link.dialogId)) {
+        dialogToPackIds.set(link.dialogId, []);
+      }
+      dialogToPackIds.get(link.dialogId)!.push(link.packId);
+    }
+    const allDialogIdsForPacks = [...dialogToPackIds.keys()];
+
+    let lastMessageByPack = new Map<string, { messageId: string; content?: string; senderId: string; type: string; createdAt: number; dialogId: string }>();
+    if (allDialogIdsForPacks.length > 0) {
+      const recentMessages = await Message.find({
+        tenantId,
+        dialogId: { $in: allDialogIdsForPacks }
+      })
+        .sort({ createdAt: -1 })
+        .limit(300)
+        .select('messageId content senderId type createdAt dialogId')
+        .lean();
+      const assignedPacks = new Set<string>();
+      for (const msg of recentMessages as any[]) {
+        const packIds = dialogToPackIds.get(msg.dialogId) || [];
+        for (const packId of packIds) {
+          if (assignedPacks.has(packId)) continue;
+          assignedPacks.add(packId);
+          lastMessageByPack.set(packId, {
+            messageId: msg.messageId,
+            content: msg.content,
+            senderId: msg.senderId,
+            type: msg.type,
+            createdAt: msg.createdAt,
+            dialogId: msg.dialogId
+          });
+        }
+        if (assignedPacks.size === pagePackIds.length) break;
+      }
+    }
+
+    const senderIdsFromLastMessages = [...new Set(Array.from(lastMessageByPack.values()).map((m) => m.senderId).filter(Boolean))];
+    const senderInfoCache = new Map();
+    await Promise.all(
+      senderIdsFromLastMessages.map((senderId) => getSenderInfo(tenantId, senderId, senderInfoCache))
+    );
 
     const data = packs.map((p: any) => {
       const st = statsByPack.get(p.packId);
       const dialogCount = dialogCountByPack[p.packId] ?? 0;
+      const lastMsg = lastMessageByPack.get(p.packId);
+      let lastMessage: any = null;
+      let lastActivityAt: number | null = null;
+      if (lastMsg) {
+        lastActivityAt = lastMsg.createdAt;
+        lastMessage = {
+          messageId: lastMsg.messageId,
+          content: lastMsg.content,
+          senderId: lastMsg.senderId,
+          type: lastMsg.type,
+          createdAt: lastMsg.createdAt,
+          dialogId: lastMsg.dialogId
+        };
+        const senderInfo = senderInfoCache.get(lastMsg.senderId);
+        if (senderInfo) lastMessage.senderInfo = senderInfo;
+      }
       return {
         ...p,
         meta: metaByPack[p.packId] || {},
@@ -258,7 +325,9 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
           lastUpdatedAt: st?.lastUpdatedAt ?? null,
           createdAt: st?.createdAt ?? null,
           dialogCount
-        }
+        },
+        lastMessage,
+        lastActivityAt
       };
     });
 

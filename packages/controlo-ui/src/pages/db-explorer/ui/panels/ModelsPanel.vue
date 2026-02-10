@@ -63,11 +63,11 @@ watch(
   (categories) => {
     const keys = Object.keys(categories || {});
     if (keys.length > 0 && Object.keys(expanded.value).length === 0) {
-      expanded.value = Object.fromEntries(keys.map((k) => [k, true]));
+      expanded.value = Object.fromEntries(keys.map((k) => [k, false]));
     }
     keys.forEach((k) => {
       if (expanded.value[k] === undefined) {
-        expanded.value[k] = true;
+        expanded.value[k] = false;
       }
     });
     expanded.value = { ...expanded.value };

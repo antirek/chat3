@@ -15,7 +15,8 @@ Chart.register(...registerables);
 
 interface Props {
   dates: string[];
-  requests: number[];
+  requests2xx3xx: number[];
+  requests4xx5xx: number[];
   loading?: boolean;
   error?: string | null;
 }
@@ -32,15 +33,22 @@ const chartData = computed(() => {
   if (!props.dates || props.dates.length === 0) {
     return null;
   }
-  
+
   return {
     labels: props.dates,
     datasets: [
       {
-        label: 'API запросы',
-        data: props.requests,
-        backgroundColor: 'rgba(255, 159, 64, 0.6)',
-        borderColor: 'rgba(255, 159, 64, 1)',
+        label: '2XX+3XX',
+        data: props.requests2xx3xx,
+        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1
+      },
+      {
+        label: '4XX+5XX',
+        data: props.requests4xx5xx,
+        backgroundColor: 'rgba(255, 99, 132, 0.6)',
+        borderColor: 'rgba(255, 99, 132, 1)',
         borderWidth: 1
       }
     ]
@@ -71,7 +79,7 @@ const chartOptions = {
     },
     title: {
       display: true,
-      text: 'API запросы за последние 30 дней'
+      text: 'API запросы по кодам ответа (2XX+3XX / 4XX+5XX)'
     }
   }
 };
