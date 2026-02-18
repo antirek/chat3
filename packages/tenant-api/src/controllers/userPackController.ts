@@ -68,15 +68,19 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
     if (lastMsgDoc) {
       const lastMsg = lastMsgDoc as { messageId: string; content?: string; senderId: string; type: string; createdAt: number; dialogId: string };
       lastActivityAt = lastMsg.createdAt;
+      const [senderInfo, messageMeta] = await Promise.all([
+        getSenderInfo(tenantId, lastMsg.senderId),
+        metaUtils.getEntityMeta(tenantId, 'message', lastMsg.messageId)
+      ]);
       lastMessage = {
         messageId: lastMsg.messageId,
         content: lastMsg.content,
         senderId: lastMsg.senderId,
         type: lastMsg.type,
         createdAt: lastMsg.createdAt,
-        dialogId: lastMsg.dialogId
+        dialogId: lastMsg.dialogId,
+        meta: messageMeta || {}
       };
-      const senderInfo = await getSenderInfo(tenantId, lastMsg.senderId);
       if (senderInfo) lastMessage.senderInfo = senderInfo;
     }
 
@@ -364,10 +368,16 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
     }
 
     const senderIdsFromLastMessages = [...new Set(Array.from(lastMessageByPack.values()).map((m) => m.senderId).filter(Boolean))];
+    const messageIdsFromLastMessages = Array.from(lastMessageByPack.values()).map((m) => m.messageId);
     const senderInfoCache = new Map();
-    await Promise.all(
-      senderIdsFromLastMessages.map((senderId) => getSenderInfo(tenantId, senderId, senderInfoCache))
-    );
+    const messageMetaByMessageId = new Map<string, Record<string, unknown>>();
+    await Promise.all([
+      ...senderIdsFromLastMessages.map((senderId) => getSenderInfo(tenantId, senderId, senderInfoCache)),
+      ...messageIdsFromLastMessages.map(async (messageId) => {
+        const meta = await metaUtils.getEntityMeta(tenantId, 'message', messageId);
+        messageMetaByMessageId.set(messageId, meta || {});
+      })
+    ]);
 
     const data = packs.map((p: any) => {
       const st = statsByPack.get(p.packId);
@@ -383,7 +393,8 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
           senderId: lastMsg.senderId,
           type: lastMsg.type,
           createdAt: lastMsg.createdAt,
-          dialogId: lastMsg.dialogId
+          dialogId: lastMsg.dialogId,
+          meta: messageMetaByMessageId.get(lastMsg.messageId) || {}
         };
         const senderInfo = senderInfoCache.get(lastMsg.senderId);
         if (senderInfo) lastMessage.senderInfo = senderInfo;

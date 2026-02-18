@@ -162,6 +162,62 @@ describe('userPackController.getUserPacks - filter by meta', () => {
     expect(packIds).not.toContain(packC);
     expect(res.body.pagination.total).toBe(2);
   });
+
+  test('lastMessage includes message meta for each pack', async () => {
+    const senderId = 'usr_sender_packs';
+    await User.create({
+      tenantId,
+      userId: senderId,
+      name: 'Sender',
+      createdAt: generateTimestamp()
+    });
+
+    const dialogA = createDialogId(1);
+    const dialogB = createDialogId(2);
+    const msgIdA = messageId(100);
+    const msgIdB = messageId(101);
+
+    await Message.create([
+      {
+        tenantId,
+        dialogId: dialogA,
+        messageId: msgIdA,
+        senderId,
+        type: 'internal.text',
+        content: 'Last in A',
+        createdAt: generateTimestamp() + 2
+      },
+      {
+        tenantId,
+        dialogId: dialogB,
+        messageId: msgIdB,
+        senderId,
+        type: 'internal.text',
+        content: 'Last in B',
+        createdAt: generateTimestamp() + 1
+      }
+    ]);
+    await Meta.create([
+      { tenantId, entityType: 'message', entityId: msgIdA, key: 'attention', value: 'required', dataType: 'string' },
+      { tenantId, entityType: 'message', entityId: msgIdB, key: 'contactId', value: 'cnt_xyz', dataType: 'string' }
+    ]);
+
+    const req = createMockReq(userId, { page: 1, limit: 10 });
+    const res = createMockRes();
+
+    await userPackController.getUserPacks(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+    const packARow = res.body.data.find((p) => p.packId === packA);
+    const packBRow = res.body.data.find((p) => p.packId === packB);
+    expect(packARow?.lastMessage).toBeDefined();
+    expect(packARow?.lastMessage.messageId).toBe(msgIdA);
+    expect(packARow?.lastMessage.meta).toEqual({ attention: 'required' });
+    expect(packBRow?.lastMessage).toBeDefined();
+    expect(packBRow?.lastMessage.messageId).toBe(msgIdB);
+    expect(packBRow?.lastMessage.meta).toEqual({ contactId: 'cnt_xyz' });
+  });
 });
 
 describe('userPackController.getPackDialogs', () => {
@@ -506,6 +562,48 @@ describe('userPackController.getUserPackById', () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.body?.message).toMatch(/no access|not in any dialog/);
+  });
+
+  test('lastMessage includes message meta from Meta collection', async () => {
+    const dialogA = createDialogId(82);
+    const packId = createPackId(82);
+    const senderId = 'usr_sender_82';
+    const msgId = messageId(82);
+
+    await Dialog.create({ tenantId, dialogId: dialogA, createdAt: generateTimestamp() });
+    await DialogMember.create({ tenantId, dialogId: dialogA, userId });
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await PackLink.create({ tenantId, packId, dialogId: dialogA });
+    await User.create({
+      tenantId,
+      userId: senderId,
+      name: 'Sender',
+      createdAt: generateTimestamp()
+    });
+    await Message.create({
+      tenantId,
+      dialogId: dialogA,
+      messageId: msgId,
+      senderId,
+      type: 'internal.text',
+      content: 'Hello',
+      createdAt: generateTimestamp()
+    });
+    await Meta.create([
+      { tenantId, entityType: 'message', entityId: msgId, key: 'attention', value: 'required', dataType: 'string' },
+      { tenantId, entityType: 'message', entityId: msgId, key: 'contactId', value: 'cnt_abc', dataType: 'string' }
+    ]);
+
+    const req = createMockReqWithPack(userId, packId);
+    req.params = { userId, packId };
+    const res = createMockRes();
+
+    await userPackController.getUserPackById(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data.lastMessage).toBeDefined();
+    expect(res.body.data.lastMessage.messageId).toBe(msgId);
+    expect(res.body.data.lastMessage.meta).toEqual({ attention: 'required', contactId: 'cnt_abc' });
   });
 });
 
