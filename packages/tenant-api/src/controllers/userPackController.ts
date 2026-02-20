@@ -3,6 +3,7 @@ import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { loadPackMessages } from '../utils/packMessageUtils.js';
 import { enrichMessagesWithMetaAndStatuses, getSenderInfo } from '../utils/messageEnrichment.js';
+import { buildStatusMessageMatrix } from '@chat3/utils/userDialogUtils.js';
 import { Response } from 'express';
 import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
@@ -68,9 +69,10 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
     if (lastMsgDoc) {
       const lastMsg = lastMsgDoc as { messageId: string; content?: string; senderId: string; type: string; createdAt: number; dialogId: string };
       lastActivityAt = lastMsg.createdAt;
-      const [senderInfo, messageMeta] = await Promise.all([
+      const [senderInfo, messageMeta, statusMessageMatrix] = await Promise.all([
         getSenderInfo(tenantId, lastMsg.senderId),
-        metaUtils.getEntityMeta(tenantId, 'message', lastMsg.messageId)
+        metaUtils.getEntityMeta(tenantId, 'message', lastMsg.messageId),
+        buildStatusMessageMatrix(tenantId, lastMsg.messageId, lastMsg.senderId)
       ]);
       lastMessage = {
         messageId: lastMsg.messageId,
@@ -79,7 +81,8 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
         type: lastMsg.type,
         createdAt: lastMsg.createdAt,
         dialogId: lastMsg.dialogId,
-        meta: messageMeta || {}
+        meta: messageMeta || {},
+        statusMessageMatrix: statusMessageMatrix || []
       };
       if (senderInfo) lastMessage.senderInfo = senderInfo;
     }
@@ -368,14 +371,20 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
     }
 
     const senderIdsFromLastMessages = [...new Set(Array.from(lastMessageByPack.values()).map((m) => m.senderId).filter(Boolean))];
-    const messageIdsFromLastMessages = Array.from(lastMessageByPack.values()).map((m) => m.messageId);
+    const lastMessageEntries = Array.from(lastMessageByPack.entries());
+    const messageIdsFromLastMessages = lastMessageEntries.map(([, m]) => m.messageId);
     const senderInfoCache = new Map();
     const messageMetaByMessageId = new Map<string, Record<string, unknown>>();
+    const statusMatrixByMessageId = new Map<string, { userType: string | null; status: string; count: number }[]>();
     await Promise.all([
       ...senderIdsFromLastMessages.map((senderId) => getSenderInfo(tenantId, senderId, senderInfoCache)),
       ...messageIdsFromLastMessages.map(async (messageId) => {
         const meta = await metaUtils.getEntityMeta(tenantId, 'message', messageId);
         messageMetaByMessageId.set(messageId, meta || {});
+      }),
+      ...lastMessageEntries.map(async ([, m]) => {
+        const matrix = await buildStatusMessageMatrix(tenantId, m.messageId, m.senderId);
+        statusMatrixByMessageId.set(m.messageId, matrix || []);
       })
     ]);
 
@@ -394,7 +403,8 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
           type: lastMsg.type,
           createdAt: lastMsg.createdAt,
           dialogId: lastMsg.dialogId,
-          meta: messageMetaByMessageId.get(lastMsg.messageId) || {}
+          meta: messageMetaByMessageId.get(lastMsg.messageId) || {},
+          statusMessageMatrix: statusMatrixByMessageId.get(lastMsg.messageId) || []
         };
         const senderInfo = senderInfoCache.get(lastMsg.senderId);
         if (senderInfo) lastMessage.senderInfo = senderInfo;

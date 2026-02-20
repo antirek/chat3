@@ -214,9 +214,11 @@ describe('userPackController.getUserPacks - filter by meta', () => {
     expect(packARow?.lastMessage).toBeDefined();
     expect(packARow?.lastMessage.messageId).toBe(msgIdA);
     expect(packARow?.lastMessage.meta).toEqual({ attention: 'required' });
+    expect(Array.isArray(packARow?.lastMessage.statusMessageMatrix)).toBe(true);
     expect(packBRow?.lastMessage).toBeDefined();
     expect(packBRow?.lastMessage.messageId).toBe(msgIdB);
     expect(packBRow?.lastMessage.meta).toEqual({ contactId: 'cnt_xyz' });
+    expect(Array.isArray(packBRow?.lastMessage.statusMessageMatrix)).toBe(true);
   });
 });
 
@@ -604,6 +606,8 @@ describe('userPackController.getUserPackById', () => {
     expect(res.body.data.lastMessage).toBeDefined();
     expect(res.body.data.lastMessage.messageId).toBe(msgId);
     expect(res.body.data.lastMessage.meta).toEqual({ attention: 'required', contactId: 'cnt_abc' });
+    expect(Array.isArray(res.body.data.lastMessage.statusMessageMatrix)).toBe(true);
+    expect(res.body.data.lastMessage.statusMessageMatrix).toHaveLength(0);
   });
 });
 
