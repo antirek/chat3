@@ -24,7 +24,8 @@ import {
   PackLink,
   UserTopicStats,
   DialogStats,
-  UserPackStats,
+  UserDialogUnreadBySenderType,
+  UserPackUnreadBySenderType,
   PackStats
 } from '@chat3/models';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
@@ -56,7 +57,8 @@ const MODELS_MAP: Record<string, Model<any>> = {
   'PackLink': PackLink,
   'UserTopicStats': UserTopicStats,
   'DialogStats': DialogStats,
-  'UserPackStats': UserPackStats,
+  'UserDialogUnreadBySenderType': UserDialogUnreadBySenderType,
+  'UserPackUnreadBySenderType': UserPackUnreadBySenderType,
   'PackStats': PackStats
 };
 
@@ -67,7 +69,7 @@ const MODEL_CATEGORIES: Record<string, string[]> = {
   'Паки': ['Pack', 'PackLink'],
   'События': ['Event', 'Update'],
   'Журналы': ['ApiJournal', 'DialogReadTask'],
-  'Счетчики': ['UserStats', 'UserDialogStats', 'UserDialogActivity', 'MessageReactionStats', 'MessageStatusStats', 'CounterHistory', 'UserTopicStats', 'DialogStats', 'UserPackStats', 'PackStats']
+  'Счетчики': ['UserStats', 'UserDialogStats', 'UserDialogActivity', 'MessageReactionStats', 'MessageStatusStats', 'CounterHistory', 'UserTopicStats', 'DialogStats', 'UserDialogUnreadBySenderType', 'UserPackUnreadBySenderType', 'PackStats']
 };
 
 /**

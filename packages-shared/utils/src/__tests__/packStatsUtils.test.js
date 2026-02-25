@@ -5,7 +5,8 @@ import {
   DialogMember,
   Topic,
   UserDialogStats,
-  UserPackStats,
+  UserDialogUnreadBySenderType,
+  UserPackUnreadBySenderType,
   PackStats,
   CounterHistory,
   Message,
@@ -14,7 +15,8 @@ import {
 import {
   calculatePackStats,
   recalculatePackStats,
-  recalculateUserPackStats
+  recalculateUserPackUnreadBySenderType,
+  buildUserPackStatsFromBySenderRows
 } from '../packStatsUtils.js';
 import {
   setupMongoMemoryServer,
@@ -88,7 +90,7 @@ describe('packStatsUtils', () => {
     });
   });
 
-  it('recalculates and persists pack/user pack stats with history entries', async () => {
+  it('recalculates UserPackUnreadBySenderType from UserDialogUnreadBySenderType and returns map', async () => {
     const packId = createPackId('persist');
     const dialogIds = [createDialogId('10'), createDialogId('20')];
 
@@ -113,10 +115,11 @@ describe('packStatsUtils', () => {
     await Topic.insertMany([
       { tenantId, dialogId: dialogIds[0], topicId: `topic_${'4'.padEnd(20, 'q')}` }
     ]);
-    await UserDialogStats.insertMany([
-      { tenantId, userId: 'user_a', dialogId: dialogIds[0], unreadCount: 3 },
-      { tenantId, userId: 'user_a', dialogId: dialogIds[1], unreadCount: 2 },
-      { tenantId, userId: 'user_b', dialogId: dialogIds[0], unreadCount: 1 }
+    await UserDialogUnreadBySenderType.insertMany([
+      { tenantId, userId: 'user_a', dialogId: dialogIds[0], fromType: 'user', countUnread: 2 },
+      { tenantId, userId: 'user_a', dialogId: dialogIds[0], fromType: 'contact', countUnread: 1 },
+      { tenantId, userId: 'user_a', dialogId: dialogIds[1], fromType: 'user', countUnread: 2 },
+      { tenantId, userId: 'user_b', dialogId: dialogIds[0], fromType: 'user', countUnread: 1 }
     ]);
 
     await recalculatePackStats(tenantId, packId, {
@@ -125,7 +128,7 @@ describe('packStatsUtils', () => {
       actorId: 'system'
     });
 
-    const userPackMap = await recalculateUserPackStats(tenantId, packId, {
+    const userPackMap = await recalculateUserPackUnreadBySenderType(tenantId, packId, {
       sourceOperation: 'test.pack.recalc',
       sourceEntityId: packId,
       actorId: 'system'
@@ -136,22 +139,49 @@ describe('packStatsUtils', () => {
     expect(packStats?.messageCount).toBe(5);
 
     expect(userPackMap.user_a.unreadCount).toBe(5);
+    expect(userPackMap.user_a.unreadBySenderType).toEqual(
+      expect.arrayContaining([
+        { fromType: 'user', countUnread: 4 },
+        { fromType: 'contact', countUnread: 1 },
+        { fromType: 'bot', countUnread: 0 }
+      ])
+    );
     expect(userPackMap.user_b.unreadCount).toBe(1);
+    expect(userPackMap.user_b.unreadBySenderType).toEqual(
+      expect.arrayContaining([
+        { fromType: 'user', countUnread: 1 },
+        { fromType: 'contact', countUnread: 0 },
+        { fromType: 'bot', countUnread: 0 }
+      ])
+    );
 
-    const userPackEntries = await UserPackStats.find({ tenantId, packId })
-      .select('userId unreadCount')
+    const bySenderRows = await UserPackUnreadBySenderType.find({ tenantId, packId })
+      .select('userId fromType countUnread')
       .lean();
-    const unreadMap = Object.fromEntries(userPackEntries.map((entry) => [entry.userId, entry.unreadCount]));
-    expect(unreadMap).toEqual({
-      user_a: 5,
-      user_b: 1
-    });
-
-    const historyEntries = await CounterHistory.find({ tenantId, counterType: 'userPackStats.unreadCount' });
-    expect(historyEntries.length).toBeGreaterThan(0);
+    const byUser = {};
+    for (const r of bySenderRows) {
+      if (!byUser[r.userId]) byUser[r.userId] = {};
+      byUser[r.userId][r.fromType] = r.countUnread;
+    }
+    expect(byUser.user_a?.user).toBe(4);
+    expect(byUser.user_a?.contact).toBe(1);
+    expect(byUser.user_b?.user).toBe(1);
   });
 
-  it('decrements unread counts for dialog and pack when message is read', async () => {
+  it('buildUserPackStatsFromBySenderRows returns unreadCount and unreadBySenderType for fixed types', () => {
+    const rows = [
+      { fromType: 'user', countUnread: 2 },
+      { fromType: 'contact', countUnread: 1 }
+    ];
+    const result = buildUserPackStatsFromBySenderRows(rows);
+    expect(result.unreadCount).toBe(3);
+    expect(result.unreadBySenderType).toHaveLength(3);
+    expect(result.unreadBySenderType.find((x) => x.fromType === 'user').countUnread).toBe(2);
+    expect(result.unreadBySenderType.find((x) => x.fromType === 'contact').countUnread).toBe(1);
+    expect(result.unreadBySenderType.find((x) => x.fromType === 'bot').countUnread).toBe(0);
+  });
+
+  it('decrements unread for pack when message is read (recalc from UserDialogUnreadBySenderType)', async () => {
     const packId = createPackId('read');
     const dialogId = createDialogId('read');
     const messageId = createMessageId('1');
@@ -164,6 +194,13 @@ describe('packStatsUtils', () => {
     await Topic.create({ tenantId, dialogId, topicId: `topic_${'r'.padEnd(20, 'x')}` });
 
     await UserDialogStats.create({ tenantId, userId, dialogId, unreadCount: 1 });
+    await UserDialogUnreadBySenderType.create({
+      tenantId,
+      userId,
+      dialogId,
+      fromType: 'user',
+      countUnread: 1
+    });
     await Message.create({
       tenantId,
       messageId,
@@ -173,16 +210,16 @@ describe('packStatsUtils', () => {
       type: 'internal.text'
     });
 
-    await recalculateUserPackStats(tenantId, packId, {
+    await recalculateUserPackUnreadBySenderType(tenantId, packId, {
       sourceOperation: 'test.setup',
       sourceEntityId: packId,
       actorId: 'system'
     });
 
     const dialogStatsBefore = await UserDialogStats.findOne({ tenantId, userId, dialogId }).lean();
-    const packStatsBefore = await UserPackStats.findOne({ tenantId, packId, userId }).lean();
+    const packBefore = await UserPackUnreadBySenderType.findOne({ tenantId, packId, userId, fromType: 'user' }).lean();
     expect(dialogStatsBefore?.unreadCount).toBe(1);
-    expect(packStatsBefore?.unreadCount).toBe(1);
+    expect(packBefore?.countUnread).toBe(1);
 
     await MessageStatus.create({
       tenantId,
@@ -195,15 +232,13 @@ describe('packStatsUtils', () => {
     const dialogStatsAfter = await UserDialogStats.findOne({ tenantId, userId, dialogId }).lean();
     expect(dialogStatsAfter?.unreadCount).toBe(0);
 
-    // Симулируем update-worker: при message.status.update пересчёт пака и рассылка update
-    // (см. update-worker: updatePackCountersForDialog → recalculateUserPackStats → createUserPackStatsUpdate)
-    await recalculateUserPackStats(tenantId, packId, {
+    await recalculateUserPackUnreadBySenderType(tenantId, packId, {
       sourceOperation: 'message.status.update',
       sourceEntityId: messageId,
       actorId: userId
     });
 
-    const packStatsAfter = await UserPackStats.findOne({ tenantId, packId, userId }).lean();
-    expect(packStatsAfter?.unreadCount).toBe(0);
+    const packAfter = await UserPackUnreadBySenderType.findOne({ tenantId, packId, userId, fromType: 'user' }).lean();
+    expect(packAfter?.countUnread).toBe(0);
   });
 });

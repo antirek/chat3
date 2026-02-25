@@ -1,5 +1,5 @@
  
-import { Message, Dialog, MessageStatus, User, DialogMember, } from '@chat3/models';
+import { Message, Dialog, MessageStatus, User, DialogMember, UserDialogUnreadBySenderType } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
@@ -16,6 +16,8 @@ import { updateLastMessageAt } from '../utils/dialogMemberUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 import { getSenderInfo, enrichMessagesWithMetaAndStatuses } from '../utils/messageEnrichment.js';
+import { getUserType } from '@chat3/utils/userTypeUtils.js';
+import { normalizeSenderType } from '@chat3/utils/packUnreadSenderTypes.js';
 
 const messageController = {
   // Get all messages with filtering and pagination
@@ -471,6 +473,29 @@ const messageController = {
             
             if (messageStatuses.length > 0) {
               await MessageStatus.insertMany(messageStatuses, { ordered: false });
+            }
+            
+            // 2b. Инкремент UserDialogUnreadBySenderType по типу отправителя (user/contact/bot)
+            const fromType = normalizeSenderType(await getUserType(req.tenantId!, senderId));
+            const now = generateTimestamp();
+            const bySenderOps = recipients.map(member => ({
+              updateOne: {
+                filter: {
+                  tenantId: req.tenantId!,
+                  userId: member.userId,
+                  dialogId: dialog.dialogId,
+                  fromType
+                },
+                update: {
+                  $inc: { countUnread: 1 },
+                  $set: { lastUpdatedAt: now },
+                  $setOnInsert: { createdAt: now }
+                },
+                upsert: true
+              }
+            }));
+            if (bySenderOps.length > 0) {
+              await UserDialogUnreadBySenderType.bulkWrite(bySenderOps, { ordered: false });
             }
             
             // 3. Обновляем unreadCount батчами по 10 через Promise.allSettled

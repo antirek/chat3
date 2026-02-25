@@ -9,7 +9,7 @@ import {
 import {
   getPackIdsForDialog,
   recalculatePackStats,
-  recalculateUserPackStats
+  recalculateUserPackUnreadBySenderType
 } from '@chat3/utils/packStatsUtils.js';
 
 const WORKER_QUEUE = 'update_worker_queue';
@@ -55,7 +55,7 @@ async function updatePackCountersForDialog(
     };
 
     const packStatsDoc = await recalculatePackStats(tenantId, packId, options);
-    const userPackMap = await recalculateUserPackStats(tenantId, packId, options);
+    const userPackMap = await recalculateUserPackUnreadBySenderType(tenantId, packId, options);
 
     if (packStatsDoc) {
       await updateUtils.createPackStatsUpdate(
@@ -85,7 +85,8 @@ async function updatePackCountersForDialog(
         sourceEventType,
         {
           unreadCount: userStats?.unreadCount ?? 0,
-          lastUpdatedAt: userStats?.lastUpdatedAt ?? null
+          lastUpdatedAt: userStats?.lastUpdatedAt ?? null,
+          unreadBySenderType: userStats?.unreadBySenderType ?? null
         }
       );
     }

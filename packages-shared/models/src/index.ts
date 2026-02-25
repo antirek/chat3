@@ -29,7 +29,8 @@ import MessageReactionStats from './stats/MessageReactionStats.js';
 import MessageStatusStats from './stats/MessageStatusStats.js';
 import UserTopicStats from './stats/UserTopicStats.js';
 import DialogStats from './stats/DialogStats.js';
-import UserPackStats from './stats/UserPackStats.js';
+import UserDialogUnreadBySenderType from './stats/UserDialogUnreadBySenderType.js';
+import UserPackUnreadBySenderType from './stats/UserPackUnreadBySenderType.js';
 import PackStats from './stats/PackStats.js';
 
 // Export models
@@ -58,7 +59,8 @@ export {
   MessageStatusStats,
   UserTopicStats,
   DialogStats,
-  UserPackStats,
+  UserDialogUnreadBySenderType,
+  UserPackUnreadBySenderType,
   PackStats
 };
 
@@ -95,7 +97,8 @@ export type { IMessageReactionStats } from './stats/MessageReactionStats';
 export type { IMessageStatusStats, MessageStatusType } from './stats/MessageStatusStats';
 export type { IUserTopicStats } from './stats/UserTopicStats';
 export type { IDialogStats } from './stats/DialogStats';
-export type { IUserPackStats } from './stats/UserPackStats';
+export type { IUserDialogUnreadBySenderType } from './stats/UserDialogUnreadBySenderType';
+export type { IUserPackUnreadBySenderType } from './stats/UserPackUnreadBySenderType';
 export type { IPackStats } from './stats/PackStats';
 
 // Export TypeScript interfaces - Journals

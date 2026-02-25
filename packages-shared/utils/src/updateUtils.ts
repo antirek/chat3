@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { Message, DialogMember, 
-  MessageStatus, Update, User, UserStats, Event, UserDialogStats, UserPackStats } from '@chat3/models';
+  MessageStatus, Update, User, UserStats, Event, UserDialogStats, UserPackUnreadBySenderType } from '@chat3/models';
 import type { IUpdate } from '@chat3/models';
 import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
@@ -965,10 +965,7 @@ export async function createPackStatsUpdate(
       updatedFields: ['packStats']
     });
 
-    const userPackStatsList = await UserPackStats.find({ tenantId, packId })
-      .select('userId')
-      .lean();
-    const userIds = userPackStatsList.map((doc) => (doc as { userId: string }).userId);
+    const userIds = await UserPackUnreadBySenderType.distinct('userId', { tenantId, packId });
     if (userIds.length === 0) {
       return;
     }
@@ -998,6 +995,12 @@ export async function createPackStatsUpdate(
   }
 }
 
+export type UserPackStatsUpdateData = {
+  unreadCount: number;
+  lastUpdatedAt: number | null;
+  unreadBySenderType?: Array<{ fromType: string; countUnread: number }> | null;
+};
+
 /**
  * Создает UserPackStatsUpdate для одного пользователя.
  * Вызывается при изменении счётчиков пака для пользователя (следствие базового события), без создания Event.
@@ -1008,7 +1011,7 @@ export async function createUserPackStatsUpdate(
   packId: string,
   sourceEventId: string | mongoose.Types.ObjectId,
   sourceEventType: string,
-  userPackStatsData: { unreadCount: number; lastUpdatedAt: number | null }
+  userPackStatsData: UserPackStatsUpdateData
 ): Promise<void> {
   try {
     const eventIdString = await getEventIdString(sourceEventId, tenantId);
@@ -1021,19 +1024,24 @@ export async function createUserPackStatsUpdate(
       packId,
       userId,
       unreadCount: userPackStatsData.unreadCount,
-      lastUpdatedAt: userPackStatsData.lastUpdatedAt
+      lastUpdatedAt: userPackStatsData.lastUpdatedAt,
+      unreadBySenderType: userPackStatsData.unreadBySenderType ?? null
     });
     if (!userPackStatsSection) {
       return;
     }
 
+    const updatedFields = ['userPackStats.unreadCount'];
+    if (userPackStatsData.unreadBySenderType?.length) {
+      updatedFields.push('userPackStats.unreadBySenderType');
+    }
     const context = eventUtils.buildEventContext({
       eventType: 'user.pack.stats.updated' as Parameters<typeof eventUtils.buildEventContext>[0]['eventType'],
       entityId: userId,
       packId,
       userId,
       includedSections: ['userPackStats'],
-      updatedFields: ['userPackStats.unreadCount']
+      updatedFields
     });
 
     const updateData = {

@@ -6,6 +6,9 @@ import {
   finalizeCounterUpdateContext 
 } from '@chat3/utils/counterUtils.js';
 import { Message } from '../index.js';
+import UserDialogUnreadBySenderType from '../stats/UserDialogUnreadBySenderType.js';
+import { getUserType } from '@chat3/utils/userTypeUtils.js';
+import { normalizeSenderType } from '@chat3/utils';
 
 /**
  * MessageStatus - История изменений статусов сообщений
@@ -206,11 +209,11 @@ messageStatusSchema.post('save', async function(doc) {
         if (oldStatus !== 'read' && doc.status === 'read') {
           // КРИТИЧНО: Используем dialogId из документа (не нужно искать Message)
           if (doc.dialogId) {
-            // Получаем topicId из сообщения для обновления счетчиков топика
+            // Получаем topicId и senderId из сообщения
             const message = await Message.findOne({
               messageId: doc.messageId,
               tenantId: doc.tenantId
-            }).select('topicId').lean();
+            }).select('topicId senderId').lean();
             
             const topicId = message?.topicId || null;
             
@@ -228,6 +231,30 @@ messageStatusSchema.post('save', async function(doc) {
               'user',
               topicId // topicId для обновления счетчиков топика
             );
+            
+            // Декремент UserDialogUnreadBySenderType по типу отправителя (user/contact/bot)
+            if (message?.senderId) {
+              const fromType = normalizeSenderType(await getUserType(doc.tenantId, message.senderId));
+              const now = generateTimestamp();
+              const row = await UserDialogUnreadBySenderType.findOne({
+                tenantId: doc.tenantId,
+                userId: doc.userId,
+                dialogId: doc.dialogId,
+                fromType
+              })
+                .select('countUnread')
+                .lean();
+              const newCount = Math.max(0, (row?.countUnread ?? 0) - 1);
+              await UserDialogUnreadBySenderType.updateOne(
+                {
+                  tenantId: doc.tenantId,
+                  userId: doc.userId,
+                  dialogId: doc.dialogId,
+                  fromType
+                },
+                { $set: { countUnread: newCount, lastUpdatedAt: now } }
+              );
+            }
             
             console.log(`✅ unreadCount decreased for: tenantId=${doc.tenantId}, userId=${doc.userId}, dialogId=${doc.dialogId}`);
           } else {

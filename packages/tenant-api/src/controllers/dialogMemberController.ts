@@ -1,4 +1,4 @@
-import { Dialog, DialogMember, Meta, UserDialogStats, UserDialogActivity } from '@chat3/models';
+import { Dialog, DialogMember, Meta, UserDialogStats, UserDialogActivity, UserDialogUnreadBySenderType } from '@chat3/models';
 import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
@@ -12,6 +12,8 @@ import {
   finalizeCounterUpdateContext,
   updateUnreadCount
 } from '@chat3/utils/counterUtils.js';
+import { getPackIdsForDialog, recalculateUserPackUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
+import * as updateUtils from '@chat3/utils/updateUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
@@ -711,6 +713,35 @@ const dialogMemberController = {
             req.apiKey?.name || 'unknown',
             'api'
           );
+          if (unreadCount === 0) {
+            await UserDialogUnreadBySenderType.updateMany(
+              { tenantId: req.tenantId!, userId, dialogId: dialog.dialogId },
+              { $set: { countUnread: 0, lastUpdatedAt: timestamp } }
+            );
+            const packIds = await getPackIdsForDialog(req.tenantId!, dialog.dialogId);
+            for (const packId of packIds) {
+              const userPackMap = await recalculateUserPackUnreadBySenderType(req.tenantId!, packId, {
+                sourceOperation: 'dialog.member.update',
+                sourceEntityId: `${dialog.dialogId}:${userId}`,
+                actorId: req.apiKey?.name || 'unknown',
+                actorType: 'api'
+              });
+              for (const [uid, userStats] of Object.entries(userPackMap)) {
+                await updateUtils.createUserPackStatsUpdate(
+                  req.tenantId!,
+                  uid,
+                  packId,
+                  sourceEventId || dialog.dialogId,
+                  'dialog.member.update',
+                  {
+                    unreadCount: userStats.unreadCount,
+                    lastUpdatedAt: userStats.lastUpdatedAt,
+                    unreadBySenderType: userStats.unreadBySenderType
+                  }
+                );
+              }
+            }
+          }
           log(`unreadCount обновлен`);
           log(`Финализация контекста обновления счетчиков: userId=${userId}, eventId=${sourceEventId}`);
           await finalizeCounterUpdateContext(req.tenantId, userId, sourceEventId);

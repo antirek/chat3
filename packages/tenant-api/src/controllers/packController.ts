@@ -1,4 +1,4 @@
-import { Pack, PackLink, Dialog, PackStats, UserPackStats } from '@chat3/models';
+import { Pack, PackLink, Dialog, PackStats, UserPackUnreadBySenderType } from '@chat3/models';
 import type { ActorType } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
@@ -251,7 +251,7 @@ export const packController = {
 
       await PackLink.deleteMany({ packId, tenantId });
       await PackStats.deleteOne({ tenantId, packId });
-      await UserPackStats.deleteMany({ tenantId, packId });
+      await UserPackUnreadBySenderType.deleteMany({ tenantId, packId });
       await Pack.deleteOne({ packId, tenantId });
 
       await eventUtils.createEvent({

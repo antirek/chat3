@@ -170,11 +170,10 @@ router.post('/recalculate-stats', initController.recalculateUserStats);
  * @swagger
  * /api/init/sync-pack-stats:
  *   post:
- *     summary: Sync pack stats (UserPackStats) from UserDialogStats
+ *     summary: Sync pack unread-by-sender (UserPackUnreadBySenderType) from UserDialogUnreadBySenderType
  *     tags: [Initialization]
  *     description: |
- *       Синхронизирует счетчики непрочитанных паков (UserPackStats.unreadCount) из счетчиков диалогов (UserDialogStats).
- *       Для каждого пака суммирует unreadCount по всем диалогам пака для каждого пользователя.
+ *       Пересчитывает UserPackUnreadBySenderType из UserDialogUnreadBySenderType для всех паков тенанта.
  *       Операция выполняется асинхронно (202 Accepted).
  *     responses:
  *       202:

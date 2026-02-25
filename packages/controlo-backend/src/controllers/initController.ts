@@ -1,12 +1,12 @@
-import { 
-  Tenant, ApiKey, User, Dialog, Message, Meta, DialogMember, 
-  MessageStatus, Event, MessageReaction, Update 
+import {
+  Tenant, ApiKey, User, Dialog, Message, Meta, DialogMember,
+  MessageStatus, Event, MessageReaction, Update, Pack
 } from '@chat3/models';
 import connectDB from '@chat3/utils/databaseUtils.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { recalculateUserStats } from '@chat3/utils/counterUtils.js';
-import { syncAllUserPackStats } from '@chat3/utils/packStatsUtils.js';
+import { recalculateUserPackUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { Request, Response } from 'express';
@@ -253,7 +253,7 @@ export const initController = {
         message: 'Sync pack stats started',
         data: {
           status: 'processing',
-          note: 'UserPackStats.unreadCount is recalculated from UserDialogStats for all packs. Check server logs for progress.'
+          note: 'UserPackUnreadBySenderType is recalculated from UserDialogUnreadBySenderType for all packs. Check server logs for progress.'
         }
       });
 
@@ -261,14 +261,20 @@ export const initController = {
         try {
           for (const tenant of tenants) {
             results.tenantsProcessed++;
-            console.log(`🔄 Sync pack stats: tenant ${tenant.tenantId}`);
-            const { packsProcessed, errors } = await syncAllUserPackStats(tenant.tenantId);
-            results.packsProcessed += packsProcessed;
-            results.errors.push(...errors);
-            if (errors.length) {
-              errors.forEach((e) => console.error(`❌ ${e}`));
+            const packIds = await Pack.find({ tenantId: tenant.tenantId }).distinct('packId').exec();
+            for (const packId of packIds) {
+              try {
+                await recalculateUserPackUnreadBySenderType(tenant.tenantId, packId, {
+                  sourceOperation: 'sync-pack-stats',
+                  sourceEntityId: packId
+                });
+                results.packsProcessed++;
+              } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : String(err);
+                results.errors.push(`Pack ${packId}: ${message}`);
+              }
             }
-            console.log(`✅ Tenant ${tenant.tenantId}: ${packsProcessed} packs synced`);
+            console.log(`✅ Tenant ${tenant.tenantId}: ${packIds.length} packs synced`);
           }
           console.log(`✅ Sync pack stats completed: ${results.packsProcessed} packs, ${results.errors.length} errors`);
         } catch (error: any) {

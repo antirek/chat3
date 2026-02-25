@@ -21,7 +21,8 @@
     "./updateUtils.js": "./dist/updateUtils.js",
     "./userDialogUtils.js": "./dist/userDialogUtils.js",
     "./userTypeUtils.js": "./dist/userTypeUtils.js",
-    "./packStatsUtils.js": "./dist/packStatsUtils.js"
+    "./packStatsUtils.js": "./dist/packStatsUtils.js",
+    "./packUnreadSenderTypes.js": "./dist/packUnreadSenderTypes.js"
   },
   "private": true,
   "scripts": {

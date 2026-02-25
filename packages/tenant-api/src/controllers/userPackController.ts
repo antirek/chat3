@@ -1,9 +1,10 @@
-import { Pack, PackLink, PackStats, DialogMember, UserPackStats, Message } from '@chat3/models';
+import { Pack, PackLink, PackStats, DialogMember, UserPackUnreadBySenderType, Message } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { loadPackMessages } from '../utils/packMessageUtils.js';
 import { enrichMessagesWithMetaAndStatuses, getSenderInfo } from '../utils/messageEnrichment.js';
 import { buildStatusMessageMatrix } from '@chat3/utils/userDialogUtils.js';
+import { buildUserPackStatsFromBySenderRows } from '@chat3/utils/packStatsUtils.js';
 import { Response } from 'express';
 import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
@@ -48,11 +49,13 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
 
     const allowedDialogIds = packDialogIds.filter((d) => userDialogIds.includes(d));
 
-    const [meta, dialogCount, packStatsDoc, userPackStatsDoc, lastMsgDoc] = await Promise.all([
+    const [meta, dialogCount, packStatsDoc, bySenderRows, lastMsgDoc] = await Promise.all([
       metaUtils.getEntityMeta(tenantId, 'pack', packId),
       PackLink.countDocuments({ packId, tenantId }),
       PackStats.findOne({ tenantId, packId }).select('-__v').lean(),
-      UserPackStats.findOne({ tenantId, userId, packId }).select('unreadCount lastUpdatedAt createdAt').lean(),
+      UserPackUnreadBySenderType.find({ tenantId, userId, packId })
+        .select('fromType countUnread lastUpdatedAt createdAt')
+        .lean(),
       allowedDialogIds.length > 0
         ? Message.findOne({ tenantId, dialogId: { $in: allowedDialogIds } })
             .sort({ createdAt: -1 })
@@ -62,7 +65,9 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
     ]);
 
     const packStats = packStatsDoc as { messageCount?: number; uniqueMemberCount?: number; sumMemberCount?: number; uniqueTopicCount?: number; sumTopicCount?: number; lastUpdatedAt?: number } | null;
-    const userStats = userPackStatsDoc as { unreadCount?: number; lastUpdatedAt?: number; createdAt?: number } | null;
+    const userStats = buildUserPackStatsFromBySenderRows(
+      (bySenderRows as Array<{ fromType: string; countUnread: number; lastUpdatedAt?: number; createdAt?: number }>) || []
+    );
 
     let lastMessage: any = null;
     let lastActivityAt: number | null = null;
@@ -100,9 +105,10 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
         lastUpdatedAt: packStats?.lastUpdatedAt ?? null
       },
       userStats: {
-        unreadCount: userStats?.unreadCount ?? 0,
-        lastUpdatedAt: userStats?.lastUpdatedAt ?? null,
-        createdAt: userStats?.createdAt ?? null
+        unreadCount: userStats.unreadCount,
+        lastUpdatedAt: userStats.lastUpdatedAt,
+        createdAt: userStats.createdAt,
+        unreadBySenderType: userStats.unreadBySenderType
       },
       lastMessage,
       lastActivityAt
@@ -196,15 +202,23 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
         }
 
         if (unreadCountCondition !== undefined && packIdsFilter.length > 0) {
-          const unreadPackIds = await UserPackStats.find({
-            tenantId,
-            userId,
-            packId: { $in: packIdsFilter },
-            unreadCount: unreadCountCondition as any
-          })
-            .distinct('packId')
-            .exec();
-          packIdsFilter = unreadPackIds;
+          const agg = await UserPackUnreadBySenderType.aggregate<{ _id: string; total: number }>([
+            { $match: { tenantId, userId, packId: { $in: packIdsFilter } } },
+            { $group: { _id: '$packId', total: { $sum: '$countUnread' } } }
+          ]);
+          const unreadByPackId = Object.fromEntries(agg.map((r) => [r._id, r.total]));
+          const op = Object.keys(unreadCountCondition as object)[0];
+          const val = (unreadCountCondition as any)[op];
+          packIdsFilter = packIdsFilter.filter((packId) => {
+            const u = unreadByPackId[packId] ?? 0;
+            if (op === '$eq') return u === val;
+            if (op === '$gt') return u > val;
+            if (op === '$gte') return u >= val;
+            if (op === '$lt') return u < val;
+            if (op === '$lte') return u <= val;
+            if (op === '$ne') return u !== val;
+            return false;
+          });
         }
       } catch (err: any) {
         res.status(400).json({
@@ -265,16 +279,16 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
         .lean();
       packs.sort((a: any, b: any) => pagePackIds.indexOf(a.packId) - pagePackIds.indexOf(b.packId));
     } else if (sortField === 'unreadCount') {
-      const statsRows = await UserPackStats.find({
-        tenantId,
-        userId,
-        packId: { $in: packIdsFilter }
-      })
-        .select('packId unreadCount lastUpdatedAt createdAt')
-        .lean();
-      const statsByPack = new Map(
-        (statsRows as any[]).map((r) => [r.packId, { unreadCount: r.unreadCount ?? 0, lastUpdatedAt: r.lastUpdatedAt ?? null, createdAt: r.createdAt ?? null }])
-      );
+      const agg = await UserPackUnreadBySenderType.aggregate<
+        { _id: string; total: number; rows: Array<{ fromType: string; countUnread: number; lastUpdatedAt?: number; createdAt?: number }> }
+      >([
+        { $match: { tenantId, userId, packId: { $in: packIdsFilter } } },
+        { $group: { _id: '$packId', total: { $sum: '$countUnread' }, rows: { $push: { fromType: '$fromType', countUnread: '$countUnread', lastUpdatedAt: '$lastUpdatedAt', createdAt: '$createdAt' } } } }
+      ]);
+      const statsByPack = new Map<string, ReturnType<typeof buildUserPackStatsFromBySenderRows>>();
+      for (const r of agg) {
+        statsByPack.set(r._id, buildUserPackStatsFromBySenderRows(r.rows || []));
+      }
       const sortedPackIds = [...packIdsFilter].sort((a, b) => {
         const uA = statsByPack.get(a)?.unreadCount ?? 0;
         const uB = statsByPack.get(b)?.unreadCount ?? 0;
@@ -302,21 +316,30 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
 
     const [statsByPack, dialogCountByPack, packLinksForPage] = await Promise.all([
       pagePackIds.length > 0
-        ? UserPackStats.find({ tenantId, userId, packId: { $in: pagePackIds } })
-            .select('packId unreadCount lastUpdatedAt createdAt')
+        ? UserPackUnreadBySenderType.find({ tenantId, userId, packId: { $in: pagePackIds } })
+            .select('packId fromType countUnread lastUpdatedAt createdAt')
             .lean()
             .then((rows) => {
-              const map = new Map<string, { unreadCount: number; lastUpdatedAt: number | null; createdAt: number | null }>();
+              const byPack = new Map<string, Array<{ fromType: string; countUnread: number; lastUpdatedAt?: number; createdAt?: number }>>();
               for (const row of rows as any[]) {
-                map.set(row.packId, {
-                  unreadCount: row.unreadCount ?? 0,
-                  lastUpdatedAt: row.lastUpdatedAt ?? null,
-                  createdAt: row.createdAt ?? null
+                if (!byPack.has(row.packId)) byPack.set(row.packId, []);
+                byPack.get(row.packId)!.push({
+                  fromType: row.fromType,
+                  countUnread: row.countUnread ?? 0,
+                  lastUpdatedAt: row.lastUpdatedAt,
+                  createdAt: row.createdAt
                 });
+              }
+              const map = new Map<string, ReturnType<typeof buildUserPackStatsFromBySenderRows>>();
+              for (const [packId, rrows] of byPack) {
+                map.set(packId, buildUserPackStatsFromBySenderRows(rrows));
+              }
+              for (const packId of pagePackIds) {
+                if (!map.has(packId)) map.set(packId, buildUserPackStatsFromBySenderRows([]));
               }
               return map;
             })
-        : Promise.resolve(new Map<string, { unreadCount: number; lastUpdatedAt: number | null; createdAt: number | null }>()),
+        : Promise.resolve(new Map<string, ReturnType<typeof buildUserPackStatsFromBySenderRows>>()),
       pagePackIds.length > 0
         ? PackLink.aggregate([
             { $match: { packId: { $in: pagePackIds }, tenantId } },
@@ -416,6 +439,7 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
           unreadCount: st?.unreadCount ?? 0,
           lastUpdatedAt: st?.lastUpdatedAt ?? null,
           createdAt: st?.createdAt ?? null,
+          unreadBySenderType: st?.unreadBySenderType ?? [],
           dialogCount
         },
         lastMessage,

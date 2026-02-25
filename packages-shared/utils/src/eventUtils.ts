@@ -246,12 +246,19 @@ export function buildPackStatsSection({
   };
 }
 
+/** Элемент массива unreadBySenderType (fromType + countUnread). Совпадает с packStatsUtils.UnreadBySenderTypeItem. */
+interface UnreadBySenderTypeItemSection {
+  fromType: string;
+  countUnread: number;
+}
+
 interface BuildUserPackStatsSectionParams {
   tenantId?: string | null;
   packId: string;
   userId: string;
   unreadCount?: number | null;
   lastUpdatedAt?: number | null;
+  unreadBySenderType?: UnreadBySenderTypeItemSection[] | null;
 }
 
 export function buildUserPackStatsSection({
@@ -259,19 +266,21 @@ export function buildUserPackStatsSection({
   packId,
   userId,
   unreadCount = null,
-  lastUpdatedAt = null
+  lastUpdatedAt = null,
+  unreadBySenderType = null
 }: BuildUserPackStatsSectionParams): Record<string, unknown> | null {
-  if (!packId || !userId) {
-    return null;
-  }
-
-  return {
+  if (!packId || !userId) return null;
+  const section: Record<string, unknown> = {
     tenantId,
     packId,
     userId,
     unreadCount: unreadCount ?? 0,
     lastUpdatedAt: lastUpdatedAt ?? null
   };
+  if (unreadBySenderType && unreadBySenderType.length > 0) {
+    section.unreadBySenderType = unreadBySenderType;
+  }
+  return section;
 }
 
 interface BuildMessageSectionParams {

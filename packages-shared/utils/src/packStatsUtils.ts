@@ -2,7 +2,8 @@ import {
   Pack,
   PackLink,
   UserDialogStats,
-  UserPackStats,
+  UserDialogUnreadBySenderType,
+  UserPackUnreadBySenderType,
   PackStats,
   DialogStats,
   DialogMember,
@@ -12,6 +13,7 @@ import {
 import type { IPackStats } from '@chat3/models';
 import mongoose from 'mongoose';
 import { generateTimestamp } from './timestampUtils.js';
+import { PACK_UNREAD_SENDER_TYPES } from './packUnreadSenderTypes.js';
 
 export interface PackAggregatedStats {
   messageCount: number;
@@ -80,104 +82,6 @@ export async function getPackIdsForDialog(tenantId: string, dialogId: string): P
     .select('packId')
     .lean();
   return links.map((link) => link.packId);
-}
-
-export async function calculateUserPackUnread(
-  tenantId: string,
-  packId: string,
-  userId: string
-): Promise<number> {
-  const dialogIds = await getPackDialogIds(tenantId, packId);
-  if (!dialogIds.length) {
-    return 0;
-  }
-
-  const result = await UserDialogStats.aggregate<{ totalUnread: number }>([
-    { $match: { tenantId, userId, dialogId: { $in: dialogIds } } },
-    { $group: { _id: null, totalUnread: { $sum: '$unreadCount' } } }
-  ]);
-
-  return result[0]?.totalUnread || 0;
-}
-
-export async function calculateUserPackUnreadMap(
-  tenantId: string,
-  packId: string,
-  userIds?: string[]
-): Promise<Record<string, number>> {
-  const dialogIds = await getPackDialogIds(tenantId, packId);
-  if (!dialogIds.length) {
-    return {};
-  }
-
-  const matchStage: Record<string, unknown> = {
-    tenantId,
-    dialogId: { $in: dialogIds }
-  };
-
-  if (userIds && userIds.length) {
-    matchStage.userId = { $in: userIds };
-  }
-
-  const result = await UserDialogStats.aggregate<{ _id: string; totalUnread: number }>([
-    { $match: matchStage },
-    { $group: { _id: '$userId', totalUnread: { $sum: '$unreadCount' } } }
-  ]);
-
-  return result.reduce<Record<string, number>>((acc, item) => {
-    acc[item._id] = item.totalUnread;
-    return acc;
-  }, {});
-}
-
-export async function upsertUserPackUnread(
-  tenantId: string,
-  packId: string,
-  userId: string,
-  unreadCount: number,
-  options: UpdateOptions
-): Promise<void> {
-  const previous = await UserPackStats.findOne({ tenantId, packId, userId })
-    .select('unreadCount')
-    .lean();
-
-  const oldValue = previous?.unreadCount ?? 0;
-  const timestamp = generateTimestamp();
-
-  const updateQuery = {
-    $set: {
-      unreadCount,
-      lastUpdatedAt: timestamp
-    },
-    $setOnInsert: {
-      createdAt: timestamp,
-      tenantId,
-      packId,
-      userId
-    }
-  };
-
-  const updateOptions: { upsert: true; session?: mongoose.ClientSession } = { upsert: true };
-
-  if (options.session) {
-    updateOptions.session = options.session;
-  }
-
-  await UserPackStats.updateOne({ tenantId, packId, userId }, updateQuery, updateOptions);
-
-  await saveCounterHistoryEntry({
-    tenantId,
-    counterType: 'userPackStats.unreadCount',
-    entityType: 'userPackStats',
-    entityId: `${packId}:${userId}`,
-    field: 'unreadCount',
-    oldValue,
-    newValue: unreadCount,
-    sourceOperation: options.sourceOperation,
-    sourceEntityId: options.sourceEntityId,
-    actorId: options.actorId,
-    actorType: options.actorType
-  });
 }
 
 export async function calculatePackStats(
@@ -294,66 +198,119 @@ export async function recalculatePackStats(
 
 export type UserPackUnreadMap = Record<string, { unreadCount: number; lastUpdatedAt: number | null }>;
 
-export async function recalculateUserPackStats(
+export type UnreadBySenderTypeItem = { fromType: string; countUnread: number };
+
+export type UserPackUnreadBySenderMap = Record<
+  string,
+  { unreadCount: number; unreadBySenderType: UnreadBySenderTypeItem[]; lastUpdatedAt: number | null }
+>;
+
+/**
+ * Пересчитывает UserPackUnreadBySenderType из UserDialogUnreadBySenderType по диалогам пака.
+ * Возвращает по каждому userId снимок: unreadCount и unreadBySenderType по фиксированному списку типов.
+ */
+export async function recalculateUserPackUnreadBySenderType(
   tenantId: string,
   packId: string,
   options: UpdateOptions
-): Promise<UserPackUnreadMap> {
-  const unreadMap = await calculateUserPackUnreadMap(tenantId, packId);
-  const existing = await UserPackStats.find({ tenantId, packId })
-    .select('userId unreadCount')
-    .lean();
+): Promise<UserPackUnreadBySenderMap> {
+  const dialogIds = await getPackDialogIds(tenantId, packId);
+  if (!dialogIds.length) {
+    const existing = await UserPackUnreadBySenderType.find({ tenantId, packId })
+      .select('userId')
+      .lean();
+    const allUserIds = [...new Set(existing.map((d) => d.userId))];
+    const now = generateTimestamp();
+    for (const userId of allUserIds) {
+      await UserPackUnreadBySenderType.deleteMany({ tenantId, packId, userId });
+    }
+    return allUserIds.reduce<UserPackUnreadBySenderMap>((acc, userId) => {
+      acc[userId] = {
+        unreadCount: 0,
+        unreadBySenderType: PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 })),
+        lastUpdatedAt: now
+      };
+      return acc;
+    }, {});
+  }
 
-  const existingUserIds = existing.map((item) => item.userId);
-  const mapUserIds = Object.keys(unreadMap);
-  const allUserIds = Array.from(new Set([...existingUserIds, ...mapUserIds]));
+  const agg = await UserDialogUnreadBySenderType.aggregate<{
+    _id: { userId: string; fromType: string };
+    countUnread: number;
+  }>([
+    { $match: { tenantId, dialogId: { $in: dialogIds } } },
+    { $group: { _id: { userId: '$userId', fromType: '$fromType' }, countUnread: { $sum: '$countUnread' } } }
+  ]);
+
+  const byUserByType: Record<string, Record<string, number>> = {};
+  for (const row of agg) {
+    const { userId, fromType } = row._id;
+    if (!byUserByType[userId]) byUserByType[userId] = {};
+    byUserByType[userId][fromType] = row.countUnread;
+  }
+
+  const existingUserIds = await UserPackUnreadBySenderType.distinct('userId', { tenantId, packId });
+  const allUserIds = [...new Set([...Object.keys(byUserByType), ...existingUserIds])];
+  const now = generateTimestamp();
 
   for (const userId of allUserIds) {
-    const targetUnread = unreadMap[userId] || 0;
-    await upsertUserPackUnread(tenantId, packId, userId, targetUnread, options);
+    const byType = byUserByType[userId] || {};
+    const ops = PACK_UNREAD_SENDER_TYPES.map((fromType) => ({
+      updateOne: {
+        filter: { tenantId, packId, userId, fromType },
+        update: {
+          $set: { countUnread: byType[fromType] ?? 0, lastUpdatedAt: now },
+          $setOnInsert: { createdAt: now }
+        },
+        upsert: true
+      }
+    }));
+    if (ops.length) await UserPackUnreadBySenderType.bulkWrite(ops, { ordered: false });
   }
 
-  const updatedDocs = await UserPackStats.find({
-    tenantId,
-    packId,
-    userId: { $in: allUserIds }
-  })
-    .select('userId unreadCount lastUpdatedAt')
-    .lean();
-
-  const result: UserPackUnreadMap = {};
-  for (const doc of updatedDocs) {
-    result[doc.userId] = {
-      unreadCount: doc.unreadCount ?? 0,
-      lastUpdatedAt: doc.lastUpdatedAt ?? null
+  const result: UserPackUnreadBySenderMap = {};
+  for (const userId of allUserIds) {
+    const byType = byUserByType[userId] || {};
+    const unreadBySenderType = PACK_UNREAD_SENDER_TYPES.map((ft) => ({
+      fromType: ft,
+      countUnread: byType[ft] ?? 0
+    }));
+    const unreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
+    result[userId] = {
+      unreadCount,
+      unreadBySenderType,
+      lastUpdatedAt: now
     };
   }
-
   return result;
 }
 
+export interface UserPackStatsFromBySender {
+  unreadCount: number;
+  unreadBySenderType: UnreadBySenderTypeItem[];
+  lastUpdatedAt: number | null;
+  createdAt: number | null;
+}
+
 /**
- * Синхронизирует UserPackStats для всех паков тенанта из UserDialogStats.
- * Для каждого пака: unreadCount пака = сумма unreadCount по диалогам пака для каждого пользователя.
- * Вызывать после пересчета счетчиков пользователей или при рассинхронизации.
+ * Собирает stats.user для пака из строк UserPackUnreadBySenderType (unreadCount, unreadBySenderType по фиксированному списку).
  */
-export async function syncAllUserPackStats(tenantId: string): Promise<{ packsProcessed: number; errors: string[] }> {
-  const packIds = await Pack.find({ tenantId }).distinct('packId').exec();
-  const errors: string[] = [];
-  let packsProcessed = 0;
-
-  for (const packId of packIds) {
-    try {
-      await recalculateUserPackStats(tenantId, packId, {
-        sourceOperation: 'sync-pack-stats',
-        sourceEntityId: packId
-      });
-      packsProcessed++;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      errors.push(`Pack ${packId}: ${message}`);
-    }
+export function buildUserPackStatsFromBySenderRows(
+  rows: Array<{ fromType: string; countUnread: number; lastUpdatedAt?: number; createdAt?: number }>
+): UserPackStatsFromBySender {
+  const byType: Record<string, number> = {};
+  let lastUpdatedAt: number | null = null;
+  let createdAt: number | null = null;
+  for (const r of rows) {
+    byType[r.fromType] = (byType[r.fromType] ?? 0) + r.countUnread;
+    if (r.lastUpdatedAt != null && (lastUpdatedAt == null || r.lastUpdatedAt > lastUpdatedAt))
+      lastUpdatedAt = r.lastUpdatedAt;
+    if (r.createdAt != null && (createdAt == null || r.createdAt < createdAt)) createdAt = r.createdAt;
   }
-
-  return { packsProcessed, errors };
+  const unreadBySenderType = PACK_UNREAD_SENDER_TYPES.map((ft) => ({
+    fromType: ft,
+    countUnread: byType[ft] ?? 0
+  }));
+  const unreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
+  return { unreadCount, unreadBySenderType, lastUpdatedAt, createdAt };
 }
