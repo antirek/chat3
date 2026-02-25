@@ -4,6 +4,7 @@ import {
   DialogStats,
   DialogMember,
   Topic,
+  User,
   UserDialogStats,
   UserDialogUnreadBySenderType,
   UserPackUnreadBySenderType,
@@ -240,5 +241,128 @@ describe('packStatsUtils', () => {
 
     const packAfter = await UserPackUnreadBySenderType.findOne({ tenantId, packId, userId, fromType: 'user' }).lean();
     expect(packAfter?.countUnread).toBe(0);
+  });
+
+  it('pack with two dialogs: contact writes in one dialog, users get contact unread; one user marks read → his contact counter becomes 0', async () => {
+    const packId = createPackId('twod');
+    const dialog1 = createDialogId('d1');
+    const dialog2 = createDialogId('d2');
+    const user1 = 'user_one';
+    const user2 = 'user_two';
+    const contact1 = 'contact_one';
+    const messageId = createMessageId('mc');
+
+    await User.create([
+      { tenantId, userId: user1, type: 'user' },
+      { tenantId, userId: user2, type: 'user' },
+      { tenantId, userId: contact1, type: 'contact' }
+    ]);
+
+    await Pack.create({ tenantId, packId });
+    await PackLink.insertMany([
+      { tenantId, packId, dialogId: dialog1 },
+      { tenantId, packId, dialogId: dialog2 }
+    ]);
+    await DialogStats.insertMany([
+      { tenantId, dialogId: dialog1, messageCount: 0, memberCount: 3, topicCount: 0 },
+      { tenantId, dialogId: dialog2, messageCount: 0, memberCount: 3, topicCount: 0 }
+    ]);
+    await DialogMember.insertMany([
+      { tenantId, dialogId: dialog1, userId: user1 },
+      { tenantId, dialogId: dialog1, userId: user2 },
+      { tenantId, dialogId: dialog1, userId: contact1 },
+      { tenantId, dialogId: dialog2, userId: user1 },
+      { tenantId, dialogId: dialog2, userId: user2 },
+      { tenantId, dialogId: dialog2, userId: contact1 }
+    ]);
+
+    // Контакт пишет сообщение в dialog1
+    await Message.create({
+      tenantId,
+      messageId,
+      dialogId: dialog1,
+      senderId: contact1,
+      content: 'Hi from contact',
+      type: 'internal.text'
+    });
+    await MessageStatus.insertMany([
+      { tenantId, messageId, userId: user1, dialogId: dialog1, status: 'unread' },
+      { tenantId, messageId, userId: user2, dialogId: dialog1, status: 'unread' }
+    ]);
+    await UserDialogStats.insertMany([
+      { tenantId, userId: user1, dialogId: dialog1, unreadCount: 1 },
+      { tenantId, userId: user2, dialogId: dialog1, unreadCount: 1 }
+    ]);
+    await UserDialogUnreadBySenderType.insertMany([
+      { tenantId, userId: user1, dialogId: dialog1, fromType: 'contact', countUnread: 1 },
+      { tenantId, userId: user2, dialogId: dialog1, fromType: 'contact', countUnread: 1 }
+    ]);
+
+    // Пересчёт пака: у обоих пользователей в паке счётчик по типу contact = 1
+    await recalculateUserPackUnreadBySenderType(tenantId, packId, {
+      sourceOperation: 'message.create',
+      sourceEntityId: messageId,
+      actorId: contact1
+    });
+    const packUser1Contact = await UserPackUnreadBySenderType.findOne({
+      tenantId,
+      packId,
+      userId: user1,
+      fromType: 'contact'
+    }).lean();
+    const packUser2Contact = await UserPackUnreadBySenderType.findOne({
+      tenantId,
+      packId,
+      userId: user2,
+      fromType: 'contact'
+    }).lean();
+    expect(packUser1Contact?.countUnread).toBe(1);
+    expect(packUser2Contact?.countUnread).toBe(1);
+
+    // user1 отмечает сообщение как прочитанное (post-save декрементирует UserDialogUnreadBySenderType по типу отправителя = contact)
+    await MessageStatus.create({
+      tenantId,
+      messageId,
+      userId: user1,
+      dialogId: dialog1,
+      status: 'read'
+    });
+
+    // У user1 в диалоге счётчик по contact = 0, у user2 по-прежнему 1
+    const dialogUser1Contact = await UserDialogUnreadBySenderType.findOne({
+      tenantId,
+      userId: user1,
+      dialogId: dialog1,
+      fromType: 'contact'
+    }).lean();
+    const dialogUser2Contact = await UserDialogUnreadBySenderType.findOne({
+      tenantId,
+      userId: user2,
+      dialogId: dialog1,
+      fromType: 'contact'
+    }).lean();
+    expect(dialogUser1Contact?.countUnread).toBe(0);
+    expect(dialogUser2Contact?.countUnread).toBe(1);
+
+    // Пересчёт пака после "mark read": у user1 в паке contact = 0, у user2 = 1
+    await recalculateUserPackUnreadBySenderType(tenantId, packId, {
+      sourceOperation: 'message.status.update',
+      sourceEntityId: messageId,
+      actorId: user1
+    });
+    const packUser1After = await UserPackUnreadBySenderType.findOne({
+      tenantId,
+      packId,
+      userId: user1,
+      fromType: 'contact'
+    }).lean();
+    const packUser2After = await UserPackUnreadBySenderType.findOne({
+      tenantId,
+      packId,
+      userId: user2,
+      fromType: 'contact'
+    }).lean();
+    expect(packUser1After?.countUnread).toBe(0);
+    expect(packUser2After?.countUnread).toBe(1);
   });
 });

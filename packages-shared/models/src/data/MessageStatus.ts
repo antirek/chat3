@@ -233,28 +233,29 @@ messageStatusSchema.post('save', async function(doc) {
             );
             
             // Декремент UserDialogUnreadBySenderType по типу отправителя (user/contact/bot)
-            if (message?.senderId) {
-              const fromType = normalizeSenderType(await getUserType(doc.tenantId, message.senderId));
-              const now = generateTimestamp();
-              const row = await UserDialogUnreadBySenderType.findOne({
+            // Если senderId нет (системное сообщение) — декрементируем 'user', чтобы сумма по типам совпадала с UserDialogStats
+            const fromType = message?.senderId
+              ? normalizeSenderType(await getUserType(doc.tenantId, message.senderId))
+              : 'user';
+            const now = generateTimestamp();
+            const row = await UserDialogUnreadBySenderType.findOne({
+              tenantId: doc.tenantId,
+              userId: doc.userId,
+              dialogId: doc.dialogId,
+              fromType
+            })
+              .select('countUnread')
+              .lean();
+            const newCount = Math.max(0, (row?.countUnread ?? 0) - 1);
+            await UserDialogUnreadBySenderType.updateOne(
+              {
                 tenantId: doc.tenantId,
                 userId: doc.userId,
                 dialogId: doc.dialogId,
                 fromType
-              })
-                .select('countUnread')
-                .lean();
-              const newCount = Math.max(0, (row?.countUnread ?? 0) - 1);
-              await UserDialogUnreadBySenderType.updateOne(
-                {
-                  tenantId: doc.tenantId,
-                  userId: doc.userId,
-                  dialogId: doc.dialogId,
-                  fromType
-                },
-                { $set: { countUnread: newCount, lastUpdatedAt: now } }
-              );
-            }
+              },
+              { $set: { countUnread: newCount, lastUpdatedAt: now } }
+            );
             
             console.log(`✅ unreadCount decreased for: tenantId=${doc.tenantId}, userId=${doc.userId}, dialogId=${doc.dialogId}`);
           } else {
