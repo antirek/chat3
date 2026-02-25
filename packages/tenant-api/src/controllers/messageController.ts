@@ -1118,16 +1118,21 @@ const messageController = {
       const senderInfo = await getSenderInfo(req.tenantId!, message.senderId);
       const topicForResponse = topicForEvent || null;
 
+      const data = sanitizeResponse({
+        ...messageObj,
+        topicId: messageTopicIdForEvent,
+        statusMessageMatrix,
+        reactionSet,
+        meta,
+        topic: topicForResponse,
+        senderInfo: senderInfo || null
+      }) as Record<string, unknown>;
+      // sanitizeResponse убирает поля со значением null; для сброса топика клиенту нужны явные topicId: null, topic: null
+      if (messageTopicIdForEvent === null) data.topicId = null;
+      if (topicForResponse === null) data.topic = null;
+
       res.json({
-        data: sanitizeResponse({
-          ...messageObj,
-          topicId: messageTopicIdForEvent,
-          statusMessageMatrix,
-          reactionSet,
-          meta,
-          topic: topicForResponse,
-          senderInfo: senderInfo || null
-        }),
+        data,
         message: 'Message topic updated successfully'
       });
     } catch (error: any) {
