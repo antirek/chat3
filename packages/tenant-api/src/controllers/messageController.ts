@@ -482,7 +482,7 @@ const messageController = {
               updateOne: {
                 filter: {
                   tenantId: req.tenantId!,
-                  userId: member.userId,
+                  userId: (member.userId || '').trim().toLowerCase(),
                   dialogId: dialog.dialogId,
                   fromType
                 },

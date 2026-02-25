@@ -12,10 +12,12 @@ export async function getUserType(tenantId: string, userId: string): Promise<str
       return 'user';
     }
 
-    // Получаем тип из модели User
+    // В схеме User поле userId хранится с trim + lowercase; для поиска нормализуем так же
+    const normalizedUserId = userId.trim().toLowerCase();
+
     const user = await User.findOne({
       tenantId: tenantId,
-      userId: userId
+      userId: normalizedUserId
     }).select('type').lean();
 
     if (user && user.type) {

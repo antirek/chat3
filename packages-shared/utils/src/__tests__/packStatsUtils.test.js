@@ -365,4 +365,67 @@ describe('packStatsUtils', () => {
     expect(packUser1After?.countUnread).toBe(0);
     expect(packUser2After?.countUnread).toBe(1);
   });
+
+  it('mark read finds row when reader userId is in different case (normalized to lowercase)', async () => {
+    const packId = createPackId('case');
+    const dialogId = createDialogId('ca');
+    const readerId = 'usr_reader';
+    const contactId = 'contact_sender';
+    const messageId = createMessageId('mx');
+
+    await User.create([
+      { tenantId, userId: readerId, type: 'user' },
+      { tenantId, userId: contactId, type: 'contact' }
+    ]);
+    await Pack.create({ tenantId, packId });
+    await PackLink.create({ tenantId, packId, dialogId });
+    await DialogStats.create({ tenantId, dialogId, messageCount: 1, memberCount: 2, topicCount: 0 });
+    await DialogMember.insertMany([
+      { tenantId, dialogId, userId: readerId },
+      { tenantId, dialogId, userId: contactId }
+    ]);
+    await Message.create({
+      tenantId,
+      messageId,
+      dialogId,
+      senderId: contactId,
+      content: 'Hi',
+      type: 'internal.text'
+    });
+    await MessageStatus.insertMany([
+      { tenantId, messageId, userId: readerId, dialogId, status: 'unread' }
+    ]);
+    await UserDialogStats.create({ tenantId, userId: readerId, dialogId, unreadCount: 1 });
+    await UserDialogUnreadBySenderType.create({
+      tenantId,
+      userId: readerId,
+      dialogId,
+      fromType: 'contact',
+      countUnread: 1
+    });
+
+    const before = await UserDialogUnreadBySenderType.findOne({
+      tenantId,
+      userId: readerId,
+      dialogId,
+      fromType: 'contact'
+    }).lean();
+    expect(before?.countUnread).toBe(1);
+
+    await MessageStatus.create({
+      tenantId,
+      messageId,
+      userId: 'Usr_Reader',
+      dialogId,
+      status: 'read'
+    });
+
+    const after = await UserDialogUnreadBySenderType.findOne({
+      tenantId,
+      userId: readerId,
+      dialogId,
+      fromType: 'contact'
+    }).lean();
+    expect(after?.countUnread).toBe(0);
+  });
 });

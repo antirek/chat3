@@ -238,9 +238,10 @@ messageStatusSchema.post('save', async function(doc) {
               ? normalizeSenderType(await getUserType(doc.tenantId, message.senderId))
               : 'user';
             const now = generateTimestamp();
+            const readerUserId = (doc.userId || '').trim().toLowerCase();
             const row = await UserDialogUnreadBySenderType.findOne({
               tenantId: doc.tenantId,
-              userId: doc.userId,
+              userId: readerUserId,
               dialogId: doc.dialogId,
               fromType
             })
@@ -250,7 +251,7 @@ messageStatusSchema.post('save', async function(doc) {
             await UserDialogUnreadBySenderType.updateOne(
               {
                 tenantId: doc.tenantId,
-                userId: doc.userId,
+                userId: readerUserId,
                 dialogId: doc.dialogId,
                 fromType
               },

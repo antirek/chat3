@@ -88,6 +88,20 @@ describe('userTypeUtils', () => {
       expect(userType).toBe('contact');
     });
 
+    test('should find user when userId is passed in different case (User schema stores lowercase)', async () => {
+      await User.create({
+        tenantId,
+        userId: 'contact_one',
+        type: 'contact',
+        createdAt: generateTimestamp()
+      });
+
+      // В схеме User userId хранится с lowercase; Message.senderId может прийти в любом регистре
+      expect(await getUserType(tenantId, 'Contact_One')).toBe('contact');
+      expect(await getUserType(tenantId, 'CONTACT_ONE')).toBe('contact');
+      expect(await getUserType(tenantId, '  contact_one  ')).toBe('contact');
+    });
+
     test('should handle error gracefully and return default', async () => {
       // Pass invalid tenantId to trigger error
       const userType = await getUserType('invalid_tenant', 'user1');
