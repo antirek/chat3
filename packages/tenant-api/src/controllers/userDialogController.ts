@@ -1120,9 +1120,10 @@ const userDialogController = {
       }
 
       // Format response data
+      type DialogRow = { dialogId: string; _id: unknown };
       const dialogs = dialogMembers
         .map(member => {
-          const dialog = dialogsMap.get(member.dialogId);
+          const dialog = dialogsMap.get(member.dialogId) as DialogRow | undefined;
           if (!dialog) {
             console.warn(`Dialog not found for dialogId: ${member.dialogId}`);
             return null;

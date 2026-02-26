@@ -3,14 +3,16 @@
  * Скрипт проверки сценария: контакт отправляет сообщение, user отмечает прочитанным,
  * в списке паков у user в stats.unreadBySenderType для fromType=contact должно быть 0.
  *
- * Все действия выполняются только через HTTP API tenant-api.
+ * Все действия выполняются только через HTTP API tenant-api (ручная проверка против
+ * запущенного сервера). Для CI/локальных тестов без сервера используйте интеграционный
+ * тест: npm run test:mark-read
  *
  * Переменные окружения:
  *   TENANT_API_URL  - базовый URL API (например https://api.example.com)
  *   API_KEY        - X-API-Key
  *   TENANT_ID      - X-TENANT-ID (опционально, по умолчанию tnt_default)
  *
- * Запуск: node scripts/test-mark-read-via-api.mjs
+ * Запуск: node scripts/test-mark-read-via-api.mjs  или  npm run test:mark-read-api
  */
 
 const BASE_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
