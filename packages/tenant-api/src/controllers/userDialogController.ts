@@ -1939,6 +1939,11 @@ const userDialogController = {
 
   // Middleware для проверки членства пользователя в диалоге
   async checkDialogMembership(req: AuthenticatedRequest, res: Response, next: any): Promise<void> {
+    const routePath = 'middleware checkDialogMembership';
+    const log = (...args: any[]) => {
+      console.log(`[${routePath}]`, ...args);
+    };
+    log('>>>>> start');
     try {
       const { userId, dialogId } = req.params;
 
@@ -1962,6 +1967,8 @@ const userDialogController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 
@@ -2108,6 +2115,7 @@ const userDialogController = {
       // КРИТИЧНО: Декремент UserDialogUnreadBySenderType — ДО createEvent и до MessageStatus.create(),
       // иначе событие уйдёт в RabbitMQ и воркер пересчитает паки по старым данным.
       if (status === 'read' && oldStatus !== 'read') {
+        log(`Декремент unreadBySenderType: message.senderId=${message?.senderId ?? 'null'}, readerUserId=${userId}, dialogId=${dialogId}`);
         await decrementUserDialogUnreadBySenderTypeForRead(
           req.tenantId,
           dialogId,
@@ -2246,6 +2254,8 @@ const userDialogController = {
         error: 'Internal Server Error',
         message: error.message
       });
+    } finally {
+      log('>>>>> end');
     }
   },
 

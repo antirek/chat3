@@ -330,6 +330,16 @@ export async function decrementUserDialogUnreadBySenderTypeForRead(
     ? normalizeSenderType(await getUserType(tenantId, messageSenderId))
     : 'user';
   const reader = (readerUserId || '').trim().toLowerCase();
+  const rowsBefore = await UserDialogUnreadBySenderType.find({
+    tenantId,
+    userId: reader,
+    dialogId
+  })
+    .select('fromType countUnread')
+    .lean();
+  console.log(
+    `[unreadBySenderType] before decrement: tenantId=${tenantId}, dialogId=${dialogId}, reader=${reader}, messageSenderId=${messageSenderId ?? 'null'}, fromType=${fromType}, existingRows=${JSON.stringify(rowsBefore)}`
+  );
   const row = await UserDialogUnreadBySenderType.findOne({
     tenantId,
     userId: reader,
@@ -338,10 +348,14 @@ export async function decrementUserDialogUnreadBySenderTypeForRead(
   })
     .select('countUnread')
     .lean();
-  const newCount = Math.max(0, (row?.countUnread ?? 0) - 1);
+  const prevCount = row?.countUnread ?? 0;
+  const newCount = Math.max(0, prevCount - 1);
   const now = generateTimestamp();
-  await UserDialogUnreadBySenderType.updateOne(
+  const updateResult = await UserDialogUnreadBySenderType.updateOne(
     { tenantId, userId: reader, dialogId, fromType },
     { $set: { countUnread: newCount, lastUpdatedAt: now } }
+  );
+  console.log(
+    `[unreadBySenderType] decrement: tenantId=${tenantId}, dialogId=${dialogId}, readerUserId=${reader}, messageSenderId=${messageSenderId ?? 'null'}, fromType=${fromType}, prevCount=${prevCount}, newCount=${newCount}, matched=${updateResult.matchedCount}, modified=${updateResult.modifiedCount}`
   );
 }
