@@ -17,7 +17,8 @@ import {
   calculatePackStats,
   recalculatePackStats,
   recalculateUserPackUnreadBySenderType,
-  buildUserPackStatsFromBySenderRows
+  buildUserPackStatsFromBySenderRows,
+  decrementUserDialogUnreadBySenderTypeForRead
 } from '../packStatsUtils.js';
 import {
   setupMongoMemoryServer,
@@ -229,6 +230,7 @@ describe('packStatsUtils', () => {
       dialogId,
       status: 'read'
     });
+    await decrementUserDialogUnreadBySenderTypeForRead(tenantId, dialogId, userId, 'user_sender');
 
     const dialogStatsAfter = await UserDialogStats.findOne({ tenantId, userId, dialogId }).lean();
     expect(dialogStatsAfter?.unreadCount).toBe(0);
@@ -319,7 +321,7 @@ describe('packStatsUtils', () => {
     expect(packUser1Contact?.countUnread).toBe(1);
     expect(packUser2Contact?.countUnread).toBe(1);
 
-    // user1 отмечает сообщение как прочитанное (post-save декрементирует UserDialogUnreadBySenderType по типу отправителя = contact)
+    // user1 отмечает сообщение как прочитанное; декремент по типу отправителя = contact
     await MessageStatus.create({
       tenantId,
       messageId,
@@ -327,6 +329,7 @@ describe('packStatsUtils', () => {
       dialogId: dialog1,
       status: 'read'
     });
+    await decrementUserDialogUnreadBySenderTypeForRead(tenantId, dialog1, user1, contact1);
 
     // У user1 в диалоге счётчик по contact = 0, у user2 по-прежнему 1
     const dialogUser1Contact = await UserDialogUnreadBySenderType.findOne({
@@ -419,6 +422,7 @@ describe('packStatsUtils', () => {
       dialogId,
       status: 'read'
     });
+    await decrementUserDialogUnreadBySenderTypeForRead(tenantId, dialogId, 'Usr_Reader', contactId);
 
     const after = await UserDialogUnreadBySenderType.findOne({
       tenantId,

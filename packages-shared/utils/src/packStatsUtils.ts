@@ -13,7 +13,8 @@ import {
 import type { IPackStats } from '@chat3/models';
 import mongoose from 'mongoose';
 import { generateTimestamp } from './timestampUtils.js';
-import { PACK_UNREAD_SENDER_TYPES } from './packUnreadSenderTypes.js';
+import { PACK_UNREAD_SENDER_TYPES, normalizeSenderType } from './packUnreadSenderTypes.js';
+import { getUserType } from './userTypeUtils.js';
 
 export interface PackAggregatedStats {
   messageCount: number;
@@ -313,4 +314,34 @@ export function buildUserPackStatsFromBySenderRows(
   }));
   const unreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
   return { unreadCount, unreadBySenderType, lastUpdatedAt, createdAt };
+}
+
+/**
+ * Декремент UserDialogUnreadBySenderType при отметке сообщения как прочитанного.
+ * Вызывается из API (userDialogController) до публикации события и из тестов после MessageStatus.create().
+ */
+export async function decrementUserDialogUnreadBySenderTypeForRead(
+  tenantId: string,
+  dialogId: string,
+  readerUserId: string,
+  messageSenderId: string | null | undefined
+): Promise<void> {
+  const fromType = messageSenderId
+    ? normalizeSenderType(await getUserType(tenantId, messageSenderId))
+    : 'user';
+  const reader = (readerUserId || '').trim().toLowerCase();
+  const row = await UserDialogUnreadBySenderType.findOne({
+    tenantId,
+    userId: reader,
+    dialogId,
+    fromType
+  })
+    .select('countUnread')
+    .lean();
+  const newCount = Math.max(0, (row?.countUnread ?? 0) - 1);
+  const now = generateTimestamp();
+  await UserDialogUnreadBySenderType.updateOne(
+    { tenantId, userId: reader, dialogId, fromType },
+    { $set: { countUnread: newCount, lastUpdatedAt: now } }
+  );
 }
