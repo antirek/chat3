@@ -27,6 +27,7 @@
     "test:mark-read-api:prod": "node scripts/test-mark-read-via-api-prod.mjs",
     "test:mark-read-api:two-users": "node scripts/test-mark-read-two-users-via-api.mjs",
     "test:mark-read-api:complex": "node scripts/test-mark-read-complex-via-api.mjs",
+    "test:mark-read-api:multi-pack": "node scripts/test-mark-read-multi-pack-via-api.mjs",
     "build": "npm run build -w @chat3/models && npm run build -w @chat3/utils && npm run build --workspaces --if-present",
     "build:watch": "npm run build:watch --workspaces --if-present",
     "publish:client": "npm run build --workspace=@chottodev/chat3-tenant-api-client && (cd packages/tenant-api-client && npm publish)",
