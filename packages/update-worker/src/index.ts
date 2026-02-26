@@ -9,8 +9,10 @@ import {
 import {
   getPackIdsForDialog,
   recalculatePackStats,
-  recalculateUserPackUnreadBySenderType
+  recalculateUserPackUnreadBySenderType,
+  decrementUserDialogUnreadBySenderTypeForRead
 } from '@chat3/utils/packStatsUtils.js';
+import { Message } from '@chat3/models';
 
 const WORKER_QUEUE = 'update_worker_queue';
 
@@ -154,6 +156,28 @@ async function processEvent(eventData: EventData): Promise<void> {
       const dialogId = context.dialogId || dialogPayload.dialogId || messagePayload.dialogId;
       if (dialogId) {
         dialogIdForPackUpdate = dialogId;
+        // Декремент UserDialogUnreadBySenderType в воркере гарантирует корректность при репликации
+        // или при старой версии API (где декремент мог идти после публикации события).
+        const statusUpdate = messagePayload?.statusUpdate || {};
+        const newStatus = statusUpdate.status;
+        const oldStatus = statusUpdate.oldStatus;
+        const readerUserId = eventData.actorId;
+        if (newStatus === 'read' && oldStatus !== 'read' && readerUserId) {
+          let senderId = messagePayload?.senderId;
+          if (senderId == null && entityId) {
+            const msg = await Message.findOne({ tenantId, messageId: entityId })
+              .select('senderId')
+              .lean();
+            senderId = msg?.senderId ?? null;
+          }
+          await decrementUserDialogUnreadBySenderTypeForRead(
+            tenantId,
+            dialogId,
+            readerUserId,
+            senderId ?? undefined
+          );
+          console.log(`✅ Decremented UserDialogUnreadBySenderType for message.status.update (reader=${readerUserId}, dialogId=${dialogId})`);
+        }
       }
     }
 

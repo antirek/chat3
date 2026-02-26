@@ -23,6 +23,7 @@
     "test:e2e:members": "npm run test:e2e:members --workspace=@chat3/controlo-ui",
     "test:e2e:add-member": "npm run test:e2e:add-member --workspace=@chat3/controlo-ui",
     "test:mark-read-api": "node scripts/test-mark-read-via-api.mjs",
+    "test:mark-read-api:prod": "node scripts/test-mark-read-via-api-prod.mjs",
     "build": "npm run build -w @chat3/models && npm run build -w @chat3/utils && npm run build --workspaces --if-present",
     "build:watch": "npm run build:watch --workspaces --if-present",
     "publish:client": "npm run build --workspace=@chottodev/chat3-tenant-api-client && (cd packages/tenant-api-client && npm publish)",
