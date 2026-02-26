@@ -4,10 +4,13 @@ import {
   User,
   UserDialogStats,
   UserDialogActivity,
+  UserDialogUnreadBySenderType,
   Topic,
   DialogStats,
   UserTopicStats
 } from '@chat3/models';
+import { getUserType } from '@chat3/utils/userTypeUtils.js';
+import { normalizeSenderType } from '@chat3/utils/packUnreadSenderTypes.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { parseFilters, extractMetaFilters, parseSort, buildFilterQuery } from '../utils/queryParser.js';
@@ -2149,6 +2152,29 @@ const userDialogController = {
       const messageStatus = await MessageStatus.create([newStatusData]);
       const createdStatus = messageStatus[0];
       log(`Запись статуса создана: statusId=${createdStatus._id}`);
+
+      // Декремент UserDialogUnreadBySenderType выполняем здесь (до ответа), чтобы воркер
+      // при обработке message.status.update видел уже обновлённые данные (избежание гонки с post-save).
+      if (status === 'read' && oldStatus !== 'read') {
+        const fromType = message?.senderId
+          ? normalizeSenderType(await getUserType(req.tenantId, message.senderId))
+          : 'user';
+        const readerUserId = (userId || '').trim().toLowerCase();
+        const row = await UserDialogUnreadBySenderType.findOne({
+          tenantId: req.tenantId,
+          userId: readerUserId,
+          dialogId,
+          fromType
+        })
+          .select('countUnread')
+          .lean();
+        const newCount = Math.max(0, (row?.countUnread ?? 0) - 1);
+        const now = generateTimestamp();
+        await UserDialogUnreadBySenderType.updateOne(
+          { tenantId: req.tenantId, userId: readerUserId, dialogId, fromType },
+          { $set: { countUnread: newCount, lastUpdatedAt: now } }
+        );
+      }
 
       // Получаем обновленный UserDialogStats после создания MessageStatus
       // (post-save hook уже обновил счетчик)

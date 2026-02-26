@@ -6,9 +6,6 @@ import {
   finalizeCounterUpdateContext 
 } from '@chat3/utils/counterUtils.js';
 import { Message } from '../index.js';
-import UserDialogUnreadBySenderType from '../stats/UserDialogUnreadBySenderType.js';
-import { getUserType } from '@chat3/utils/userTypeUtils.js';
-import { normalizeSenderType } from '@chat3/utils';
 
 /**
  * MessageStatus - История изменений статусов сообщений
@@ -231,33 +228,8 @@ messageStatusSchema.post('save', async function(doc) {
               'user',
               topicId // topicId для обновления счетчиков топика
             );
-            
-            // Декремент UserDialogUnreadBySenderType по типу отправителя (user/contact/bot)
-            // Если senderId нет (системное сообщение) — декрементируем 'user', чтобы сумма по типам совпадала с UserDialogStats
-            const fromType = message?.senderId
-              ? normalizeSenderType(await getUserType(doc.tenantId, message.senderId))
-              : 'user';
-            const now = generateTimestamp();
-            const readerUserId = (doc.userId || '').trim().toLowerCase();
-            const row = await UserDialogUnreadBySenderType.findOne({
-              tenantId: doc.tenantId,
-              userId: readerUserId,
-              dialogId: doc.dialogId,
-              fromType
-            })
-              .select('countUnread')
-              .lean();
-            const newCount = Math.max(0, (row?.countUnread ?? 0) - 1);
-            await UserDialogUnreadBySenderType.updateOne(
-              {
-                tenantId: doc.tenantId,
-                userId: readerUserId,
-                dialogId: doc.dialogId,
-                fromType
-              },
-              { $set: { countUnread: newCount, lastUpdatedAt: now } }
-            );
-            
+            // Декремент UserDialogUnreadBySenderType выполняется в tenant-api (userDialogController)
+            // после create(), чтобы воркер не прочитал данные до обновления (избежание гонки).
             console.log(`✅ unreadCount decreased for: tenantId=${doc.tenantId}, userId=${doc.userId}, dialogId=${doc.dialogId}`);
           } else {
             console.warn(`⚠️ dialogId is missing for messageId=${doc.messageId}, cannot update unreadCount`);
