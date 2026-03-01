@@ -185,6 +185,27 @@ export function useDialogs(
     return dialogsSort.getSortIndicator(field);
   }
 
+  /** POST markAllRead для диалога пользователя, затем перезагрузка списка диалогов */
+  async function markAllRead(userId: string, dialogId: string): Promise<void> {
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+    const url = `${baseUrl}/api/users/${encodeURIComponent(userId)}/dialogs/${encodeURIComponent(dialogId)}/markAllRead`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: credentialsStore.getHeaders(),
+    });
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type');
+      const message =
+        contentType?.includes('application/json')
+          ? (await response.json()).message
+          : `HTTP ${response.status}`;
+      throw new Error(message || `markAllRead failed: ${response.status}`);
+    }
+    if (currentUserId.value === userId) {
+      await loadUserDialogs(userId, dialogsPagination.currentPage.value);
+    }
+  }
+
   // Функции для модальных окон
   async function showCurrentUrl() {
     if (!currentUserId.value) {
@@ -263,6 +284,7 @@ export function useDialogs(
     changeDialogPage,
     toggleSort,
     getDialogSortIndicator,
+    markAllRead,
     // Modals
     showCurrentUrl,
     showDialogInfo,

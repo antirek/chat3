@@ -268,6 +268,55 @@ router.get('/:userId/dialogs/:dialogId/topics', apiAuth, requirePermission('read
 
 /**
  * @swagger
+ * /api/users/{userId}/dialogs/{dialogId}/markAllRead:
+ *   post:
+ *     summary: Mark all messages in dialog as read for user
+ *     description: Отмечает все входящие сообщения диалога прочитанными для указанного пользователя. Обнуляет счётчики и синхронно проставляет MessageStatus = read. Таймаут 2 мин.
+ *     tags: [UserDialogs]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: string }
+ *         description: User ID
+ *       - in: path
+ *         name: dialogId
+ *         required: true
+ *         schema: { type: string }
+ *         description: Dialog ID
+ *     responses:
+ *       200:
+ *         description: All messages marked as read
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     userId: { type: string }
+ *                     dialogId: { type: string }
+ *                     tenantId: { type: string }
+ *                     unreadCount: { type: integer, example: 0 }
+ *                     lastSeenAt: { type: number }
+ *                     lastMessageAt: { type: number }
+ *                     processedMessageCount: { type: integer }
+ *                 message: { type: string }
+ *       403:
+ *         description: User is not a member of this dialog
+ *       404:
+ *         description: Dialog not found
+ *       503:
+ *         description: Timeout (2 minutes exceeded)
+ */
+router.post('/:userId/dialogs/:dialogId/markAllRead', apiAuth, requirePermission('write'), validateUserId, validateDialogId, userDialogController.markAllRead);
+
+/**
+ * @swagger
  * /api/users/{userId}/dialogs/{dialogId}/messages:
  *   get:
  *     summary: Get messages from a dialog in context of specific user

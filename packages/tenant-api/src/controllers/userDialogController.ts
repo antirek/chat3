@@ -9,6 +9,8 @@ import {
   UserTopicStats
 } from '@chat3/models';
 import { decrementUserDialogUnreadBySenderTypeForRead } from '@chat3/utils/packStatsUtils.js';
+import { markDialogMessagesAsReadUntil } from '@chat3/utils/dialogReadTaskUtils.js';
+import { applyMarkDialogAllRead } from '../utils/dialogMemberUtils.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { parseFilters, extractMetaFilters, parseSort, buildFilterQuery } from '../utils/queryParser.js';
@@ -2254,6 +2256,111 @@ const userDialogController = {
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
+      });
+    } finally {
+      log('>>>>> end');
+    }
+  },
+
+  /**
+   * Отметить все сообщения диалога прочитанными для пользователя (markAllRead).
+   * POST /api/users/:userId/dialogs/:dialogId/markAllRead
+   */
+  async markAllRead(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const routePath = 'post /users/:userId/dialogs/:dialogId/markAllRead';
+    const log = (...args: any[]) => console.log(`[${routePath}]`, ...args);
+    log('>>>>> start');
+
+    try {
+      const { userId, dialogId } = req.params;
+      const tenantId = req.tenantId!;
+      const actorId = req.apiKey?.name || 'unknown';
+      const actorType = 'api';
+
+      const dialog = await Dialog.findOne({ tenantId, dialogId }).lean();
+      if (!dialog) {
+        res.status(404).json({ error: 'Not Found', message: 'Dialog not found' });
+        return;
+      }
+
+      const member = await DialogMember.findOne({ tenantId, dialogId, userId });
+      if (!member) {
+        res.status(403).json({ error: 'Forbidden', message: 'User is not a member of this dialog' });
+        return;
+      }
+
+      const readUntil = generateTimestamp();
+      const applyResult = await applyMarkDialogAllRead(tenantId, userId, dialogId, actorId, actorType, { lastSeenAt: readUntil });
+
+      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialog.dialogId);
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId: dialog.dialogId,
+        tenantId: dialog.tenantId,
+        createdAt: dialog.createdAt,
+        meta: dialogMeta || {}
+      });
+      const memberSection = eventUtils.buildMemberSection({
+        userId,
+        state: {
+          unreadCount: applyResult.finalUnreadCount,
+          lastSeenAt: applyResult.lastSeenAt,
+          lastMessageAt: applyResult.lastMessageAt
+        }
+      });
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'dialog.member.update',
+        dialogId: dialog.dialogId,
+        entityId: `${dialog.dialogId}:${userId}`,
+        includedSections: ['dialog', 'member'],
+        updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
+      });
+      await eventUtils.createEvent({
+        tenantId,
+        eventType: 'dialog.member.update',
+        entityType: 'dialogMember',
+        entityId: `${dialog.dialogId}:${userId}`,
+        actorId,
+        actorType,
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection,
+          member: memberSection,
+          extra: { delta: { unreadCount: { from: applyResult.previousUnreadCount, to: applyResult.finalUnreadCount } } }
+        })
+      });
+
+      let processedCount = 0;
+      try {
+        const result = await markDialogMessagesAsReadUntil(tenantId, dialogId, userId, readUntil, { timeoutMs: 120_000 });
+        processedCount = result.processedCount;
+      } catch (err: any) {
+        if (err?.message === 'markDialogMessagesAsReadUntil timeout') {
+          res.status(503).json({
+            error: 'Service Unavailable',
+            message: 'Mark all read timed out (2 minutes). Counters were updated; some message statuses may still be processing.'
+          });
+          return;
+        }
+        throw err;
+      }
+
+      res.json({
+        data: sanitizeResponse({
+          userId,
+          dialogId,
+          tenantId,
+          unreadCount: applyResult.finalUnreadCount,
+          lastSeenAt: applyResult.lastSeenAt,
+          lastMessageAt: applyResult.lastMessageAt,
+          processedMessageCount: processedCount
+        }),
+        message: 'All messages marked as read'
+      });
+    } catch (error: any) {
+      log('Error:', error?.message);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error?.message ?? 'Unknown error'
       });
     } finally {
       log('>>>>> end');

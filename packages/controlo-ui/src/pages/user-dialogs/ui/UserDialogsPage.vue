@@ -133,10 +133,12 @@
             :has-user="!!currentUserId"
             :current-sort="currentSort"
             :get-sort-indicator="getDialogSortIndicator"
+            :mark-all-read-loading="markAllReadLoadingDialogId"
             @select="selectDialog"
             @show-info="showDialogInfo"
             @show-events="showDialogEventsModal"
             @show-meta="showDialogMetaModal"
+            @mark-all-read="handleMarkAllRead"
             @toggle-sort="toggleSort"
           />
         </template>
@@ -725,7 +727,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { BasePanel, BaseButton } from '@/shared/ui';
 import { useUserDialogsPage } from '../model';
 import { MetaModal } from '@/widgets/meta-modal';
@@ -799,6 +801,7 @@ const {
   currentSort,
   toggleSort,
   getDialogSortIndicator,
+  markAllRead,
   // Middle panel tab and Packs
   middlePanelTab,
   selectMiddlePanelTab,
@@ -987,6 +990,7 @@ const {
   goToTopicsPage,
   changeTopicsLimit,
   closeModal,
+  showModal,
   showUsersUrl,
   showCurrentUrl,
   showCurrentMessageUrl,
@@ -1133,6 +1137,20 @@ const {
   copyUrlToClipboard,
   shortenDialogId,
 } = pageData;
+
+const markAllReadLoadingDialogId = ref<string | null>(null);
+
+async function handleMarkAllRead(dialogId: string) {
+  if (!currentUserId.value) return;
+  markAllReadLoadingDialogId.value = dialogId;
+  try {
+    await markAllRead(currentUserId.value, dialogId);
+  } catch (e) {
+    showModal('Ошибка: Отметить прочитанным', e instanceof Error ? e.message : String(e));
+  } finally {
+    markAllReadLoadingDialogId.value = null;
+  }
+}
 
 // Инициализация
 onMounted(() => {

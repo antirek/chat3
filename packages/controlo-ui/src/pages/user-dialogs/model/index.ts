@@ -79,6 +79,7 @@ export function useUserDialogsPage() {
     getDialogSortIndicator,
     showCurrentUrl,
     showDialogInfo,
+    markAllRead,
   } = dialogsModule;
 
   // Таб средней панели: диалоги или паки
@@ -785,6 +786,7 @@ export function useUserDialogsPage() {
     showCurrentUrl,
     showCurrentMessageUrl,
     showDialogInfo,
+    markAllRead,
     showMessageInfo,
     // Добавление сообщения
     showAddMessageModal,

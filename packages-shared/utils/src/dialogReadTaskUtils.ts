@@ -167,7 +167,90 @@ async function fetchNextMessageBatch(task: IDialogReadTask, limit: number) {
     .lean();
 }
 
+const MARK_ALL_READ_TIMEOUT_MS = 120_000; // 2 minutes
+
+export interface MarkDialogMessagesAsReadUntilOptions {
+  batchSize?: number;
+  timeoutMs?: number;
+}
+
+/**
+ * Синхронно проставить MessageStatus = read для всех сообщений диалога до readUntil (кроме своих).
+ * Для использования в API (markAllRead) с таймаутом. Воркер продолжает использовать runDialogReadTask.
+ */
+export async function markDialogMessagesAsReadUntil(
+  tenantId: string,
+  dialogId: string,
+  userId: string,
+  readUntil: number,
+  options: MarkDialogMessagesAsReadUntilOptions = {}
+): Promise<{ processedCount: number }> {
+  const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
+  const readTimestamp = readUntil || generateTimestamp();
+  const timeoutMs = options.timeoutMs ?? MARK_ALL_READ_TIMEOUT_MS;
+
+  const taskLike: Pick<IDialogReadTask, 'tenantId' | 'dialogId' | 'userId' | 'readUntil' | 'lastProcessedAt' | 'lastProcessedMessageId'> = {
+    tenantId,
+    dialogId,
+    userId,
+    readUntil: readTimestamp,
+    lastProcessedAt: undefined,
+    lastProcessedMessageId: undefined
+  };
+
+  const run = async (): Promise<{ processedCount: number }> => {
+    let processedCount = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const batch = await fetchNextMessageBatch(taskLike as IDialogReadTask, batchSize);
+      if (!batch.length) {
+        hasMore = false;
+        break;
+      }
+
+      const bulkOps: Array<{ updateOne: { filter: object; update: object; upsert: boolean } }> = [];
+      for (const message of batch) {
+        (taskLike as { lastProcessedAt?: number; lastProcessedMessageId?: unknown }).lastProcessedAt = message.createdAt;
+        (taskLike as { lastProcessedMessageId?: unknown }).lastProcessedMessageId = message._id;
+        if (message.senderId === userId) continue;
+        bulkOps.push({
+          updateOne: {
+            filter: { tenantId, messageId: message.messageId, userId },
+            update: {
+              $set: { status: 'read', readAt: readTimestamp },
+              $setOnInsert: { createdAt: readTimestamp }
+            },
+            upsert: true
+          }
+        });
+      }
+
+      if (bulkOps.length) {
+        await MessageStatus.bulkWrite(bulkOps, { ordered: false });
+        processedCount += bulkOps.length;
+      }
+
+      await sleep(BATCH_SLEEP_MS);
+    }
+
+    return { processedCount };
+  };
+
+  if (timeoutMs > 0) {
+    return Promise.race([
+      run(),
+      new Promise<{ processedCount: number }>((_, rej) =>
+        setTimeout(() => rej(new Error('markDialogMessagesAsReadUntil timeout')), timeoutMs)
+      )
+    ]);
+  }
+
+  return run();
+}
+
 export default {
   scheduleDialogReadTask,
-  runDialogReadTask
+  runDialogReadTask,
+  markDialogMessagesAsReadUntil
 };

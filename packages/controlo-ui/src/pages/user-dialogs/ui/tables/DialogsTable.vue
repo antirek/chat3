@@ -39,6 +39,15 @@
         </td>
         <td :title="item.context?.lastSeenAt != null ? String(item.context.lastSeenAt) : undefined">{{ formatTimestamp(item.context?.lastSeenAt) }}</td>
         <td class="actions-column">
+          <BaseButton
+            v-if="(item.context?.unreadCount ?? 0) > 0"
+            variant="primary"
+            size="small"
+            :disabled="markAllReadLoading === item.dialogId"
+            @click.stop="$emit('mark-all-read', item.dialogId)"
+          >
+            {{ markAllReadLoading === item.dialogId ? '…' : '✓' }} Отметить прочитанным
+          </BaseButton>
           <BaseButton variant="primary" size="small" @click.stop="$emit('show-info', item.dialogId)">ℹ️ Инфо</BaseButton>
           <BaseButton variant="events" size="small" @click.stop="$emit('show-events', item.dialogId)">📋 События</BaseButton>
           <BaseButton variant="success" size="small" @click.stop="$emit('show-meta', item.dialogId)">🏷️ Мета</BaseButton>
@@ -71,6 +80,7 @@ interface Props {
   hasUser: boolean;
   currentSort: string | null;
   getSortIndicator: (field: string) => string;
+  markAllReadLoading?: string | null;
 }
 
 const props = defineProps<Props>();
@@ -79,6 +89,7 @@ const emit = defineEmits<{
   (e: 'show-info', dialogId: string): void;
   (e: 'show-events', dialogId: string): void;
   (e: 'show-meta', dialogId: string): void;
+  (e: 'mark-all-read', dialogId: string): void;
   (e: 'toggle-sort', field: string): void;
 }>();
 

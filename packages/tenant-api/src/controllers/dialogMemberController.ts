@@ -1,5 +1,6 @@
-import { Dialog, DialogMember, Meta, UserDialogStats, UserDialogActivity, UserDialogUnreadBySenderType } from '@chat3/models';
+import { Dialog, DialogMember, Meta, UserDialogStats, UserDialogActivity } from '@chat3/models';
 import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
+import { applyMarkDialogAllRead } from '../utils/dialogMemberUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
@@ -7,13 +8,7 @@ import { parseFilters, extractMetaFilters, buildFilterQuery } from '../utils/que
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { scheduleDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import * as userUtils from '../utils/userUtils.js';
-import { 
-  updateUserStatsDialogCount,
-  finalizeCounterUpdateContext,
-  updateUnreadCount
-} from '@chat3/utils/counterUtils.js';
-import { getPackIdsForDialog, recalculateUserPackUnreadBySenderType, recalculateUserUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
-import * as updateUtils from '@chat3/utils/updateUtils.js';
+import { updateUserStatsDialogCount, finalizeCounterUpdateContext, updateUnreadCount } from '@chat3/utils/counterUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
@@ -626,7 +621,7 @@ const dialogMemberController = {
       }
 
       const timestamp = generateTimestamp();
-      let lastSeenAtValue = null;
+      let lastSeenAtValue: number | null = null;
 
       if (typeof lastSeenAt === 'number') {
         lastSeenAtValue = lastSeenAt;
@@ -634,135 +629,92 @@ const dialogMemberController = {
         lastSeenAtValue = timestamp;
       }
 
-      // Обновляем lastSeenAt в UserDialogActivity, если нужно
-      if (lastSeenAtValue !== null) {
-        log(`Обновление lastSeenAt: userId=${userId}, lastSeenAt=${lastSeenAtValue}`);
-        await UserDialogActivity.findOneAndUpdate(
-          {
-            tenantId: req.tenantId!,
-            userId,
-            dialogId: dialog.dialogId
-          },
-          { lastSeenAt: lastSeenAtValue },
-          { upsert: true, new: true }
+      let updatedActivity: { lastSeenAt?: number; lastMessageAt?: number } | null = null;
+      let finalUnreadCount: number;
+
+      if (unreadCount === 0) {
+        log(`Обнуление счётчиков через applyMarkDialogAllRead: userId=${userId}, dialogId=${dialog.dialogId}`);
+        const applyResult = await applyMarkDialogAllRead(
+          req.tenantId!,
+          userId,
+          dialog.dialogId,
+          req.apiKey?.name || 'unknown',
+          'api',
+          { lastSeenAt: lastSeenAtValue ?? timestamp }
         );
-        log(`lastSeenAt обновлен`);
-      }
-
-      // Получаем или создаем активность
-      log(`Получение/создание активности: userId=${userId}, dialogId=${dialog.dialogId}`);
-      let updatedActivity = await UserDialogActivity.findOne({
-        tenantId: req.tenantId!,
-        userId,
-        dialogId: dialog.dialogId
-      }).lean();
-      
-      // Если активности нет, создаем её с дефолтными значениями
-      if (!updatedActivity) {
-        log(`Активность не найдена, создание с дефолтными значениями`);
-        const defaultTimestamp = generateTimestamp();
-        updatedActivity = await UserDialogActivity.findOneAndUpdate(
-          {
-            tenantId: req.tenantId!,
-            userId,
-            dialogId: dialog.dialogId
-          },
-          {
-            tenantId: req.tenantId!,
-            userId,
-            dialogId: dialog.dialogId,
-            lastSeenAt: defaultTimestamp,
-            lastMessageAt: defaultTimestamp
-          },
-          { upsert: true, new: true }
-        ).lean();
-        log(`Активность создана`);
+        updatedActivity = { lastSeenAt: applyResult.lastSeenAt, lastMessageAt: applyResult.lastMessageAt };
+        finalUnreadCount = applyResult.finalUnreadCount;
+        log(`applyMarkDialogAllRead завершён: finalUnreadCount=${finalUnreadCount}`);
       } else {
-        log(`Активность найдена`);
-      }
-
-      // Обновляем unreadCount в UserDialogStats
-      const delta = unreadCount - currentUnreadCount;
-      log(`Вычислен delta для unreadCount: ${delta}`);
-      if (delta !== 0) {
-        log(`Обновление unreadCount требуется: delta=${delta}`);
-        // Создаем событие для обновления счетчиков
-        log(`Создание события для обновления счетчиков: eventType=dialog.member.update`);
-        const eventId = await eventUtils.createEvent({
-          tenantId: req.tenantId!,
-          eventType: 'dialog.member.update',
-          entityType: 'dialogMember',
-          entityId: `${dialog.dialogId}:${userId}`,
-          actorId: req.apiKey?.name || 'unknown',
-          actorType: 'api',
-          data: {}
-        });
-        const sourceEventId = eventId?.eventId || null;
-        log(`Событие создано: eventId=${sourceEventId}`);
-
-        try {
-          log(`Обновление unreadCount: userId=${userId}, dialogId=${dialog.dialogId}, delta=${delta}`);
-          await updateUnreadCount(
-            req.tenantId,
-            userId,
-            dialog.dialogId,
-            delta,
-            'dialog.member.update',
-            sourceEventId,
-            dialog.dialogId,
-            req.apiKey?.name || 'unknown',
-            'api'
+        // Обновляем lastSeenAt в UserDialogActivity, если нужно
+        if (lastSeenAtValue !== null) {
+          log(`Обновление lastSeenAt: userId=${userId}, lastSeenAt=${lastSeenAtValue}`);
+          await UserDialogActivity.findOneAndUpdate(
+            { tenantId: req.tenantId!, userId, dialogId: dialog.dialogId },
+            { lastSeenAt: lastSeenAtValue },
+            { upsert: true, new: true }
           );
-            if (unreadCount === 0) {
-            await UserDialogUnreadBySenderType.updateMany(
-              { tenantId: req.tenantId!, userId, dialogId: dialog.dialogId },
-              { $set: { countUnread: 0, lastUpdatedAt: timestamp } }
-            );
-            await recalculateUserUnreadBySenderType(req.tenantId!, userId);
-            const packIds = await getPackIdsForDialog(req.tenantId!, dialog.dialogId);
-            for (const packId of packIds) {
-              const userPackMap = await recalculateUserPackUnreadBySenderType(req.tenantId!, packId, {
-                sourceOperation: 'dialog.member.update',
-                sourceEntityId: `${dialog.dialogId}:${userId}`,
-                actorId: req.apiKey?.name || 'unknown',
-                actorType: 'api'
-              });
-              for (const [uid, userStats] of Object.entries(userPackMap)) {
-                await updateUtils.createUserPackStatsUpdate(
-                  req.tenantId!,
-                  uid,
-                  packId,
-                  sourceEventId || dialog.dialogId,
-                  'dialog.member.update',
-                  {
-                    unreadCount: userStats.unreadCount,
-                    lastUpdatedAt: userStats.lastUpdatedAt,
-                    unreadBySenderType: userStats.unreadBySenderType
-                  }
-                );
-              }
-            }
-          }
-          log(`unreadCount обновлен`);
-          log(`Финализация контекста обновления счетчиков: userId=${userId}, eventId=${sourceEventId}`);
-          await finalizeCounterUpdateContext(req.tenantId, userId, sourceEventId);
-          log(`Контекст финализирован`);
-        } catch (error) {
-          log(`Ошибка обновления unreadCount:`, error);
+          log(`lastSeenAt обновлен`);
         }
-      } else {
-        log(`Обновление unreadCount не требуется: delta=0`);
-      }
 
-      // Получаем обновленный unreadCount из UserDialogStats
-      log(`Получение обновленной статистики: userId=${userId}, dialogId=${dialog.dialogId}`);
-      const updatedStats = await UserDialogStats.findOne({
-        tenantId: req.tenantId!,
-        dialogId: dialog.dialogId,
-        userId
-      }).lean();
-      const finalUnreadCount = updatedStats?.unreadCount || 0;
-      log(`Финальный unreadCount: ${finalUnreadCount}`);
+        log(`Получение/создание активности: userId=${userId}, dialogId=${dialog.dialogId}`);
+        const activityDoc = await UserDialogActivity.findOne({
+          tenantId: req.tenantId!,
+          userId,
+          dialogId: dialog.dialogId
+        }).lean();
+        if (!activityDoc) {
+          const defaultTimestamp = generateTimestamp();
+          const created = await UserDialogActivity.findOneAndUpdate(
+            { tenantId: req.tenantId!, userId, dialogId: dialog.dialogId },
+            { tenantId: req.tenantId!, userId, dialogId: dialog.dialogId, lastSeenAt: defaultTimestamp, lastMessageAt: defaultTimestamp },
+            { upsert: true, new: true }
+          ).lean();
+          updatedActivity = created ?? null;
+        } else {
+          updatedActivity = activityDoc;
+        }
+
+        const delta = unreadCount - currentUnreadCount;
+        log(`Вычислен delta для unreadCount: ${delta}`);
+        if (delta !== 0) {
+          log(`Обновление unreadCount: delta=${delta}`);
+          const eventId = await eventUtils.createEvent({
+            tenantId: req.tenantId!,
+            eventType: 'dialog.member.update',
+            entityType: 'dialogMember',
+            entityId: `${dialog.dialogId}:${userId}`,
+            actorId: req.apiKey?.name || 'unknown',
+            actorType: 'api',
+            data: {}
+          });
+          const sourceEventId = eventId?.eventId || null;
+          try {
+            await updateUnreadCount(
+              req.tenantId!,
+              userId,
+              dialog.dialogId,
+              delta,
+              'dialog.member.update',
+              sourceEventId,
+              dialog.dialogId,
+              req.apiKey?.name || 'unknown',
+              'api'
+            );
+            await finalizeCounterUpdateContext(req.tenantId!, userId, sourceEventId);
+          } catch (error) {
+            log(`Ошибка обновления unreadCount:`, error);
+          }
+        }
+
+        const updatedStats = await UserDialogStats.findOne({
+          tenantId: req.tenantId!,
+          dialogId: dialog.dialogId,
+          userId
+        }).lean();
+        finalUnreadCount = updatedStats?.unreadCount ?? 0;
+        log(`Финальный unreadCount: ${finalUnreadCount}`);
+      }
 
       // Получаем метаданные диалога для события
       log(`Получение метаданных диалога для события: dialogId=${dialog.dialogId}`);

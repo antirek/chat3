@@ -1,6 +1,10 @@
-import { DialogMember, UserDialogActivity, UserDialogStats } from '@chat3/models';
+import { DialogMember, UserDialogActivity, UserDialogStats, UserDialogUnreadBySenderType } from '@chat3/models';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
-import { updateUnreadCount } from '@chat3/utils/counterUtils.js';
+import { updateUnreadCount, finalizeCounterUpdateContext } from '@chat3/utils/counterUtils.js';
+import { getPackIdsForDialog, recalculateUserPackUnreadBySenderType, recalculateUserUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
+import * as updateUtils from '@chat3/utils/updateUtils.js';
+import * as eventUtils from '@chat3/utils/eventUtils.js';
+import type { ActorType } from '@chat3/models';
 
 /**
  * Утилиты для управления участниками диалогов
@@ -207,4 +211,125 @@ export async function getDialogMembers(
     console.error('Error getting dialog members:', error);
     throw error;
   }
+}
+
+export interface ApplyMarkDialogAllReadResult {
+  finalUnreadCount: number;
+  previousUnreadCount: number;
+  lastSeenAt: number;
+  lastMessageAt: number;
+  sourceEventId: string | null;
+}
+
+/**
+ * Обнулить счётчики непрочитанных по диалогу для пользователя (все сообщения считаем прочитанными).
+ * Используется из setUnreadCount(0) и markAllRead. Создаёт событие для контекста счётчиков;
+ * финальное событие dialog.member.update с полными данными создаёт вызывающий код.
+ */
+export async function applyMarkDialogAllRead(
+  tenantId: string,
+  userId: string,
+  dialogId: string,
+  actorId: string,
+  actorType: ActorType,
+  options?: { lastSeenAt?: number }
+): Promise<ApplyMarkDialogAllReadResult> {
+  const timestamp = options?.lastSeenAt ?? generateTimestamp();
+
+  const existingStats = await UserDialogStats.findOne({
+    tenantId,
+    userId,
+    dialogId
+  }).lean();
+  const currentUnreadCount = existingStats?.unreadCount ?? 0;
+
+  await UserDialogActivity.findOneAndUpdate(
+    { tenantId, userId, dialogId },
+    { lastSeenAt: timestamp },
+    { upsert: true, new: true }
+  );
+
+  if (currentUnreadCount === 0) {
+    const activity = await UserDialogActivity.findOne({
+      tenantId,
+      userId,
+      dialogId
+    }).lean();
+    return {
+      finalUnreadCount: 0,
+      previousUnreadCount: 0,
+      lastSeenAt: activity?.lastSeenAt ?? timestamp,
+      lastMessageAt: activity?.lastMessageAt ?? timestamp,
+      sourceEventId: null
+    };
+  }
+
+  const eventResult = await eventUtils.createEvent({
+    tenantId,
+    eventType: 'dialog.member.update',
+    entityType: 'dialogMember',
+    entityId: `${dialogId}:${userId}`,
+    actorId,
+    actorType,
+    data: {}
+  });
+  const sourceEventId = eventResult?.eventId ?? null;
+
+  await updateUnreadCount(
+    tenantId,
+    userId,
+    dialogId,
+    -currentUnreadCount,
+    'dialog.member.update',
+    sourceEventId,
+    dialogId,
+    actorId,
+    actorType
+  );
+
+  await UserDialogUnreadBySenderType.updateMany(
+    { tenantId, userId, dialogId },
+    { $set: { countUnread: 0, lastUpdatedAt: timestamp } }
+  );
+  await recalculateUserUnreadBySenderType(tenantId, userId);
+
+  const packIds = await getPackIdsForDialog(tenantId, dialogId);
+  for (const packId of packIds) {
+    const userPackMap = await recalculateUserPackUnreadBySenderType(tenantId, packId, {
+      sourceOperation: 'dialog.member.update',
+      sourceEntityId: `${dialogId}:${userId}`,
+      actorId,
+      actorType
+    });
+    for (const [uid, userStats] of Object.entries(userPackMap)) {
+      await updateUtils.createUserPackStatsUpdate(
+        tenantId,
+        uid,
+        packId,
+        sourceEventId ?? dialogId,
+        'dialog.member.update',
+        {
+          unreadCount: userStats.unreadCount,
+          lastUpdatedAt: userStats.lastUpdatedAt,
+          unreadBySenderType: userStats.unreadBySenderType
+        }
+      );
+    }
+  }
+
+  await finalizeCounterUpdateContext(tenantId, userId, sourceEventId);
+
+  const activity = await UserDialogActivity.findOne({
+    tenantId,
+    userId,
+    dialogId
+  }).lean();
+
+  return {
+    finalUnreadCount: 0,
+    previousUnreadCount: currentUnreadCount,
+    lastSeenAt: activity?.lastSeenAt ?? timestamp,
+    lastMessageAt: activity?.lastMessageAt ?? timestamp,
+    sourceEventId
+  };
 }
