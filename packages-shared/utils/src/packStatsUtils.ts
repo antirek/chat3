@@ -423,9 +423,19 @@ export async function recalculateUserUnreadBySenderType(
     );
   }
   const totalUnreadCount = PACK_UNREAD_SENDER_TYPES.reduce((s, ft) => s + (byType[ft] ?? 0), 0);
+
+  // Число диалогов с непрочитанными — чтобы unreadDialogsCount и totalUnreadCount не расходились
+  const unreadDialogsAgg = await UserDialogUnreadBySenderType.aggregate<{ unreadDialogsCount: number }>([
+    { $match: { tenantId, userId: uid } },
+    { $group: { _id: '$dialogId', totalUnread: { $sum: '$countUnread' } } },
+    { $match: { totalUnread: { $gt: 0 } } },
+    { $count: 'unreadDialogsCount' }
+  ]);
+  const unreadDialogsCount = unreadDialogsAgg[0]?.unreadDialogsCount ?? 0;
+
   await UserStats.findOneAndUpdate(
     { tenantId, userId: uid },
-    { $set: { totalUnreadCount, lastUpdatedAt: now }, $setOnInsert: { dialogCount: 0, unreadDialogsCount: 0, totalMessagesCount: 0, createdAt: now } },
+    { $set: { totalUnreadCount, unreadDialogsCount, lastUpdatedAt: now }, $setOnInsert: { dialogCount: 0, totalMessagesCount: 0, createdAt: now } },
     { upsert: true, new: true }
   );
   const unreadBySenderType = PACK_UNREAD_SENDER_TYPES.map((ft) => ({

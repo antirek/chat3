@@ -8,6 +8,7 @@ import {
   UserDialogStats,
   UserDialogUnreadBySenderType,
   UserPackUnreadBySenderType,
+  UserStats,
   PackStats,
   CounterHistory,
   Message,
@@ -17,6 +18,7 @@ import {
   calculatePackStats,
   recalculatePackStats,
   recalculateUserPackUnreadBySenderType,
+  recalculateUserUnreadBySenderType,
   buildUserPackStatsFromBySenderRows,
   decrementUserDialogUnreadBySenderTypeForRead
 } from '../packStatsUtils.js';
@@ -431,5 +433,56 @@ describe('packStatsUtils', () => {
       fromType: 'contact'
     }).lean();
     expect(after?.countUnread).toBe(0);
+  });
+
+  it('recalculateUserUnreadBySenderType синхронизирует unreadDialogsCount с totalUnreadCount', async () => {
+    const userId = 'user_sync';
+    // Рассогласованное состояние: в UserStats 8 «непрочитанных диалогов», но непрочитанных сообщений 0
+    await UserStats.create({
+      tenantId,
+      userId,
+      dialogCount: 11,
+      unreadDialogsCount: 8,
+      totalUnreadCount: 0,
+      totalMessagesCount: 70
+    });
+    // UserDialogUnreadBySenderType пустой или все countUnread = 0 — реально непрочитанных нет
+    await UserDialogUnreadBySenderType.insertMany([
+      { tenantId, userId, dialogId: createDialogId('d1'), fromType: 'user', countUnread: 0 },
+      { tenantId, userId, dialogId: createDialogId('d2'), fromType: 'contact', countUnread: 0 }
+    ]);
+
+    const result = await recalculateUserUnreadBySenderType(tenantId, userId);
+
+    expect(result.totalUnreadCount).toBe(0);
+    const userStats = await UserStats.findOne({ tenantId, userId }).lean();
+    expect(userStats?.totalUnreadCount).toBe(0);
+    expect(userStats?.unreadDialogsCount).toBe(0);
+  });
+
+  it('recalculateUserUnreadBySenderType выставляет unreadDialogsCount по числу диалогов с непрочитанными', async () => {
+    const userId = 'user_with_unread';
+    await UserStats.create({
+      tenantId,
+      userId,
+      dialogCount: 5,
+      unreadDialogsCount: 0,
+      totalUnreadCount: 0,
+      totalMessagesCount: 10
+    });
+    const d1 = createDialogId('u1');
+    const d2 = createDialogId('u2');
+    await UserDialogUnreadBySenderType.insertMany([
+      { tenantId, userId, dialogId: d1, fromType: 'user', countUnread: 2 },
+      { tenantId, userId, dialogId: d1, fromType: 'contact', countUnread: 1 },
+      { tenantId, userId, dialogId: d2, fromType: 'bot', countUnread: 1 }
+    ]);
+
+    const result = await recalculateUserUnreadBySenderType(tenantId, userId);
+
+    expect(result.totalUnreadCount).toBe(4);
+    const userStats = await UserStats.findOne({ tenantId, userId }).lean();
+    expect(userStats?.totalUnreadCount).toBe(4);
+    expect(userStats?.unreadDialogsCount).toBe(2);
   });
 });
