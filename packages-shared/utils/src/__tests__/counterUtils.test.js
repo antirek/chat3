@@ -10,11 +10,13 @@ import {
   recalculateUserStats,
   getCounterHistory
 } from '../counterUtils.js';
-import { 
-  UserStats, 
-  UserDialogStats, 
-  MessageReactionStats, 
-  MessageStatusStats, 
+import {
+  UserStats,
+  UserDialogStats,
+  UserDialogUnreadBySenderType,
+  UserUnreadBySenderType,
+  MessageReactionStats,
+  MessageStatusStats,
   CounterHistory,
   User,
   DialogMember,
@@ -93,11 +95,10 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
       expect(stats).toBeDefined();
       expect(stats.unreadCount).toBe(1);
 
-      // Проверяем, что UserStats обновился
+      // UserStats: unreadDialogsCount обновляется здесь; totalUnreadCount теперь ведётся через UserUnreadBySenderType (message create path)
       const userStats = await UserStats.findOne({ tenantId, userId });
       expect(userStats).toBeDefined();
       expect(userStats.unreadDialogsCount).toBe(1);
-      expect(userStats.totalUnreadCount).toBe(1);
     });
 
     test('should decrement unread count', async () => {
@@ -127,10 +128,9 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
       const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });
       expect(stats.unreadCount).toBe(0);
 
-      // Проверяем, что UserStats обновился (диалог стал прочитанным)
+      // Диалог стал прочитанным; totalUnreadCount ведётся через UserUnreadBySenderType
       const userStats = await UserStats.findOne({ tenantId, userId });
       expect(userStats.unreadDialogsCount).toBe(0);
-      expect(userStats.totalUnreadCount).toBe(0);
     });
 
     test('should prevent negative unread count', async () => {
@@ -395,6 +395,12 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
       await updateUnreadCount(tenantId, userId, dialogId1, 3, 'message.create', eventId, messageId, 'sender1', 'user');
       await updateUnreadCount(tenantId, userId, dialogId2, 2, 'message.create', eventId, messageId, 'sender1', 'user');
 
+      // totalUnreadCount в recalculateUserStats берётся из UserDialogUnreadBySenderType
+      await UserDialogUnreadBySenderType.create([
+        { tenantId, userId, dialogId: dialogId1, fromType: 'user', countUnread: 3 },
+        { tenantId, userId, dialogId: dialogId2, fromType: 'user', countUnread: 2 }
+      ]);
+
       // Создаем сообщения от пользователя для проверки totalMessagesCount
       await Message.create({ tenantId, messageId: generateMessageId(), dialogId: dialogId1, senderId: userId, content: 'Test', type: 'internal.text' });
       await Message.create({ tenantId, messageId: generateMessageId(), dialogId: dialogId2, senderId: userId, content: 'Test', type: 'internal.text' });
@@ -452,6 +458,18 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
       // Обновляем счетчики (это создаст контекст)
       await updateUnreadCount(tenantId, userId, dialogId, 1, 'message.create', eventId, messageId, 'sender1', 'user');
       await updateUserStatsTotalMessagesCount(tenantId, userId, 1, 'message.create', eventId, messageId, userId, 'user');
+
+      // totalUnreadCount в createUserStatsUpdate читается из UserUnreadBySenderType
+      await UserUnreadBySenderType.findOneAndUpdate(
+        { tenantId, userId, fromType: 'user' },
+        { $set: { countUnread: 1 }, $setOnInsert: { createdAt: Date.now(), lastUpdatedAt: Date.now() } },
+        { upsert: true }
+      );
+      await UserStats.findOneAndUpdate(
+        { tenantId, userId },
+        { $set: { totalUnreadCount: 1 } },
+        { upsert: true }
+      );
 
       // Финализируем контекст
       await finalizeCounterUpdateContext(tenantId, userId, eventId);

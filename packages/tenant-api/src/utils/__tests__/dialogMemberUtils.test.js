@@ -5,7 +5,7 @@ import {
   getDialogMembers
 } from '../dialogMemberUtils.js';
 import { updateUnreadCount, recalculateUserStats } from '@chat3/utils/counterUtils.js';
-import { DialogMember, Dialog, Message, MessageStatus, UserDialogStats, UserDialogActivity } from '@chat3/models';
+import { DialogMember, Dialog, Message, MessageStatus, UserDialogStats, UserDialogActivity, UserDialogUnreadBySenderType } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
@@ -295,15 +295,17 @@ describe('dialogMemberUtils - Integration Tests with MongoDB', () => {
       // Создаем участника
       await addDialogMember(tenantId, userId, dialogId);
 
-      // Создаем UserDialogStats вручную, так как recalculateUserStats не обновляет их
-      // В реальной системе UserDialogStats обновляются автоматически через middleware
       await UserDialogStats.findOneAndUpdate(
         { tenantId, userId, dialogId },
         { $set: { unreadCount: 1 } },
         { upsert: true, new: true }
       );
+      await UserDialogUnreadBySenderType.findOneAndUpdate(
+        { tenantId, userId, dialogId, fromType: 'user' },
+        { $set: { countUnread: 1 }, $setOnInsert: { createdAt: generateTimestamp(), lastUpdatedAt: generateTimestamp() } },
+        { upsert: true }
+      );
 
-      // Пересчитываем UserStats через recalculateUserStats
       const result = await recalculateUserStats(tenantId, userId);
       
       // Проверяем, что UserStats обновлены

@@ -6,7 +6,7 @@ import connectDB from '@chat3/utils/databaseUtils.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { recalculateUserStats } from '@chat3/utils/counterUtils.js';
-import { recalculateUserPackUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
+import { recalculateUserPackUnreadBySenderType, recalculateUserUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { Request, Response } from 'express';
@@ -226,7 +226,6 @@ export const initController = {
         }
       })();
     } catch (error: any) {
-      // Если ошибка произошла до отправки ответа
       if (!res.headersSent) {
         res.status(500).json({
           error: 'Internal Server Error',
@@ -234,6 +233,49 @@ export const initController = {
         });
       } else {
         console.error('Error after response sent:', error);
+      }
+    }
+  },
+
+  async recalculateUserUnreadBySenderType(req: Request, res: Response): Promise<void> {
+    try {
+      await connectDB();
+
+      const tenants = await Tenant.find({}).select('tenantId').lean();
+      const results = { tenantsProcessed: 0, usersProcessed: 0, errors: [] as string[] };
+
+      res.status(202).json({
+        message: 'Recalculate user unread by sender type started',
+        data: {
+          status: 'processing',
+          note: 'UserUnreadBySenderType and UserStats.totalUnreadCount are recalculated from UserDialogUnreadBySenderType for all users. Check server logs for progress.'
+        }
+      });
+
+      (async () => {
+        try {
+          for (const tenant of tenants) {
+            results.tenantsProcessed++;
+            const users = await User.find({ tenantId: tenant.tenantId }).select('userId').lean();
+            for (const user of users) {
+              try {
+                await recalculateUserUnreadBySenderType(tenant.tenantId, user.userId);
+                results.usersProcessed++;
+              } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : String(err);
+                results.errors.push(`${tenant.tenantId}/${user.userId}: ${message}`);
+              }
+            }
+            console.log(`✅ Tenant ${tenant.tenantId}: ${users.length} users (UserUnreadBySenderType)`);
+          }
+          console.log(`✅ Recalculate user unread by sender type completed: ${results.usersProcessed} users, ${results.errors.length} errors`);
+        } catch (error: any) {
+          console.error('❌ Error in recalculate user unread by sender type:', error);
+        }
+      })();
+    } catch (error: any) {
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Internal Server Error', message: error.message });
       }
     }
   },

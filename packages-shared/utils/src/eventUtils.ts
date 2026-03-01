@@ -415,6 +415,7 @@ interface BuildUserSectionParams {
     unreadDialogsCount?: number;
     totalUnreadCount?: number;
     totalMessagesCount?: number;
+    unreadBySenderType?: Array<{ fromType: string; countUnread: number }>;
   };
 }
 
@@ -432,13 +433,13 @@ export function buildUserSection({
     unreadDialogsCount: number;
     totalUnreadCount: number;
     totalMessagesCount: number;
+    unreadBySenderType?: Array<{ fromType: string; countUnread: number }>;
   };
 } | null {
   if (!userId) {
     return null;
   }
 
-  // Убеждаемся, что meta всегда является объектом
   const metaObject = meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : {};
 
   const userSection: {
@@ -450,6 +451,7 @@ export function buildUserSection({
       unreadDialogsCount: number;
       totalUnreadCount: number;
       totalMessagesCount: number;
+      unreadBySenderType?: Array<{ fromType: string; countUnread: number }>;
     };
   } = {
     userId,
@@ -457,14 +459,16 @@ export function buildUserSection({
     meta: metaObject
   };
 
-  // Добавляем stats только если они переданы
-  if (stats && (stats.dialogCount !== undefined || stats.unreadDialogsCount !== undefined || stats.totalUnreadCount !== undefined || stats.totalMessagesCount !== undefined)) {
+  if (stats && (stats.dialogCount !== undefined || stats.unreadDialogsCount !== undefined || stats.totalUnreadCount !== undefined || stats.totalMessagesCount !== undefined || stats.unreadBySenderType !== undefined)) {
     userSection.stats = {
       dialogCount: stats.dialogCount ?? 0,
       unreadDialogsCount: stats.unreadDialogsCount ?? 0,
       totalUnreadCount: stats.totalUnreadCount ?? 0,
       totalMessagesCount: stats.totalMessagesCount ?? 0
     };
+    if (stats.unreadBySenderType && Array.isArray(stats.unreadBySenderType)) {
+      userSection.stats.unreadBySenderType = stats.unreadBySenderType;
+    }
   }
 
   return userSection;

@@ -168,6 +168,23 @@ router.post('/recalculate-stats', initController.recalculateUserStats);
 
 /**
  * @swagger
+ * /api/init/recalculate-user-unread-by-sender-type:
+ *   post:
+ *     summary: Recalculate UserUnreadBySenderType for all users
+ *     tags: [Initialization]
+ *     description: |
+ *       Пересчитывает UserUnreadBySenderType и UserStats.totalUnreadCount из UserDialogUnreadBySenderType для всех пользователей.
+ *       Операция выполняется асинхронно (202 Accepted).
+ *     responses:
+ *       202:
+ *         description: Recalculate started
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post('/recalculate-user-unread-by-sender-type', initController.recalculateUserUnreadBySenderType);
+
+/**
+ * @swagger
  * /api/init/sync-pack-stats:
  *   post:
  *     summary: Sync pack unread-by-sender (UserPackUnreadBySenderType) from UserDialogUnreadBySenderType

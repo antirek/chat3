@@ -1,5 +1,5 @@
  
-import { Message, Dialog, MessageStatus, User, DialogMember, UserDialogUnreadBySenderType } from '@chat3/models';
+import { Message, Dialog, MessageStatus, User, DialogMember, UserDialogUnreadBySenderType, UserUnreadBySenderType, UserStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
@@ -496,6 +496,40 @@ const messageController = {
             }));
             if (bySenderOps.length > 0) {
               await UserDialogUnreadBySenderType.bulkWrite(bySenderOps, { ordered: false });
+            }
+
+            // 2c. Инкремент UserUnreadBySenderType и UserStats.totalUnreadCount по каждому получателю
+            const userLevelOps = recipients.map(member => ({
+              updateOne: {
+                filter: {
+                  tenantId: req.tenantId!,
+                  userId: (member.userId || '').trim().toLowerCase(),
+                  fromType
+                },
+                update: {
+                  $inc: { countUnread: 1 },
+                  $set: { lastUpdatedAt: now },
+                  $setOnInsert: { createdAt: now }
+                },
+                upsert: true
+              }
+            }));
+            if (userLevelOps.length > 0) {
+              await UserUnreadBySenderType.bulkWrite(userLevelOps, { ordered: false });
+            }
+            const statsOps = recipients.map(member => ({
+              updateOne: {
+                filter: { tenantId: req.tenantId!, userId: (member.userId || '').trim().toLowerCase() },
+                update: {
+                  $inc: { totalUnreadCount: 1 },
+                  $set: { lastUpdatedAt: now },
+                  $setOnInsert: { dialogCount: 0, unreadDialogsCount: 0, totalMessagesCount: 0, createdAt: now }
+                },
+                upsert: true
+              }
+            }));
+            if (statsOps.length > 0) {
+              await UserStats.bulkWrite(statsOps, { ordered: false });
             }
             
             // 3. Обновляем unreadCount батчами по 10 через Promise.allSettled

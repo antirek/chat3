@@ -4,6 +4,8 @@ import {
   UserDialogStats,
   UserDialogUnreadBySenderType,
   UserPackUnreadBySenderType,
+  UserUnreadBySenderType,
+  UserStats,
   PackStats,
   DialogStats,
   DialogMember,
@@ -358,4 +360,77 @@ export async function decrementUserDialogUnreadBySenderTypeForRead(
   console.log(
     `[unreadBySenderType] decrement: tenantId=${tenantId}, dialogId=${dialogId}, readerUserId=${reader}, messageSenderId=${messageSenderId ?? 'null'}, fromType=${fromType}, prevCount=${prevCount}, newCount=${newCount}, matched=${updateResult.matchedCount}, modified=${updateResult.modifiedCount}`
   );
+
+  // Декремент на уровне пользователя (UserUnreadBySenderType) и UserStats.totalUnreadCount
+  if (prevCount > 0) {
+    const userRow = await UserUnreadBySenderType.findOne({
+      tenantId,
+      userId: reader,
+      fromType
+    })
+      .select('countUnread')
+      .lean();
+    const userPrev = userRow?.countUnread ?? 0;
+    const userNew = Math.max(0, userPrev - 1);
+    const now2 = generateTimestamp();
+    await UserUnreadBySenderType.findOneAndUpdate(
+      { tenantId, userId: reader, fromType },
+      { $set: { countUnread: userNew, lastUpdatedAt: now2 } },
+      { upsert: true, new: true }
+    );
+    const statsRow = await UserStats.findOne({ tenantId, userId: reader }).select('totalUnreadCount').lean();
+    const currentTotal = (statsRow as { totalUnreadCount?: number } | null)?.totalUnreadCount ?? 0;
+    const newTotal = Math.max(0, currentTotal - 1);
+    await UserStats.findOneAndUpdate(
+      { tenantId, userId: reader },
+      { $set: { totalUnreadCount: newTotal, lastUpdatedAt: now2 }, $setOnInsert: { dialogCount: 0, unreadDialogsCount: 0, totalMessagesCount: 0, createdAt: now2 } },
+      { upsert: true, new: true }
+    );
+  }
+}
+
+/**
+ * Пересчёт UserUnreadBySenderType из UserDialogUnreadBySenderType для пользователя.
+ * Обновляет также UserStats.totalUnreadCount (сумма по типам).
+ */
+export async function recalculateUserUnreadBySenderType(
+  tenantId: string,
+  userId: string
+): Promise<{ totalUnreadCount: number; unreadBySenderType: Array<{ fromType: string; countUnread: number }> }> {
+  const uid = (userId || '').trim().toLowerCase();
+  const agg = await UserDialogUnreadBySenderType.aggregate<{ _id: string; countUnread: number }>([
+    { $match: { tenantId, userId: uid } },
+    { $group: { _id: '$fromType', countUnread: { $sum: '$countUnread' } } }
+  ]);
+  const byType: Record<string, number> = {};
+  for (const t of PACK_UNREAD_SENDER_TYPES) {
+    byType[t] = 0;
+  }
+  for (const r of agg) {
+    if (PACK_UNREAD_SENDER_TYPES.includes(r._id as any)) {
+      byType[r._id] = r.countUnread;
+    } else {
+      byType['user'] = (byType['user'] ?? 0) + r.countUnread;
+    }
+  }
+  const now = generateTimestamp();
+  for (const fromType of PACK_UNREAD_SENDER_TYPES) {
+    const count = byType[fromType] ?? 0;
+    await UserUnreadBySenderType.findOneAndUpdate(
+      { tenantId, userId: uid, fromType },
+      { $set: { countUnread: count, lastUpdatedAt: now }, $setOnInsert: { createdAt: now } },
+      { upsert: true, new: true }
+    );
+  }
+  const totalUnreadCount = PACK_UNREAD_SENDER_TYPES.reduce((s, ft) => s + (byType[ft] ?? 0), 0);
+  await UserStats.findOneAndUpdate(
+    { tenantId, userId: uid },
+    { $set: { totalUnreadCount, lastUpdatedAt: now }, $setOnInsert: { dialogCount: 0, unreadDialogsCount: 0, totalMessagesCount: 0, createdAt: now } },
+    { upsert: true, new: true }
+  );
+  const unreadBySenderType = PACK_UNREAD_SENDER_TYPES.map((ft) => ({
+    fromType: ft,
+    countUnread: byType[ft] ?? 0
+  }));
+  return { totalUnreadCount, unreadBySenderType };
 }

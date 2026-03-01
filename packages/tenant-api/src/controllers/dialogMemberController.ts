@@ -12,7 +12,7 @@ import {
   finalizeCounterUpdateContext,
   updateUnreadCount
 } from '@chat3/utils/counterUtils.js';
-import { getPackIdsForDialog, recalculateUserPackUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
+import { getPackIdsForDialog, recalculateUserPackUnreadBySenderType, recalculateUserUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
 import * as updateUtils from '@chat3/utils/updateUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
@@ -713,11 +713,12 @@ const dialogMemberController = {
             req.apiKey?.name || 'unknown',
             'api'
           );
-          if (unreadCount === 0) {
+            if (unreadCount === 0) {
             await UserDialogUnreadBySenderType.updateMany(
               { tenantId: req.tenantId!, userId, dialogId: dialog.dialogId },
               { $set: { countUnread: 0, lastUpdatedAt: timestamp } }
             );
+            await recalculateUserUnreadBySenderType(req.tenantId!, userId);
             const packIds = await getPackIdsForDialog(req.tenantId!, dialog.dialogId);
             for (const packId of packIds) {
               const userPackMap = await recalculateUserPackUnreadBySenderType(req.tenantId!, packId, {

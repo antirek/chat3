@@ -13,6 +13,7 @@ import {
 } from '@chat3/models';
 import { generateTimestamp } from './timestampUtils.js';
 import { createUserStatsUpdate } from './updateUtils.js';
+import { recalculateUserUnreadBySenderType } from './packStatsUtils.js';
 
 /**
  * Контекст операции для сбора измененных полей
@@ -507,19 +508,13 @@ async function updateUserStatsFromUnreadCount(
     unreadDialogsCountDelta = -1;
   }
   
-  // КРИТИЧНО: Используем pipeline update с $max для атомарной защиты от отрицательных значений
+  // totalUnreadCount обновляется только через UserUnreadBySenderType (message create/read, setUnreadCount, recalculate)
   const timestamp = generateTimestamp();
   const updateResult = await UserStats.findOneAndUpdate(
     { tenantId, userId },
     [
       {
         $set: {
-          totalUnreadCount: {
-            $max: [
-              { $add: [{ $ifNull: ["$totalUnreadCount", 0] }, delta] },
-              0
-            ]
-          },
           unreadDialogsCount: {
             $max: [
               { $add: [{ $ifNull: ["$unreadDialogsCount", 0] }, unreadDialogsCountDelta] },
@@ -527,7 +522,13 @@ async function updateUserStatsFromUnreadCount(
             ]
           },
           lastUpdatedAt: timestamp,
-          // Устанавливаем значения по умолчанию только при создании
+          totalUnreadCount: {
+            $cond: {
+              if: { $ne: [{ $ifNull: ["$_id", null] }, null] },
+              then: { $ifNull: ["$totalUnreadCount", 0] },
+              else: 0
+            }
+          },
           dialogCount: {
             $cond: {
               if: { $ne: [{ $ifNull: ["$_id", null] }, null] },
@@ -551,17 +552,10 @@ async function updateUserStatsFromUnreadCount(
       new: true
     }
   );
-  
-  const resultObj = updateResult as { 
-    totalUnreadCount?: number; 
-    unreadDialogsCount?: number;
-  } | null;
-  
-  // Получаем старые значения для истории (до обновления)
-  const oldTotalUnreadCount = Math.max(0, (resultObj?.totalUnreadCount || 0) - delta);
+
+  const resultObj = updateResult as { unreadDialogsCount?: number } | null;
   const oldUnreadDialogsCount = Math.max(0, (resultObj?.unreadDialogsCount || 0) - unreadDialogsCountDelta);
-  
-  // Сохраняем в историю и добавляем в контекст только если значения изменились
+
   if (unreadDialogsCountDelta !== 0 && resultObj) {
     await saveCounterHistory({
       counterType: 'userStats.unreadDialogsCount',
@@ -577,32 +571,8 @@ async function updateUserStatsFromUnreadCount(
       actorId: 'system',
       tenantId
     });
-    
-    // Добавляем поле в контекст (не создаем update сразу)
     if (context) {
       context.addUpdatedField('user.stats.unreadDialogsCount');
-    }
-  }
-  
-  if (delta !== 0 && resultObj) {
-    await saveCounterHistory({
-      counterType: 'userStats.totalUnreadCount',
-      entityType: 'user',
-      entityId: userId,
-      field: 'totalUnreadCount',
-      oldValue: oldTotalUnreadCount,
-      newValue: resultObj.totalUnreadCount || 0,
-      delta: delta,
-      operation: 'computed',
-      sourceOperation: 'userDialogStats.unreadCount.update',
-      sourceEntityId: userId,
-      actorId: 'system',
-      tenantId
-    });
-    
-    // Добавляем поле в контекст (не создаем update сразу)
-    if (context) {
-      context.addUpdatedField('user.stats.totalUnreadCount');
     }
   }
 }
@@ -866,8 +836,6 @@ export async function recalculateUserStats(
     );
   }
   
-  // Теперь пересчитываем unreadDialogsCount и totalUnreadCount из UserDialogStats
-  // (теперь все записи гарантированно существуют)
   const unreadStats = await UserDialogStats.aggregate([
     { $match: { tenantId, userId } },
     {
@@ -875,19 +843,17 @@ export async function recalculateUserStats(
         _id: null,
         unreadDialogsCount: {
           $sum: { $cond: [{ $gt: ['$unreadCount', 0] }, 1, 0] }
-        },
-        totalUnreadCount: { $sum: '$unreadCount' }
+        }
       }
     }
-  ]) as Array<{ unreadDialogsCount: number; totalUnreadCount: number }>;
-  
+  ]) as Array<{ unreadDialogsCount: number }>;
+
   const unreadDialogsCount = unreadStats[0]?.unreadDialogsCount || 0;
-  const totalUnreadCount = unreadStats[0]?.totalUnreadCount || 0;
-  
-  // Пересчитываем totalMessagesCount из Message (количество сообщений, отправленных пользователем)
+
+  const { totalUnreadCount } = await recalculateUserUnreadBySenderType(tenantId, userId);
+
   const totalMessagesCount = await Message.countDocuments({ tenantId, senderId: userId });
-  
-  // Обновляем UserStats
+
   await UserStats.findOneAndUpdate(
     { tenantId, userId },
     {
@@ -904,7 +870,7 @@ export async function recalculateUserStats(
     },
     { upsert: true, setDefaultsOnInsert: true }
   );
-  
+
   return { dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount };
 }
 

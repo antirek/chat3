@@ -1,4 +1,5 @@
-import { User, Meta, UserStats } from '@chat3/models';
+import { User, Meta, UserStats, UserUnreadBySenderType } from '@chat3/models';
+import { PACK_UNREAD_SENDER_TYPES } from '@chat3/utils/packUnreadSenderTypes.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
@@ -165,24 +166,42 @@ export async function getUsers(req: AuthenticatedRequest, res: Response): Promis
     if (users.length > 0) {
       const userIds = users.map((user: any) => user.userId);
       log(`Получение статистики для ${userIds.length} пользователей`);
-      
-      // Получаем статистику из UserStats
-      const userStatsList = await UserStats.find({
-        tenantId: req.tenantId!,
-        userId: { $in: userIds }
-      }).lean();
+
+      const [userStatsList, unreadBySenderRows] = await Promise.all([
+        UserStats.find({ tenantId: req.tenantId!, userId: { $in: userIds } }).lean(),
+        UserUnreadBySenderType.find({ tenantId: req.tenantId!, userId: { $in: userIds } })
+          .select('userId fromType countUnread')
+          .lean()
+      ]);
       log(`Статистика получена для ${userStatsList.length} пользователей`);
 
+      const unreadByUser = new Map<string, Array<{ fromType: string; countUnread: number }>>();
+      for (const uid of userIds) {
+        unreadByUser.set(uid, PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 })));
+      }
+      for (const row of unreadBySenderRows as Array<{ userId: string; fromType: string; countUnread: number }>) {
+        const arr = unreadByUser.get(row.userId);
+        if (arr) {
+          const entry = arr.find((e) => e.fromType === row.fromType);
+          if (entry) entry.countUnread = row.countUnread;
+        }
+      }
+
       const statsByUser = new Map(
-        userStatsList.map((stats: any) => [
-          stats.userId,
-          {
-            dialogCount: stats.dialogCount || 0,
-            unreadDialogsCount: stats.unreadDialogsCount || 0,
-            totalUnreadCount: stats.totalUnreadCount || 0,
-            totalMessagesCount: stats.totalMessagesCount || 0
-          }
-        ])
+        userStatsList.map((stats: any) => {
+          const unreadBySenderType = unreadByUser.get(stats.userId) ?? PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 }));
+          const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
+          return [
+            stats.userId,
+            {
+              dialogCount: stats.dialogCount || 0,
+              unreadDialogsCount: stats.unreadDialogsCount || 0,
+              totalUnreadCount,
+              totalMessagesCount: stats.totalMessagesCount || 0,
+              unreadBySenderType
+            }
+          ];
+        })
       );
 
       users.forEach((user: any) => {
@@ -190,18 +209,19 @@ export async function getUsers(req: AuthenticatedRequest, res: Response): Promis
           dialogCount: 0,
           unreadDialogsCount: 0,
           totalUnreadCount: 0,
-          totalMessagesCount: 0
+          totalMessagesCount: 0,
+          unreadBySenderType: PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 }))
         };
         user.stats = stats;
       });
     } else {
-      // Если пользователей нет, устанавливаем нулевые значения
       users.forEach((user: any) => {
         user.stats = {
           dialogCount: 0,
           unreadDialogsCount: 0,
           totalUnreadCount: 0,
-          totalMessagesCount: 0
+          totalMessagesCount: 0,
+          unreadBySenderType: PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 }))
         };
       });
     }
@@ -258,24 +278,29 @@ export async function getUserById(req: AuthenticatedRequest, res: Response): Pro
       // Fallback: если пользователя нет в User модели, но есть meta теги, возвращаем их
       if (userMeta && Object.keys(userMeta).length > 0) {
         log(`Найдены мета-теги для пользователя: userId=${userId}`);
-        // Получаем статистику из UserStats
-        const userStats = await UserStats.findOne({
-          tenantId: req.tenantId!,
-          userId: userId
-        }).lean();
-
-        const stats = userStats 
+        const [userStats, unreadRows] = await Promise.all([
+          UserStats.findOne({ tenantId: req.tenantId!, userId }).lean(),
+          UserUnreadBySenderType.find({ tenantId: req.tenantId!, userId }).select('fromType countUnread').lean()
+        ]);
+        const unreadBySenderType = PACK_UNREAD_SENDER_TYPES.map((ft) => ({
+          fromType: ft,
+          countUnread: (unreadRows as Array<{ fromType: string; countUnread: number }>).find((r) => r.fromType === ft)?.countUnread ?? 0
+        }));
+        const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
+        const stats = userStats
           ? {
               dialogCount: userStats.dialogCount || 0,
               unreadDialogsCount: userStats.unreadDialogsCount || 0,
-              totalUnreadCount: userStats.totalUnreadCount || 0,
-              totalMessagesCount: userStats.totalMessagesCount || 0
+              totalUnreadCount,
+              totalMessagesCount: userStats.totalMessagesCount || 0,
+              unreadBySenderType
             }
           : {
               dialogCount: 0,
               unreadDialogsCount: 0,
-              totalUnreadCount: 0,
-              totalMessagesCount: 0
+              totalUnreadCount,
+              totalMessagesCount: 0,
+              unreadBySenderType
             };
 
         log(`Отправка ответа с мета-тегами: userId=${userId}`);
@@ -301,25 +326,31 @@ export async function getUserById(req: AuthenticatedRequest, res: Response): Pro
     }
     log(`Пользователь найден: userId=${userId}`);
 
-    // Получаем статистику из UserStats
+    // Получаем статистику из UserStats и UserUnreadBySenderType
     log(`Получение статистики пользователя: userId=${userId}`);
-    const userStats = await UserStats.findOne({
-      tenantId: req.tenantId!,
-      userId: userId
-    }).lean();
-
-    const stats = userStats 
+    const [userStats, unreadRows] = await Promise.all([
+      UserStats.findOne({ tenantId: req.tenantId!, userId }).lean(),
+      UserUnreadBySenderType.find({ tenantId: req.tenantId!, userId }).select('fromType countUnread').lean()
+    ]);
+    const unreadBySenderType = PACK_UNREAD_SENDER_TYPES.map((ft) => ({
+      fromType: ft,
+      countUnread: (unreadRows as Array<{ fromType: string; countUnread: number }>).find((r) => r.fromType === ft)?.countUnread ?? 0
+    }));
+    const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
+    const stats = userStats
       ? {
           dialogCount: userStats.dialogCount || 0,
           unreadDialogsCount: userStats.unreadDialogsCount || 0,
-          totalUnreadCount: userStats.totalUnreadCount || 0,
-          totalMessagesCount: userStats.totalMessagesCount || 0
+          totalUnreadCount,
+          totalMessagesCount: userStats.totalMessagesCount || 0,
+          unreadBySenderType
         }
       : {
           dialogCount: 0,
           unreadDialogsCount: 0,
-          totalUnreadCount: 0,
-          totalMessagesCount: 0
+          totalUnreadCount,
+          totalMessagesCount: 0,
+          unreadBySenderType
         };
 
     // Пользователь существует, обогащаем мета-тегами и данными о диалогах

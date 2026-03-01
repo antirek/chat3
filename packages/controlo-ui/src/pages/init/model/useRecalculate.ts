@@ -28,6 +28,13 @@ export function useRecalculate(getControlApiUrl: (path?: string) => string) {
     content: ''
   });
 
+  const recalculateUserUnreadBySenderTypeLoading = ref(false);
+  const recalculateUserUnreadBySenderTypeResult = ref<{
+    show: boolean;
+    type: 'success' | 'error' | 'info';
+    content: string;
+  }>({ show: false, type: 'info', content: '' });
+
   // Пересчет счетчиков пользователей
   async function recalculateUserStats() {
     // Подтверждение перед запуском пересчета
@@ -107,6 +114,58 @@ export function useRecalculate(getControlApiUrl: (path?: string) => string) {
     }
   }
 
+  // Пересчет непрочитанных по типам отправителя (UserUnreadBySenderType)
+  async function recalculateUserUnreadBySenderType() {
+    const confirmed = confirm(
+      'Пересчитать непрочитанные по типам отправителя (UserUnreadBySenderType)?\n\n' +
+      'Для каждого пользователя будет пересчитана разбивка по типам (user, contact, bot) и UserStats.totalUnreadCount.\n\n' +
+      'Продолжить?'
+    );
+    if (!confirmed) return;
+
+    recalculateUserUnreadBySenderTypeLoading.value = true;
+    recalculateUserUnreadBySenderTypeResult.value = { show: false, type: 'info', content: '' };
+
+    try {
+      const url = getControlApiUrl('/api/init/recalculate-user-unread-by-sender-type');
+      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(`Сервер вернул не JSON. Status: ${response.status}. Ответ: ${text.substring(0, 200)}`);
+      }
+      const data = await response.json();
+
+      if (response.ok || response.status === 202) {
+        recalculateUserUnreadBySenderTypeResult.value = {
+          show: true,
+          type: 'info',
+          content: `
+            <strong>⏳ Пересчет UserUnreadBySenderType запущен</strong>
+            <p style="margin-top: 10px;">${data.message || ''}</p>
+            <p style="margin-top: 10px; font-size: 12px; color: #6c757d;">
+              ${data.data?.note || 'Операция выполняется в фоне. Проверьте логи сервера.'}
+            </p>
+          `
+        };
+      } else {
+        recalculateUserUnreadBySenderTypeResult.value = {
+          show: true,
+          type: 'error',
+          content: `<strong>❌ Ошибка</strong><pre>${JSON.stringify(data, null, 2)}</pre>`
+        };
+      }
+    } catch (error: any) {
+      recalculateUserUnreadBySenderTypeResult.value = {
+        show: true,
+        type: 'error',
+        content: `<strong>❌ Ошибка запроса</strong><p>${error.message}</p>`
+      };
+    } finally {
+      recalculateUserUnreadBySenderTypeLoading.value = false;
+    }
+  }
+
   // Синхронизация счетчиков паков (UserPackStats из UserDialogStats)
   async function syncPackStats() {
     const confirmed = confirm(
@@ -166,6 +225,9 @@ export function useRecalculate(getControlApiUrl: (path?: string) => string) {
     recalculateLoading,
     recalculateResult,
     recalculateUserStats,
+    recalculateUserUnreadBySenderTypeLoading,
+    recalculateUserUnreadBySenderTypeResult,
+    recalculateUserUnreadBySenderType,
     syncPackStatsLoading,
     syncPackStatsResult,
     syncPackStats,

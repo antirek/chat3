@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import { Message, DialogMember, 
-  MessageStatus, Update, User, UserStats, Event, UserDialogStats, UserPackUnreadBySenderType } from '@chat3/models';
+import { Message, DialogMember,
+  MessageStatus, Update, User, UserStats, UserUnreadBySenderType, Event, UserDialogStats, UserPackUnreadBySenderType } from '@chat3/models';
 import type { IUpdate } from '@chat3/models';
 import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
@@ -830,46 +830,33 @@ export async function createUserStatsUpdate(
       return;
     }
     
-    // Получаем статистику пользователя из UserStats (новая архитектура)
-    let stats = await UserStats.findOne({ tenantId, userId }).lean();
-    
-    // Если UserStats не существует, возвращаем значения по умолчанию
-    // Это может произойти если счетчики еще не были инициализированы
-    const statsObj = stats as { 
-      dialogCount?: number; 
-      unreadDialogsCount?: number; 
-      totalUnreadCount?: number; 
-      totalMessagesCount?: number;
-    } | null;
-    
-    if (!statsObj) {
-      stats = {
-        dialogCount: 0,
-        unreadDialogsCount: 0,
-        totalUnreadCount: 0,
-        totalMessagesCount: 0
-      } as typeof stats;
-    }
+    // Получаем статистику из UserStats и UserUnreadBySenderType
+    const [stats, unreadRows] = await Promise.all([
+      UserStats.findOne({ tenantId, userId }).lean(),
+      UserUnreadBySenderType.find({ tenantId, userId }).select('fromType countUnread').lean()
+    ]);
+    const statsObj = stats as { dialogCount?: number; unreadDialogsCount?: number; totalUnreadCount?: number; totalMessagesCount?: number } | null;
+    const unreadBySenderType = (unreadRows as Array<{ fromType: string; countUnread: number }>).length
+      ? (() => {
+          const byType: Record<string, number> = { user: 0, contact: 0, bot: 0 };
+          for (const r of unreadRows as Array<{ fromType: string; countUnread: number }>) {
+            byType[r.fromType] = (byType[r.fromType] ?? 0) + r.countUnread;
+          }
+          return ['user', 'contact', 'bot'].map((ft) => ({ fromType: ft, countUnread: byType[ft] ?? 0 }));
+        })()
+      : [{ fromType: 'user', countUnread: 0 }, { fromType: 'contact', countUnread: 0 }, { fromType: 'bot', countUnread: 0 }];
+    const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
 
-    // Получаем данные пользователя
     const user = await User.findOne({ userId, tenantId }).lean();
     if (!user) {
       console.warn(`User ${userId} not found for stats update`);
       return;
     }
 
-    // Получаем мета-теги пользователя
     const userMeta = await metaUtils.getEntityMeta(tenantId, 'user', userId);
-
     const userObj = user as { userId: string; type?: string };
-    const finalStats = statsObj || {
-      dialogCount: 0,
-      unreadDialogsCount: 0,
-      totalUnreadCount: 0,
-      totalMessagesCount: 0
-    };
+    const finalStats = statsObj || { dialogCount: 0, unreadDialogsCount: 0, totalUnreadCount: 0, totalMessagesCount: 0 };
 
-    // Создаем секцию user со статистикой
     const userSection = eventUtils.buildUserSection({
       userId: userObj.userId,
       type: userObj.type || null,
@@ -877,8 +864,9 @@ export async function createUserStatsUpdate(
       stats: {
         dialogCount: finalStats.dialogCount || 0,
         unreadDialogsCount: finalStats.unreadDialogsCount || 0,
-        totalUnreadCount: finalStats.totalUnreadCount || 0,
-        totalMessagesCount: finalStats.totalMessagesCount || 0
+        totalUnreadCount,
+        totalMessagesCount: finalStats.totalMessagesCount || 0,
+        unreadBySenderType
       }
     });
 

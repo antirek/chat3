@@ -91,6 +91,16 @@
               <span>{{ recalculateLoading ? 'Пересчет счетчиков...' : 'Пересчитать счетчики для всех пользователей' }}</span>
             </button>
             <button 
+              id="recalculateUserUnreadBySenderTypeBtn" 
+              class="btn-primary" 
+              :disabled="recalculateUserUnreadBySenderTypeLoading"
+              @click="recalculateUserUnreadBySenderType"
+            >
+              <span v-if="recalculateUserUnreadBySenderTypeLoading" class="loading"></span>
+              <span v-else>📊</span>
+              <span>{{ recalculateUserUnreadBySenderTypeLoading ? 'Пересчет...' : 'Пересчитать непрочитанные по типам (UserUnreadBySenderType)' }}</span>
+            </button>
+            <button 
               id="syncPackStatsBtn" 
               class="btn-primary" 
               :disabled="syncPackStatsLoading"
@@ -106,6 +116,12 @@
             :class="['result', recalculateResult.type]"
           >
             <div v-html="recalculateResult.content"></div>
+          </div>
+          <div 
+            v-if="recalculateUserUnreadBySenderTypeResult.show" 
+            :class="['result', recalculateUserUnreadBySenderTypeResult.type]"
+          >
+            <div v-html="recalculateUserUnreadBySenderTypeResult.content"></div>
           </div>
           <div 
             v-if="syncPackStatsResult.show" 
@@ -129,6 +145,9 @@ const {
   seedResult,
   recalculateLoading,
   recalculateResult,
+  recalculateUserUnreadBySenderTypeLoading,
+  recalculateUserUnreadBySenderTypeResult,
+  recalculateUserUnreadBySenderType,
   syncPackStatsLoading,
   syncPackStatsResult,
   initialize,

@@ -5,7 +5,7 @@ import {
   updateUser,
   deleteUser
 } from '../userController.js';
-import { Tenant, User, Meta, DialogMember, UserStats, UserDialogStats } from '@chat3/models';
+import { Tenant, User, Meta, DialogMember, UserStats, UserDialogStats, UserUnreadBySenderType } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
@@ -405,14 +405,19 @@ describe('userController.getUserById', () => {
       { tenantId, dialogId: 'dlg_cc333333333333333333', userId: 'agent_carl', unreadCount: 5 }
     ]);
 
-    // Создаем UserStats
+    // Создаем UserStats (totalUnreadCount в API считается из UserUnreadBySenderType)
     await UserStats.create({
       tenantId,
       userId: 'agent_carl',
       dialogCount: 3,
-      unreadDialogsCount: 2, // два диалога с unreadCount > 0
+      unreadDialogsCount: 2,
       totalUnreadCount: 8
     });
+    await UserUnreadBySenderType.findOneAndUpdate(
+      { tenantId, userId: 'agent_carl', fromType: 'user' },
+      { $set: { countUnread: 8, lastUpdatedAt: generateTimestamp() }, $setOnInsert: { createdAt: generateTimestamp() } },
+      { upsert: true }
+    );
 
     const req = {
       tenantId,
