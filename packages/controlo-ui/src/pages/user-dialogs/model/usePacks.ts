@@ -183,6 +183,21 @@ export function usePacks(
     }
   }
 
+  /** POST markAllRead для пака пользователя */
+  async function markPackAllRead(userId: string, packId: string): Promise<void> {
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+    const url = `${baseUrl}/api/users/${encodeURIComponent(userId)}/packs/${encodeURIComponent(packId)}/markAllRead`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: credentialsStore.getHeaders()
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      const message = data?.message || data?.error || `markPackAllRead failed: ${response.status}`;
+      throw new Error(message);
+    }
+  }
+
   return {
     loadingPacks,
     packsError,
@@ -202,5 +217,6 @@ export function usePacks(
     changePackPage,
     showPacksCurrentUrl,
     showPackInfo,
+    markPackAllRead,
   };
 }

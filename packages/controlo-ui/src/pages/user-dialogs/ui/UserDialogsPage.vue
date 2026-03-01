@@ -184,9 +184,11 @@
             :selected-pack-id="currentPackId"
             :current-sort="currentPackSort"
             :get-sort-indicator="getPackSortIndicator"
+            :mark-all-read-loading="markAllReadLoadingPackId"
             @select="selectPack"
             @show-info="showPackInfo"
             @show-meta="showPackMetaModal"
+            @mark-all-read="handleMarkPackAllRead"
             @toggle-sort="togglePackSort"
           />
         </template>
@@ -852,6 +854,8 @@ const {
   changePackPage,
   showPacksCurrentUrl,
   showPackInfo,
+  markPackAllRead,
+  loadUserPacks,
   goToPacksFirstPage,
   goToPacksPreviousPage,
   goToPacksNextPage,
@@ -1139,6 +1143,7 @@ const {
 } = pageData;
 
 const markAllReadLoadingDialogId = ref<string | null>(null);
+const markAllReadLoadingPackId = ref<string | null>(null);
 
 async function handleMarkAllRead(dialogId: string) {
   if (!currentUserId.value) return;
@@ -1149,6 +1154,19 @@ async function handleMarkAllRead(dialogId: string) {
     showModal('Ошибка: Отметить прочитанным', e instanceof Error ? e.message : String(e));
   } finally {
     markAllReadLoadingDialogId.value = null;
+  }
+}
+
+async function handleMarkPackAllRead(packId: string) {
+  if (!currentUserId.value) return;
+  markAllReadLoadingPackId.value = packId;
+  try {
+    await markPackAllRead(currentUserId.value, packId);
+    loadUserPacks(currentUserId.value, currentPackPage?.value ?? 1);
+  } catch (e) {
+    showModal('Ошибка: Отметить прочитанным (пак)', e instanceof Error ? e.message : String(e));
+  } finally {
+    markAllReadLoadingPackId.value = null;
   }
 }
 

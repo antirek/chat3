@@ -171,6 +171,62 @@ router.get(
 
 /**
  * @swagger
+ * /api/users/{userId}/packs/{packId}/markAllRead:
+ *   post:
+ *     summary: Отметить все сообщения пака прочитанными
+ *     description: |
+ *       Для всех диалогов пака, в которых пользователь является участником, обнуляются счётчики
+ *       непрочитанных и проставляется MessageStatus = read. Общий таймаут 2 минуты; при превышении — 503.
+ *     tags: [UserPacks]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: string }
+ *         description: User ID
+ *       - in: path
+ *         name: packId
+ *         required: true
+ *         schema: { type: string }
+ *         description: Pack ID (pck_xxx)
+ *     responses:
+ *       200:
+ *         description: Сводка по операции
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     packId: { type: string }
+ *                     unreadCount: { type: integer, example: 0 }
+ *                     processedDialogsCount: { type: integer }
+ *                     totalProcessedMessageCount: { type: integer }
+ *                 message: { type: string }
+ *       404:
+ *         description: Pack not found or user has no access
+ *       503:
+ *         description: Timeout (2 min); part of dialogs may be already processed
+ *       401: { description: Unauthorized }
+ *       403: { description: Forbidden }
+ *       500: { description: Internal Server Error }
+ */
+router.post(
+  '/:userId/packs/:packId/markAllRead',
+  apiAuth,
+  requirePermission('write'),
+  validateUserId,
+  validatePackId,
+  userPackController.markPackAllRead
+);
+
+/**
+ * @swagger
  * /api/users/{userId}/packs/{packId}/dialogs:
  *   get:
  *     summary: Диалоги пака в контексте пользователя

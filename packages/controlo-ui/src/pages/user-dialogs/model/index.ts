@@ -104,6 +104,7 @@ export function useUserDialogsPage() {
     changePackPage,
     showPacksCurrentUrl,
     showPackInfo,
+    markPackAllRead,
   } = packsModule;
 
   // Выбранный пак (для отображения диалогов пака в третьей колонке)
@@ -587,6 +588,7 @@ export function useUserDialogsPage() {
     changePackPage,
     showPacksCurrentUrl,
     showPackInfo,
+    markPackAllRead,
     goToPacksFirstPage: packsPagination.goToFirstPage,
     goToPacksPreviousPage: packsPagination.goToPreviousPage,
     goToPacksNextPage: packsPagination.goToNextPage,

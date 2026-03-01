@@ -45,6 +45,15 @@
         <td style="text-align: center;">{{ item.stats?.unreadCount ?? 0 }}</td>
         <td>{{ formatLastActivity(item.lastActivityAt) }}</td>
         <td class="actions-column">
+          <BaseButton
+            v-if="(item.stats?.unreadCount ?? 0) > 0"
+            variant="primary"
+            size="small"
+            :disabled="markAllReadLoading === item.packId"
+            @click.stop="$emit('mark-all-read', item.packId)"
+          >
+            {{ markAllReadLoading === item.packId ? '…' : '✓' }} Отметить прочитанным
+          </BaseButton>
           <BaseButton variant="primary" size="small" @click.stop="$emit('show-info', item.packId)">ℹ️ Инфо</BaseButton>
           <BaseButton variant="success" size="small" @click.stop="$emit('show-meta', item.packId)">🏷️ Мета</BaseButton>
         </td>
@@ -75,6 +84,7 @@ interface Props {
   selectedPackId: string | null;
   currentSort: string | null;
   getSortIndicator: (field: string) => string;
+  markAllReadLoading?: string | null;
 }
 
 defineProps<Props>();
@@ -82,6 +92,7 @@ const emit = defineEmits<{
   (e: 'select', packId: string): void;
   (e: 'show-info', packId: string): void;
   (e: 'show-meta', packId: string): void;
+  (e: 'mark-all-read', packId: string): void;
   (e: 'toggle-sort', field: string): void;
 }>();
 
