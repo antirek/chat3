@@ -391,15 +391,33 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
       await DialogMember.create({ tenantId, userId, dialogId: dialogId1 });
       await DialogMember.create({ tenantId, userId, dialogId: dialogId2 });
 
-      // Создаем два диалога с непрочитанными сообщениями
+      // Создаем два диалога с непрочитанными сообщениями (UserDialogStats)
       await updateUnreadCount(tenantId, userId, dialogId1, 3, 'message.create', eventId, messageId, 'sender1', 'user');
       await updateUnreadCount(tenantId, userId, dialogId2, 2, 'message.create', eventId, messageId, 'sender1', 'user');
 
-      // totalUnreadCount в recalculateUserStats берётся из UserDialogUnreadBySenderType
-      await UserDialogUnreadBySenderType.create([
-        { tenantId, userId, dialogId: dialogId1, fromType: 'user', countUnread: 3 },
-        { tenantId, userId, dialogId: dialogId2, fromType: 'user', countUnread: 2 }
-      ]);
+      // Непрочитанные сообщения в БД: recalculateUserStats пересчитывает UserDialogUnreadBySenderType из Message+MessageStatus
+      const senderId = 'sender1';
+      for (let i = 0; i < 3; i++) {
+        await Message.create({
+          tenantId,
+          messageId: generateMessageId(),
+          dialogId: dialogId1,
+          senderId,
+          content: 'Unread',
+          type: 'internal.text'
+        });
+      }
+      for (let i = 0; i < 2; i++) {
+        await Message.create({
+          tenantId,
+          messageId: generateMessageId(),
+          dialogId: dialogId2,
+          senderId,
+          content: 'Unread',
+          type: 'internal.text'
+        });
+      }
+      // MessageStatus 'read' для userId нет — все 5 считаются непрочитанными
 
       // Создаем сообщения от пользователя для проверки totalMessagesCount
       await Message.create({ tenantId, messageId: generateMessageId(), dialogId: dialogId1, senderId: userId, content: 'Test', type: 'internal.text' });

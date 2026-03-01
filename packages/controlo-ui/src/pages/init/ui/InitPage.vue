@@ -76,58 +76,26 @@
           <h2>3. Пересчет счетчиков пользователей</h2>
           <p>
             Пересчитывает все счетчики пользователей (dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount)
-            для всех пользователей во всех тенантах на основе текущих данных в базе.
+            для всех пользователей во всех тенантах на основе текущих данных в базе, затем синхронизирует счетчики паков.
             <strong>Полезно:</strong> После миграций, исправления рассинхронизации или восстановления после ошибок.
           </p>
           <div class="button-group">
             <button 
-              id="recalculateStatsBtn" 
+              id="fullRecalculateStatsBtn" 
               class="btn-primary" 
-              :disabled="recalculateLoading"
-              @click="recalculateUserStats"
+              :disabled="fullRecalculateLoading"
+              @click="fullRecalculateStats"
             >
-              <span v-if="recalculateLoading" class="loading"></span>
+              <span v-if="fullRecalculateLoading" class="loading"></span>
               <span v-else>🔄</span>
-              <span>{{ recalculateLoading ? 'Пересчет счетчиков...' : 'Пересчитать счетчики для всех пользователей' }}</span>
-            </button>
-            <button 
-              id="recalculateUserUnreadBySenderTypeBtn" 
-              class="btn-primary" 
-              :disabled="recalculateUserUnreadBySenderTypeLoading"
-              @click="recalculateUserUnreadBySenderType"
-            >
-              <span v-if="recalculateUserUnreadBySenderTypeLoading" class="loading"></span>
-              <span v-else>📊</span>
-              <span>{{ recalculateUserUnreadBySenderTypeLoading ? 'Пересчет...' : 'Пересчитать непрочитанные по типам (UserUnreadBySenderType)' }}</span>
-            </button>
-            <button 
-              id="syncPackStatsBtn" 
-              class="btn-primary" 
-              :disabled="syncPackStatsLoading"
-              @click="syncPackStats"
-            >
-              <span v-if="syncPackStatsLoading" class="loading"></span>
-              <span v-else>📦</span>
-              <span>{{ syncPackStatsLoading ? 'Синхронизация...' : 'Синхронизировать счетчики паков' }}</span>
+              <span>{{ fullRecalculateLoading ? 'Пересчет...' : 'Полный пересчет всех счетчиков' }}</span>
             </button>
           </div>
           <div 
-            v-if="recalculateResult.show" 
-            :class="['result', recalculateResult.type]"
+            v-if="fullRecalculateResult.show" 
+            :class="['result', fullRecalculateResult.type]"
           >
-            <div v-html="recalculateResult.content"></div>
-          </div>
-          <div 
-            v-if="recalculateUserUnreadBySenderTypeResult.show" 
-            :class="['result', recalculateUserUnreadBySenderTypeResult.type]"
-          >
-            <div v-html="recalculateUserUnreadBySenderTypeResult.content"></div>
-          </div>
-          <div 
-            v-if="syncPackStatsResult.show" 
-            :class="['result', syncPackStatsResult.type]"
-          >
-            <div v-html="syncPackStatsResult.content"></div>
+            <div v-html="fullRecalculateResult.content"></div>
           </div>
         </div>
       </div>
@@ -143,17 +111,11 @@ const {
   initResult,
   seedLoading,
   seedResult,
-  recalculateLoading,
-  recalculateResult,
-  recalculateUserUnreadBySenderTypeLoading,
-  recalculateUserUnreadBySenderTypeResult,
-  recalculateUserUnreadBySenderType,
-  syncPackStatsLoading,
-  syncPackStatsResult,
+  fullRecalculateLoading,
+  fullRecalculateResult,
+  fullRecalculateStats,
   initialize,
   runSeed,
-  recalculateUserStats,
-  syncPackStats,
 } = useInitPage();
 </script>
 

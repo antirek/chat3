@@ -21,18 +21,12 @@ export function useInitPage() {
     runSeed,
   } = seedModule;
 
-  // Пересчет счетчиков
+  // Полный пересчёт счетчиков
   const recalculateModule = useRecalculate(getControlApiUrl);
   const {
-    recalculateLoading,
-    recalculateResult,
-    recalculateUserStats,
-    recalculateUserUnreadBySenderTypeLoading,
-    recalculateUserUnreadBySenderTypeResult,
-    recalculateUserUnreadBySenderType,
-    syncPackStatsLoading,
-    syncPackStatsResult,
-    syncPackStats,
+    fullRecalculateLoading,
+    fullRecalculateResult,
+    fullRecalculateStats,
   } = recalculateModule;
 
   // Делаем функцию копирования доступной глобально для вызова из v-html
@@ -45,16 +39,10 @@ export function useInitPage() {
     initResult,
     seedLoading,
     seedResult,
-    recalculateLoading,
-    recalculateResult,
-    recalculateUserUnreadBySenderTypeLoading,
-    recalculateUserUnreadBySenderTypeResult,
-    recalculateUserUnreadBySenderType,
-    syncPackStatsLoading,
-    syncPackStatsResult,
+    fullRecalculateLoading,
+    fullRecalculateResult,
+    fullRecalculateStats,
     initialize,
     runSeed,
-    recalculateUserStats,
-    syncPackStats,
   };
 }

@@ -1,13 +1,11 @@
 /**
- * Модуль пересчета счетчиков пользователей
- * Отвечает за: пересчет всех счетчиков пользователей (dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount)
+ * Модуль полного пересчёта счетчиков (пользователи + паки).
  */
 import { ref } from 'vue';
 
 export function useRecalculate(getControlApiUrl: (path?: string) => string) {
-  // State для пересчета счетчиков
-  const recalculateLoading = ref(false);
-  const recalculateResult = ref<{
+  const fullRecalculateLoading = ref(false);
+  const fullRecalculateResult = ref<{
     show: boolean;
     type: 'success' | 'error' | 'info';
     content: string;
@@ -17,169 +15,18 @@ export function useRecalculate(getControlApiUrl: (path?: string) => string) {
     content: ''
   });
 
-  const syncPackStatsLoading = ref(false);
-  const syncPackStatsResult = ref<{
-    show: boolean;
-    type: 'success' | 'error' | 'info';
-    content: string;
-  }>({
-    show: false,
-    type: 'info',
-    content: ''
-  });
-
-  const recalculateUserUnreadBySenderTypeLoading = ref(false);
-  const recalculateUserUnreadBySenderTypeResult = ref<{
-    show: boolean;
-    type: 'success' | 'error' | 'info';
-    content: string;
-  }>({ show: false, type: 'info', content: '' });
-
-  // Пересчет счетчиков пользователей
-  async function recalculateUserStats() {
-    // Подтверждение перед запуском пересчета
+  async function fullRecalculateStats() {
     const confirmed = confirm(
-      '⚠️ Внимание!\n\n' +
-      'Будет выполнен пересчет всех счетчиков пользователей (dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount) ' +
-      'для всех пользователей во всех тенантах.\n\n' +
-      'Операция может занять некоторое время в зависимости от количества пользователей.\n\n' +
-      'Продолжить?'
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    recalculateLoading.value = true;
-    recalculateResult.value = {
-      show: false,
-      type: 'info',
-      content: ''
-    };
-
-    try {
-      const url = getControlApiUrl('/api/init/recalculate-stats');
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      // Проверяем Content-Type перед парсингом JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        throw new Error(`Сервер вернул не JSON. Status: ${response.status}. Ответ: ${text.substring(0, 200)}`);
-      }
-
-      const data = await response.json();
-
-      if (response.ok || response.status === 202) {
-        recalculateResult.value = {
-          show: true,
-          type: 'info',
-          content: `
-            <strong>⏳ Пересчет счетчиков запущен</strong>
-            <p style="margin-top: 10px;">${data.message || ''}</p>
-            <p style="margin-top: 10px; font-size: 12px; color: #6c757d;">
-              ${data.data?.note || 'Операция выполняется в фоне. Проверьте логи сервера для отслеживания прогресса.'}
-            </p>
-            <p style="margin-top: 10px; font-size: 12px; color: #856404;">
-              ⚠️ Пересчет выполняется для всех пользователей во всех тенантах. Это может занять некоторое время.
-            </p>
-          `
-        };
-      } else {
-        recalculateResult.value = {
-          show: true,
-          type: 'error',
-          content: `
-            <strong>❌ Ошибка запуска пересчета</strong>
-            <pre>${JSON.stringify(data, null, 2)}</pre>
-          `
-        };
-      }
-    } catch (error: any) {
-      recalculateResult.value = {
-        show: true,
-        type: 'error',
-        content: `
-          <strong>❌ Ошибка запроса</strong>
-          <p>${error.message}</p>
-        `
-      };
-    } finally {
-      recalculateLoading.value = false;
-    }
-  }
-
-  // Пересчет непрочитанных по типам отправителя (UserUnreadBySenderType)
-  async function recalculateUserUnreadBySenderType() {
-    const confirmed = confirm(
-      'Пересчитать непрочитанные по типам отправителя (UserUnreadBySenderType)?\n\n' +
-      'Для каждого пользователя будет пересчитана разбивка по типам (user, contact, bot) и UserStats.totalUnreadCount.\n\n' +
-      'Продолжить?'
+      'Выполнить полный пересчёт счетчиков (UserStats для всех пользователей + счетчики паков для всех паков) во всех тенантах?\n\n' +
+        'Операция выполняется в фоне и может занять длительное время.'
     );
     if (!confirmed) return;
 
-    recalculateUserUnreadBySenderTypeLoading.value = true;
-    recalculateUserUnreadBySenderTypeResult.value = { show: false, type: 'info', content: '' };
+    fullRecalculateLoading.value = true;
+    fullRecalculateResult.value = { show: false, type: 'info', content: '' };
 
     try {
-      const url = getControlApiUrl('/api/init/recalculate-user-unread-by-sender-type');
-      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        throw new Error(`Сервер вернул не JSON. Status: ${response.status}. Ответ: ${text.substring(0, 200)}`);
-      }
-      const data = await response.json();
-
-      if (response.ok || response.status === 202) {
-        recalculateUserUnreadBySenderTypeResult.value = {
-          show: true,
-          type: 'info',
-          content: `
-            <strong>⏳ Пересчет UserUnreadBySenderType запущен</strong>
-            <p style="margin-top: 10px;">${data.message || ''}</p>
-            <p style="margin-top: 10px; font-size: 12px; color: #6c757d;">
-              ${data.data?.note || 'Операция выполняется в фоне. Проверьте логи сервера.'}
-            </p>
-          `
-        };
-      } else {
-        recalculateUserUnreadBySenderTypeResult.value = {
-          show: true,
-          type: 'error',
-          content: `<strong>❌ Ошибка</strong><pre>${JSON.stringify(data, null, 2)}</pre>`
-        };
-      }
-    } catch (error: any) {
-      recalculateUserUnreadBySenderTypeResult.value = {
-        show: true,
-        type: 'error',
-        content: `<strong>❌ Ошибка запроса</strong><p>${error.message}</p>`
-      };
-    } finally {
-      recalculateUserUnreadBySenderTypeLoading.value = false;
-    }
-  }
-
-  // Синхронизация счетчиков паков (UserPackStats из UserDialogStats)
-  async function syncPackStats() {
-    const confirmed = confirm(
-      'Синхронизировать счетчики непрочитанных паков?\n\n' +
-      'Для каждого пака будет пересчитан unreadCount как сумма непрочитанных по диалогам пака для каждого пользователя.\n\n' +
-      'Продолжить?'
-    );
-    if (!confirmed) return;
-
-    syncPackStatsLoading.value = true;
-    syncPackStatsResult.value = { show: false, type: 'info', content: '' };
-
-    try {
-      const url = getControlApiUrl('/api/init/sync-pack-stats');
+      const url = getControlApiUrl('/api/init/full-recalculate-stats');
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -192,44 +39,41 @@ export function useRecalculate(getControlApiUrl: (path?: string) => string) {
       const data = await response.json();
 
       if (response.ok || response.status === 202) {
-        syncPackStatsResult.value = {
+        fullRecalculateResult.value = {
           show: true,
           type: 'info',
           content: `
-            <strong>⏳ Синхронизация счетчиков паков запущена</strong>
+            <strong>⏳ Полный пересчёт запущен</strong>
             <p style="margin-top: 10px;">${data.message || ''}</p>
             <p style="margin-top: 10px; font-size: 12px; color: #6c757d;">
-              ${data.data?.note || 'Операция выполняется в фоне. Проверьте логи сервера.'}
+              ${data.data?.note || 'Операция выполняется в фоне. Проверьте логи сервера для отслеживания прогресса.'}
+            </p>
+            <p style="margin-top: 10px; font-size: 12px; color: #856404;">
+              ⚠️ Пересчёт выполняется для всех пользователей и паков во всех тенантах. Это может занять некоторое время.
             </p>
           `
         };
       } else {
-        syncPackStatsResult.value = {
+        fullRecalculateResult.value = {
           show: true,
           type: 'error',
-          content: `<strong>❌ Ошибка</strong><pre>${JSON.stringify(data, null, 2)}</pre>`
+          content: `<strong>❌ Ошибка запуска пересчёта</strong><pre>${JSON.stringify(data, null, 2)}</pre>`
         };
       }
     } catch (error: any) {
-      syncPackStatsResult.value = {
+      fullRecalculateResult.value = {
         show: true,
         type: 'error',
         content: `<strong>❌ Ошибка запроса</strong><p>${error.message}</p>`
       };
     } finally {
-      syncPackStatsLoading.value = false;
+      fullRecalculateLoading.value = false;
     }
   }
 
   return {
-    recalculateLoading,
-    recalculateResult,
-    recalculateUserStats,
-    recalculateUserUnreadBySenderTypeLoading,
-    recalculateUserUnreadBySenderTypeResult,
-    recalculateUserUnreadBySenderType,
-    syncPackStatsLoading,
-    syncPackStatsResult,
-    syncPackStats,
+    fullRecalculateLoading,
+    fullRecalculateResult,
+    fullRecalculateStats
   };
 }

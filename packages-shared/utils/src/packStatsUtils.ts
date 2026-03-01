@@ -396,7 +396,7 @@ export async function decrementUserDialogUnreadBySenderTypeForRead(
 export async function recalculateUserUnreadBySenderType(
   tenantId: string,
   userId: string
-): Promise<{ totalUnreadCount: number; unreadBySenderType: Array<{ fromType: string; countUnread: number }> }> {
+): Promise<{ totalUnreadCount: number; unreadDialogsCount: number; unreadBySenderType: Array<{ fromType: string; countUnread: number }> }> {
   const uid = (userId || '').trim().toLowerCase();
   const agg = await UserDialogUnreadBySenderType.aggregate<{ _id: string; countUnread: number }>([
     { $match: { tenantId, userId: uid } },
@@ -442,5 +442,5 @@ export async function recalculateUserUnreadBySenderType(
     fromType: ft,
     countUnread: byType[ft] ?? 0
   }));
-  return { totalUnreadCount, unreadBySenderType };
+  return { totalUnreadCount, unreadDialogsCount, unreadBySenderType };
 }

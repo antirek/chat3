@@ -1,9 +1,10 @@
 import mongoose from 'mongoose';
-import { 
-  UserStats, 
-  UserDialogStats, 
-  MessageReactionStats, 
-  MessageStatusStats, 
+import {
+  UserStats,
+  UserDialogStats,
+  UserDialogUnreadBySenderType,
+  MessageReactionStats,
+  MessageStatusStats,
   CounterHistory,
   DialogMember,
   Message,
@@ -14,6 +15,8 @@ import {
 import { generateTimestamp } from './timestampUtils.js';
 import { createUserStatsUpdate } from './updateUtils.js';
 import { recalculateUserUnreadBySenderType } from './packStatsUtils.js';
+import { PACK_UNREAD_SENDER_TYPES, normalizeSenderType } from './packUnreadSenderTypes.js';
+import { getUserType } from './userTypeUtils.js';
 
 /**
  * Контекст операции для сбора измененных полей
@@ -834,23 +837,67 @@ export async function recalculateUserStats(
       },
       { upsert: true, setDefaultsOnInsert: true }
     );
-  }
-  
-  const unreadStats = await UserDialogStats.aggregate([
-    { $match: { tenantId, userId } },
-    {
-      $group: {
-        _id: null,
-        unreadDialogsCount: {
-          $sum: { $cond: [{ $gt: ['$unreadCount', 0] }, 1, 0] }
+
+    // Восстанавливаем UserDialogUnreadBySenderType из Message+MessageStatus (по senderId → fromType),
+    // чтобы totalUnreadCount и unreadDialogsCount в UserStats считались из одного источника
+    const unreadBySenderAgg = await Message.aggregate([
+      {
+        $match: {
+          tenantId,
+          dialogId: memberObj.dialogId,
+          senderId: { $ne: userId }
         }
-      }
+      },
+      {
+        $lookup: {
+          from: 'messagestatuses',
+          let: { messageId: '$messageId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$messageId', '$$messageId'] },
+                    { $eq: ['$tenantId', tenantId] },
+                    { $eq: ['$userId', userId] },
+                    { $eq: ['$status', 'read'] }
+                  ]
+                }
+              }
+            },
+            { $limit: 1 }
+          ],
+          as: 'readStatus'
+        }
+      },
+      { $match: { readStatus: { $size: 0 } } },
+      { $group: { _id: '$senderId', count: { $sum: 1 } } }
+    ]) as Array<{ _id: string; count: number }>;
+
+    const byType: Record<string, number> = {};
+    for (const t of PACK_UNREAD_SENDER_TYPES) {
+      byType[t] = 0;
     }
-  ]) as Array<{ unreadDialogsCount: number }>;
+    for (const row of unreadBySenderAgg) {
+      const senderId = row._id;
+      const fromType = normalizeSenderType(await getUserType(tenantId, senderId));
+      byType[fromType] = (byType[fromType] ?? 0) + row.count;
+    }
+    const now = generateTimestamp();
+    for (const fromType of PACK_UNREAD_SENDER_TYPES) {
+      const countUnread = byType[fromType] ?? 0;
+      await UserDialogUnreadBySenderType.findOneAndUpdate(
+        { tenantId, userId, dialogId: memberObj.dialogId, fromType },
+        {
+          $set: { countUnread, lastUpdatedAt: now },
+          $setOnInsert: { createdAt: now }
+        },
+        { upsert: true, setDefaultsOnInsert: true }
+      );
+    }
+  }
 
-  const unreadDialogsCount = unreadStats[0]?.unreadDialogsCount || 0;
-
-  const { totalUnreadCount } = await recalculateUserUnreadBySenderType(tenantId, userId);
+  const { totalUnreadCount, unreadDialogsCount } = await recalculateUserUnreadBySenderType(tenantId, userId);
 
   const totalMessagesCount = await Message.countDocuments({ tenantId, senderId: userId });
 

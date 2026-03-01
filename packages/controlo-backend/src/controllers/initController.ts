@@ -6,7 +6,7 @@ import connectDB from '@chat3/utils/databaseUtils.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { recalculateUserStats } from '@chat3/utils/counterUtils.js';
-import { recalculateUserPackUnreadBySenderType, recalculateUserUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
+import { recalculateUserPackUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { Request, Response } from 'express';
@@ -174,153 +174,84 @@ export const initController = {
     }
   },
 
-  // Пересчет счетчиков для всех пользователей
-  async recalculateUserStats(req: Request, res: Response): Promise<void> {
+  /**
+   * Полный пересчёт всех счетчиков: UserStats (и UserDialogStats, UserUnreadBySenderType) для всех пользователей,
+   * затем UserPackUnreadBySenderType для всех паков. Операция в фоне, ответ 202.
+   */
+  async fullRecalculateStats(req: Request, res: Response): Promise<void> {
     try {
       await connectDB();
 
-      // Получаем все тенанты
       const tenants = await Tenant.find({}).select('tenantId').lean();
-      const results = {
-        tenantsProcessed: 0,
-        usersProcessed: 0,
-        usersWithErrors: 0,
-        errors: [] as string[]
-      };
 
-      // Отправляем ответ сразу, чтобы клиент не ждал
       res.status(202).json({
-        message: 'Recalculate user stats started',
+        message: 'Full recalculate stats started',
         data: {
           status: 'processing',
-          note: 'This operation may take some time. Check server logs for progress.'
+          note: 'Step 1: UserStats (UserDialogStats, UserUnreadBySenderType) for all users. Step 2: UserPackUnreadBySenderType for all packs. Check server logs for progress.'
         }
       });
 
-      // Обрабатываем в фоне
       (async () => {
+        const logPrefix = '[full-recalculate-stats]';
+        let totalUsersProcessed = 0;
+        let totalUsersWithErrors = 0;
+        let totalPacksProcessed = 0;
+        let totalPacksWithErrors = 0;
+        const errors: string[] = [];
+
         try {
+          // Этап 1: пересчёт UserStats для всех пользователей (включает UserDialogStats и recalculateUserUnreadBySenderType внутри)
+          console.log(`${logPrefix} Этап 1: пересчёт UserStats для всех пользователей (UserDialogStats из Message+MessageStatus, затем UserUnreadBySenderType и запись в UserStats).`);
           for (const tenant of tenants) {
-            results.tenantsProcessed++;
-            console.log(`🔄 Processing tenant: ${tenant.tenantId}`);
-
-            // Получаем всех пользователей для тенанта
             const users = await User.find({ tenantId: tenant.tenantId }).select('userId').lean();
-
+            let tenantUsersOk = 0;
+            let tenantUsersErr = 0;
             for (const user of users) {
               try {
                 await recalculateUserStats(tenant.tenantId, user.userId);
-                results.usersProcessed++;
-                console.log(`✅ Recalculated stats for user ${user.userId} in tenant ${tenant.tenantId}`);
+                totalUsersProcessed++;
+                tenantUsersOk++;
               } catch (error: any) {
-                results.usersWithErrors++;
-                results.errors.push(`Error recalculating stats for user ${user.userId} in tenant ${tenant.tenantId}: ${error.message}`);
-                console.error(`❌ Error recalculating stats for user ${user.userId}:`, error);
+                totalUsersWithErrors++;
+                tenantUsersErr++;
+                const msg = `tenant=${tenant.tenantId} userId=${user.userId}: ${error.message}`;
+                errors.push(msg);
+                console.error(`${logPrefix} Ошибка пересчёта пользователя: ${msg}`);
               }
             }
+            console.log(`${logPrefix} Тенант ${tenant.tenantId}: пользователей обработано ${tenantUsersOk}, ошибок ${tenantUsersErr} (всего пользователей ${users.length}).`);
           }
+          console.log(`${logPrefix} Этап 1 завершён: всего пользователей обработано ${totalUsersProcessed}, с ошибками ${totalUsersWithErrors}.`);
 
-          console.log(`✅ Recalculate user stats completed: ${results.usersProcessed} users processed, ${results.usersWithErrors} errors`);
-        } catch (error: any) {
-          console.error('❌ Error in recalculate user stats background task:', error);
-        }
-      })();
-    } catch (error: any) {
-      if (!res.headersSent) {
-        res.status(500).json({
-          error: 'Internal Server Error',
-          message: error.message
-        });
-      } else {
-        console.error('Error after response sent:', error);
-      }
-    }
-  },
-
-  async recalculateUserUnreadBySenderType(req: Request, res: Response): Promise<void> {
-    try {
-      await connectDB();
-
-      const tenants = await Tenant.find({}).select('tenantId').lean();
-      const results = { tenantsProcessed: 0, usersProcessed: 0, errors: [] as string[] };
-
-      res.status(202).json({
-        message: 'Recalculate user unread by sender type started',
-        data: {
-          status: 'processing',
-          note: 'UserUnreadBySenderType and UserStats.totalUnreadCount are recalculated from UserDialogUnreadBySenderType for all users. Check server logs for progress.'
-        }
-      });
-
-      (async () => {
-        try {
+          // Этап 2: синхронизация UserPackUnreadBySenderType для всех паков
+          console.log(`${logPrefix} Этап 2: синхронизация UserPackUnreadBySenderType для всех паков (агрегация из UserDialogUnreadBySenderType по диалогам пака).`);
           for (const tenant of tenants) {
-            results.tenantsProcessed++;
-            const users = await User.find({ tenantId: tenant.tenantId }).select('userId').lean();
-            for (const user of users) {
-              try {
-                await recalculateUserUnreadBySenderType(tenant.tenantId, user.userId);
-                results.usersProcessed++;
-              } catch (err: unknown) {
-                const message = err instanceof Error ? err.message : String(err);
-                results.errors.push(`${tenant.tenantId}/${user.userId}: ${message}`);
-              }
-            }
-            console.log(`✅ Tenant ${tenant.tenantId}: ${users.length} users (UserUnreadBySenderType)`);
-          }
-          console.log(`✅ Recalculate user unread by sender type completed: ${results.usersProcessed} users, ${results.errors.length} errors`);
-        } catch (error: any) {
-          console.error('❌ Error in recalculate user unread by sender type:', error);
-        }
-      })();
-    } catch (error: any) {
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Internal Server Error', message: error.message });
-      }
-    }
-  },
-
-  async syncPackStats(req: Request, res: Response): Promise<void> {
-    try {
-      await connectDB();
-
-      const tenants = await Tenant.find({}).select('tenantId').lean();
-      const results = {
-        tenantsProcessed: 0,
-        packsProcessed: 0,
-        errors: [] as string[]
-      };
-
-      res.status(202).json({
-        message: 'Sync pack stats started',
-        data: {
-          status: 'processing',
-          note: 'UserPackUnreadBySenderType is recalculated from UserDialogUnreadBySenderType for all packs. Check server logs for progress.'
-        }
-      });
-
-      (async () => {
-        try {
-          for (const tenant of tenants) {
-            results.tenantsProcessed++;
             const packIds = await Pack.find({ tenantId: tenant.tenantId }).distinct('packId').exec();
+            let tenantPacksOk = 0;
+            let tenantPacksErr = 0;
             for (const packId of packIds) {
               try {
                 await recalculateUserPackUnreadBySenderType(tenant.tenantId, packId, {
-                  sourceOperation: 'sync-pack-stats',
+                  sourceOperation: 'full-recalculate-stats',
                   sourceEntityId: packId
                 });
-                results.packsProcessed++;
+                totalPacksProcessed++;
+                tenantPacksOk++;
               } catch (err: unknown) {
+                totalPacksWithErrors++;
+                tenantPacksErr++;
                 const message = err instanceof Error ? err.message : String(err);
-                results.errors.push(`Pack ${packId}: ${message}`);
+                errors.push(`Pack ${packId}: ${message}`);
+                console.error(`${logPrefix} Ошибка пересчёта пака: tenant=${tenant.tenantId} packId=${packId}: ${message}`);
               }
             }
-            console.log(`✅ Tenant ${tenant.tenantId}: ${packIds.length} packs synced`);
+            console.log(`${logPrefix} Тенант ${tenant.tenantId}: паков обработано ${tenantPacksOk}, ошибок ${tenantPacksErr} (всего паков ${packIds.length}).`);
           }
-          console.log(`✅ Sync pack stats completed: ${results.packsProcessed} packs, ${results.errors.length} errors`);
+          console.log(`${logPrefix} Этап 2 завершён: всего паков обработано ${totalPacksProcessed}, с ошибками ${totalPacksWithErrors}.`);
+          console.log(`${logPrefix} Полный пересчёт завершён: пользователей ${totalUsersProcessed} (ошибок ${totalUsersWithErrors}), паков ${totalPacksProcessed} (ошибок ${totalPacksWithErrors}).`);
         } catch (error: any) {
-          console.error('❌ Error in sync pack stats background task:', error);
+          console.error(`${logPrefix} Критическая ошибка в фоновой задаче:`, error);
         }
       })();
     } catch (error: any) {

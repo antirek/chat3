@@ -127,77 +127,33 @@ router.post('/seed', initController.seed);
 
 /**
  * @swagger
- * /api/init/recalculate-stats:
+ * /api/init/full-recalculate-stats:
  *   post:
- *     summary: Recalculate user stats for all users
+ *     summary: Full recalculate all counters (users + packs)
  *     tags: [Initialization]
  *     description: |
- *       Пересчитывает все счетчики (dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount)
- *       для всех пользователей во всех тенантах.
- *       Операция выполняется асинхронно. Ответ возвращается сразу (202 Accepted),
- *       а пересчет продолжается в фоне.
- *       
- *       **Важно:** Этот endpoint предназначен только для внутреннего использования и не должен быть доступен извне в production.
+ *       Полный пересчёт: (1) UserStats для всех пользователей во всех тенантах (UserDialogStats из Message+MessageStatus,
+ *       UserUnreadBySenderType, запись в UserStats); (2) UserPackUnreadBySenderType для всех паков.
+ *       Операция выполняется асинхронно (202 Accepted). Подробный прогресс — в логах сервера.
  *     requestBody:
  *       required: false
- *       description: Тело запроса не требуется
  *     responses:
  *       202:
- *         description: Recalculate user stats started
+ *         description: Full recalculate started
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 message:
- *                   type: string
- *                   example: Recalculate user stats started
+ *                 message: { type: string }
  *                 data:
  *                   type: object
  *                   properties:
- *                     status:
- *                       type: string
- *                       example: processing
- *                     note:
- *                       type: string
- *                       example: This operation may take some time. Check server logs for progress.
+ *                     status: { type: string }
+ *                     note: { type: string }
  *       500:
  *         description: Internal Server Error
  */
-router.post('/recalculate-stats', initController.recalculateUserStats);
-
-/**
- * @swagger
- * /api/init/recalculate-user-unread-by-sender-type:
- *   post:
- *     summary: Recalculate UserUnreadBySenderType for all users
- *     tags: [Initialization]
- *     description: |
- *       Пересчитывает UserUnreadBySenderType и UserStats.totalUnreadCount из UserDialogUnreadBySenderType для всех пользователей.
- *       Операция выполняется асинхронно (202 Accepted).
- *     responses:
- *       202:
- *         description: Recalculate started
- *       500:
- *         description: Internal Server Error
- */
-router.post('/recalculate-user-unread-by-sender-type', initController.recalculateUserUnreadBySenderType);
-
-/**
- * @swagger
- * /api/init/sync-pack-stats:
- *   post:
- *     summary: Sync pack unread-by-sender (UserPackUnreadBySenderType) from UserDialogUnreadBySenderType
- *     tags: [Initialization]
- *     description: |
- *       Пересчитывает UserPackUnreadBySenderType из UserDialogUnreadBySenderType для всех паков тенанта.
- *       Операция выполняется асинхронно (202 Accepted).
- *     responses:
- *       202:
- *         description: Sync pack stats started
- *       500:
- *         description: Internal Server Error
- */
-router.post('/sync-pack-stats', initController.syncPackStats);
+router.post('/full-recalculate-stats', initController.fullRecalculateStats);
 
 export default router;
