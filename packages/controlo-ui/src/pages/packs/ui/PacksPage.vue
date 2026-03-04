@@ -45,6 +45,7 @@
           @toggle-sort="toggleSort"
           @select-pack="selectPack"
           @show-info="showInfoModal"
+          @show-mark-all-read="showMarkAllReadModal"
           @show-add-dialog="showAddDialogModal"
           @show-meta="showMetaModal"
           @delete="deletePack"
@@ -220,6 +221,15 @@
       @update:dialog-id="onUpdateAddDialogDialogId"
     />
 
+    <MarkPackAllReadModal
+      :is-open="showMarkAllReadModalFlag"
+      :pack-id="markAllReadPackId"
+      :submitting="markAllReadSubmitting"
+      :submit-error="markAllReadError"
+      @close="closeMarkAllReadModal"
+      @submit="markPackAllReadForAllUsers"
+    />
+
     <MetaModal
       :is-open="showMetaModalFlag"
       :title="'🏷️ Meta теги пака'"
@@ -265,7 +275,7 @@ import { usePacksPage } from '../model';
 import { PackFilterPanel, PackTabTextFilterPanel } from './filters';
 import { MessageFilterPanel } from '@/pages/dialogs-messages/ui/filters';
 import { PackTable, PackDialogsTable, PackMessagesTable, PackUsersTable } from './tables';
-import { PackInfoModal, PackUrlModal, CreatePackModal, AddDialogToPackModal, DialogInfoModal } from './modals';
+import { PackInfoModal, PackUrlModal, CreatePackModal, AddDialogToPackModal, MarkPackAllReadModal, DialogInfoModal } from './modals';
 import { PacksPagination } from './pagination';
 import { ExtendedPagination } from '@/pages/dialogs-messages/ui/pagination';
 import { MetaModal } from '@/widgets/meta-modal';
@@ -357,6 +367,13 @@ const {
   closeAddDialogModal,
   addDialogToPack,
   onUpdateAddDialogDialogId,
+  showMarkAllReadModal,
+  showMarkAllReadModalFlag,
+  markAllReadPackId,
+  markAllReadSubmitting,
+  markAllReadError,
+  closeMarkAllReadModal,
+  markPackAllReadForAllUsers,
   showMetaModal,
   closeMetaModal,
   addMetaTag,

@@ -47,6 +47,13 @@
             📋 Инфо
           </BaseButton>
           <BaseButton
+            variant="secondary"
+            size="small"
+            @click="showMarkAllRead((item as Pack).packId)"
+          >
+            ✓ Отметить прочитанным
+          </BaseButton>
+          <BaseButton
             variant="success"
             size="small"
             @click="showAddDialog((item as Pack).packId)"
@@ -96,6 +103,7 @@ interface Emits {
   (e: 'toggle-sort', field: string): void;
   (e: 'select-pack', packId: string): void;
   (e: 'show-info', packId: string): void;
+  (e: 'show-mark-all-read', packId: string): void;
   (e: 'show-add-dialog', packId: string): void;
   (e: 'show-meta', packId: string): void;
   (e: 'delete', packId: string): void;
@@ -119,6 +127,9 @@ function toggleSort(field: string) {
 
 function showInfo(packId: string) {
   emit('show-info', packId);
+}
+function showMarkAllRead(packId: string) {
+  emit('show-mark-all-read', packId);
 }
 function showAddDialog(packId: string) {
   emit('show-add-dialog', packId);

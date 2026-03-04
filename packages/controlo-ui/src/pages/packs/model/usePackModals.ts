@@ -21,6 +21,7 @@ export function usePackModals(
 ) {
   const createModal = useModal();
   const addDialogModal = useModal();
+  const markAllReadModal = useModal();
   const metaModal = useModal();
   const infoModal = useModal();
   const dialogInfoModal = useModal();
@@ -28,6 +29,9 @@ export function usePackModals(
 
   const addDialogPackId = ref('');
   const addDialogDialogId = ref('');
+  const markAllReadPackId = ref('');
+  const markAllReadSubmitting = ref(false);
+  const markAllReadError = ref<string | null>(null);
   const metaPackId = ref('');
   const metaTags = ref<Record<string, any> | null>(null);
   const newMetaKeyForEdit = ref('');
@@ -56,6 +60,48 @@ export function usePackModals(
   function closeAddDialogModal() {
     addDialogModal.close();
     addDialogDialogId.value = '';
+  }
+
+  function showMarkAllReadModal(packId: string) {
+    markAllReadPackId.value = packId;
+    markAllReadError.value = null;
+    markAllReadModal.open();
+  }
+
+  function closeMarkAllReadModal() {
+    markAllReadModal.close();
+    markAllReadPackId.value = '';
+    markAllReadError.value = null;
+  }
+
+  async function markPackAllReadForAllUsers(memberType: string) {
+    const packId = markAllReadPackId.value;
+    if (!packId) return;
+    markAllReadError.value = null;
+    markAllReadSubmitting.value = true;
+    try {
+      getApiKey();
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const url = memberType
+        ? `${baseUrl}/api/packs/${encodeURIComponent(packId)}/markAllReadForAllUsers?memberType=${encodeURIComponent(memberType)}`
+        : `${baseUrl}/api/packs/${encodeURIComponent(packId)}/markAllReadForAllUsers`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: credentialsStore.getHeaders(),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `HTTP ${response.status}`);
+      }
+      closeMarkAllReadModal();
+      loadPacks(currentPage.value, currentLimit.value);
+      const count = data?.data?.processedUsersCount ?? '';
+      alert(count !== '' ? `Отмечено прочитанным для ${count} участников.` : 'Готово.');
+    } catch (err) {
+      markAllReadError.value = err instanceof Error ? err.message : 'Неизвестная ошибка';
+    } finally {
+      markAllReadSubmitting.value = false;
+    }
   }
 
   async function addDialogToPack() {
@@ -391,12 +437,18 @@ export function usePackModals(
   return {
     createModal,
     addDialogModal,
+    markAllReadModal,
     addDialogPackId,
     addDialogDialogId,
-    metaPackId,
+    markAllReadPackId,
+    markAllReadSubmitting,
+    markAllReadError,
     showAddDialogModal,
     closeAddDialogModal,
     addDialogToPack,
+    showMarkAllReadModal,
+    closeMarkAllReadModal,
+    markPackAllReadForAllUsers,
     metaModal,
     infoModal,
     dialogInfoModal,
