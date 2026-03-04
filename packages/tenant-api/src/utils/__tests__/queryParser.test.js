@@ -257,6 +257,15 @@ describe('queryParser', () => {
       expect(result.$or[1]).toEqual({ type: 'system' });
     });
 
+    test('normalizes redundant parens: ((a))|((b)&(c)) parses like (a)|((b)&(c))', () => {
+      const withRedundant = parseFilters('((meta.phone,eq,79306668096))|((meta.phone,eq,79306668096)&(meta.telegramNickname,eq,boombosha))');
+      const canonical = parseFilters('(meta.phone,eq,79306668096)|((meta.phone,eq,79306668096)&(meta.telegramNickname,eq,boombosha))');
+      expect(withRedundant.$or).toHaveLength(2);
+      expect(canonical.$or).toHaveLength(2);
+      expect(withRedundant.$or[0]).toEqual(canonical.$or[0]);
+      expect(withRedundant.$or[1]).toEqual(canonical.$or[1]);
+    });
+
     test('should reject a&b|c without parentheses (mixed & and | at depth 0)', () => {
       expect(() => parseFilters('(type,eq,a)&(senderId,eq,c)|(type,eq,system)')).toThrow(FilterValidationError);
       expect(() => parseFilters('(type,eq,a)&(senderId,eq,c)|(type,eq,system)')).toThrow(/use parentheses to group/);

@@ -369,6 +369,40 @@ function isSingleBalancedParens(str: string): boolean {
   return false;
 }
 
+/**
+ * Убирает лишние внешние скобки: ((a)) → (a), ((a)&(b)) → (a)&(b).
+ * Для одного атома (нет & и |) снимаем уровень только если внутри уже скобки: ((atom)) → (atom);
+ * (atom) не превращаем в atom, иначе parseFilter не распарсит.
+ * Не снимаем скобки с OR-группы: ((a)|(b)) остаётся, иначе ветки сливаются с верхним |.
+ */
+function stripRedundantOuterParens(str: string): string {
+  let s = str.trim();
+  while (isSingleBalancedParens(s)) {
+    const inner = stripOuterParens(s);
+    if (inner === s) break;
+    if (!/[&|]/.test(inner)) return inner.startsWith('(') ? inner : s;
+    if (splitAtDepth0(inner, '|').length > 1) return s;
+    if (splitAtDepth0(inner, '&').length > 1) return s;
+    s = inner;
+  }
+  return s;
+}
+
+/**
+ * Нормализует строку фильтра: убирает лишние скобки у веток OR, например
+ * ((meta.phone,eq,79306668096))|((meta.phone,eq,79306668096)&(meta.telegramNickname,eq,boombosha))
+ * → (meta.phone,eq,79306668096)|((meta.phone,eq,79306668096)&(meta.telegramNickname,eq,boombosha))
+ */
+function normalizeFilterString(str: string): string {
+  const trimmed = str.trim();
+  if (!trimmed) return trimmed;
+  const orParts = splitAtDepth0(trimmed, '|');
+  if (orParts.length > 1) {
+    return orParts.map((part) => stripRedundantOuterParens(part.trim())).join('|');
+  }
+  return stripRedundantOuterParens(trimmed);
+}
+
 /** Объединяет несколько MongoQuery в один (при конфликте ключей — в $and). */
 function mergeAndOperands(queries: MongoQuery[]): MongoQuery {
   const result: MongoQuery = {};
@@ -459,6 +493,7 @@ export function parseFilters(filterString: string | undefined | null): MongoQuer
     const inner = stripOuterParens(trimmed);
     if (/[&|]/.test(inner)) normalized = inner;
   }
+  normalized = normalizeFilterString(normalized);
   return parseFiltersInternal(normalized);
 }
 
