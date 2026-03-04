@@ -219,6 +219,45 @@ router.get(
 
 /**
  * @swagger
+ * /api/packs/{packId}/users:
+ *   get:
+ *     summary: Список пользователей пака
+ *     description: Уникальные участники всех диалогов пака (userId).
+ *     tags: [Packs]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: packId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: data — массив объектов { userId }
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items: { type: object, properties: { userId: { type: string } } }
+ *       401: { description: Unauthorized }
+ *       403: { description: Forbidden }
+ *       404: { description: Pack not found }
+ *       500: { description: Internal Server Error }
+ */
+router.get(
+  '/:packId/users',
+  apiAuth,
+  requirePermission('read'),
+  validatePackId,
+  packController.getUsers
+);
+
+/**
+ * @swagger
  * /api/packs/{packId}:
  *   get:
  *     summary: Получить пак по ID

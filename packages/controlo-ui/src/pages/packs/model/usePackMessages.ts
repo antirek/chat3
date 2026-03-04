@@ -32,6 +32,8 @@ export function usePackMessages(
   const packMessagesHasMore = ref(false);
   const packMessagesCursor = ref<{ next: string | null; prev: string | null }>({ next: null, prev: null });
   const packMessagesLimit = ref(20);
+  const packMessagesFilterValue = ref('');
+  const selectedMessageFilterExample = ref('');
 
   async function loadPackMessages(options: LoadModeOptions = {}) {
     const packId = selectedPackId.value;
@@ -65,6 +67,9 @@ export function usePackMessages(
 
       if (options.cursor) {
         params.set('cursor', options.cursor);
+      }
+      if (packMessagesFilterValue.value.trim()) {
+        params.set('filter', packMessagesFilterValue.value.trim());
       }
 
       const response = await fetch(`${baseUrl}/api/packs/${packId}/messages?${params.toString()}`, {
@@ -137,6 +142,16 @@ export function usePackMessages(
     }
   );
 
+  function applyPackMessagesFilter() {
+    loadInitialPackMessages();
+  }
+
+  function clearPackMessagesFilter() {
+    packMessagesFilterValue.value = '';
+    selectedMessageFilterExample.value = '';
+    loadInitialPackMessages();
+  }
+
   return {
     packMessages,
     packMessagesLoading,
@@ -144,9 +159,13 @@ export function usePackMessages(
     packMessagesHasMore,
     packMessagesCursor,
     packMessagesLimit,
+    packMessagesFilterValue,
+    selectedMessageFilterExample,
     loadInitialPackMessages,
     loadMorePackMessages,
     changePackMessagesLimit,
     resetPackMessages,
+    applyPackMessagesFilter,
+    clearPackMessagesFilter,
   };
 }

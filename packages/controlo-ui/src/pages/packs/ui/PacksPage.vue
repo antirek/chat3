@@ -64,14 +64,14 @@
         </div>
 
         <template v-else>
-          <div class="right-panel-tabs">
+          <div class="tabs-container">
             <button
               type="button"
               class="tab-button"
               :class="{ active: activePackTab === 'dialogs' }"
               @click="switchPackTab('dialogs')"
             >
-              Диалоги
+              📋 Диалоги
             </button>
             <button
               type="button"
@@ -79,54 +79,89 @@
               :class="{ active: activePackTab === 'messages' }"
               @click="switchPackTab('messages')"
             >
-              Сообщения
+              📝 Сообщения
+            </button>
+            <button
+              type="button"
+              class="tab-button"
+              :class="{ active: activePackTab === 'users' }"
+              @click="switchPackTab('users')"
+            >
+              👥 Участники
             </button>
           </div>
 
-          <template v-if="activePackTab === 'dialogs'">
-            <PacksPagination
-              v-if="packDialogsTotal > 0"
-              :current-page="packDialogsPage"
-              :current-page-input="packDialogsPage"
-              :total-pages="packDialogsTotalPages"
-              :total="packDialogsTotal"
-              :pagination-start="packDialogsPaginationStart"
-              :pagination-end="packDialogsPaginationEnd"
-              :current-limit="packDialogsLimit"
-              @first="goToPackDialogsPage(1)"
-              @prev="goToPackDialogsPage(Math.max(1, packDialogsPage - 1))"
-              @next="goToPackDialogsPage(Math.min(packDialogsTotalPages, packDialogsPage + 1))"
-              @last="goToPackDialogsPage(packDialogsTotalPages)"
-              @go-to-page="goToPackDialogsPage"
-              @change-limit="changePackDialogsLimit"
-            />
+          <!-- Единый заголовок: заголовок таба + кнопка URL -->
+          <div class="right-panel-header">
+            <span class="right-panel-title">{{ rightPanelTitle }}</span>
+            <BaseButton
+              variant="url"
+              :title="'URL: ' + getPackTabUrl(activePackTab)"
+              @click="showUrlWithUrl(getPackTabUrl(activePackTab))"
+            >
+              🔗 URL
+            </BaseButton>
+          </div>
+
+          <!-- Таб Диалоги: фильтр, пагинация, таблица -->
+          <PackTabTextFilterPanel
+            v-show="activePackTab === 'dialogs'"
+            input-id="pack-dialogs-filter"
+            label="Фильтр по dialogId"
+            :filter-value="packDialogsFilterValue"
+            placeholder="подстрока в dialogId"
+            @update:filter-value="(v) => setPackDialogsFilterValue(v)"
+            @clear="clearPackDialogsFilterValue"
+            @apply="() => {}"
+          />
+          <PacksPagination
+            v-show="activePackTab === 'dialogs' && packDialogsTotal > 0"
+            :current-page="packDialogsPage"
+            :current-page-input="packDialogsPage"
+            :total-pages="packDialogsTotalPages"
+            :total="packDialogsTotal"
+            :pagination-start="packDialogsPaginationStart"
+            :pagination-end="packDialogsPaginationEnd"
+            :current-limit="packDialogsLimit"
+            @first="goToPackDialogsPage(1)"
+            @prev="goToPackDialogsPage(Math.max(1, packDialogsPage - 1))"
+            @next="goToPackDialogsPage(Math.min(packDialogsTotalPages, packDialogsPage + 1))"
+            @last="goToPackDialogsPage(packDialogsTotalPages)"
+            @go-to-page="goToPackDialogsPage"
+            @change-limit="changePackDialogsLimit"
+          />
+          <div v-show="activePackTab === 'dialogs'" class="panel-content">
             <PackDialogsTable
-              :dialogs="packDialogs"
+              :dialogs="packDialogsFiltered"
               :loading="packDialogsLoading"
               :error="packDialogsError"
               @show-dialog-info="showDialogInfoModal"
             />
-          </template>
-          <template v-else>
-            <div class="messages-toolbar">
-              <label class="messages-limit">
-                Лимит:
-                <select :value="packMessagesLimit" @change="onPackMessagesLimitChange">
-                  <option :value="20">20</option>
-                  <option :value="50">50</option>
-                  <option :value="100">100</option>
-                </select>
-              </label>
-              <BaseButton
-                size="small"
-                variant="secondary"
-                :disabled="packMessagesLoading"
-                @click="loadInitialPackMessages"
-              >
-                Обновить
-              </BaseButton>
-            </div>
-            <div v-if="packMessagesError" class="messages-error">{{ packMessagesError }}</div>
+          </div>
+
+          <div v-show="activePackTab === 'messages'" class="right-panel-header">
+            <span class="right-panel-title">Сообщения пака</span>
+          </div>
+          <div v-show="activePackTab === 'messages'" class="messages-toolbar">
+            <label class="messages-limit">
+              Лимит:
+              <select :value="packMessagesLimit" @change="onPackMessagesLimitChange">
+                <option :value="20">20</option>
+                <option :value="50">50</option>
+                <option :value="100">100</option>
+              </select>
+            </label>
+            <BaseButton
+              size="small"
+              variant="secondary"
+              :disabled="packMessagesLoading"
+              @click="loadInitialPackMessages"
+            >
+              Обновить
+            </BaseButton>
+          </div>
+          <div v-show="activePackTab === 'messages'" v-if="packMessagesError" class="messages-error">{{ packMessagesError }}</div>
+          <div v-show="activePackTab === 'messages'" class="panel-content">
             <PackMessagesTable
               :messages="packMessages"
               :loading="packMessagesLoading"
@@ -146,7 +181,26 @@
                 Больше сообщений нет.
               </span>
             </div>
-          </template>
+          </div>
+
+          <div v-show="activePackTab === 'users'" class="right-panel-header">
+            <span class="right-panel-title">Участники пака</span>
+            <BaseButton
+              size="small"
+              variant="secondary"
+              :disabled="packUsersLoading"
+              @click="loadPackUsers"
+            >
+              Обновить
+            </BaseButton>
+          </div>
+          <div v-show="activePackTab === 'users'" class="panel-content">
+            <PackUsersTable
+              :users="packUsers"
+              :loading="packUsersLoading"
+              :error="packUsersError"
+            />
+          </div>
         </template>
       </BasePanel>
     </div>
@@ -205,13 +259,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { BasePanel, BaseButton } from '@/shared/ui';
 import { usePacksPage } from '../model';
-import { PackFilterPanel } from './filters';
-import { PackTable, PackDialogsTable, PackMessagesTable } from './tables';
+import { PackFilterPanel, PackTabTextFilterPanel } from './filters';
+import { MessageFilterPanel } from '@/pages/dialogs-messages/ui/filters';
+import { PackTable, PackDialogsTable, PackMessagesTable, PackUsersTable } from './tables';
 import { PackInfoModal, PackUrlModal, CreatePackModal, AddDialogToPackModal, DialogInfoModal } from './modals';
 import { PacksPagination } from './pagination';
+import { ExtendedPagination } from '@/pages/dialogs-messages/ui/pagination';
 import { MetaModal } from '@/widgets/meta-modal';
 
 const {
@@ -233,10 +289,28 @@ const {
   packMessagesError,
   packMessagesHasMore,
   packMessagesLimit,
+  packMessagesFilterValue,
+  selectedMessageFilterExample,
   loadInitialPackMessages,
   loadMorePackMessages,
   changePackMessagesLimit,
   resetPackMessages,
+  applyPackMessagesFilter,
+  clearPackMessagesFilter,
+  packUsers,
+  packUsersLoading,
+  packUsersError,
+  packUsersFilterValue,
+  packUsersPage,
+  packUsersLimit,
+  packUsersTotal,
+  packUsersTotalPages,
+  packUsersPaginationStart,
+  packUsersPaginationEnd,
+  packUsersPaginated,
+  loadPackUsers,
+  goToPackUsersPage,
+  changePackUsersLimit,
   selectPack,
   goToPackDialogsPage,
   changePackDialogsLimit,
@@ -298,11 +372,40 @@ const {
   clearPackFilter,
   applyPackFilter,
   showUrlModal,
+  showUrlWithUrl,
+  getPackTabUrl,
   closeUrlModal,
   copyUrlToClipboard,
 } = usePacksPage();
 
-const activePackTab = ref<'dialogs' | 'messages'>('dialogs');
+const activePackTab = ref<'dialogs' | 'messages' | 'users'>('dialogs');
+const packDialogsFilterValue = ref('');
+
+const rightPanelTitle = computed(() => {
+  if (activePackTab.value === 'dialogs') return 'Диалоги пака';
+  if (activePackTab.value === 'messages') return 'Сообщения пака';
+  if (activePackTab.value === 'users') return 'Участники пака';
+  return '';
+});
+
+const packDialogsFiltered = computed(() => {
+  const q = packDialogsFilterValue.value.trim().toLowerCase();
+  if (!q) return packDialogs.value;
+  return packDialogs.value.filter((d: { dialogId: string }) => d.dialogId.toLowerCase().includes(q));
+});
+
+function setPackDialogsFilterValue(v: string) {
+  packDialogsFilterValue.value = v;
+}
+function clearPackDialogsFilterValue() {
+  packDialogsFilterValue.value = '';
+}
+function setPackUsersFilterValue(v: string) {
+  packUsersFilterValue.value = v;
+}
+function clearPackUsersFilterValue() {
+  packUsersFilterValue.value = '';
+}
 
 watch(selectedPackId, (packId) => {
   activePackTab.value = 'dialogs';
@@ -311,10 +414,13 @@ watch(selectedPackId, (packId) => {
   }
 });
 
-function switchPackTab(tab: 'dialogs' | 'messages') {
+function switchPackTab(tab: 'dialogs' | 'messages' | 'users') {
   activePackTab.value = tab;
   if (tab === 'messages' && !packMessagesLoading.value && packMessages.value.length === 0) {
     loadInitialPackMessages();
+  }
+  if (tab === 'users') {
+    loadPackUsers();
   }
 }
 
@@ -355,27 +461,53 @@ function onPackMessagesLimitChange(event: Event) {
   font-size: 14px;
   text-align: center;
 }
-.right-panel-tabs {
+.tabs-container {
   display: flex;
-  gap: 8px;
-  margin: 8px 0 12px;
+  border-bottom: 2px solid #e9ecef;
+  background: #f8f9fa;
 }
 .tab-button {
-  padding: 6px 12px;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  background: #f8f9fa;
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
   cursor: pointer;
-  font-size: 12px;
-  transition: background 0.2s, color 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6c757d;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
 }
 .tab-button:hover {
+  color: #495057;
   background: #e9ecef;
 }
 .tab-button.active {
-  background: #667eea;
-  color: #fff;
-  border-color: #667eea;
+  color: #667eea;
+  border-bottom-color: #667eea;
+  background: white;
+  font-weight: 600;
+}
+.right-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+.right-panel-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #495057;
+}
+.panel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  min-height: 0;
 }
 .messages-toolbar {
   display: flex;

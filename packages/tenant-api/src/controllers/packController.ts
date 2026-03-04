@@ -1,4 +1,4 @@
-import { Pack, PackLink, Dialog, PackStats, UserPackUnreadBySenderType } from '@chat3/models';
+import { Pack, PackLink, Dialog, DialogMember, PackStats, UserPackUnreadBySenderType } from '@chat3/models';
 import type { ActorType } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
@@ -581,6 +581,48 @@ export const packController = {
           total,
           pages: Math.ceil(total / limit)
         }
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  /**
+   * Список уникальных пользователей — участников диалогов пака
+   * GET /api/packs/:packId/users
+   */
+  async getUsers(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { packId } = req.params;
+      const tenantId = req.tenantId!;
+
+      const pack = await Pack.findOne({ packId, tenantId });
+      if (!pack) {
+        res.status(404).json({
+          error: 'Not Found',
+          message: 'Pack not found'
+        });
+        return;
+      }
+
+      const packDialogIds = (await PackLink.find({ packId, tenantId }).select('dialogId').lean())
+        .map((l: { dialogId: string }) => l.dialogId);
+
+      if (packDialogIds.length === 0) {
+        res.json({ data: [] });
+        return;
+      }
+
+      const userIds = await DialogMember.distinct('userId', {
+        tenantId,
+        dialogId: { $in: packDialogIds }
+      });
+
+      res.json({
+        data: (userIds as string[]).map((userId) => ({ userId })).map((item) => sanitizeResponse(item))
       });
     } catch (error: any) {
       res.status(500).json({

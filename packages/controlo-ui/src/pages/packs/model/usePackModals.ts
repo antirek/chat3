@@ -370,8 +370,14 @@ export function usePackModals(
     copyUrlButtonText.value = '📋 Скопировать';
   }
 
+  function showUrlWithUrl(url: string) {
+    generatedUrl.value = url;
+    urlModal.open();
+    copyUrlButtonText.value = '📋 Скопировать';
+  }
+
   async function copyUrlToClipboard() {
-    const url = generateApiUrl();
+    const url = generatedUrl.value || generateApiUrl();
     try {
       await navigator.clipboard.writeText(url);
       copyUrlButtonText.value = '✓ Скопировано!';
@@ -419,6 +425,7 @@ export function usePackModals(
     copyDialogJsonToClipboard,
     deletePack,
     showUrlModal,
+    showUrlWithUrl,
     copyUrlToClipboard,
   };
 }

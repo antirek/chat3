@@ -4,6 +4,7 @@ import { useCredentialsStore } from '@/app/stores/credentials';
 import { usePacks } from './usePacks';
 import { usePackDialogs } from './usePackDialogs';
 import { usePackMessages } from './usePackMessages';
+import { usePackUsers } from './usePackUsers';
 import { usePackModals } from './usePackModals';
 import { useUtils } from './useUtils';
 
@@ -69,11 +70,33 @@ export function usePacksPage() {
     packMessagesHasMore,
     packMessagesCursor,
     packMessagesLimit,
+    packMessagesFilterValue,
+    selectedMessageFilterExample,
     loadInitialPackMessages,
     loadMorePackMessages,
     changePackMessagesLimit,
     resetPackMessages,
+    applyPackMessagesFilter,
+    clearPackMessagesFilter,
   } = packMessagesModule;
+
+  const packUsersModule = usePackUsers(getApiKey, configStore, credentialsStore, selectedPackId);
+  const {
+    packUsers,
+    packUsersLoading,
+    packUsersError,
+    packUsersFilterValue,
+    packUsersPage,
+    packUsersLimit,
+    packUsersTotal,
+    packUsersTotalPages,
+    packUsersPaginationStart,
+    packUsersPaginationEnd,
+    packUsersPaginated,
+    loadPackUsers,
+    goToPackUsersPage,
+    changePackUsersLimit,
+  } = packUsersModule;
 
   const modalsModule = usePackModals(
     getApiKey,
@@ -121,8 +144,25 @@ export function usePacksPage() {
     copyDialogJsonToClipboard,
     deletePack,
     showUrlModal,
+    showUrlWithUrl,
     copyUrlToClipboard,
   } = modalsModule;
+
+  function getPackTabUrl(tab: 'dialogs' | 'messages' | 'users'): string {
+    const base = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+    const packId = selectedPackId.value;
+    if (!packId) return '';
+    if (tab === 'dialogs') {
+      return `${base}/api/packs/${encodeURIComponent(packId)}/dialogs?page=${packDialogsPage.value}&limit=${packDialogsLimit.value}`;
+    }
+    if (tab === 'messages') {
+      const p = new URLSearchParams({ limit: packMessagesLimit.value.toString() });
+      if (packMessagesFilterValue.value.trim()) p.set('filter', packMessagesFilterValue.value.trim());
+      return `${base}/api/packs/${encodeURIComponent(packId)}/messages?${p.toString()}`;
+    }
+    if (tab === 'users') return `${base}/api/packs/${encodeURIComponent(packId)}/users`;
+    return '';
+  }
 
   const utilsModule = useUtils(credentialsStore, apiKey, tenantId, loadPacks);
   const { getUrlParams, setApiKeyFromExternal } = utilsModule;
@@ -177,10 +217,28 @@ export function usePacksPage() {
     packMessagesHasMore,
     packMessagesCursor,
     packMessagesLimit,
+    packMessagesFilterValue,
     loadInitialPackMessages,
     loadMorePackMessages,
     changePackMessagesLimit,
     resetPackMessages,
+    applyPackMessagesFilter,
+    clearPackMessagesFilter,
+    selectedMessageFilterExample,
+    packUsers,
+    packUsersLoading,
+    packUsersError,
+    packUsersFilterValue,
+    packUsersPage,
+    packUsersLimit,
+    packUsersTotal,
+    packUsersTotalPages,
+    packUsersPaginationStart,
+    packUsersPaginationEnd,
+    packUsersPaginated,
+    loadPackUsers,
+    goToPackUsersPage,
+    changePackUsersLimit,
     currentPage,
     currentLimit,
     totalPages,
@@ -243,6 +301,8 @@ export function usePacksPage() {
     clearPackFilter,
     applyPackFilter,
     showUrlModal,
+    showUrlWithUrl,
+    getPackTabUrl,
     closeUrlModal: urlModal.close,
     copyUrlToClipboard,
   };
