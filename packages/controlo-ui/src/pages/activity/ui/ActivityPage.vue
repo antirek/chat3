@@ -30,6 +30,33 @@
           :error="apiRequestsError"
         />
       </div>
+
+      <!-- График диалогов и паков -->
+      <div class="chart-panel">
+        <div class="chart-header">
+          <h2>Диалоги и паки</h2>
+        </div>
+        <DialogsPacksChart
+          :dates="dialogsPacksStats?.dates || []"
+          :dialogs="dialogsPacksStats?.dialogs || []"
+          :packs="dialogsPacksStats?.packs || []"
+          :loading="loadingDialogsPacks"
+          :error="dialogsPacksError"
+        />
+      </div>
+
+      <!-- График сообщений -->
+      <div class="chart-panel">
+        <div class="chart-header">
+          <h2>Сообщения</h2>
+        </div>
+        <MessagesChart
+          :dates="messagesStats?.dates || []"
+          :messages="messagesStats?.messages || []"
+          :loading="loadingMessages"
+          :error="messagesError"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -39,14 +66,22 @@ import { onMounted } from 'vue';
 import { useActivityStats } from '../model/useActivityStats';
 import EventsUpdatesChart from './charts/EventsUpdatesChart.vue';
 import ApiRequestsChart from './charts/ApiRequestsChart.vue';
+import DialogsPacksChart from './charts/DialogsPacksChart.vue';
+import MessagesChart from './charts/MessagesChart.vue';
 
 const {
   loadingEventsUpdates,
   loadingApiRequests,
+  loadingDialogsPacks,
+  loadingMessages,
   eventsUpdatesError,
   apiRequestsError,
+  dialogsPacksError,
+  messagesError,
   eventsUpdatesStats,
   apiRequestsStats,
+  dialogsPacksStats,
+  messagesStats,
   loadAllStats
 } = useActivityStats();
 

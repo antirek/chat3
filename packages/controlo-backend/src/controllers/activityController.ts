@@ -1,4 +1,4 @@
-import { Event, Update, ApiJournal } from '@chat3/models';
+import { Event, Update, ApiJournal, Dialog, Pack, Message } from '@chat3/models';
 import { Request, Response } from 'express';
 
 /**
@@ -309,6 +309,116 @@ export const activityController = {
       });
     } catch (error: any) {
       console.error('Error getting api-requests stats:', error);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  /**
+   * GET /api/activity/dialogs-packs — диалоги и паки по дате создания за 30 дней
+   */
+  async getDialogsPacksStats(req: Request, res: Response): Promise<void> {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 29);
+      const startTimestamp = startDate.getTime();
+      const endOfToday = new Date(today);
+      endOfToday.setHours(23, 59, 59, 999);
+      const endTimestamp = endOfToday.getTime();
+
+      const [dialogsData, packsData] = await Promise.all([
+        Dialog.aggregate([
+          { $match: { createdAt: { $gte: startTimestamp, $lte: endTimestamp } } },
+          {
+            $group: {
+              _id: {
+                $dateToString: {
+                  format: '%Y-%m-%d',
+                  date: { $toDate: { $floor: '$createdAt' } }
+                }
+              },
+              count: { $sum: 1 }
+            }
+          }
+        ]),
+        Pack.aggregate([
+          { $match: { createdAt: { $gte: startTimestamp, $lte: endTimestamp } } },
+          {
+            $group: {
+              _id: {
+                $dateToString: {
+                  format: '%Y-%m-%d',
+                  date: { $toDate: { $floor: '$createdAt' } }
+                }
+              },
+              count: { $sum: 1 }
+            }
+          }
+        ])
+      ]);
+
+      const dialogsMap = new Map<string, number>();
+      (dialogsData as { _id: string; count: number }[]).forEach((item) => dialogsMap.set(item._id, item.count));
+      const packsMap = new Map<string, number>();
+      (packsData as { _id: string; count: number }[]).forEach((item) => packsMap.set(item._id, item.count));
+
+      const { dates, values: dialogs } = fillMissingDays(dialogsMap, 30);
+      const { values: packs } = fillMissingDays(packsMap, 30);
+
+      res.json({
+        data: { dates, dialogs, packs }
+      });
+    } catch (error: any) {
+      console.error('Error getting dialogs-packs stats:', error);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  /**
+   * GET /api/activity/messages — сообщения по дате создания за 30 дней
+   */
+  async getMessagesStats(req: Request, res: Response): Promise<void> {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 29);
+      const startTimestamp = startDate.getTime();
+      const endOfToday = new Date(today);
+      endOfToday.setHours(23, 59, 59, 999);
+      const endTimestamp = endOfToday.getTime();
+
+      const messagesData = await Message.aggregate([
+        { $match: { createdAt: { $gte: startTimestamp, $lte: endTimestamp } } },
+        {
+          $group: {
+            _id: {
+              $dateToString: {
+                format: '%Y-%m-%d',
+                date: { $toDate: { $floor: '$createdAt' } }
+              }
+            },
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      const messagesMap = new Map<string, number>();
+      (messagesData as { _id: string; count: number }[]).forEach((item) => messagesMap.set(item._id, item.count));
+      const { dates, values: messages } = fillMissingDays(messagesMap, 30);
+
+      res.json({
+        data: { dates, messages }
+      });
+    } catch (error: any) {
+      console.error('Error getting messages stats:', error);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
