@@ -258,6 +258,52 @@ router.get(
 
 /**
  * @swagger
+ * /api/packs/{packId}/markAllReadForAllUsers:
+ *   post:
+ *     summary: Отметить все сообщения пака прочитанными для всех пользователей
+ *     description: Для каждого пользователя — участника диалогов пака обнуляются счётчики непрочитанных и проставляется MessageStatus = read по всем диалогам пака, где он участник. Общий таймаут 5 минут; при превышении — 503.
+ *     tags: [Packs]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: packId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody: { required: false, content: { application/json: { schema: { type: object } } } }
+ *     responses:
+ *       200:
+ *         description: Успех
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     packId: { type: string }
+ *                     processedUsersCount: { type: integer }
+ *                     processedDialogsCount: { type: integer }
+ *                     totalProcessedMessageCount: { type: integer }
+ *                 message: { type: string }
+ *       404: { description: Pack not found }
+ *       503: { description: Timeout (5 min); part of users may be already processed }
+ *       401: { description: Unauthorized }
+ *       403: { description: Forbidden }
+ *       500: { description: Internal Server Error }
+ */
+router.post(
+  '/:packId/markAllReadForAllUsers',
+  apiAuth,
+  requirePermission('write'),
+  validatePackId,
+  packController.markAllReadForAllUsers
+);
+
+/**
+ * @swagger
  * /api/packs/{packId}:
  *   get:
  *     summary: Получить пак по ID

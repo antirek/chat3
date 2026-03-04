@@ -6,6 +6,10 @@ import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import { loadPackMessages } from '../utils/packMessageUtils.js';
 import { enrichMessagesWithMetaAndStatuses } from '../utils/messageEnrichment.js';
+import { getPackDialogIds } from '@chat3/utils/packStatsUtils.js';
+import { markDialogMessagesAsReadUntil } from '@chat3/utils/dialogReadTaskUtils.js';
+import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { applyMarkDialogAllRead } from '../utils/dialogMemberUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
@@ -623,6 +627,144 @@ export const packController = {
 
       res.json({
         data: (userIds as string[]).map((userId) => ({ userId })).map((item) => sanitizeResponse(item))
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    }
+  },
+
+  /**
+   * Отметить все сообщения пака прочитанными для всех пользователей — участников диалогов пака.
+   * POST /api/packs/:packId/markAllReadForAllUsers
+   * Для каждого пользователя пака: по каждому диалогу пака, где он участник — applyMarkDialogAllRead + markDialogMessagesAsReadUntil.
+   * Общий таймаут 5 минут; при превышении — 503.
+   */
+  async markAllReadForAllUsers(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const PACK_MARK_ALL_READ_FOR_ALL_USERS_TIMEOUT_MS = 300_000; // 5 минут
+    try {
+      const { packId } = req.params;
+      const tenantId = req.tenantId!;
+      const { actorId, actorType } = resolveEventActor(req);
+
+      const pack = await Pack.findOne({ packId, tenantId }).lean();
+      if (!pack) {
+        res.status(404).json({
+          error: 'Not Found',
+          message: 'Pack not found'
+        });
+        return;
+      }
+
+      const packDialogIds = await getPackDialogIds(tenantId, packId);
+      if (packDialogIds.length === 0) {
+        res.json({
+          data: sanitizeResponse({
+            packId,
+            processedUsersCount: 0,
+            processedDialogsCount: 0,
+            totalProcessedMessageCount: 0
+          }),
+          message: 'Pack marked as read for all users'
+        });
+        return;
+      }
+
+      const userIds = await DialogMember.distinct('userId', {
+        tenantId,
+        dialogId: { $in: packDialogIds }
+      });
+
+      const readUntil = generateTimestamp();
+      const startTime = Date.now();
+      let processedUsersCount = 0;
+      let processedDialogsCount = 0;
+      let totalProcessedMessageCount = 0;
+
+      for (const userId of userIds as string[]) {
+        let remainingMs = PACK_MARK_ALL_READ_FOR_ALL_USERS_TIMEOUT_MS - (Date.now() - startTime);
+        if (remainingMs <= 0) {
+          res.status(503).json({
+            error: 'Service Unavailable',
+            message:
+              'Mark pack all read for all users timed out (5 minutes). Some users were processed; repeat request if needed.',
+            data: sanitizeResponse({
+              packId,
+              processedUsersCount,
+              processedDialogsCount,
+              totalProcessedMessageCount
+            })
+          });
+          return;
+        }
+
+        const memberLinks = await DialogMember.find({
+          tenantId,
+          userId,
+          dialogId: { $in: packDialogIds }
+        })
+          .select('dialogId')
+          .lean();
+        const memberDialogIds = memberLinks.map((m: { dialogId: string }) => m.dialogId);
+        if (memberDialogIds.length === 0) continue;
+
+        for (const dialogId of memberDialogIds) {
+          remainingMs = PACK_MARK_ALL_READ_FOR_ALL_USERS_TIMEOUT_MS - (Date.now() - startTime);
+          if (remainingMs <= 0) {
+            res.status(503).json({
+              error: 'Service Unavailable',
+              message:
+                'Mark pack all read for all users timed out (5 minutes). Some users were processed; repeat request if needed.',
+              data: sanitizeResponse({
+                packId,
+                processedUsersCount,
+                processedDialogsCount,
+                totalProcessedMessageCount
+              })
+            });
+            return;
+          }
+
+          await applyMarkDialogAllRead(tenantId, userId, dialogId, actorId, actorType, {
+            lastSeenAt: readUntil
+          });
+          try {
+            const result = await markDialogMessagesAsReadUntil(tenantId, dialogId, userId, readUntil, {
+              timeoutMs: remainingMs
+            });
+            totalProcessedMessageCount += result.processedCount;
+            processedDialogsCount += 1;
+          } catch (err: any) {
+            if (err?.message === 'markDialogMessagesAsReadUntil timeout') {
+              res.status(503).json({
+                error: 'Service Unavailable',
+                message:
+                  'Mark pack all read for all users timed out (5 minutes). Some users were processed; repeat request if needed.',
+                data: sanitizeResponse({
+                  packId,
+                  processedUsersCount,
+                  processedDialogsCount,
+                  totalProcessedMessageCount
+                })
+              });
+              return;
+            }
+            throw err;
+          }
+        }
+        processedUsersCount += 1;
+      }
+
+      res.json({
+        data: sanitizeResponse({
+          packId,
+          processedUsersCount,
+          processedDialogsCount,
+          totalProcessedMessageCount
+        }),
+        message: 'Pack marked as read for all users'
       });
     } catch (error: any) {
       res.status(500).json({
