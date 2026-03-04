@@ -5,7 +5,7 @@
     :label="label"
     :filter-value="filterValue"
     selected-example=""
-    :examples="[]"
+    :examples="examples"
     :placeholder="placeholder"
     :hint="hint"
     @update:filter-value="(v) => emit('update:filterValue', v)"
@@ -15,19 +15,21 @@
 </template>
 
 <script setup lang="ts">
-import { BaseFilter } from '@/shared/ui';
+import { BaseFilter, type FilterExample } from '@/shared/ui';
 
 interface Props {
   inputId: string;
   label: string;
   filterValue: string;
+  examples?: FilterExample[];
   placeholder?: string;
   hint?: string;
 }
 
 withDefaults(defineProps<Props>(), {
-  placeholder: 'Подстрока для поиска',
-  hint: '',
+  examples: () => [],
+  placeholder: '(meta.key,eq,value) или (dialogId,eq,dlg_...)',
+  hint: 'Фильтр по meta диалогов и dialogId. Примеры: (meta.channel,eq,telegram), (dialogId,eq,dlg_xxx)',
 });
 
 const emit = defineEmits<{

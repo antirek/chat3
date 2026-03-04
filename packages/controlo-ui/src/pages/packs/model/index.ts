@@ -56,10 +56,13 @@ export function usePacksPage() {
     packDialogsTotalPages,
     packDialogsPaginationStart,
     packDialogsPaginationEnd,
+    packDialogsFilterValue,
     loadPackDialogs,
     selectPack,
     goToPackDialogsPage,
     changePackDialogsLimit,
+    applyPackDialogsFilter,
+    clearPackDialogsFilter,
   } = packDialogsModule;
 
   const packMessagesModule = usePackMessages(getApiKey, configStore, credentialsStore, selectedPackId);
@@ -160,7 +163,9 @@ export function usePacksPage() {
     const packId = selectedPackId.value;
     if (!packId) return '';
     if (tab === 'dialogs') {
-      return `${base}/api/packs/${encodeURIComponent(packId)}/dialogs?page=${packDialogsPage.value}&limit=${packDialogsLimit.value}`;
+      const p = new URLSearchParams({ page: packDialogsPage.value.toString(), limit: packDialogsLimit.value.toString() });
+      if (packDialogsFilterValue.value.trim()) p.set('filter', packDialogsFilterValue.value.trim());
+      return `${base}/api/packs/${encodeURIComponent(packId)}/dialogs?${p.toString()}`;
     }
     if (tab === 'messages') {
       const p = new URLSearchParams({ limit: packMessagesLimit.value.toString() });
@@ -218,6 +223,9 @@ export function usePacksPage() {
     selectPack,
     goToPackDialogsPage,
     changePackDialogsLimit,
+    packDialogsFilterValue,
+    applyPackDialogsFilter,
+    clearPackDialogsFilter,
     packMessages,
     packMessagesLoading,
     packMessagesError,

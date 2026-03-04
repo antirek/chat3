@@ -1,6 +1,6 @@
 /**
  * Загрузка диалогов выбранного пака
- * GET /api/packs/:packId/dialogs — page, limit
+ * GET /api/packs/:packId/dialogs — page, limit, filter (meta диалогов, dialogId)
  */
 import { ref, watch } from 'vue';
 
@@ -17,6 +17,7 @@ export function usePackDialogs(
   const packDialogsLimit = ref(10);
   const packDialogsTotal = ref(0);
   const packDialogsTotalPages = ref(0);
+  const packDialogsFilterValue = ref('');
 
   async function loadPackDialogs(page = packDialogsPage.value, limit = packDialogsLimit.value) {
     const packId = selectedPackId.value;
@@ -36,6 +37,8 @@ export function usePackDialogs(
       packDialogsError.value = null;
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
       const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
+      const filterTrim = packDialogsFilterValue.value.trim();
+      if (filterTrim) params.set('filter', filterTrim);
       const url = `${baseUrl}/api/packs/${packId}/dialogs?${params.toString()}`;
       const response = await fetch(url, { headers: credentialsStore.getHeaders() });
       if (!response.ok) {
@@ -80,6 +83,15 @@ export function usePackDialogs(
     loadPackDialogs(1, limit);
   }
 
+  function applyPackDialogsFilter() {
+    loadPackDialogs(1, packDialogsLimit.value);
+  }
+
+  function clearPackDialogsFilter() {
+    packDialogsFilterValue.value = '';
+    loadPackDialogs(1, packDialogsLimit.value);
+  }
+
   const packDialogsPaginationStart = ref(0);
   const packDialogsPaginationEnd = ref(0);
   watch(
@@ -104,9 +116,12 @@ export function usePackDialogs(
     packDialogsTotalPages,
     packDialogsPaginationStart,
     packDialogsPaginationEnd,
+    packDialogsFilterValue,
     loadPackDialogs,
     selectPack,
     goToPackDialogsPage,
     changePackDialogsLimit,
+    applyPackDialogsFilter,
+    clearPackDialogsFilter,
   };
 }

@@ -104,16 +104,16 @@
             </BaseButton>
           </div>
 
-          <!-- Таб Диалоги: фильтр, пагинация, таблица -->
+          <!-- Таб Диалоги: фильтр по meta / dialogId, пагинация, таблица -->
           <PackTabTextFilterPanel
             v-show="activePackTab === 'dialogs'"
             input-id="pack-dialogs-filter"
-            label="Фильтр по dialogId"
+            label="Фильтр диалогов"
             :filter-value="packDialogsFilterValue"
-            placeholder="подстрока в dialogId"
-            @update:filter-value="(v) => setPackDialogsFilterValue(v)"
-            @clear="clearPackDialogsFilterValue"
-            @apply="() => {}"
+            :examples="packDialogsFilterExamples"
+            @update:filter-value="setPackDialogsFilterValue"
+            @clear="clearPackDialogsFilter"
+            @apply="applyPackDialogsFilter"
           />
           <PacksPagination
             v-show="activePackTab === 'dialogs' && packDialogsTotal > 0"
@@ -133,7 +133,7 @@
           />
           <div v-show="activePackTab === 'dialogs'" class="panel-content">
             <PackDialogsTable
-              :dialogs="packDialogsFiltered"
+              :dialogs="packDialogs"
               :loading="packDialogsLoading"
               :error="packDialogsError"
               @show-dialog-info="showDialogInfoModal"
@@ -272,7 +272,7 @@
 import { ref, watch, computed } from 'vue';
 import { BasePanel, BaseButton } from '@/shared/ui';
 import { usePacksPage } from '../model';
-import { PackFilterPanel, PackTabTextFilterPanel } from './filters';
+import { PackFilterPanel, PackTabTextFilterPanel, packDialogsFilterExamples } from './filters';
 import { MessageFilterPanel } from '@/pages/dialogs-messages/ui/filters';
 import { PackTable, PackDialogsTable, PackMessagesTable, PackUsersTable } from './tables';
 import { PackInfoModal, PackUrlModal, CreatePackModal, AddDialogToPackModal, MarkPackAllReadModal, DialogInfoModal } from './modals';
@@ -322,8 +322,12 @@ const {
   goToPackUsersPage,
   changePackUsersLimit,
   selectPack,
+  loadPackDialogs,
   goToPackDialogsPage,
   changePackDialogsLimit,
+  packDialogsFilterValue,
+  applyPackDialogsFilter,
+  clearPackDialogsFilter,
   currentPage,
   currentLimit,
   totalPages,
@@ -396,7 +400,6 @@ const {
 } = usePacksPage();
 
 const activePackTab = ref<'dialogs' | 'messages' | 'users'>('dialogs');
-const packDialogsFilterValue = ref('');
 
 const rightPanelTitle = computed(() => {
   if (activePackTab.value === 'dialogs') return 'Диалоги пака';
@@ -405,17 +408,8 @@ const rightPanelTitle = computed(() => {
   return '';
 });
 
-const packDialogsFiltered = computed(() => {
-  const q = packDialogsFilterValue.value.trim().toLowerCase();
-  if (!q) return packDialogs.value;
-  return packDialogs.value.filter((d: { dialogId: string }) => d.dialogId.toLowerCase().includes(q));
-});
-
 function setPackDialogsFilterValue(v: string) {
   packDialogsFilterValue.value = v;
-}
-function clearPackDialogsFilterValue() {
-  packDialogsFilterValue.value = '';
 }
 function setPackUsersFilterValue(v: string) {
   packUsersFilterValue.value = v;

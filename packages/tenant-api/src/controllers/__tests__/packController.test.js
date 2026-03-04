@@ -6,7 +6,8 @@ import {
   PackLink,
   Dialog,
   Message,
-  User
+  User,
+  Meta
 } from '@chat3/models';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
@@ -467,5 +468,124 @@ describe('packController.getDialogs', () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.body?.message).toBe('Pack not found');
+  });
+
+  test('filter by meta: returns only dialogs in pack matching meta', async () => {
+    const packId = createPackId(70);
+    const dlg1 = dialogId(70);
+    const dlg2 = dialogId(71);
+    const dlg3 = dialogId(72);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await Dialog.create([
+      { tenantId, dialogId: dlg1, createdAt: generateTimestamp() },
+      { tenantId, dialogId: dlg2, createdAt: generateTimestamp() },
+      { tenantId, dialogId: dlg3, createdAt: generateTimestamp() }
+    ]);
+    await PackLink.create([
+      { tenantId, packId, dialogId: dlg1 },
+      { tenantId, packId, dialogId: dlg2 },
+      { tenantId, packId, dialogId: dlg3 }
+    ]);
+    await Meta.create([
+      { tenantId, entityType: 'dialog', entityId: dlg1, key: 'channel', value: 'telegram', dataType: 'string' },
+      { tenantId, entityType: 'dialog', entityId: dlg2, key: 'channel', value: 'telegram', dataType: 'string' },
+      { tenantId, entityType: 'dialog', entityId: dlg3, key: 'channel', value: 'whatsapp', dataType: 'string' }
+    ]);
+
+    const req = createMockReq(packId, { page: 1, limit: 10, filter: '(meta.channel,eq,telegram)' });
+    const res = createMockRes();
+
+    await packController.getDialogs(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.pagination.total).toBe(2);
+    const ids = res.body.data.map((d) => d.dialogId);
+    expect(ids).toContain(dlg1);
+    expect(ids).toContain(dlg2);
+    expect(ids).not.toContain(dlg3);
+  });
+
+  test('dialogId: returns single dialog when in pack', async () => {
+    const packId = createPackId(73);
+    const dlg1 = dialogId(73);
+    const dlg2 = dialogId(74);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await PackLink.create([
+      { tenantId, packId, dialogId: dlg1 },
+      { tenantId, packId, dialogId: dlg2 }
+    ]);
+
+    const req = createMockReq(packId, { page: 1, limit: 10, dialogId: dlg1 });
+    const res = createMockRes();
+
+    await packController.getDialogs(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].dialogId).toBe(dlg1);
+    expect(res.body.pagination.total).toBe(1);
+  });
+
+  test('dialogId: returns empty when dialog not in pack', async () => {
+    const packId = createPackId(75);
+    const dlgInPack = dialogId(75);
+    const dlgNotInPack = dialogId(76);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await PackLink.create([{ tenantId, packId, dialogId: dlgInPack }]);
+
+    const req = createMockReq(packId, { page: 1, limit: 10, dialogId: dlgNotInPack });
+    const res = createMockRes();
+
+    await packController.getDialogs(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveLength(0);
+    expect(res.body.pagination.total).toBe(0);
+  });
+
+  test('filter + dialogId: intersection', async () => {
+    const packId = createPackId(77);
+    const dlg1 = dialogId(77);
+    const dlg2 = dialogId(78);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    await Dialog.create([
+      { tenantId, dialogId: dlg1, createdAt: generateTimestamp() },
+      { tenantId, dialogId: dlg2, createdAt: generateTimestamp() }
+    ]);
+    await PackLink.create([
+      { tenantId, packId, dialogId: dlg1 },
+      { tenantId, packId, dialogId: dlg2 }
+    ]);
+    await Meta.create([
+      { tenantId, entityType: 'dialog', entityId: dlg1, key: 'type', value: 'support', dataType: 'string' },
+      { tenantId, entityType: 'dialog', entityId: dlg2, key: 'type', value: 'sales', dataType: 'string' }
+    ]);
+
+    const reqMatch = createMockReq(packId, { filter: '(meta.type,eq,support)', dialogId: dlg1 });
+    const resMatch = createMockRes();
+    await packController.getDialogs(reqMatch, resMatch);
+    expect(resMatch.statusCode).toBe(200);
+    expect(resMatch.body.data).toHaveLength(1);
+    expect(resMatch.body.data[0].dialogId).toBe(dlg1);
+
+    const reqNoMatch = createMockReq(packId, { filter: '(meta.type,eq,support)', dialogId: dlg2 });
+    const resNoMatch = createMockRes();
+    await packController.getDialogs(reqNoMatch, resNoMatch);
+    expect(resNoMatch.statusCode).toBe(200);
+    expect(resNoMatch.body.data).toHaveLength(0);
+  });
+
+  test('invalid filter returns 400', async () => {
+    const packId = createPackId(79);
+    await Pack.create({ tenantId, packId, createdAt: generateTimestamp() });
+    // Синтаксис без скобок вокруг OR вызывает FilterValidationError в parseFilters
+    const req = createMockReq(packId, { page: 1, limit: 10, filter: '(type,eq,a)&(senderId,eq,c)|(type,eq,system)' });
+    const res = createMockRes();
+
+    await packController.getDialogs(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body?.error).toBe('Bad Request');
   });
 });

@@ -557,6 +557,8 @@ export const packController = {
       const page = Math.max(1, parseInt(String(req.query.page)) || 1);
       const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit)) || 10));
       const skip = (page - 1) * limit;
+      const filterParam = typeof req.query.filter === 'string' ? req.query.filter.trim() : null;
+      const dialogIdParam = typeof req.query.dialogId === 'string' ? req.query.dialogId.trim() : null;
 
       const pack = await Pack.findOne({ packId, tenantId });
       if (!pack) {
@@ -567,18 +569,50 @@ export const packController = {
         return;
       }
 
+      let linkQuery: { packId: string; tenantId: string; dialogId?: { $in: string[] } } = { packId, tenantId };
+
+      if (filterParam || dialogIdParam) {
+        const packDialogIds = await PackLink.find({ packId, tenantId }).distinct('dialogId').then((ids) => ids as string[]);
+        let allowedDialogIds: string[] = packDialogIds;
+
+        if (dialogIdParam) {
+          allowedDialogIds = packDialogIds.includes(dialogIdParam) ? [dialogIdParam] : [];
+        }
+
+        if (filterParam) {
+          try {
+            const parsedFilters = parseFilters(filterParam);
+            const filterQuery = await buildFilterQuery(tenantId, 'dialog', parsedFilters);
+            const matchingDialogIds = await Dialog.find({ tenantId, ...filterQuery })
+              .select('dialogId')
+              .lean()
+              .then((docs) => (docs as { dialogId: string }[]).map((d) => d.dialogId));
+            const matchingSet = new Set(matchingDialogIds);
+            allowedDialogIds = allowedDialogIds.filter((id) => matchingSet.has(id));
+          } catch (err: any) {
+            res.status(400).json({
+              error: 'Bad Request',
+              message: err.message || 'Invalid filter format'
+            });
+            return;
+          }
+        }
+
+        linkQuery.dialogId = allowedDialogIds.length > 0 ? { $in: allowedDialogIds } : { $in: [] };
+      }
+
       const [links, total] = await Promise.all([
-        PackLink.find({ packId, tenantId })
+        PackLink.find(linkQuery)
           .sort({ addedAt: -1 })
           .skip(skip)
           .limit(limit)
           .select('dialogId addedAt')
           .lean(),
-        PackLink.countDocuments({ packId, tenantId })
+        PackLink.countDocuments(linkQuery)
       ]);
 
       res.json({
-        data: links.map((l) => ({ dialogId: l.dialogId, addedAt: l.addedAt })),
+        data: (links as { dialogId: string; addedAt: number }[]).map((l) => ({ dialogId: l.dialogId, addedAt: l.addedAt })),
         pagination: {
           page,
           limit,

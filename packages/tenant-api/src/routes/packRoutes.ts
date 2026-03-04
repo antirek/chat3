@@ -153,6 +153,7 @@ router.delete(
  * /api/packs/{packId}/dialogs:
  *   get:
  *     summary: Список диалогов пака
+ *     description: Поддержка пагинации (page, limit), фильтра по meta диалогов (filter) и точного совпадения по dialogId.
  *     tags: [Packs]
  *     security:
  *       - ApiKeyAuth: []
@@ -162,8 +163,23 @@ router.delete(
  *         name: packId
  *         required: true
  *         schema: { type: string }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 10, maximum: 50 }
+ *       - in: query
+ *         name: filter
+ *         description: Фильтр по meta диалогов (формат как в GET /api/dialogs)
+ *         schema: { type: string }
+ *       - in: query
+ *         name: dialogId
+ *         description: Только диалог с указанным ID (должен входить в пак)
+ *         schema: { type: string }
  *     responses:
  *       200: { description: Список диалогов с meta }
+ *       400: { description: Invalid filter format }
  *       401: { description: Unauthorized }
  *       403: { description: Forbidden }
  *       404: { description: Pack not found }
