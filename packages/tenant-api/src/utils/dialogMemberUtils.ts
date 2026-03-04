@@ -116,18 +116,28 @@ export async function removeDialogMember(
       userId,
       dialogId
     });
-    
-    // 5. Удаляем DialogMember
+
+    // 5. Удаляем UserDialogUnreadBySenderType, чтобы пересчёт паков и UserUnreadBySenderType не учитывал этот диалог
+    await UserDialogUnreadBySenderType.deleteMany({
+      tenantId,
+      userId,
+      dialogId
+    });
+
+    // 6. Удаляем DialogMember
     await DialogMember.findOneAndDelete({
       userId,
       tenantId,
       dialogId
     });
-    
+
+    // 7. Пересчёт UserUnreadBySenderType и UserStats по оставшимся диалогам пользователя
+    await recalculateUserUnreadBySenderType(tenantId, userId);
+
     // КРИТИЧНО: Финализация контекста НЕ выполняется здесь,
     // она должна быть выполнена в контроллере после всех обновлений счетчиков
-    
-    console.log(`✅ Removed member ${userId} from dialog ${dialogId} (cleaned up UserDialogStats and UserDialogActivity)`);
+
+    console.log(`✅ Removed member ${userId} from dialog ${dialogId} (cleaned up UserDialogStats, UserDialogActivity, UserDialogUnreadBySenderType)`);
   } catch (error: any) {
     console.error('Error removing dialog member:', error);
     throw error;

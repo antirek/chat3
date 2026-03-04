@@ -1,5 +1,6 @@
-import { Pack, PackLink, PackStats, DialogMember, UserPackUnreadBySenderType, Message } from '@chat3/models';
+import { Pack, PackLink, PackStats, Dialog, DialogMember, UserPackUnreadBySenderType, UserDialogStats, UserDialogActivity, Message } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
+import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { loadPackMessages } from '../utils/packMessageUtils.js';
 import { enrichMessagesWithMetaAndStatuses, getSenderInfo } from '../utils/messageEnrichment.js';
@@ -7,10 +8,11 @@ import { buildStatusMessageMatrix } from '@chat3/utils/userDialogUtils.js';
 import { buildUserPackStatsFromBySenderRows, getPackDialogIds } from '@chat3/utils/packStatsUtils.js';
 import { markDialogMessagesAsReadUntil } from '@chat3/utils/dialogReadTaskUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { updateUserStatsDialogCount, finalizeCounterUpdateContext } from '@chat3/utils/counterUtils.js';
 import { Response } from 'express';
 import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
-import { applyMarkDialogAllRead } from '../utils/dialogMemberUtils.js';
+import { applyMarkDialogAllRead, removeDialogMember } from '../utils/dialogMemberUtils.js';
 
 /**
  * Получить пак в контексте пользователя
@@ -239,6 +241,155 @@ export async function markPackAllRead(req: AuthenticatedRequest, res: Response):
     });
   } finally {
     log('>>>>> end');
+  }
+}
+
+/**
+ * Пользователь покидает пак: удаляется из всех диалогов пака, пересчитываются все связанные stats.
+ * POST /api/users/:userId/packs/:packId/leave
+ */
+export async function leavePack(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { userId, packId } = req.params;
+    const tenantId = req.tenantId!;
+    const actorId = req.apiKey?.name || 'unknown';
+    const actorType = 'api';
+
+    const pack = await Pack.findOne({ packId, tenantId }).lean();
+    if (!pack) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Pack not found'
+      });
+      return;
+    }
+
+    const packDialogIds = await getPackDialogIds(tenantId, packId);
+    if (packDialogIds.length === 0) {
+      res.json({
+        data: sanitizeResponse({ packId, leftDialogsCount: 0 }),
+        message: 'User left pack (no dialogs in pack)'
+      });
+      return;
+    }
+
+    const memberLinks = await DialogMember.find({
+      tenantId,
+      userId,
+      dialogId: { $in: packDialogIds }
+    })
+      .select('dialogId')
+      .lean();
+    const memberDialogIds = memberLinks.map((m: { dialogId: string }) => m.dialogId);
+    if (memberDialogIds.length === 0) {
+      res.json({
+        data: sanitizeResponse({ packId, leftDialogsCount: 0 }),
+        message: 'User is not in any dialog of this pack'
+      });
+      return;
+    }
+
+    let leftDialogsCount = 0;
+    for (const dialogId of memberDialogIds) {
+      const dialog = await Dialog.findOne({ dialogId, tenantId }).lean();
+      if (!dialog) continue;
+
+      const member = await DialogMember.findOne({
+        tenantId,
+        userId,
+        dialogId
+      }).lean();
+      const userDialogStats = await UserDialogStats.findOne({
+        tenantId,
+        userId,
+        dialogId
+      }).lean();
+      const unreadCount = userDialogStats?.unreadCount ?? 0;
+      const activity = await UserDialogActivity.findOne({
+        tenantId,
+        userId,
+        dialogId
+      }).lean();
+
+      let sourceEventId: string | null = null;
+      if (member) {
+        const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+        const dialogSection = eventUtils.buildDialogSection({
+          dialogId,
+          tenantId: dialog.tenantId,
+          createdAt: dialog.createdAt,
+          meta: dialogMeta || {}
+        });
+        const memberSection = eventUtils.buildMemberSection({
+          userId: member.userId,
+          state: {
+            unreadCount,
+            lastSeenAt: activity?.lastSeenAt ?? 0,
+            lastMessageAt: activity?.lastMessageAt ?? 0
+          }
+        });
+        const eventContext = eventUtils.buildEventContext({
+          eventType: 'dialog.member.remove',
+          dialogId,
+          entityId: `${dialogId}:${userId}`,
+          includedSections: ['dialog', 'member'],
+          updatedFields: ['member']
+        });
+        const memberEvent = await eventUtils.createEvent({
+          tenantId,
+          eventType: 'dialog.member.remove',
+          entityType: 'dialogMember',
+          entityId: `${dialogId}:${userId}`,
+          actorId,
+          actorType,
+          data: eventUtils.composeEventData({
+            context: eventContext,
+            dialog: dialogSection,
+            member: memberSection
+          })
+        });
+        sourceEventId = memberEvent?.eventId ?? null;
+      }
+
+      try {
+        await removeDialogMember(
+          tenantId,
+          userId,
+          dialogId,
+          sourceEventId,
+          'dialog.member.remove',
+          actorId,
+          actorType
+        );
+        if (member && sourceEventId) {
+          await updateUserStatsDialogCount(
+            tenantId,
+            userId,
+            -1,
+            'dialog.member.remove',
+            sourceEventId,
+            actorId,
+            actorType
+          );
+        }
+      } finally {
+        if (sourceEventId) {
+          await finalizeCounterUpdateContext(tenantId, userId, sourceEventId).catch(() => {});
+        }
+      }
+      leftDialogsCount += 1;
+    }
+
+    res.json({
+      data: sanitizeResponse({ packId, leftDialogsCount }),
+      message: 'User left pack'
+    });
+  } catch (error: any) {
+    console.error('Error in leavePack:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message
+    });
   }
 }
 

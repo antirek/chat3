@@ -227,6 +227,55 @@ router.post(
 
 /**
  * @swagger
+ * /api/users/{userId}/packs/{packId}/leave:
+ *   post:
+ *     summary: Пользователь покидает пак
+ *     description: |
+ *       Пользователь удаляется из всех диалогов пака (перестаёт быть участником).
+ *       Выполняется пересчёт всех связанных stats (UserStats, UserUnreadBySenderType, UserPackUnreadBySenderType и т.д.).
+ *     tags: [UserPacks]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: packId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Успех
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     packId: { type: string }
+ *                     leftDialogsCount: { type: integer }
+ *                 message: { type: string }
+ *       404: { description: Pack not found }
+ *       401: { description: Unauthorized }
+ *       403: { description: Forbidden }
+ *       500: { description: Internal Server Error }
+ */
+router.post(
+  '/:userId/packs/:packId/leave',
+  apiAuth,
+  requirePermission('write'),
+  validateUserId,
+  validatePackId,
+  userPackController.leavePack
+);
+
+/**
+ * @swagger
  * /api/users/{userId}/packs/{packId}/dialogs:
  *   get:
  *     summary: Диалоги пака в контексте пользователя
