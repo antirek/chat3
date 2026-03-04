@@ -208,6 +208,88 @@ describe('packController.getMessages', () => {
     expect(res.body.hasMore).toBe(false);
     expect(res.body.cursor).toEqual({ next: null, prev: null });
   });
+
+  test('filter + cursor: возвращает только сообщения по фильтру и корректно пагинирует', async () => {
+    const packId = createPackId(4);
+    const dlg = dialogId(40);
+    await Pack.create({ packId, tenantId, createdAt: generateTimestamp() });
+    await Dialog.create({ tenantId, dialogId: dlg, createdAt: generateTimestamp() });
+    await PackLink.create({ tenantId, packId, dialogId: dlg });
+    await User.create({ tenantId, userId: 'user_msg_filter', createdAt: generateTimestamp() });
+
+    const baseTs = generateTimestamp();
+    await Message.create([
+      {
+        tenantId,
+        dialogId: dlg,
+        messageId: messageId(40),
+        senderId: 'user_msg_filter',
+        content: 'Text 1',
+        type: 'internal.text',
+        createdAt: baseTs + 5
+      },
+      {
+        tenantId,
+        dialogId: dlg,
+        messageId: messageId(41),
+        senderId: 'user_msg_filter',
+        content: 'Text 2',
+        type: 'internal.text',
+        createdAt: baseTs + 4
+      },
+      {
+        tenantId,
+        dialogId: dlg,
+        messageId: messageId(42),
+        senderId: 'user_msg_filter',
+        content: 'Text 3',
+        type: 'internal.text',
+        createdAt: baseTs + 3
+      },
+      {
+        tenantId,
+        dialogId: dlg,
+        messageId: messageId(43),
+        senderId: 'user_msg_filter',
+        content: 'Text 4',
+        type: 'internal.text',
+        createdAt: baseTs + 2
+      },
+      {
+        tenantId,
+        dialogId: dlg,
+        messageId: messageId(44),
+        senderId: 'user_msg_filter',
+        content: 'System',
+        type: 'internal.system',
+        createdAt: baseTs + 1
+      }
+    ]);
+
+    const filter = '(type,eq,internal.text)';
+    const req1 = createMockReq(packId, { limit: 2, filter });
+    const res1 = createMockRes();
+    await packController.getMessages(req1, res1);
+
+    expect(res1.statusCode).toBe(200);
+    expect(res1.body.data).toHaveLength(2);
+    res1.body.data.forEach((m) => expect(m.type).toBe('internal.text'));
+    expect(res1.body.hasMore).toBe(true);
+    expect(res1.body.cursor.next).toBeTruthy();
+
+    const req2 = createMockReq(packId, { limit: 2, filter, cursor: res1.body.cursor.next });
+    const res2 = createMockRes();
+    await packController.getMessages(req2, res2);
+
+    expect(res2.statusCode).toBe(200);
+    expect(res2.body.data).toHaveLength(2);
+    res2.body.data.forEach((m) => expect(m.type).toBe('internal.text'));
+    expect(res2.body.hasMore).toBe(false);
+    expect(res2.body.cursor.next).toBeNull();
+
+    const allIds = [...res1.body.data.map((m) => m.messageId), ...res2.body.data.map((m) => m.messageId)];
+    expect(allIds).not.toContain(messageId(44));
+  });
 });
 
 describe('packController.list', () => {
