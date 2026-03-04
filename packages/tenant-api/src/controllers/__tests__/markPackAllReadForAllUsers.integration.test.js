@@ -285,6 +285,133 @@ describe('markAllReadForAllUsers integration', () => {
     expect(res.statusCode).toBe(404);
     expect(res.body?.message).toMatch(/not found/i);
   });
+
+  test('markAllReadForAllUsers с memberType=user обрабатывает только пользователей типа user, contact не трогает', async () => {
+    const resPack = createMockRes();
+    await packController.create(createReq(), resPack);
+    expect(resPack.statusCode).toBe(201);
+    const packId = resPack.body?.data?.packId;
+
+    const resD1 = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: USER_A, type: 'user' },
+            { userId: CONTACT_ID, type: 'contact' }
+          ]
+        }
+      }),
+      resD1
+    );
+    expect(resD1.statusCode).toBe(201);
+    const dialogId1 = resD1.body?.data?.dialogId;
+
+    const resD2 = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: USER_A, type: 'user' },
+            { userId: USER_B, type: 'user' },
+            { userId: CONTACT_ID, type: 'contact' }
+          ]
+        }
+      }),
+      resD2
+    );
+    expect(resD2.statusCode).toBe(201);
+    const dialogId2 = resD2.body?.data?.dialogId;
+
+    await packController.addDialog(
+      createReq({ params: { packId }, body: { dialogId: dialogId1 } }),
+      createMockRes()
+    );
+    await packController.addDialog(
+      createReq({ params: { packId }, body: { dialogId: dialogId2 } }),
+      createMockRes()
+    );
+
+    await messageController.createMessage(
+      createReq({
+        params: { dialogId: dialogId1 },
+        body: { senderId: CONTACT_ID, content: 'M1', type: 'internal.text' }
+      }),
+      createMockRes()
+    );
+    await messageController.createMessage(
+      createReq({
+        params: { dialogId: dialogId2 },
+        body: { senderId: CONTACT_ID, content: 'M2', type: 'internal.text' }
+      }),
+      createMockRes()
+    );
+    const resMFromUser = createMockRes();
+    await messageController.createMessage(
+      createReq({
+        params: { dialogId: dialogId1 },
+        body: { senderId: USER_A, content: 'M from user', type: 'internal.text' }
+      }),
+      resMFromUser
+    );
+    expect(resMFromUser.statusCode).toBe(201);
+    const messageIdFromUser = resMFromUser.body?.data?.messageId;
+
+    const resMark = createMockRes();
+    await packController.markAllReadForAllUsers(
+      createReq({ params: { packId }, query: { memberType: 'user' } }),
+      resMark
+    );
+    expect(resMark.statusCode).toBe(200);
+    expect(resMark.body?.data?.processedUsersCount).toBe(2);
+    expect(resMark.body?.data?.processedDialogsCount).toBe(3);
+    expect(resMark.body?.data?.totalProcessedMessageCount).toBe(3);
+
+    const statsA = await UserDialogStats.find({
+      tenantId,
+      userId: USER_A,
+      dialogId: { $in: [dialogId1, dialogId2] }
+    }).lean();
+    statsA.forEach((s) => expect(s.unreadCount).toBe(0));
+
+    const statsB = await UserDialogStats.find({
+      tenantId,
+      userId: USER_B,
+      dialogId: dialogId2
+    }).lean();
+    statsB.forEach((s) => expect(s.unreadCount).toBe(0));
+
+    const statsContact = await UserDialogStats.findOne({
+      tenantId,
+      userId: CONTACT_ID,
+      dialogId: dialogId1
+    }).lean();
+    expect(statsContact?.unreadCount).toBe(1);
+
+    const statusContact = await MessageStatus.findOne({
+      tenantId,
+      messageId: messageIdFromUser,
+      userId: CONTACT_ID
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+    expect(statusContact?.status).not.toBe('read');
+  });
+
+  test('markAllReadForAllUsers возвращает 400 при неверном memberType', async () => {
+    const resPack = createMockRes();
+    await packController.create(createReq(), resPack);
+    expect(resPack.statusCode).toBe(201);
+    const packId = resPack.body?.data?.packId;
+
+    const res = createMockRes();
+    await packController.markAllReadForAllUsers(
+      createReq({ params: { packId }, query: { memberType: 'invalid' } }),
+      res
+    );
+    expect(res.statusCode).toBe(400);
+    expect(res.body?.message).toMatch(/memberType/i);
+  });
 });
 
 describe('markAllReadForAllUsers scale integration', () => {

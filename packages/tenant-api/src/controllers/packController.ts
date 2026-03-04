@@ -1,4 +1,4 @@
-import { Pack, PackLink, Dialog, DialogMember, PackStats, UserPackUnreadBySenderType } from '@chat3/models';
+import { Pack, PackLink, Dialog, DialogMember, PackStats, UserPackUnreadBySenderType, User } from '@chat3/models';
 import type { ActorType } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
@@ -639,15 +639,25 @@ export const packController = {
   /**
    * Отметить все сообщения пака прочитанными для всех пользователей — участников диалогов пака.
    * POST /api/packs/:packId/markAllReadForAllUsers
+   * Опционально: ?memberType=user — обрабатывать только участников с User.type === 'user' (contact не трогать).
    * Для каждого пользователя пака: по каждому диалогу пака, где он участник — applyMarkDialogAllRead + markDialogMessagesAsReadUntil.
    * Общий таймаут 5 минут; при превышении — 503.
    */
   async markAllReadForAllUsers(req: AuthenticatedRequest, res: Response): Promise<void> {
     const PACK_MARK_ALL_READ_FOR_ALL_USERS_TIMEOUT_MS = 300_000; // 5 минут
+    const ALLOWED_MEMBER_TYPES = ['user', 'contact', 'bot'];
     try {
       const { packId } = req.params;
       const tenantId = req.tenantId!;
       const { actorId, actorType } = resolveEventActor(req);
+      const memberTypeParam = typeof req.query.memberType === 'string' ? req.query.memberType.trim().toLowerCase() : null;
+      if (memberTypeParam && !ALLOWED_MEMBER_TYPES.includes(memberTypeParam)) {
+        res.status(400).json({
+          error: 'Bad Request',
+          message: `memberType must be one of: ${ALLOWED_MEMBER_TYPES.join(', ')}`
+        });
+        return;
+      }
 
       const pack = await Pack.findOne({ packId, tenantId }).lean();
       if (!pack) {
@@ -672,10 +682,20 @@ export const packController = {
         return;
       }
 
-      const userIds = await DialogMember.distinct('userId', {
+      let userIds = await DialogMember.distinct('userId', {
         tenantId,
         dialogId: { $in: packDialogIds }
       });
+      if (memberTypeParam) {
+        const filtered = await User.find({
+          tenantId,
+          userId: { $in: userIds },
+          type: memberTypeParam
+        })
+          .select('userId')
+          .lean();
+        userIds = (filtered as { userId: string }[]).map((u) => u.userId);
+      }
 
       const readUntil = generateTimestamp();
       const startTime = Date.now();

@@ -261,7 +261,7 @@ router.get(
  * /api/packs/{packId}/markAllReadForAllUsers:
  *   post:
  *     summary: Отметить все сообщения пака прочитанными для всех пользователей
- *     description: Для каждого пользователя — участника диалогов пака обнуляются счётчики непрочитанных и проставляется MessageStatus = read по всем диалогам пака, где он участник. Общий таймаут 5 минут; при превышении — 503.
+ *     description: Для каждого пользователя — участника диалогов пака обнуляются счётчики непрочитанных и проставляется MessageStatus = read по всем диалогам пака, где он участник. Опционально memberType=user — обрабатывать только участников с типом user (contact не трогать). Общий таймаут 5 минут; при превышении — 503.
  *     tags: [Packs]
  *     security:
  *       - ApiKeyAuth: []
@@ -271,6 +271,11 @@ router.get(
  *         name: packId
  *         required: true
  *         schema: { type: string }
+ *       - in: query
+ *         name: memberType
+ *         required: false
+ *         schema: { type: string, enum: [user, contact, bot] }
+ *         description: Обрабатывать только участников с данным типом (User.type). Например user — только пользователи, contact не трогать.
  *     requestBody: { required: false, content: { application/json: { schema: { type: object } } } }
  *     responses:
  *       200:
