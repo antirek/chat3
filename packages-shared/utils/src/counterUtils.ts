@@ -755,7 +755,25 @@ export async function recalculateUserStats(
   // КРИТИЧНО: Сначала создаем и пересчитываем UserDialogStats для всех DialogMember
   // Это нужно, чтобы пересчет unreadDialogsCount был корректным
   const dialogMembers = await DialogMember.find({ tenantId, userId }).select('dialogId').lean();
-  
+  const allowedDialogIds = new Set((dialogMembers as Array<{ dialogId: string }>).map(m => m.dialogId));
+
+  // Удаляем сиротские записи: диалоги, в которых пользователь уже не участник (см. PACK_LEAVE_RECALC_PLAN.md)
+  if (allowedDialogIds.size > 0) {
+    await UserDialogStats.deleteMany({
+      tenantId,
+      userId,
+      dialogId: { $nin: Array.from(allowedDialogIds) }
+    });
+    await UserDialogUnreadBySenderType.deleteMany({
+      tenantId,
+      userId,
+      dialogId: { $nin: Array.from(allowedDialogIds) }
+    });
+  } else {
+    await UserDialogStats.deleteMany({ tenantId, userId });
+    await UserDialogUnreadBySenderType.deleteMany({ tenantId, userId });
+  }
+
   for (const member of dialogMembers) {
     const memberObj = member as { dialogId: string };
     // КРИТИЧНО: Оптимизированный пересчет unreadCount через агрегацию MongoDB
