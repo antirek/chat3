@@ -266,6 +266,55 @@ describe('queryParser', () => {
       expect(withRedundant.$or[1]).toEqual(canonical.$or[1]);
     });
 
+    describe('redundant parentheses in conditions', () => {
+      test('((a)) only — single atom in double parens parses like (a)', () => {
+        const withRedundant = parseFilters('((status,eq,active))');
+        const canonical = parseFilters('(status,eq,active)');
+        expect(withRedundant).toEqual(canonical);
+      });
+
+      test('(a)&((b))&(c) — AND with one double-wrapped condition parses like (a)&(b)&(c)', () => {
+        const withRedundant = parseFilters('(status,eq,active)&((age,gte,18))&(role,eq,user)');
+        const canonical = parseFilters('(status,eq,active)&(age,gte,18)&(role,eq,user)');
+        expect(withRedundant.status).toBe(canonical.status);
+        expect(withRedundant.age).toEqual(canonical.age);
+        expect(withRedundant.role).toBe(canonical.role);
+      });
+
+      test('(a)|((b))|(c) — OR with one branch in double parens parses like (a)|(b)|(c)', () => {
+        const withRedundant = parseFilters('(type,eq,a)|((type,eq,b))|(type,eq,c)');
+        const canonical = parseFilters('(type,eq,a)|(type,eq,b)|(type,eq,c)');
+        expect(withRedundant.$or).toHaveLength(3);
+        expect(canonical.$or).toHaveLength(3);
+        expect(withRedundant.$or[0]).toEqual(canonical.$or[0]);
+        expect(withRedundant.$or[1]).toEqual(canonical.$or[1]);
+        expect(withRedundant.$or[2]).toEqual(canonical.$or[2]);
+      });
+
+      test('((a))|((b)) — both OR branches in double parens parses like (a)|(b)', () => {
+        const withRedundant = parseFilters('((meta.phone,eq,111))|((meta.phone,eq,222))');
+        const canonical = parseFilters('(meta.phone,eq,111)|(meta.phone,eq,222)');
+        expect(withRedundant.$or).toHaveLength(2);
+        expect(canonical.$or).toHaveLength(2);
+        expect(withRedundant.$or[0]).toEqual(canonical.$or[0]);
+        expect(withRedundant.$or[1]).toEqual(canonical.$or[1]);
+      });
+
+      test('(((a))) — triple parens around atom parses (at least to same logical result)', () => {
+        const result = parseFilters('(((status,eq,active)))');
+        expect(result).toEqual({ status: 'active' });
+      });
+
+      test('((a)&(b))|((c)) — AND branch stays wrapped, OR atom normalized', () => {
+        const withRedundant = parseFilters('((status,eq,active)&(age,gte,18))|((status,eq,draft))');
+        const canonical = parseFilters('((status,eq,active)&(age,gte,18))|(status,eq,draft)');
+        expect(withRedundant.$or).toHaveLength(2);
+        expect(canonical.$or).toHaveLength(2);
+        expect(withRedundant.$or[0]).toEqual(canonical.$or[0]);
+        expect(withRedundant.$or[1]).toEqual(canonical.$or[1]);
+      });
+    });
+
     test('should reject a&b|c without parentheses (mixed & and | at depth 0)', () => {
       expect(() => parseFilters('(type,eq,a)&(senderId,eq,c)|(type,eq,system)')).toThrow(FilterValidationError);
       expect(() => parseFilters('(type,eq,a)&(senderId,eq,c)|(type,eq,system)')).toThrow(/use parentheses to group/);

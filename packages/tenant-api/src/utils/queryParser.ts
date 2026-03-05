@@ -427,9 +427,9 @@ function parseOneOperand(part: string): MongoQuery {
     if (atDepth0HasBothAndOr(inner)) {
       throw new FilterValidationError('Filter validation failed: use parentheses to group when mixing & and |');
     }
-    // Если внутри нет & и | — это один атом (field,op,value), парсим со скобками
+    // Если внутри нет & и | — это один атом (field,op,value); в parseFilter передаём один уровень скобок
     if (!/[&|]/.test(inner)) {
-      return parseFilter(p);
+      return parseFilter(inner.startsWith('(') ? inner : '(' + inner + ')');
     }
     return parseFiltersInternal(inner);
   }
