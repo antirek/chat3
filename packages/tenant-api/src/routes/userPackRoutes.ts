@@ -48,7 +48,9 @@ const router = express.Router();
  *         schema:
  *           type: string
  *           default: createdAt
- *         description: Поле сортировки (createdAt, unreadCount и т.д.)
+ *         description: |
+ *           Поле сортировки. Допустимые значения: createdAt, lastActivityAt, unreadCount,
+ *           unread+lastActivityAt (сначала паки с непрочитанными, затем по последней активности; sortDirection применяется к lastActivityAt).
  *       - in: query
  *         name: sortDirection
  *         schema:

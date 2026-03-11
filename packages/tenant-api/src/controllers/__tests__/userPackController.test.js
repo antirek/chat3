@@ -7,7 +7,8 @@ import {
   DialogMember,
   Meta,
   Message,
-  User
+  User,
+  UserPackUnreadBySenderType
 } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
@@ -219,6 +220,192 @@ describe('userPackController.getUserPacks - filter by meta', () => {
     expect(packBRow?.lastMessage.messageId).toBe(msgIdB);
     expect(packBRow?.lastMessage.meta).toEqual({ contactId: 'cnt_xyz' });
     expect(Array.isArray(packBRow?.lastMessage.statusMessageMatrix)).toBe(true);
+  });
+});
+
+describe('userPackController.getUserPacks - sort unread+lastActivityAt', () => {
+  const userId = 'user_sort_unread';
+  const ts = generateTimestamp();
+
+  test('packs with unread first, then by lastActivityAt desc', async () => {
+    const dlg1 = createDialogId(50);
+    const dlg2 = createDialogId(51);
+    const dlg3 = createDialogId(52);
+    await Dialog.create([
+      { tenantId, dialogId: dlg1, createdAt: ts },
+      { tenantId, dialogId: dlg2, createdAt: ts },
+      { tenantId, dialogId: dlg3, createdAt: ts }
+    ]);
+    await DialogMember.create([
+      { tenantId, dialogId: dlg1, userId },
+      { tenantId, dialogId: dlg2, userId },
+      { tenantId, dialogId: dlg3, userId }
+    ]);
+    const p1 = createPackId(50);
+    const p2 = createPackId(51);
+    const p3 = createPackId(52);
+    await Pack.create([
+      { tenantId, packId: p1, createdAt: ts + 10 },
+      { tenantId, packId: p2, createdAt: ts + 20 },
+      { tenantId, packId: p3, createdAt: ts + 30 }
+    ]);
+    await PackLink.create([
+      { tenantId, packId: p1, dialogId: dlg1 },
+      { tenantId, packId: p2, dialogId: dlg2 },
+      { tenantId, packId: p3, dialogId: dlg3 }
+    ]);
+    await Message.create([
+      { tenantId, dialogId: dlg1, messageId: messageId(50), senderId: 's1', type: 'internal.text', content: 'm1', createdAt: ts + 100 },
+      { tenantId, dialogId: dlg2, messageId: messageId(51), senderId: 's1', type: 'internal.text', content: 'm2', createdAt: ts + 200 }
+      // dlg3 без сообщений — lastActivity fallback = Pack.createdAt (ts+30)
+    ]);
+    await UserPackUnreadBySenderType.create([
+      { tenantId, userId, packId: p1, fromType: 'user', countUnread: 2, lastUpdatedAt: ts, createdAt: ts }
+      // p2, p3 без непрочитанных
+    ]);
+
+    const req = createMockReq(userId, { page: 1, limit: 10, sort: 'unread+lastActivityAt', sortDirection: 'desc' });
+    const res = createMockRes();
+    await userPackController.getUserPacks(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.pagination.total).toBe(3);
+    const ids = res.body.data.map((d) => d.packId);
+    expect(ids[0]).toBe(p1);
+    expect(res.body.data[0].stats.unreadCount).toBe(2);
+    expect(res.body.data[1].stats.unreadCount).toBe(0);
+    expect(res.body.data[2].stats.unreadCount).toBe(0);
+    expect(ids[1]).toBe(p2);
+    expect(ids[2]).toBe(p3);
+  });
+
+  test('sortDirection asc applies to lastActivityAt within groups', async () => {
+    const dlg1 = createDialogId(60);
+    const dlg2 = createDialogId(61);
+    await Dialog.create([
+      { tenantId, dialogId: dlg1, createdAt: ts },
+      { tenantId, dialogId: dlg2, createdAt: ts }
+    ]);
+    await DialogMember.create([
+      { tenantId, dialogId: dlg1, userId },
+      { tenantId, dialogId: dlg2, userId }
+    ]);
+    const p1 = createPackId(60);
+    const p2 = createPackId(61);
+    await Pack.create([
+      { tenantId, packId: p1, createdAt: ts + 10 },
+      { tenantId, packId: p2, createdAt: ts + 20 }
+    ]);
+    await PackLink.create([
+      { tenantId, packId: p1, dialogId: dlg1 },
+      { tenantId, packId: p2, dialogId: dlg2 }
+    ]);
+    await Message.create([
+      { tenantId, dialogId: dlg1, messageId: messageId(60), senderId: 's1', type: 'internal.text', content: 'm1', createdAt: ts + 100 },
+      { tenantId, dialogId: dlg2, messageId: messageId(61), senderId: 's1', type: 'internal.text', content: 'm2', createdAt: ts + 200 }
+    ]);
+    const req = createMockReq(userId, { page: 1, limit: 10, sort: 'unread+lastActivityAt', sortDirection: 'asc' });
+    const res = createMockRes();
+    await userPackController.getUserPacks(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+    const ids = res.body.data.map((d) => d.packId);
+    expect(ids[0]).toBe(p1);
+    expect(ids[1]).toBe(p2);
+  });
+
+  test('pagination with sort unread+lastActivityAt: 17 packs, limit 5, first two pages with unread', async () => {
+    const totalPacks = 17;
+    const limit = 5;
+    const packsWithUnreadCount = 9;
+    const dialogs = [];
+    const packs = [];
+    for (let i = 0; i < totalPacks; i++) {
+      dialogs.push(createDialogId(100 + i));
+      packs.push(createPackId(100 + i));
+    }
+    await Dialog.create(
+      dialogs.map((dialogId) => ({ tenantId, dialogId, createdAt: ts + 1 }))
+    );
+    await DialogMember.create(
+      dialogs.map((dialogId) => ({ tenantId, dialogId, userId }))
+    );
+    await Pack.create(
+      packs.map((packId, i) => ({ tenantId, packId, createdAt: ts + 10 + i }))
+    );
+    await PackLink.create(
+      packs.map((packId, i) => ({ tenantId, packId, dialogId: dialogs[i] }))
+    );
+    const messageDocs = packs.slice(0, 12).map((packId, i) => ({
+      tenantId,
+      dialogId: dialogs[i],
+      messageId: messageId(2000 + i * 13),
+      senderId: 's1',
+      type: 'internal.text',
+      content: `m${i}`,
+      createdAt: ts + 100 + i
+    }));
+    await Message.insertMany(messageDocs);
+    for (let i = 12; i < totalPacks; i++) {
+      await Message.create({
+        tenantId,
+        dialogId: dialogs[i],
+        senderId: 's1',
+        type: 'internal.text',
+        content: `m${i}`,
+        createdAt: ts + 100 + i
+      });
+    }
+    await UserPackUnreadBySenderType.insertMany(
+      packs.slice(0, packsWithUnreadCount).map((packId) => ({
+        tenantId,
+        userId,
+        packId,
+        fromType: 'user',
+        countUnread: 1,
+        lastUpdatedAt: ts,
+        createdAt: ts
+      }))
+    );
+
+    const allIds = new Set();
+    for (let page = 1; page <= 4; page++) {
+      const req = createMockReq(userId, {
+        page,
+        limit,
+        sort: 'unread+lastActivityAt',
+        sortDirection: 'desc'
+      });
+      const res = createMockRes();
+      await userPackController.getUserPacks(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.pagination.total).toBe(totalPacks);
+      expect(res.body.pagination.pages).toBe(4);
+      expect(res.body.pagination.limit).toBe(limit);
+      expect(res.body.pagination.page).toBe(page);
+
+      const data = res.body.data;
+      const expectedLen = page < 4 ? limit : totalPacks - (page - 1) * limit;
+      expect(data).toHaveLength(expectedLen);
+
+      data.forEach((row) => {
+        expect(allIds.has(row.packId)).toBe(false);
+        allIds.add(row.packId);
+      });
+
+      const unreadOnThisPage = Math.max(0, Math.min(data.length, packsWithUnreadCount - (page - 1) * limit));
+      data.forEach((row, idx) => {
+        if (idx < unreadOnThisPage) {
+          expect(row.stats.unreadCount).toBeGreaterThan(0);
+        } else {
+          expect(row.stats.unreadCount).toBe(0);
+        }
+      });
+    }
+    expect(allIds.size).toBe(totalPacks);
   });
 });
 

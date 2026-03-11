@@ -543,6 +543,64 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
         .select('-__v')
         .lean();
       packs.sort((a: any, b: any) => pagePackIds.indexOf(a.packId) - pagePackIds.indexOf(b.packId));
+    } else if (sortField === 'unread+lastActivityAt') {
+      const [unreadAgg, packCreatedAtList, allPackLinksForUA] = await Promise.all([
+        UserPackUnreadBySenderType.aggregate<{ _id: string; total: number }>([
+          { $match: { tenantId, userId, packId: { $in: packIdsFilter } } },
+          { $group: { _id: '$packId', total: { $sum: '$countUnread' } } }
+        ]),
+        Pack.find({ packId: { $in: packIdsFilter }, tenantId }).select('packId createdAt').lean(),
+        PackLink.find({ packId: { $in: packIdsFilter }, tenantId }).select('packId dialogId').lean()
+      ]);
+      const unreadByPack = new Map<string, number>(unreadAgg.map((r) => [r._id, r.total]));
+      const packCreatedAtByPack = new Map<string, number>(
+        (packCreatedAtList as { packId: string; createdAt?: number }[]).map((p) => [p.packId, p.createdAt ?? 0])
+      );
+      const userDialogIdsSetForSort = new Set(userDialogIds);
+      const packToDialogIdsSort = new Map<string, string[]>();
+      for (const link of allPackLinksForUA as { packId: string; dialogId: string }[]) {
+        if (!userDialogIdsSetForSort.has(link.dialogId)) continue;
+        if (!packToDialogIdsSort.has(link.packId)) packToDialogIdsSort.set(link.packId, []);
+        packToDialogIdsSort.get(link.packId)!.push(link.dialogId);
+      }
+      const allDialogIdsForSort = [
+        ...new Set(Array.from(packToDialogIdsSort.values()).flat())
+      ];
+      const lastActivityByPack = new Map<string, number>();
+      if (allDialogIdsForSort.length > 0) {
+        const dialogMaxCreated = await Message.aggregate([
+          { $match: { tenantId, dialogId: { $in: allDialogIdsForSort } } },
+          { $sort: { createdAt: -1 } },
+          { $group: { _id: '$dialogId', maxCreated: { $first: '$createdAt' } } }
+        ]);
+        const dialogMaxMap = new Map<string, number>(
+          (dialogMaxCreated as { _id: string; maxCreated: number }[]).map((r) => [r._id, r.maxCreated])
+        );
+        for (const packId of packIdsFilter) {
+          const dialogIds = packToDialogIdsSort.get(packId) || [];
+          const maxAt =
+            dialogIds.length > 0 ? Math.max(...dialogIds.map((d) => dialogMaxMap.get(d) ?? 0)) : 0;
+          const fallback = packCreatedAtByPack.get(packId) ?? 0;
+          lastActivityByPack.set(packId, maxAt > 0 ? maxAt : fallback);
+        }
+      } else {
+        for (const packId of packIdsFilter) {
+          lastActivityByPack.set(packId, packCreatedAtByPack.get(packId) ?? 0);
+        }
+      }
+      const sortedPackIds = [...packIdsFilter].sort((a, b) => {
+        const hasUnreadA = (unreadByPack.get(a) ?? 0) > 0 ? 0 : 1;
+        const hasUnreadB = (unreadByPack.get(b) ?? 0) > 0 ? 0 : 1;
+        if (hasUnreadA !== hasUnreadB) return hasUnreadA - hasUnreadB;
+        const atA = lastActivityByPack.get(a) ?? 0;
+        const atB = lastActivityByPack.get(b) ?? 0;
+        return sortDirection === -1 ? atB - atA : atA - atB;
+      });
+      pagePackIds = sortedPackIds.slice(skip, skip + limit);
+      packs = await Pack.find({ packId: { $in: pagePackIds }, tenantId })
+        .select('-__v')
+        .lean();
+      packs.sort((a: any, b: any) => pagePackIds.indexOf(a.packId) - pagePackIds.indexOf(b.packId));
     } else if (sortField === 'unreadCount') {
       const agg = await UserPackUnreadBySenderType.aggregate<
         { _id: string; total: number; rows: Array<{ fromType: string; countUnread: number; lastUpdatedAt?: number; createdAt?: number }> }
