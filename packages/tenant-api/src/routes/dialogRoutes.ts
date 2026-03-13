@@ -158,7 +158,7 @@ router.get('/', apiAuth, requirePermission('read'), validateQuery(queryWithFilte
  *         name: filter
  *         schema:
  *           type: string
- *         description: Фильтры участников в формате queryParser. Поддерживаются поля `userId`, `role`, `isActive`, `unreadCount`, даты и `meta.*`.
+ *         description: Фильтры участников в формате queryParser. Поддерживаются поля `userId`, `role`, `unreadCount`, даты, `meta.*` и `type` (тип пользователя из User — (type,eq,contact), (type,in,[user,contact]), (type,ne,bot)). Допустимые значения type — user, contact, bot.
  *       - in: query
  *         name: sort
  *         schema:

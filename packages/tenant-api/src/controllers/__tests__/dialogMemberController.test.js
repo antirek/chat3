@@ -69,6 +69,11 @@ describe('dialogMemberController', () => {
 
   describe('getDialogMembers', () => {
     beforeEach(async () => {
+      await User.create([
+        { tenantId, userId: 'alice', type: 'user', createdAt: generateTimestamp() },
+        { tenantId, userId: 'bob', type: 'contact', createdAt: generateTimestamp() },
+        { tenantId, userId: 'carol', type: 'user', createdAt: generateTimestamp() }
+      ]);
       await DialogMember.create([
         {
           tenantId,
@@ -171,6 +176,81 @@ describe('dialogMemberController', () => {
       expect(res.body.pagination.total).toBe(2);
       const userIds = res.body.data.map((member) => member.userId);
       expect(userIds.sort()).toEqual(['alice', 'carol']);
+    });
+
+    test('filters members by type (type,eq,contact) returns only contact', async () => {
+      const req = createMembersReq({ filter: '(type,eq,contact)' });
+      const res = createMockRes();
+
+      await dialogMemberController.getDialogMembers(req, res);
+
+      expect(res.body.pagination.total).toBe(1);
+      expect(res.body.data[0].userId).toBe('bob');
+    });
+
+    test('filters members by type (type,eq,user) returns only users', async () => {
+      const req = createMembersReq({ filter: '(type,eq,user)' });
+      const res = createMockRes();
+
+      await dialogMemberController.getDialogMembers(req, res);
+
+      expect(res.body.pagination.total).toBe(2);
+      const userIds = res.body.data.map((m) => m.userId).sort();
+      expect(userIds).toEqual(['alice', 'carol']);
+    });
+
+    test('filters members by type (type,in,[user,contact]) returns user and contact', async () => {
+      const req = createMembersReq({ filter: '(type,in,[user,contact])' });
+      const res = createMockRes();
+
+      await dialogMemberController.getDialogMembers(req, res);
+
+      expect(res.body.pagination.total).toBe(3);
+      const userIds = res.body.data.map((m) => m.userId).sort();
+      expect(userIds).toEqual(['alice', 'bob', 'carol']);
+    });
+
+    test('filters members by type (type,ne,bot) returns all when no bot', async () => {
+      const req = createMembersReq({ filter: '(type,ne,bot)' });
+      const res = createMockRes();
+
+      await dialogMemberController.getDialogMembers(req, res);
+
+      expect(res.body.pagination.total).toBe(3);
+      const userIds = res.body.data.map((m) => m.userId).sort();
+      expect(userIds).toEqual(['alice', 'bob', 'carol']);
+    });
+
+    test('filter (type,eq,bot) returns empty when no bot in dialog', async () => {
+      const req = createMembersReq({ filter: '(type,eq,bot)' });
+      const res = createMockRes();
+
+      await dialogMemberController.getDialogMembers(req, res);
+
+      expect(res.body.pagination.total).toBe(0);
+      expect(res.body.data).toHaveLength(0);
+    });
+
+    test('combined filter type and meta (type,eq,user)&(meta.shift,eq,day)', async () => {
+      const req = createMembersReq({ filter: '(type,eq,user)&(meta.shift,eq,day)' });
+      const res = createMockRes();
+
+      await dialogMemberController.getDialogMembers(req, res);
+
+      expect(res.body.pagination.total).toBe(2);
+      const userIds = res.body.data.map((m) => m.userId).sort();
+      expect(userIds).toEqual(['alice', 'carol']);
+    });
+
+    test('returns 400 for invalid type value in filter', async () => {
+      const req = createMembersReq({ filter: '(type,eq,invalid)' });
+      const res = createMockRes();
+
+      await dialogMemberController.getDialogMembers(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe('Bad Request');
+      expect(res.body.message).toMatch(/type.*user.*contact.*bot/);
     });
 
     test('returns 404 when dialog is missing', async () => {

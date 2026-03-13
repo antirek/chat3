@@ -1,4 +1,4 @@
-import { Dialog, DialogMember, Meta, UserDialogStats, UserDialogActivity } from '@chat3/models';
+import { Dialog, DialogMember, Meta, User, UserDialogStats, UserDialogActivity } from '@chat3/models';
 import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
 import { applyMarkDialogAllRead } from '../utils/dialogMemberUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
@@ -274,6 +274,86 @@ const dialogMemberController = {
           continue;
         }
         memberQuery[key] = value;
+      }
+
+      const ALLOWED_USER_TYPES = ['user', 'contact', 'bot'];
+      if (regularFilters.type !== undefined) {
+        const typeValue = regularFilters.type;
+        let typeCondition: any;
+        if (typeof typeValue === 'string') {
+          const t = typeValue.trim().toLowerCase();
+          if (!ALLOWED_USER_TYPES.includes(t)) {
+            res.status(400).json({
+              error: 'Bad Request',
+              message: `Filter type value must be one of: ${ALLOWED_USER_TYPES.join(', ')}`
+            });
+            return;
+          }
+          typeCondition = { type: t };
+        } else if (typeValue && typeof typeValue === 'object' && '$in' in typeValue && Array.isArray((typeValue as any).$in)) {
+          const arr = ((typeValue as any).$in as string[]).map((v) => String(v).trim().toLowerCase()).filter((v) => ALLOWED_USER_TYPES.includes(v));
+          if (arr.length === 0) {
+            res.status(400).json({
+              error: 'Bad Request',
+              message: `Filter type $in values must be from: ${ALLOWED_USER_TYPES.join(', ')}`
+            });
+            return;
+          }
+          typeCondition = { type: { $in: arr } };
+        } else if (typeValue && typeof typeValue === 'object' && '$ne' in typeValue) {
+          const t = String((typeValue as any).$ne).trim().toLowerCase();
+          if (!ALLOWED_USER_TYPES.includes(t)) {
+            res.status(400).json({
+              error: 'Bad Request',
+              message: `Filter type $ne value must be one of: ${ALLOWED_USER_TYPES.join(', ')}`
+            });
+            return;
+          }
+          typeCondition = { type: { $ne: t } };
+        } else {
+          res.status(400).json({
+            error: 'Bad Request',
+            message: 'Filter type must be (type,eq,value), (type,in,[...]) or (type,ne,value)'
+          });
+          return;
+        }
+        const dialogMemberIds = await DialogMember.distinct('userId', {
+          tenantId: req.tenantId!,
+          dialogId: dialog.dialogId
+        });
+        if (dialogMemberIds.length === 0) {
+          res.json({
+            data: [],
+            pagination: { page, limit, total: 0, pages: 0 }
+          });
+          return;
+        }
+        const typeFilteredUserIds = await User.find({
+          tenantId: req.tenantId!,
+          userId: { $in: dialogMemberIds },
+          ...typeCondition
+        })
+          .select('userId')
+          .lean()
+          .then((list) => (list as { userId: string }[]).map((u) => u.userId));
+        log(`Фильтр по типу участника: найдено userId с type: ${typeFilteredUserIds.length}`);
+
+        if (typeFilteredUserIds.length === 0) {
+          res.json({
+            data: [],
+            pagination: { page, limit, total: 0, pages: 0 }
+          });
+          return;
+        }
+
+        const typeConditionQuery = { userId: { $in: typeFilteredUserIds } };
+        if (memberQuery.userId !== undefined) {
+          memberQuery.$and = memberQuery.$and || [];
+          memberQuery.$and.push({ userId: memberQuery.userId });
+          delete memberQuery.userId;
+        }
+        memberQuery.$and = memberQuery.$and || [];
+        memberQuery.$and.push(typeConditionQuery);
       }
 
       if (Object.keys(metaFilters).length > 0) {
