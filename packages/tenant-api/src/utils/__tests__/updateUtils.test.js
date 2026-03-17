@@ -572,6 +572,73 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       );
     });
 
+    test('should add senderInfo to message when event has message section without senderInfo (API flow)', async () => {
+      const dialogId = generateDialogId();
+      const messageId = generateMessageId();
+
+      await Dialog.create({ tenantId, dialogId, createdBy: 'user1' });
+      await Message.create({
+        tenantId,
+        messageId,
+        dialogId,
+        senderId: 'agent1',
+        content: 'Hello',
+        type: 'internal.text'
+      });
+      await User.create({ tenantId, userId: 'agent1', type: 'user' });
+      await Meta.create({
+        tenantId,
+        entityType: 'user',
+        entityId: 'agent1',
+        key: 'name',
+        value: 'Support Agent',
+        dataType: 'string'
+      });
+      await DialogMember.create([
+        { tenantId, dialogId, userId: 'user1', unreadCount: 0 },
+        { tenantId, dialogId, userId: 'user2', unreadCount: 0 }
+      ]);
+
+      const { eventId, eventData } = await createEventWithDialog('message.create', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'message.create',
+          dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message'],
+          updatedFields: ['message']
+        },
+        message: {
+          messageId,
+          dialogId,
+          senderId: 'agent1',
+          type: 'internal.text',
+          content: 'Hello',
+          meta: {},
+          topicId: null,
+          topic: null
+        }
+      });
+
+      await updateUtils.createMessageUpdate(
+        tenantId,
+        dialogId,
+        messageId,
+        eventId,
+        'message.create',
+        eventData
+      );
+
+      const update = await Update.findOne({ tenantId, entityId: messageId, userId: 'user1' }).lean();
+      expect(update).toBeDefined();
+      expect(update.data?.message).toBeDefined();
+      expect(Object.prototype.hasOwnProperty.call(update.data.message, 'senderInfo')).toBe(true);
+      expect(update.data.message.senderInfo).not.toBeNull();
+      expect(update.data.message.senderInfo.userId).toBe('agent1');
+      expect(update.data.message.senderInfo.meta).toEqual(expect.objectContaining({ name: 'Support Agent' }));
+    });
+
     test('should include status update in message data', async () => {
       const dialogId = generateDialogId();
       const messageId = generateMessageId();

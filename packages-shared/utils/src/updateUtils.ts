@@ -568,6 +568,16 @@ export async function createMessageUpdate(
       }
     }
 
+    // Для message.create/update всегда добавляем senderInfo в сообщение, если его ещё нет
+    if (['message.create', 'message.update'].includes(eventType) && eventMessage?.senderId != null) {
+      const hasSenderInfo = eventMessage.senderInfo != null && typeof eventMessage.senderInfo === 'object';
+      if (!hasSenderInfo) {
+        const senderCache = new Map<string, SenderInfo | null>();
+        const senderInfo = await getSenderInfo(tenantId, eventMessage.senderId as string, senderCache);
+        Object.assign(eventMessage as Record<string, unknown>, { senderInfo: senderInfo ?? null });
+      }
+    }
+
     if (!eventContext.eventType) {
       eventContext = {
         eventType,
