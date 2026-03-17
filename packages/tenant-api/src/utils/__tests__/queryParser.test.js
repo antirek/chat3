@@ -351,6 +351,58 @@ describe('queryParser', () => {
       expect(result.$and.length).toBeGreaterThanOrEqual(11);
     });
 
+    describe('12 parts (MAX_GROUP_SIZE boundary)', () => {
+      test('accepts filter with exactly 12 OR branches', () => {
+        const parts = Array.from({ length: 12 }, (_, i) => `(meta.phone,eq,v${i + 1})`);
+        const filterStr = parts.join('|');
+        const result = parseFilters(filterStr);
+        expect(result.$or).toHaveLength(12);
+        result.$or.forEach((branch, i) => {
+          expect(branch.meta).toEqual({ phone: `v${i + 1}` });
+        });
+      });
+
+      test('accepts filter with exactly 12 AND conditions in one group', () => {
+        const parts = Array.from({ length: 12 }, (_, i) => `(meta.k,eq,v${i + 1})`);
+        const filterStr = parts.join('&');
+        const result = parseFilters(filterStr);
+        expect(result.$and).toBeDefined();
+        expect(result.$and.length).toBeGreaterThanOrEqual(11);
+        expect(result.meta).toBeDefined();
+      });
+    });
+
+    describe('real-world filter (6 OR with nested AND, GET /api/packs/:packId/dialogs)', () => {
+      const filterFromLog =
+        '(meta.phone,eq,79116363404)|((meta.phone,eq,79116363404)&(meta.telegramUserId,eq,7111210003)&(meta.telegramNickname,eq,minerll))|((meta.phone,eq,79116363404)&(meta.maxUserId,eq,191212690))|(meta.phone,eq,79306668096)|((meta.phone,eq,79306668096)&(meta.telegramUserId,eq,336650012)&(meta.telegramNickname,eq,boombosha))|((meta.phone,eq,79306668096)&(meta.maxUserId,eq,12719598))';
+
+      test('parses without throwing and has 6 OR branches', () => {
+        expect(() => parseFilters(filterFromLog)).not.toThrow();
+        const result = parseFilters(filterFromLog);
+        expect(result.$or).toHaveLength(6);
+      });
+
+      test('first branch is single phone condition', () => {
+        const result = parseFilters(filterFromLog);
+        expect(result.$or[0].meta).toEqual({ phone: 79116363404 });
+      });
+
+      test('second branch is AND of phone, telegramUserId, telegramNickname', () => {
+        const result = parseFilters(filterFromLog);
+        const branch = result.$or[1];
+        expect(branch.meta.phone).toBe(79116363404);
+        expect(branch.$and).toHaveLength(2);
+        const metaAnd = branch.$and.map((q) => q.meta).filter(Boolean);
+        expect(metaAnd.some((m) => m.telegramUserId === 7111210003)).toBe(true);
+        expect(metaAnd.some((m) => m.telegramNickname === 'minerll')).toBe(true);
+      });
+
+      test('fourth branch is single phone (79306668096)', () => {
+        const result = parseFilters(filterFromLog);
+        expect(result.$or[3].meta).toEqual({ phone: 79306668096 });
+      });
+    });
+
     describe('OR combinations and nesting (two levels)', () => {
       test('OR with 3 branches: (a)|(b)|(c)', () => {
         const result = parseFilters('(type,eq,a)|(type,eq,b)|(type,eq,c)');
