@@ -22,7 +22,7 @@ import { DialogMember } from '@chat3/models';
 import type { FilterQuery } from 'mongoose';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 
-const MAX_GROUP_SIZE = 5;
+const MAX_GROUP_SIZE = 12;
 /** Алфавит meta-ключа: только [a-zA-Z0-9_], без точки (должен совпадать с validators/metaKeyPattern) */
 const META_KEY_REGEX = /^[a-zA-Z0-9_]+$/;
 
@@ -468,7 +468,7 @@ function parseFiltersInternal(filterString: string): MongoQuery {
 /**
  * Парсит множественные фильтры, разделенные & и |
  * Группировка только скобками; внутри одной группы — один тип оператора (& или |).
- * Лимит 5 на число веток $or и операндов в группе.
+ * Лимит 12 на число веток $or и операндов в группе.
  * @param filterString - Строка с фильтрами
  * @returns Объединенный MongoDB query
  */

@@ -325,29 +325,30 @@ describe('queryParser', () => {
       expect(() => parseFilters('((type,eq,a)&(senderId,eq,c)|(type,eq,system))')).toThrow(/use parentheses to group/);
     });
 
-    test('should reject more than 5 OR branches', () => {
-      const sixOr = '(a,eq,1)|(a,eq,2)|(a,eq,3)|(a,eq,4)|(a,eq,5)|(a,eq,6)';
-      expect(() => parseFilters(sixOr)).toThrow(FilterValidationError);
-      expect(() => parseFilters(sixOr)).toThrow(/too many OR branches/);
+    test('should reject more than 12 OR branches', () => {
+      const thirteenOr = Array.from({ length: 13 }, (_, i) => `(a,eq,${i + 1})`).join('|');
+      expect(() => parseFilters(thirteenOr)).toThrow(FilterValidationError);
+      expect(() => parseFilters(thirteenOr)).toThrow(/too many OR branches/);
     });
 
-    test('should reject more than 5 operands in AND group', () => {
-      const sixAnd = '(a,eq,1)&(a,eq,2)&(a,eq,3)&(a,eq,4)&(a,eq,5)&(a,eq,6)';
-      expect(() => parseFilters(sixAnd)).toThrow(FilterValidationError);
-      expect(() => parseFilters(sixAnd)).toThrow(/too many conditions in group/);
+    test('should reject more than 12 operands in AND group', () => {
+      const thirteenAnd = Array.from({ length: 13 }, (_, i) => `(a,eq,${i + 1})`).join('&');
+      expect(() => parseFilters(thirteenAnd)).toThrow(FilterValidationError);
+      expect(() => parseFilters(thirteenAnd)).toThrow(/too many conditions in group/);
     });
 
-    test('should allow exactly 5 OR branches', () => {
-      const fiveOr = '(a,eq,1)|(a,eq,2)|(a,eq,3)|(a,eq,4)|(a,eq,5)';
-      const result = parseFilters(fiveOr);
-      expect(result.$or).toHaveLength(5);
+    test('should allow exactly 12 OR branches', () => {
+      const twelveOr = Array.from({ length: 12 }, (_, i) => `(a,eq,${i + 1})`).join('|');
+      const result = parseFilters(twelveOr);
+      expect(result.$or).toHaveLength(12);
     });
 
-    test('should allow exactly 5 AND operands', () => {
-      const fiveAnd = '(a,eq,1)&(a,eq,2)&(a,eq,3)&(a,eq,4)&(a,eq,5)';
-      const result = parseFilters(fiveAnd);
+    test('should allow exactly 12 AND operands', () => {
+      const twelveAnd = Array.from({ length: 12 }, (_, i) => `(a,eq,${i + 1})`).join('&');
+      const result = parseFilters(twelveAnd);
       expect(result.$and).toBeDefined();
-      expect(result.$and.length).toBeGreaterThanOrEqual(1);
+      // mergeAndOperands помещает первый ключ в result, остальные конфликты — в $and (11 элементов)
+      expect(result.$and.length).toBeGreaterThanOrEqual(11);
     });
 
     describe('OR combinations and nesting (two levels)', () => {
@@ -429,16 +430,16 @@ describe('queryParser', () => {
         expect(result.$or).toBeUndefined();
       });
 
-      test('reject 6 OR branches', () => {
-        const six = '(x,eq,1)|(x,eq,2)|(x,eq,3)|(x,eq,4)|(x,eq,5)|(x,eq,6)';
-        expect(() => parseFilters(six)).toThrow(FilterValidationError);
-        expect(() => parseFilters(six)).toThrow(/too many OR branches/);
+      test('reject more than 12 OR branches', () => {
+        const thirteen = Array.from({ length: 13 }, (_, i) => `(x,eq,${i + 1})`).join('|');
+        expect(() => parseFilters(thirteen)).toThrow(FilterValidationError);
+        expect(() => parseFilters(thirteen)).toThrow(/too many OR branches/);
       });
 
-      test('reject 6 operands in one AND group', () => {
-        const six = '(x,eq,1)&(x,eq,2)&(x,eq,3)&(x,eq,4)&(x,eq,5)&(x,eq,6)';
-        expect(() => parseFilters(six)).toThrow(FilterValidationError);
-        expect(() => parseFilters(six)).toThrow(/too many conditions in group/);
+      test('reject more than 12 operands in one AND group', () => {
+        const thirteen = Array.from({ length: 13 }, (_, i) => `(x,eq,${i + 1})`).join('&');
+        expect(() => parseFilters(thirteen)).toThrow(FilterValidationError);
+        expect(() => parseFilters(thirteen)).toThrow(/too many conditions in group/);
       });
     });
   });
