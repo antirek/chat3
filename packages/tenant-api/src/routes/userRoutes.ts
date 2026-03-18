@@ -41,20 +41,27 @@ const router = express.Router();
  *           Фильтр в формате (field,operator,value)
  *           
  *           Примеры:
- *           - `(name,regex,^John)` - имя начинается с John
+ *           - `(type,eq,user)` - тип пользователя
  *           - `(userId,in,[carl,marta,sara])` - userId в списке
+ *           - `(stats.dialogCount,gte,1)` - у пользователя есть диалоги (≥1). Допустимые stats: dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount
+ *           - `(type,eq,user)&(stats.dialogCount,gte,1)` - пользователи типа user с хотя бы одним диалогом
  *         examples:
- *           by-name:
- *             summary: По имени
- *             value: '(name,regex,^Carl)'
+ *           by-type:
+ *             summary: По типу
+ *             value: '(type,eq,user)'
  *           by-userId:
  *             summary: По userId
  *             value: '(userId,in,[carl,marta])'
+ *           with-stats:
+ *             summary: С диалогами
+ *             value: '(type,eq,user)&(stats.dialogCount,gte,1)'
  *       - in: query
  *         name: sort
  *         schema:
  *           type: string
- *         description: Сортировка в формате JSON, например `{"createdAt":-1}`
+ *         description: |
+ *           Сортировка в формате JSON. Поля User: createdAt, userId, type. Поля stats: stats.dialogCount, stats.unreadDialogsCount, stats.totalUnreadCount, stats.totalMessagesCount.
+ *           Примеры: `{"createdAt":-1}`, `{"stats.dialogCount":-1}`, `{"createdAt":1,"stats.totalUnreadCount":-1}`
  *     responses:
  *       200:
  *         description: Список пользователей

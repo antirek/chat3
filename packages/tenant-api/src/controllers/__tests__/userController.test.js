@@ -294,6 +294,78 @@ describe('userController.getUsers', () => {
     expect(carl.stats.totalUnreadCount).toBeDefined();
     expect(carl.stats.totalMessagesCount).toBeDefined();
   });
+
+  test('filters by stats.dialogCount (gte 1) returns only users with dialogs', async () => {
+    await UserStats.create([
+      { tenantId, userId: 'agent_carl', dialogCount: 2, unreadDialogsCount: 0, totalUnreadCount: 0, totalMessagesCount: 0 },
+      { tenantId, userId: 'manager_alice', dialogCount: 0, unreadDialogsCount: 0, totalUnreadCount: 0, totalMessagesCount: 0 }
+    ]);
+
+    const req = createMockReq({
+      filter: '(type,eq,user)&(stats.dialogCount,gte,1)',
+      page: '1',
+      limit: '10'
+    });
+    const res = createMockRes();
+    await getUsers(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].userId).toBe('agent_carl');
+    expect(res.body.data[0].stats.dialogCount).toBe(2);
+  });
+
+  test('stats.dialogCount filter with no matching UserStats returns empty', async () => {
+    // UserStats нет ни у кого — все имеют 0 диалогов
+    const req = createMockReq({
+      filter: '(stats.dialogCount,gte,1)',
+      page: '1',
+      limit: '10'
+    });
+    const res = createMockRes();
+    await getUsers(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(0);
+    expect(res.body.pagination.total).toBe(0);
+  });
+
+  test('returns 400 on invalid sort field', async () => {
+    const req = createMockReq({
+      sort: '{"stats.dialogCountt":-1}',
+      page: '1',
+      limit: '10'
+    });
+    const res = createMockRes();
+    await getUsers(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Bad Request');
+    expect(res.body.message).toMatch(/Invalid sort field/);
+  });
+
+  test('sort by stats.dialogCount returns users in correct order', async () => {
+    await UserStats.create([
+      { tenantId, userId: 'agent_carl', dialogCount: 1, unreadDialogsCount: 0, totalUnreadCount: 0, totalMessagesCount: 0 },
+      { tenantId, userId: 'manager_alice', dialogCount: 3, unreadDialogsCount: 0, totalUnreadCount: 0, totalMessagesCount: 0 },
+      { tenantId, userId: 'guest_zoe', dialogCount: 2, unreadDialogsCount: 0, totalUnreadCount: 0, totalMessagesCount: 0 }
+    ]);
+
+    const req = createMockReq({
+      sort: '{"stats.dialogCount":-1}',
+      page: '1',
+      limit: '10'
+    });
+    const res = createMockRes();
+    await getUsers(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.data[0].userId).toBe('manager_alice');
+    expect(res.body.data[0].stats.dialogCount).toBe(3);
+    expect(res.body.data[1].userId).toBe('guest_zoe');
+    expect(res.body.data[2].userId).toBe('agent_carl');
+  });
 });
 
 describe('userController.getUserById', () => {

@@ -5,6 +5,12 @@ import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { Response } from 'express';
 import { parseFilters, extractMetaFilters, buildFilterQuery } from '../utils/queryParser.js';
+import {
+  extractStatsFilters,
+  buildUserStatsQuery,
+  validateSort,
+  sortHasStatsKeys
+} from '../utils/userStatsFilterUtils.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
 function appendFilterConditions(target: any[], filtersObject: any): void {
@@ -73,6 +79,115 @@ async function findUserIdsByMeta(metaFilters: any, tenantId: string): Promise<st
 }
 
 /**
+ * Агрегация GET /api/users при наличии stats в фильтре или в sort.
+ * Возвращает список пользователей с обогащённым stats в том же формате, что и обычный путь.
+ */
+async function runGetUsersAggregation(
+  tenantId: string,
+  finalFilter: any,
+  sort: Record<string, 1 | -1>,
+  statsFilters: Record<string, unknown> | null,
+  skip: number,
+  limit: number,
+  log: (...args: any[]) => void
+): Promise<{ list: any[]; total: number }> {
+  const sortStage: Record<string, 1 | -1> = {};
+  for (const [key, value] of Object.entries(sort)) {
+    const pipelineKey = key.startsWith('stats.') ? key.slice(6) : key;
+    sortStage[pipelineKey] = value as 1 | -1;
+  }
+
+  const pipeline: any[] = [
+    { $match: finalFilter },
+    {
+      $lookup: {
+        from: 'userstats',
+        let: { uid: '$userId' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [{ $eq: ['$tenantId', tenantId] }, { $eq: ['$userId', '$$uid'] }]
+              }
+            }
+          }
+        ],
+        as: 'statsDoc'
+      }
+    },
+    { $unwind: { path: '$statsDoc', preserveNullAndEmptyArrays: true } },
+    {
+      $addFields: {
+        dialogCount: { $ifNull: ['$statsDoc.dialogCount', 0] },
+        unreadDialogsCount: { $ifNull: ['$statsDoc.unreadDialogsCount', 0] },
+        totalUnreadCount: { $ifNull: ['$statsDoc.totalUnreadCount', 0] },
+        totalMessagesCount: { $ifNull: ['$statsDoc.totalMessagesCount', 0] }
+      }
+    }
+  ];
+
+  if (statsFilters && Object.keys(statsFilters).length > 0) {
+    pipeline.push({ $match: statsFilters });
+  }
+
+  pipeline.push(
+    { $sort: sortStage },
+    {
+      $facet: {
+        count: [{ $count: 'n' }],
+        data: [{ $skip: skip }, { $limit: limit }]
+      }
+    }
+  );
+
+  const result = await User.aggregate(pipeline);
+  const countDoc = result[0]?.count?.[0];
+  const total = countDoc?.n ?? 0;
+  const data = result[0]?.data ?? [];
+  log(`Aggregation path: ${data.length} users, total=${total}`);
+
+  if (data.length === 0) {
+    return { list: [], total };
+  }
+
+  const userIds = data.map((d: any) => d.userId);
+  const unreadBySenderRows = await UserUnreadBySenderType.find({
+    tenantId,
+    userId: { $in: userIds }
+  })
+    .select('userId fromType countUnread')
+    .lean();
+
+  const unreadByUser = new Map<string, Array<{ fromType: string; countUnread: number }>>();
+  for (const uid of userIds) {
+    unreadByUser.set(uid, PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 })));
+  }
+  for (const row of unreadBySenderRows as Array<{ userId: string; fromType: string; countUnread: number }>) {
+    const arr = unreadByUser.get(row.userId);
+    if (arr) {
+      const entry = arr.find((e) => e.fromType === row.fromType);
+      if (entry) entry.countUnread = row.countUnread;
+    }
+  }
+
+  const list = data.map((doc: any) => {
+    const { statsDoc, dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount, ...user } = doc;
+    const unreadBySenderType = unreadByUser.get(user.userId) ?? PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 }));
+    const totalUnread = unreadBySenderType.reduce((s: number, x: any) => s + x.countUnread, 0);
+    user.stats = {
+      dialogCount: dialogCount ?? 0,
+      unreadDialogsCount: unreadDialogsCount ?? 0,
+      totalUnreadCount: totalUnread,
+      totalMessagesCount: totalMessagesCount ?? 0,
+      unreadBySenderType
+    };
+    return user;
+  });
+
+  return { list, total };
+}
+
+/**
  * Получить список всех пользователей
  * GET /api/users
  */
@@ -110,20 +225,39 @@ export async function getUsers(req: AuthenticatedRequest, res: Response): Promis
     }
 
     const extracted = extractMetaFilters(parsedFilters);
-    const sort = req.query.sort ? JSON.parse(String(req.query.sort)) : { createdAt: -1 };
+    let sort: Record<string, 1 | -1> = { createdAt: -1 };
+    if (req.query.sort) {
+      try {
+        sort = JSON.parse(String(req.query.sort)) as Record<string, 1 | -1>;
+      } catch (_e) {
+        res.status(400).json({
+          error: 'Bad Request',
+          message: 'Invalid sort format. Expected JSON object (e.g. {"createdAt":-1})'
+        });
+        return;
+      }
+      const sortError = validateSort(sort);
+      if (sortError) {
+        res.status(400).json({ error: 'Bad Request', message: sortError });
+        return;
+      }
+    }
     const page = parseInt(String(req.query.page)) || 1;
     const limit = parseInt(String(req.query.limit)) || 50;
     log(`Получены параметры: page=${page}, limit=${limit}, sort=${JSON.stringify(sort)}, filter=${req.query.filter || 'нет'}`);
 
     const andConditions: any[] = [{ tenantId: req.tenantId! }];
+    let statsFilters: Record<string, unknown> | null = null;
 
     if ('branches' in extracted) {
       const filterQuery = await buildFilterQuery(req.tenantId!, 'user', parsedFilters);
       andConditions.push(filterQuery);
     } else {
       const { metaFilters, regularFilters } = extracted;
-      if (regularFilters && Object.keys(regularFilters).length > 0) {
-        appendFilterConditions(andConditions, regularFilters);
+      const { statsFilters: extractedStats, rest } = extractStatsFilters(regularFilters || {});
+      statsFilters = extractedStats;
+      if (rest && Object.keys(rest).length > 0) {
+        appendFilterConditions(andConditions, rest);
       }
       if (metaFilters && Object.keys(metaFilters).length > 0) {
         log(`Поиск пользователей по мета-фильтрам: metaFilters=${JSON.stringify(metaFilters)}`);
@@ -146,9 +280,39 @@ export async function getUsers(req: AuthenticatedRequest, res: Response): Promis
       }
     }
 
-    const finalFilter = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
+    const useAggregation = statsFilters !== null || sortHasStatsKeys(sort);
 
+    if (!useAggregation && statsFilters !== null) {
+      const statsQuery = buildUserStatsQuery(req.tenantId!, statsFilters);
+      const statsDocs = await UserStats.find(statsQuery as any).select('userId').lean();
+      const userIds = (statsDocs as { userId: string }[]).map((d) => d.userId);
+      log(`Stats filter applied: ${userIds.length} userIds from UserStats`);
+      if (userIds.length === 0) {
+        res.json({
+          data: [],
+          pagination: { page, limit, total: 0, pages: 0 }
+        });
+        return;
+      }
+      andConditions.push({ userId: { $in: userIds } });
+    }
+
+    const finalFilter = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
     const skip = (page - 1) * limit;
+
+    if (useAggregation) {
+      const result = await runGetUsersAggregation(req.tenantId!, finalFilter, sort, statsFilters, skip, limit, log);
+      res.json({
+        data: result.list.map((u: any) => sanitizeResponse(u)),
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          pages: Math.ceil(result.total / limit)
+        }
+      });
+      return;
+    }
 
     // Подсчитываем общее количество
     log(`Выполнение запроса пользователей: skip=${skip}, limit=${limit}`);
