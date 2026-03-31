@@ -25,6 +25,7 @@ const INTERNAL_MEDIA_MESSAGE_TYPES = Object.freeze([
 
 const SYSTEM_MESSAGE_TYPE_REGEX = /^system\.[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 const USER_MESSAGE_TYPE_REGEX = /^user\.[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
+const MESSAGE_MESSAGE_TYPE_REGEX = /^message\.[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 
 const META_KEY_SCHEMA = Joi.string()
   .pattern(META_KEY_PATTERN)
@@ -100,11 +101,14 @@ export const createMessageSchema = Joi.object({
       if (USER_MESSAGE_TYPE_REGEX.test(value)) {
         return value;
       }
+      if (MESSAGE_MESSAGE_TYPE_REGEX.test(value)) {
+        return value;
+      }
       return helpers.error('any.invalid');
     })
     .default('internal.text')
     .messages({
-      'any.invalid': 'type must be one of the predefined internal.* values or match system.* / user.*'
+      'any.invalid': 'type must be one of the predefined internal.* values or match system.* / user.* / message.*'
     }),
   meta: Joi.alternatives().conditional('type', {
     is: Joi.valid(...INTERNAL_MEDIA_MESSAGE_TYPES),

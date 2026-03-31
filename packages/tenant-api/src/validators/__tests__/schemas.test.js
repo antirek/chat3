@@ -72,6 +72,17 @@ describe('bodySchemas.createMessageSchema', () => {
     expect(value.type).toBe('system.announcement');
   });
 
+  test('accepts message.* message type', () => {
+    const { error, value } = validate({
+      senderId: 'user_1',
+      type: 'message.call',
+      content: ''
+    });
+
+    expect(error).toBeUndefined();
+    expect(value.type).toBe('message.call');
+  });
+
   test('rejects invalid message type', () => {
     const { error } = validate({
       senderId: 'user_1',
@@ -81,6 +92,7 @@ describe('bodySchemas.createMessageSchema', () => {
 
     expect(error).toBeDefined();
     expect(error?.details?.[0]?.message).toContain('type must be one of the predefined internal.* values');
+    expect(error?.details?.[0]?.message).toContain('message.*');
   });
 
   test('defaults meta to empty object for non-media types', () => {
