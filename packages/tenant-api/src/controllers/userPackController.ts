@@ -999,9 +999,8 @@ export async function getPackMessages(req: AuthenticatedRequest, res: Response):
     }
 
     const enriched = await enrichMessagesWithMetaAndStatuses(packMessages.messages, tenantId);
-    const dataWithSource = enriched.map((message) => ({
+    const dataWithContext = enriched.map((message) => ({
       ...message,
-      sourceDialogId: message.dialogId,
       context: {
         userId,
         isMine: message.senderId === userId
@@ -1009,7 +1008,7 @@ export async function getPackMessages(req: AuthenticatedRequest, res: Response):
     }));
 
     res.json({
-      data: sanitizeResponse(dataWithSource),
+      data: sanitizeResponse(dataWithContext),
       cursor: packMessages.pageInfo.cursor,
       hasMore: packMessages.pageInfo.hasMore
     });

@@ -167,7 +167,7 @@ describe('packController.getMessages', () => {
     expect(res.body.data).toHaveLength(2);
 
     const [first, second] = res.body.data;
-    expect(first.sourceDialogId || first.dialogId).toBeDefined();
+    expect(first.dialogId).toBeDefined();
     expect(Number(first.createdAt)).toBeGreaterThan(Number(second.createdAt));
     expect(res.body.hasMore).toBe(true);
     expect(res.body.cursor.next).toBeTruthy();

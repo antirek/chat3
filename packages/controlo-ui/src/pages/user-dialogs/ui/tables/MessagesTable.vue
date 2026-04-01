@@ -73,7 +73,6 @@ interface Message {
   createdAt: string | number;
   topicId?: string | null;
   dialogId?: string;
-  sourceDialogId?: string;
   context?: {
     isMine?: boolean;
     status?: string;
@@ -98,7 +97,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 function getMessageDialogId(item: Message): string {
-  return item.sourceDialogId || item.dialogId || '';
+  return item.dialogId || '';
 }
 
 function displayDialogId(item: Message): string {

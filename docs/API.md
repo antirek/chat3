@@ -767,7 +767,6 @@ npm run generate-key
     {
       "messageId": "msg_abcd",
       "dialogId": "dlg_main",
-      "sourceDialogId": "dlg_main",
       "content": "Пример сообщения",
       "senderId": "user_alpha",
       "senderInfo": {
@@ -791,7 +790,6 @@ npm run generate-key
 
 - `cursor.next` содержит base64 курсор (`createdAt|messageId`), который нужно передать в следующем запросе для получения следующей страницы.
 - `cursor.prev` зарезервирован для обратной навигации (сейчас `null` для первой страницы).
-- Каждая запись содержит `sourceDialogId`, указывающий исходный диалог сообщения.
 
 **Мета-теги пака:** `PUT /api/meta/pack/:packId/:key`, `DELETE /api/meta/pack/:packId/:key`, `GET /api/meta/pack/:packId`
 

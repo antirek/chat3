@@ -532,13 +532,9 @@ export const packController = {
       }
 
       const enriched = await enrichMessagesWithMetaAndStatuses(packMessages.messages, tenantId);
-      const dataWithSource = enriched.map((message) => ({
-        ...message,
-        sourceDialogId: message.dialogId
-      }));
 
       res.json({
-        data: sanitizeResponse(dataWithSource),
+        data: sanitizeResponse(enriched),
         cursor: packMessages.pageInfo.cursor,
         hasMore: packMessages.pageInfo.hasMore
       });

@@ -9,7 +9,6 @@ import { useCredentialsStore } from '@/app/stores/credentials';
 export interface PackMessageForUser {
   messageId: string;
   dialogId: string;
-  sourceDialogId?: string;
   content?: string;
   senderId?: string;
   createdAt: number;

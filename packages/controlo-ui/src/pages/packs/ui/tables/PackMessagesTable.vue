@@ -18,7 +18,7 @@
       </template>
 
       <template #row="{ item }">
-        <td class="cell-dialog"><code>{{ (item as PackMessage).sourceDialogId || (item as PackMessage).dialogId }}</code></td>
+        <td class="cell-dialog"><code>{{ (item as PackMessage).dialogId }}</code></td>
         <td class="cell-message">
           <span class="message-type" v-if="(item as PackMessage).type">{{ (item as PackMessage).type }}</span>
           <span class="message-content">{{ summarizeContent(item as PackMessage) }}</span>
@@ -45,7 +45,6 @@ interface SenderInfo {
 interface PackMessage {
   messageId: string;
   dialogId: string;
-  sourceDialogId?: string;
   content?: unknown;
   type?: string;
   senderId?: string;
