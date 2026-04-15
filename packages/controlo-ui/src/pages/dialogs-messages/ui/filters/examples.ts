@@ -34,6 +34,15 @@ export const dialogFilterExamples: FilterExample[] = [
     ],
   },
   {
+    label: 'По времени сообщения (message.createdAt)',
+    options: [
+      {
+        value: '(message.createdAt,gte,1700000000)&(message.createdAt,lte,1700003600)',
+        label: 'Сообщения в окне ~1 ч (unix-сек; смотрите Swagger tenant-api для ограничений)',
+      },
+    ],
+  },
+  {
     label: 'Комбинированные фильтры',
     options: [
       { value: '(member,eq,carl)&(meta.channelType,eq,whatsapp)', label: '👤 Carl + WhatsApp' },

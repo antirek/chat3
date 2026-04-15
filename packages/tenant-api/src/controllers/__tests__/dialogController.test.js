@@ -1,5 +1,5 @@
 import { dialogController } from '../dialogController.js';
-import { Tenant, User, Dialog, DialogMember, Meta, Event, UserDialogStats } from '@chat3/models';
+import { Tenant, User, Dialog, DialogMember, Meta, Message, Event, UserDialogStats } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
@@ -258,6 +258,177 @@ describe('dialogController.getAll - filter combinations', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data).toHaveLength(0);
     expect(res.body.pagination.total).toBe(0);
+  });
+
+  test('filters with OR over meta only (branches) without message', async () => {
+    const req = createMockReq(tenantId, {
+      filter: '(meta.department,eq,sales)|(meta.department,eq,engineering)',
+      page: 1,
+      limit: 10,
+    });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    const ids = res.body.data.map((d) => d.dialogId);
+    expect(ids).toContain(dialogA.dialogId);
+    expect(ids).toContain(dialogB.dialogId);
+    expect(ids).toContain(dialogC.dialogId);
+    expect(ids).not.toContain(dialogD.dialogId);
+  });
+});
+
+describe('dialogController.getAll - message.createdAt filter', () => {
+  const loSec = 1700000000;
+  const hiSec = loSec + 3600;
+  const loMs = loSec * 1000;
+  const hiMs = hiSec * 1000;
+
+  function generateMessageId() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'msg_';
+    for (let i = 0; i < 20; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  let dialogIn;
+  let dialogOut;
+
+  beforeEach(async () => {
+    const ts = generateTimestamp();
+
+    dialogIn = await Dialog.create({
+      dialogId: generateDialogId(),
+      tenantId,
+      createdAt: ts,
+    });
+
+    dialogOut = await Dialog.create({
+      dialogId: generateDialogId(),
+      tenantId,
+      createdAt: ts,
+    });
+
+    await Meta.create([
+      {
+        tenantId,
+        entityType: 'dialog',
+        entityId: dialogIn.dialogId,
+        key: 'type',
+        value: 'internal',
+        dataType: 'string',
+      },
+      {
+        tenantId,
+        entityType: 'dialog',
+        entityId: dialogOut.dialogId,
+        key: 'type',
+        value: 'internal',
+        dataType: 'string',
+      },
+    ]);
+
+    const msgIn = await Message.create({
+      tenantId,
+      dialogId: dialogIn.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'carl',
+      content: 'in range',
+      type: 'internal.text',
+    });
+    await Message.updateOne({ messageId: msgIn.messageId }, { $set: { createdAt: loMs + 1000 } });
+
+    const msgOut = await Message.create({
+      tenantId,
+      dialogId: dialogOut.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'carl',
+      content: 'out of range',
+      type: 'internal.text',
+    });
+    await Message.updateOne(
+      { messageId: msgOut.messageId },
+      { $set: { createdAt: hiMs + 48 * 3600 * 1000 } }
+    );
+  });
+
+  test('returns only dialogs with messages in createdAt range (unix seconds operands)', async () => {
+    const req = createMockReq(tenantId, {
+      page: 1,
+      limit: 10,
+      filter: `(message.createdAt,gte,${loSec})&(message.createdAt,lte,${hiSec})`,
+    });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    const ids = res.body.data.map((d) => d.dialogId);
+    expect(ids).toContain(dialogIn.dialogId);
+    expect(ids).not.toContain(dialogOut.dialogId);
+  });
+
+  test('intersects message.createdAt with meta filter', async () => {
+    const req = createMockReq(tenantId, {
+      page: 1,
+      limit: 10,
+      filter: `(message.createdAt,gte,${loSec})&(message.createdAt,lte,${hiSec})&(meta.type,eq,internal)`,
+    });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    const ids = res.body.data.map((d) => d.dialogId);
+    expect(ids).toContain(dialogIn.dialogId);
+    expect(ids).not.toContain(dialogOut.dialogId);
+  });
+
+  test('400 when filter has | and message.createdAt', async () => {
+    const req = createMockReq(tenantId, {
+      page: 1,
+      limit: 10,
+      filter: `(meta.type,eq,internal)|(message.createdAt,gte,${loSec})`,
+    });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toContain('ИЛИ');
+  });
+
+  test('400 for unsupported message.foo', async () => {
+    const req = createMockReq(tenantId, {
+      page: 1,
+      limit: 10,
+      filter: '(message.foo,eq,bar)',
+    });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toContain('message.foo');
+  });
+
+  test('400 when two bounds span more than 24 hours', async () => {
+    const a = loSec;
+    const b = loSec + 25 * 3600;
+    const req = createMockReq(tenantId, {
+      page: 1,
+      limit: 10,
+      filter: `(message.createdAt,gte,${a})&(message.createdAt,lte,${b})`,
+    });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toContain('24');
   });
 });
 

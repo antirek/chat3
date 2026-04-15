@@ -1,9 +1,14 @@
  
-import { Dialog, Meta, DialogMember, PackLink,
+import { Dialog, Meta, DialogMember, PackLink, Message,
   UserDialogStats, UserDialogActivity, DialogStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort, buildFilterQuery } from '../utils/queryParser.js';
+import {
+  assertFilterNotOrWithMessage,
+  collectMessageCreatedAtCondition,
+  stripMessageFilterFromParsed
+} from '../utils/userDialogMessageFilterUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 
 import * as userUtils from '../utils/userUtils.js';
@@ -39,12 +44,77 @@ export const dialogController = {
       // Фильтрация по метаданным и участникам
       if (req.query.filter) {
         try {
-          const parsedFilters = parseFilters(String(req.query.filter));
+          const rawParsed = parseFilters(String(req.query.filter));
+
+          const orMsgErr = assertFilterNotOrWithMessage(rawParsed);
+          if (orMsgErr) {
+            res.status(400).json({
+              error: 'Bad Request',
+              message: orMsgErr
+            });
+            return;
+          }
+
+          const msgCollect = collectMessageCreatedAtCondition(rawParsed);
+          if (msgCollect.ok === false) {
+            res.status(400).json({
+              error: 'Bad Request',
+              message: msgCollect.errorMessage
+            });
+            return;
+          }
+
+          if (msgCollect.createdAt !== null) {
+            const distinctIds = (await Message.distinct('dialogId', {
+              tenantId: req.tenantId!,
+              createdAt: msgCollect.createdAt
+            })) as string[];
+            if (distinctIds.length === 0) {
+              res.json({
+                data: sanitizeResponse([]),
+                pagination: {
+                  page,
+                  limit,
+                  total: 0,
+                  pages: 0
+                }
+              });
+              return;
+            }
+            dialogIds = distinctIds;
+          }
+
+          const parsedFilters = stripMessageFilterFromParsed(rawParsed);
           const extracted = extractMetaFilters(parsedFilters);
 
           // При $or используем buildFilterQuery (member в ветках не поддерживается)
           if ('branches' in extracted) {
-            queryFromOrFilter = { tenantId: req.tenantId!, ...(await buildFilterQuery(req.tenantId!, 'dialog', parsedFilters)) };
+            const baseQuery = await buildFilterQuery(req.tenantId!, 'dialog', parsedFilters);
+            const dialogsMatchingOr = await Dialog.find({
+              tenantId: req.tenantId!,
+              ...baseQuery
+            })
+              .select('dialogId')
+              .lean();
+            let orIds = dialogsMatchingOr.map((d: { dialogId: string }) => d.dialogId);
+            if (dialogIds !== null) {
+              const messageIdSet = new Set(dialogIds);
+              orIds = orIds.filter((id: string) => messageIdSet.has(id));
+            }
+            if (orIds.length === 0) {
+              res.json({
+                data: sanitizeResponse([]),
+                pagination: {
+                  page,
+                  limit,
+                  total: 0,
+                  pages: 0
+                }
+              });
+              return;
+            }
+            queryFromOrFilter = { tenantId: req.tenantId!, dialogId: { $in: orIds } };
+            regularFilters = {};
           } else {
           const { metaFilters, regularFilters: extractedRegularFilters, memberFilters } = extracted;
           regularFilters = extractedRegularFilters;

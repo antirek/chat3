@@ -43,6 +43,10 @@ const router = express.Router();
  *       **Комбинирование фильтров (AND логика):**
  *       - `(meta.type,eq,internal)&(meta.channelType,ne,telegram)` - internal И НЕ telegram
  *       - `(meta.type,eq,external)&(meta.channelType,in,[whatsapp,telegram])` - external И (whatsapp ИЛИ telegram)
+ *
+ *       **Сообщения (`message.createdAt`):** диалоги, где есть хотя бы одно сообщение с `createdAt` в заданном диапазоне
+ *       (операнды unix-time; значения &lt; 1e12 — секунды). При двух границах (например `gte`+`lte`) интервал не длиннее 24 ч.
+ *       Поля `message.*` кроме `createdAt` не поддерживаются. Условия по `message.*` несовместимы с оператором `|` на верхнем уровне фильтра — используйте только `&`.
  *     tags: [Dialogs]
  *     security:
  *       - ApiKeyAuth: []
@@ -65,11 +69,13 @@ const router = express.Router();
  *         schema:
  *           type: string
  *         description: |
- *           Фильтр по meta полям. Примеры:
+ *           Фильтр по meta, участникам (`member`), времени сообщений (`message.createdAt`) и др. Примеры:
  *           
  *           JSON: `{"meta":{"type":"internal"}}`
  *           
  *           Операторы: `(meta.type,eq,internal)&(meta.channelType,ne,telegram)`
+ *
+ *           Сообщения за интервал: `(message.createdAt,gte,1700000000)&(message.createdAt,lte,1700003600)`
  *         examples:
  *           json-simple:
  *             summary: JSON - простой фильтр
@@ -101,6 +107,9 @@ const router = express.Router();
  *           members-whatsapp-john:
  *             summary: Members + Channel - WhatsApp диалоги с john
  *             value: '(meta.channelType,eq,whatsapp)&(meta.members,in,[john])'
+ *           message-created-at-window:
+ *             summary: Диалоги с сообщением в окне по времени (unix-секунды)
+ *             value: '(message.createdAt,gte,1700000000)&(message.createdAt,lte,1700003600)'
  *     responses:
  *       200:
  *         description: Список диалогов с участниками и meta данными
