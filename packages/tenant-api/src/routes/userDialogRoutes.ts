@@ -37,6 +37,15 @@ const router = express.Router();
  *           default: 10
  *         description: Number of items per page
  *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Строковый фильтр (синтаксис как в GET /api/dialogs). Дополнительно: message.createdAt — диалоги,
+ *           где есть сообщение с createdAt в заданном диапазоне (операнды unix-time; значения &lt; 1e12 трактуются как секунды).
+ *           При двух границах (например gte+lte) интервал не длиннее 24 часов. Поля message.* кроме createdAt не поддерживаются.
+ *           Сочетание условий по message с оператором ИЛИ (|) в одном filter запрещено (400).
+ *       - in: query
  *         name: includeLastMessage
  *         schema:
  *           type: boolean

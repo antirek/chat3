@@ -14,6 +14,11 @@ import { applyMarkDialogAllRead } from '../utils/dialogMemberUtils.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { parseFilters, extractMetaFilters, parseSort, buildFilterQuery } from '../utils/queryParser.js';
+import {
+  assertFilterNotOrWithMessage,
+  collectMessageCreatedAtCondition,
+  stripMessageFilterFromParsed
+} from '../utils/userDialogMessageFilterUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { validateGetUserDialogMessagesResponse, validateGetUserDialogMessageResponse } from '../validators/schemas/responseSchemas.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
@@ -56,7 +61,50 @@ const userDialogController = {
       // Фильтрация по метаданным
       if (req.query.filter) {
         try {
-          const parsedFilters = parseFilters(String(req.query.filter));
+          const rawParsed = parseFilters(String(req.query.filter));
+
+          const orMsgErr = assertFilterNotOrWithMessage(rawParsed);
+          if (orMsgErr) {
+            res.status(400).json({
+              error: 'Bad Request',
+              message: orMsgErr
+            });
+            return;
+          }
+
+          const msgCollect = collectMessageCreatedAtCondition(rawParsed);
+          if (msgCollect.ok === false) {
+            res.status(400).json({
+              error: 'Bad Request',
+              message: msgCollect.errorMessage
+            });
+            return;
+          }
+
+          if (msgCollect.createdAt !== null) {
+            const distinctIds = await Message.distinct('dialogId', {
+              tenantId: req.tenantId!,
+              createdAt: msgCollect.createdAt
+            });
+            const userMemberRows = await DialogMember.find({
+              userId,
+              tenantId: req.tenantId!
+            })
+              .select('dialogId')
+              .lean();
+            const allowed = new Set(userMemberRows.map((m: any) => m.dialogId));
+            const narrowed = (distinctIds as string[]).filter((id: string) => allowed.has(id));
+            if (narrowed.length === 0) {
+              res.json({
+                data: [],
+                pagination: { page, limit, total: 0, pages: 0 }
+              });
+              return;
+            }
+            dialogIds = narrowed;
+          }
+
+          const parsedFilters = stripMessageFilterFromParsed(rawParsed);
           const extracted = extractMetaFilters(parsedFilters);
 
           // При $or используем buildFilterQuery (member в ветках не поддерживается)
@@ -767,7 +815,7 @@ const userDialogController = {
       // unreadCount теперь в UserDialogStats, обрабатываем отдельно
       if (Object.keys(otherRegularFilters).length > 0) {
         // Применяем фильтры для полей DialogMember (кроме unreadCount, lastSeenAt, lastMessageAt)
-        const excludedFields = ['unreadCount', 'lastSeenAt', 'lastMessageAt'];
+        const excludedFields = ['unreadCount', 'lastSeenAt', 'lastMessageAt', 'message'];
         for (const [field, condition] of Object.entries(otherRegularFilters)) {
           if (!excludedFields.includes(field)) {
             dialogMembersQuery[field] = condition;
@@ -1029,8 +1077,10 @@ const userDialogController = {
       // Если был применен фильтр по участникам, дополнительно проверяем, что в каждом диалоге действительно есть нужные участники
       if (dialogIds !== null && req.query.filter) {
         try {
-          const parsedFilters = parseFilters(String(req.query.filter));
-          const extracted = extractMetaFilters(parsedFilters);
+          const parsedFiltersForMember = stripMessageFilterFromParsed(
+            parseFilters(String(req.query.filter))
+          );
+          const extracted = extractMetaFilters(parsedFiltersForMember);
           if ('branches' in extracted) {
             // При $or member не поддерживается — проверку пропускаем
           } else {

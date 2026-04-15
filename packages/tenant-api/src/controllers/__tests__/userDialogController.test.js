@@ -2123,5 +2123,185 @@ describe('userDialogController', () => {
       expect(res.body.message).toContain('topic.topicId');
     });
   });
+
+  describe('getUserDialogs - message.createdAt filter', () => {
+    let userId;
+    let dialogIn;
+    let dialogOut;
+
+    const loSec = 1700000000;
+    const hiSec = loSec + 3600;
+    const loMs = loSec * 1000;
+    const hiMs = hiSec * 1000;
+
+    beforeEach(async () => {
+      userId = 'carl';
+      const ts = generateTimestamp();
+
+      await User.create({
+        userId,
+        tenantId,
+        name: 'Carl',
+        createdAt: ts
+      });
+
+      dialogIn = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId,
+        createdAt: ts
+      });
+
+      dialogOut = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId,
+        createdAt: ts
+      });
+
+      await DialogMember.create([
+        {
+          userId,
+          dialogId: dialogIn.dialogId,
+          tenantId,
+          role: 'member',
+          isActive: true,
+          unreadCount: 0,
+          joinedAt: ts,
+          lastSeenAt: ts,
+          lastMessageAt: ts,
+          createdAt: ts
+        },
+        {
+          userId,
+          dialogId: dialogOut.dialogId,
+          tenantId,
+          role: 'member',
+          isActive: true,
+          unreadCount: 0,
+          joinedAt: ts,
+          lastSeenAt: ts,
+          lastMessageAt: ts,
+          createdAt: ts
+        }
+      ]);
+
+      const msgIn = await Message.create({
+        tenantId,
+        dialogId: dialogIn.dialogId,
+        messageId: generateMessageId(),
+        senderId: userId,
+        content: 'in range',
+        type: 'internal.text'
+      });
+      await Message.updateOne(
+        { messageId: msgIn.messageId },
+        { $set: { createdAt: loMs + 1000 } }
+      );
+
+      const msgOut = await Message.create({
+        tenantId,
+        dialogId: dialogOut.dialogId,
+        messageId: generateMessageId(),
+        senderId: userId,
+        content: 'out of range',
+        type: 'internal.text'
+      });
+      await Message.updateOne(
+        { messageId: msgOut.messageId },
+        { $set: { createdAt: hiMs + 48 * 3600 * 1000 } }
+      );
+    });
+
+    test('returns only dialogs with messages in createdAt range (unix seconds operands)', async () => {
+      const req = createMockReq(
+        { userId },
+        {
+          page: 1,
+          limit: 10,
+          filter: `(message.createdAt,gte,${loSec})&(message.createdAt,lte,${hiSec})`
+        }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data).toBeDefined();
+      const ids = res.body.data.map((d) => d.dialogId);
+      expect(ids).toContain(dialogIn.dialogId);
+      expect(ids).not.toContain(dialogOut.dialogId);
+    });
+
+    test('OR-1: 400 when filter has | and message.createdAt', async () => {
+      const req = createMockReq(
+        { userId },
+        {
+          page: 1,
+          limit: 10,
+          filter: `(meta.type,eq,internal)|(message.createdAt,gte,${loSec})`
+        }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toContain('ИЛИ');
+    });
+
+    test('OR-4: 200 when filter has | only over meta (no message)', async () => {
+      const req = createMockReq(
+        { userId },
+        {
+          page: 1,
+          limit: 10,
+          filter: '(meta.type,eq,internal)|(meta.type,eq,external)'
+        }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      expect(res.body.data).toBeDefined();
+    });
+
+    test('400 for unsupported message.foo', async () => {
+      const req = createMockReq(
+        { userId },
+        {
+          page: 1,
+          limit: 10,
+          filter: '(message.foo,eq,bar)'
+        }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toContain('message.foo');
+    });
+
+    test('400 when two bounds span more than 24 hours', async () => {
+      const a = loSec;
+      const b = loSec + 25 * 3600;
+      const req = createMockReq(
+        { userId },
+        {
+          page: 1,
+          limit: 10,
+          filter: `(message.createdAt,gte,${a})&(message.createdAt,lte,${b})`
+        }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toContain('24');
+    });
+  });
 });
 

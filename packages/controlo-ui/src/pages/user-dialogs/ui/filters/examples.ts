@@ -94,6 +94,15 @@ export const dialogFilterExamples: FilterExample[] = [
     ],
   },
   {
+    label: 'Сообщения (message.createdAt)',
+    options: [
+      {
+        value: '(message.createdAt,gte,1700000000)&(message.createdAt,lte,1700003600)',
+        label: '📨 Сообщения за интервал (подставьте unix-секунды; интервал ≤ 24 ч)'
+      }
+    ]
+  },
+  {
     label: 'Комбинированные фильтры',
     options: [
       { value: '(unreadCount,gte,4)&(meta.channelType,eq,whatsapp)', label: '📬 ≥4 непрочитанных + WhatsApp' },
