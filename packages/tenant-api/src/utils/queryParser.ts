@@ -128,9 +128,9 @@ export function parseFilter(filterString: string | undefined | null): MongoQuery
         current = current[parts[i]];
       }
       const lastPart = parts[parts.length - 1];
-      current[lastPart] = mongoQuery;
+      mergeMongoQuery(current, lastPart, mongoQuery);
     } else {
-      result[fieldTrimmed] = mongoQuery;
+      mergeMongoQuery(result, fieldTrimmed, mongoQuery);
     }
   }
 
@@ -218,6 +218,14 @@ function dateToTimestamp(dateStr: string): number | null {
     return date.getTime();
   } catch (_e) {
     return null;
+  }
+}
+
+function mergeMongoQuery(target: any, key: string, query: MongoQuery): void {
+  if (key in target) {
+    Object.assign(target[key], query);
+  } else {
+    target[key] = query;
   }
 }
 
