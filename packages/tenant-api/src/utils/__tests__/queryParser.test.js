@@ -90,6 +90,52 @@ describe('queryParser', () => {
       expect(parseFilter('(age,lte,65)')).toEqual({ age: { $lte: 65 } });
     });
 
+    describe('duplicate field in one filter string (mergeMongoQuery)', () => {
+      test('merges comparison operators on the same root field', () => {
+        const result = parseFilter('(age,gte,18)(age,lte,65)');
+        expect(result).toEqual({ age: { $gte: 18, $lte: 65 } });
+      });
+
+      test('merges three operators on the same root field', () => {
+        const result = parseFilter('(age,gt,0)(age,lt,100)(age,ne,50)');
+        expect(result).toEqual({ age: { $gt: 0, $lt: 100, $ne: 50 } });
+      });
+
+      test('merges comparison operators on nested meta field', () => {
+        const result = parseFilter('(meta.score,gte,1)(meta.score,lte,100)');
+        expect(result).toEqual({ meta: { score: { $gte: 1, $lte: 100 } } });
+      });
+
+      test('merges comparison operators on topic.meta field', () => {
+        const result = parseFilter(
+          '(topic.meta.priority,gte,1)(topic.meta.priority,lte,3)'
+        );
+        expect(result).toEqual({
+          topic: {
+            meta: {
+              priority: { $gte: 1, $lte: 3 },
+            },
+          },
+        });
+      });
+
+      test('merges date range on createdAt in one filter string (unix ms in filter)', () => {
+        const gte = new Date('2025-01-01').getTime();
+        const lte = new Date('2025-12-31').getTime();
+        const result = parseFilter(
+          `(createdAt,gte,${gte})(createdAt,lte,${lte})`
+        );
+        expect(result.createdAt).toEqual({ $gte: gte, $lte: lte });
+      });
+
+      test('merges in and nin on the same field', () => {
+        const result = parseFilter('(status,in,[a,b])(status,nin,[c])');
+        expect(result).toEqual({
+          status: { $in: ['a', 'b'], $nin: ['c'] },
+        });
+      });
+    });
+
     test('should parse regex operator', () => {
       const result = parseFilter('(name,regex,^John)');
       expect(result).toEqual({ name: { $regex: '^John', $options: 'i' } });
@@ -117,10 +163,10 @@ describe('queryParser', () => {
       expect(typeof result.createdAt).toBe('number');
     });
 
-    test('should parse ISO date strings for timestamp fields', () => {
-      const result = parseFilter('(createdAt,eq,2025-10-21T10:30:00Z)');
-      expect(result.createdAt).toBeGreaterThan(0);
-      expect(typeof result.createdAt).toBe('number');
+    test('should parse unix ms for timestamp fields (eq)', () => {
+      const ts = new Date('2025-10-21T10:30:00Z').getTime();
+      const result = parseFilter(`(createdAt,eq,${ts})`);
+      expect(result.createdAt).toBe(ts);
     });
 
     test('should parse quoted strings', () => {
