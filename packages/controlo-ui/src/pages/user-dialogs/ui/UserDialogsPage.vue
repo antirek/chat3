@@ -102,7 +102,7 @@
             :selected-example="selectedFilterExample"
             :examples="dialogFilterExamples"
             placeholder="Введите или выберите фильтр"
-            hint="Поля: dialogId, meta.*, message.createdAt (диалоги, где есть сообщения в интервале по времени создания; при gte+lte — не дольше 24 ч; с | и message.* нельзя). Операторы: eq, ne, in, nin, regex, gt, gte, lt, lte. И и ИЛИ: & и |; скобки задают группы (макс. 5 в группе)."
+            hint="Поля: dialogId, meta.*, member, topic.*, unreadCount, message.createdAt (есть сообщения во времени; одна граница — gte или lte; при двух границах интервал ≤24 ч; с | и message.* нельзя). Операторы: eq, ne, in, nin, regex, gt, gte, lt, lte. И и ИЛИ: & и |; скобки задают группы (макс. 5 в группе)."
             @update:filter-value="filterValue = $event"
             @update:selected-example="selectedFilterExample = $event"
             @select-example="selectFilterExample"

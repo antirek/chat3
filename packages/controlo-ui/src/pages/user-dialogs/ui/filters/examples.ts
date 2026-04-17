@@ -97,10 +97,26 @@ export const dialogFilterExamples: FilterExample[] = [
     label: 'Сообщения (message.createdAt)',
     options: [
       {
+        value: '(message.createdAt,gte,1700000000)',
+        label: '📨 Одна граница: не раньше (только gte; операнды unix-сек, если число меньше 1e12)',
+      },
+      {
+        value: '(message.createdAt,lte,1700003600)',
+        label: '📨 Одна граница: не позже (только lte)',
+      },
+      {
+        value: '(message.createdAt,gte,1700000000)&(message.createdAt,lte,1700001800)',
+        label: '📨 Две границы: окно ~30 мин (разница 1800 сек)',
+      },
+      {
         value: '(message.createdAt,gte,1700000000)&(message.createdAt,lte,1700003600)',
-        label: '📨 Сообщения за интервал (подставьте unix-секунды; интервал ≤ 24 ч)'
-      }
-    ]
+        label: '📨 Две границы: окно ~1 ч (3600 сек)',
+      },
+      {
+        value: '(message.createdAt,gte,1700000000)&(message.createdAt,lte,1700086400)',
+        label: '📨 Две границы: окно 24 ч (86400 сек, макс. при gte+lte)',
+      },
+    ],
   },
   {
     label: 'Комбинированные фильтры',
