@@ -6,6 +6,7 @@ import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort, buildFilterQuery } from '../utils/queryParser.js';
 import {
   assertFilterNotOrWithMessage,
+  buildMessageCreatedAtDistinctPipeline,
   collectMessageCreatedAtCondition,
   stripMessageFilterFromParsed
 } from '../utils/userDialogMessageFilterUtils.js';
@@ -65,10 +66,10 @@ export const dialogController = {
           }
 
           if (msgCollect.createdAt !== null) {
-            const distinctIds = (await Message.distinct('dialogId', {
-              tenantId: req.tenantId!,
-              createdAt: msgCollect.createdAt
-            })) as string[];
+            const distinctRows = await Message.aggregate(
+              buildMessageCreatedAtDistinctPipeline(req.tenantId!, msgCollect.createdAt)
+            );
+            const distinctIds = distinctRows.map((r: { _id: string }) => r._id) as string[];
             if (distinctIds.length === 0) {
               res.json({
                 data: sanitizeResponse([]),

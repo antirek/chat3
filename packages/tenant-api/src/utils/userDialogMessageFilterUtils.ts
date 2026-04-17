@@ -3,6 +3,8 @@
  * См. packages/tenant-api/docs/plan-message-createdAt-filter-user-dialogs.md
  */
 
+import type { PipelineStage } from 'mongoose';
+
 const MS_24H = 24 * 60 * 60 * 1000;
 /** Значения &lt; этого порога считаем unix-секундами и переводим в миллисекунды. */
 const SECONDS_VS_MS_THRESHOLD = 1e12;
@@ -142,6 +144,112 @@ export function collectMessageCreatedAtCondition(rawParsed: MongoQuery): Collect
     return { ok: false, errorMessage: winErr };
   }
   return { ok: true, createdAt: merged };
+}
+
+/**
+ * Порог для эвристики хранения `Message.createdAt` в БД: значения ≥ считаем миллисекундами
+ * (как в схеме), &lt; — часто встречающиеся «unix-секунды» в числовом поле (наследие/импорты).
+ * Совпадает с порогом интерпретации операндов в фильтре (см. SECONDS_VS_MS_THRESHOLD).
+ */
+const DB_CREATEDAT_UNIT_THRESHOLD = SECONDS_VS_MS_THRESHOLD;
+
+function toSecScaleCondition(merged: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [op, val] of Object.entries(merged)) {
+    out[op] = val / 1000;
+  }
+  return out;
+}
+
+/**
+ * Выражение aggregation: числовое значение времени из поля createdAt
+ * (число, строка «unix» или «unix.дробь» как у микросекунд, BSON date).
+ */
+export function messageCreatedAtNumericExpr(fieldPath: string = '$createdAt'): Record<string, unknown> {
+  return {
+    $switch: {
+      branches: [
+        {
+          case: { $in: [{ $type: fieldPath }, ['double', 'int', 'long', 'decimal']] },
+          then: { $toDouble: fieldPath }
+        },
+        {
+          case: { $eq: [{ $type: fieldPath }, 'string'] },
+          then: {
+            $convert: { input: fieldPath, to: 'double', onError: null, onNull: null }
+          }
+        },
+        {
+          case: { $eq: [{ $type: fieldPath }, 'date'] },
+          then: { $toDouble: { $toLong: fieldPath } }
+        }
+      ],
+      default: null
+    }
+  };
+}
+
+function buildNumericBoundsExpr(nVar: string, merged: Record<string, number>): Record<string, unknown> {
+  const ref = nVar.startsWith('$') ? nVar : `$${nVar}`;
+  const parts: Record<string, unknown>[] = [];
+  if (merged.$gte !== undefined) parts.push({ $gte: [ref, merged.$gte] });
+  if (merged.$gt !== undefined) parts.push({ $gt: [ref, merged.$gt] });
+  if (merged.$lte !== undefined) parts.push({ $lte: [ref, merged.$lte] });
+  if (merged.$lt !== undefined) parts.push({ $lt: [ref, merged.$lt] });
+  if (merged.$eq !== undefined) parts.push({ $eq: [ref, merged.$eq] });
+  if (parts.length === 0) return { $literal: true };
+  if (parts.length === 1) return parts[0];
+  return { $and: parts };
+}
+
+/**
+ * $expr для отбора сообщений по createdAt: числа (мс/сек), строки с unix и дробной частью.
+ */
+export function buildMessageCreatedAtMatchExpr(createdAt: Record<string, number>): Record<string, unknown> {
+  const secCond = toSecScaleCondition(createdAt);
+  return {
+    $let: {
+      vars: {
+        n: messageCreatedAtNumericExpr()
+      },
+      in: {
+        $and: [
+          { $ne: ['$$n', null] },
+          {
+            $or: [
+              {
+                $and: [
+                  { $gte: ['$$n', DB_CREATEDAT_UNIT_THRESHOLD] },
+                  buildNumericBoundsExpr('$$n', createdAt)
+                ]
+              },
+              {
+                $and: [
+                  { $lt: ['$$n', DB_CREATEDAT_UNIT_THRESHOLD] },
+                  buildNumericBoundsExpr('$$n', secCond)
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  };
+}
+
+/**
+ * Pipeline для получения уникальных dialogId по условию времени сообщения.
+ * Поддерживает createdAt как number и как string (unix ± дробная часть).
+ */
+export function buildMessageCreatedAtDistinctPipeline(
+  tenantId: string,
+  createdAt: Record<string, number>
+): PipelineStage[] {
+  return [
+    { $match: { tenantId } },
+    { $match: { $expr: buildMessageCreatedAtMatchExpr(createdAt) } },
+    { $group: { _id: '$dialogId' } }
+  ];
 }
 
 /**

@@ -2233,6 +2233,106 @@ describe('userDialogController', () => {
       expect(ids).not.toContain(dialogOut.dialogId);
     });
 
+    test('matches when Message.createdAt in DB is string unix.microseconds', async () => {
+      const ts = generateTimestamp();
+      const dialogStr = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId,
+        createdAt: ts
+      });
+      await DialogMember.create({
+        userId,
+        dialogId: dialogStr.dialogId,
+        tenantId,
+        role: 'member',
+        isActive: true,
+        unreadCount: 0,
+        joinedAt: ts,
+        lastSeenAt: ts,
+        lastMessageAt: ts,
+        createdAt: ts
+      });
+      const msgStr = await Message.create({
+        tenantId,
+        dialogId: dialogStr.dialogId,
+        messageId: generateMessageId(),
+        senderId: userId,
+        content: 'string ts',
+        type: 'internal.text'
+      });
+      await Message.collection.updateOne(
+        { messageId: msgStr.messageId },
+        { $set: { createdAt: `${loSec + 120}.123456` } }
+      );
+
+      const req = createMockReq(
+        { userId },
+        {
+          page: 1,
+          limit: 10,
+          filter: `(message.createdAt,gte,${loSec})&(message.createdAt,lte,${hiSec})`
+        }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      const ids = res.body.data.map((d) => d.dialogId);
+      expect(ids).toContain(dialogStr.dialogId);
+    });
+
+    test('matches when Message.createdAt in DB is unix seconds (legacy)', async () => {
+      const ts = generateTimestamp();
+      const dialogSec = await Dialog.create({
+        dialogId: generateDialogId(),
+        tenantId,
+        createdBy: userId,
+        createdAt: ts
+      });
+      await DialogMember.create({
+        userId,
+        dialogId: dialogSec.dialogId,
+        tenantId,
+        role: 'member',
+        isActive: true,
+        unreadCount: 0,
+        joinedAt: ts,
+        lastSeenAt: ts,
+        lastMessageAt: ts,
+        createdAt: ts
+      });
+      const msgSec = await Message.create({
+        tenantId,
+        dialogId: dialogSec.dialogId,
+        messageId: generateMessageId(),
+        senderId: userId,
+        content: 'sec storage',
+        type: 'internal.text'
+      });
+      await Message.updateOne(
+        { messageId: msgSec.messageId },
+        { $set: { createdAt: loSec + 120 } }
+      );
+
+      const req = createMockReq(
+        { userId },
+        {
+          page: 1,
+          limit: 10,
+          filter: `(message.createdAt,gte,${loSec})&(message.createdAt,lte,${hiSec})`
+        }
+      );
+      const res = createMockRes();
+
+      await userDialogController.getUserDialogs(req, res);
+
+      expect(res.statusCode).toBeUndefined();
+      const ids = res.body.data.map((d) => d.dialogId);
+      expect(ids).toContain(dialogSec.dialogId);
+    });
+
     test('OR-1: 400 when filter has | and message.createdAt', async () => {
       const req = createMockReq(
         { userId },

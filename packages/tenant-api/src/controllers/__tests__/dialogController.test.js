@@ -371,6 +371,72 @@ describe('dialogController.getAll - message.createdAt filter', () => {
     expect(ids).not.toContain(dialogOut.dialogId);
   });
 
+  test('matches when Message.createdAt in DB is string unix.microseconds', async () => {
+    const dialogStr = await Dialog.create({
+      dialogId: generateDialogId(),
+      tenantId,
+      createdAt: generateTimestamp(),
+    });
+    const msgStr = await Message.create({
+      tenantId,
+      dialogId: dialogStr.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'carl',
+      content: 'string ts',
+      type: 'internal.text',
+    });
+    await Message.collection.updateOne(
+      { messageId: msgStr.messageId },
+      { $set: { createdAt: `${loSec + 120}.123456` } }
+    );
+
+    const req = createMockReq(tenantId, {
+      page: 1,
+      limit: 10,
+      filter: `(message.createdAt,gte,${loSec})&(message.createdAt,lte,${hiSec})`,
+    });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    const ids = res.body.data.map((d) => d.dialogId);
+    expect(ids).toContain(dialogStr.dialogId);
+  });
+
+  test('matches when Message.createdAt in DB is unix seconds (legacy), operands still in seconds', async () => {
+    const dialogSec = await Dialog.create({
+      dialogId: generateDialogId(),
+      tenantId,
+      createdAt: generateTimestamp(),
+    });
+    const msgSec = await Message.create({
+      tenantId,
+      dialogId: dialogSec.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'carl',
+      content: 'sec storage',
+      type: 'internal.text',
+    });
+    await Message.updateOne(
+      { messageId: msgSec.messageId },
+      { $set: { createdAt: loSec + 120 } }
+    );
+
+    const req = createMockReq(tenantId, {
+      page: 1,
+      limit: 10,
+      filter: `(message.createdAt,gte,${loSec})&(message.createdAt,lte,${hiSec})`,
+    });
+    const res = createMockRes();
+
+    await dialogController.getAll(req, res);
+
+    expect(res.statusCode).toBeUndefined();
+    const ids = res.body.data.map((d) => d.dialogId);
+    expect(ids).toContain(dialogSec.dialogId);
+  });
+
   test('intersects message.createdAt with meta filter', async () => {
     const req = createMockReq(tenantId, {
       page: 1,
