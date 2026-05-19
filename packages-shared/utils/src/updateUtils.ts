@@ -568,6 +568,19 @@ export async function createMessageUpdate(
       }
     }
 
+    // statusMessageMatrix в событии формируется ДО MessageStatus.create() в API — пересчитываем из БД,
+    // чтобы матрица в update совпадала с statusUpdate (воркер вызывается после сохранения статуса).
+    if (eventType === 'message.status.update' && eventMessage?.messageId) {
+      let senderId = eventMessage.senderId as string | undefined;
+      if (!senderId) {
+        const msg = await Message.findOne({ messageId, tenantId }).select('senderId').lean();
+        senderId = (msg as { senderId?: string } | null)?.senderId;
+      }
+      if (senderId) {
+        eventMessage.statusMessageMatrix = await buildStatusMessageMatrix(tenantId, messageId, senderId);
+      }
+    }
+
     // Для message.create/update всегда добавляем senderInfo в сообщение, если его ещё нет
     if (['message.create', 'message.update'].includes(eventType) && eventMessage?.senderId != null) {
       const hasSenderInfo = eventMessage.senderInfo != null && typeof eventMessage.senderInfo === 'object';

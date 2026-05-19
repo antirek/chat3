@@ -2146,9 +2146,6 @@ const userDialogController = {
         }
       }
 
-      // Формируем полную матрицу статусов для Event
-      const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, messageId, message.senderId);
-
       const messageSection = eventUtils.buildMessageSection({
         messageId,
         dialogId: dialogId,
@@ -2162,8 +2159,9 @@ const userDialogController = {
           userId,
           status,
           oldStatus: oldStatus
-        },
-        statusMessageMatrix
+        }
+        // statusMessageMatrix не включаем: событие создаётся до MessageStatus.create(),
+        // матрица пересчитывается в update-worker (createMessageUpdate) после сохранения статуса.
       });
 
       // КРИТИЧНО: Декремент UserDialogUnreadBySenderType — ДО createEvent и до MessageStatus.create(),

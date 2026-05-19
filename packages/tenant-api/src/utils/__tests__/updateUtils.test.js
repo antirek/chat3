@@ -728,6 +728,77 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(update.data.member).toBeUndefined();
     });
 
+    test('message.status.update should rebuild statusMessageMatrix from DB (not stale event payload)', async () => {
+      const dialogId = generateDialogId();
+      const messageId = generateMessageId();
+      const contactId = 'cnt_test_contact';
+
+      await Dialog.create({ tenantId, dialogId, createdBy: 'user1' });
+      await Message.create({
+        tenantId,
+        messageId,
+        dialogId,
+        senderId: 'user1',
+        content: 'Test message',
+        type: 'internal.text'
+      });
+      await DialogMember.create({ tenantId, dialogId, userId: 'user1', unreadCount: 0 });
+
+      // Статус уже в БД (как после MessageStatus.create в API), в событии — пустая матрица (как до create).
+      await MessageStatus.create({
+        tenantId,
+        messageId,
+        dialogId,
+        userId: contactId,
+        status: 'received',
+        userType: 'contact',
+        createdAt: generateTimestamp()
+      });
+
+      const { eventId, eventData } = await createEventWithDialog('message.status.update', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'message.status.update',
+          dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message'],
+          updatedFields: ['message.status']
+        },
+        message: {
+          messageId,
+          dialogId,
+          senderId: 'user1',
+          type: 'internal.text',
+          content: 'Test message',
+          statusUpdate: {
+            userId: contactId,
+            status: 'received',
+            oldStatus: 'unread'
+          },
+          statusMessageMatrix: [],
+          meta: {}
+        }
+      });
+
+      await updateUtils.createMessageUpdate(
+        tenantId,
+        dialogId,
+        messageId,
+        eventId,
+        'message.status.update',
+        eventData
+      );
+
+      const update = await Update.findOne({ tenantId, entityId: messageId, userId: 'user1' }).lean();
+      const matrix = update.data.message.statusMessageMatrix;
+      const receivedRow = matrix.find(
+        (row) => row.userType === 'contact' && row.status === 'received'
+      );
+      expect(receivedRow).toBeDefined();
+      expect(receivedRow.count).toBeGreaterThanOrEqual(1);
+    });
+
     test('should include reaction update in message data', async () => {
       const dialogId = generateDialogId();
       const messageId = generateMessageId();

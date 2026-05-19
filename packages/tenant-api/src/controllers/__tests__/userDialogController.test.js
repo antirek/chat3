@@ -1470,9 +1470,9 @@ describe('userDialogController', () => {
       expect(event.data.message.statusUpdate).toBeDefined();
       expect(event.data.message.statusUpdate.userId).toBe(userId);
       expect(event.data.message.statusUpdate.status).toBe('read');
-      expect(event.data.message.statusMessageMatrix).toBeDefined();
-      expect(Array.isArray(event.data.message.statusMessageMatrix)).toBe(true);
-      // statuses не должно быть в message.status.update, так как есть statusMessageMatrix
+      // statusMessageMatrix не включается в событие: оно создаётся до MessageStatus.create(),
+      // матрица пересчитывается в update-worker при формировании websocket-update.
+      expect(event.data.message.statusMessageMatrix).toBeUndefined();
       expect(event.data.message.statuses).toBeUndefined();
       expect(event.data.context.includedSections).toContain('dialog');
       expect(event.data.context.includedSections).toContain('message');
