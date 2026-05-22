@@ -8,6 +8,7 @@ export function usePackDialogs(
   getApiKey: () => string,
   configStore: any,
   credentialsStore: any,
+  onPackListChanged?: () => void,
 ) {
   const selectedPackId = ref<string | null>(null);
   const packDialogs = ref<Array<{ dialogId: string; addedAt: number }>>([]);
@@ -92,6 +93,51 @@ export function usePackDialogs(
     loadPackDialogs(1, packDialogsLimit.value);
   }
 
+  async function removeDialogFromPack(dialogId: string) {
+    const packId = selectedPackId.value;
+    if (!packId) return;
+
+    const confirmed = confirm(
+      `Удалить диалог «${dialogId}» из пака «${packId}»?\n\n` +
+        'Будет удалена только связь пак ↔ диалог. Сам диалог и его сообщения останутся в системе.',
+    );
+    if (!confirmed) return;
+
+    try {
+      const key = getApiKey();
+      if (!key) {
+        alert('Укажите API Key');
+        return;
+      }
+      packDialogsLoading.value = true;
+      packDialogsError.value = null;
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const url = `${baseUrl}/api/packs/${encodeURIComponent(packId)}/dialogs/${encodeURIComponent(dialogId)}`;
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: credentialsStore.getHeaders(),
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || errData.error || `HTTP ${response.status}`);
+      }
+
+      const remaining = packDialogs.value.length - 1;
+      const page =
+        remaining === 0 && packDialogsPage.value > 1
+          ? packDialogsPage.value - 1
+          : packDialogsPage.value;
+      await loadPackDialogs(page, packDialogsLimit.value);
+      onPackListChanged?.();
+    } catch (err) {
+      console.error('Error removing dialog from pack:', err);
+      packDialogsError.value = err instanceof Error ? err.message : 'Ошибка удаления';
+      alert('Ошибка: ' + (err instanceof Error ? err.message : 'Неизвестная ошибка'));
+    } finally {
+      packDialogsLoading.value = false;
+    }
+  }
+
   const packDialogsPaginationStart = ref(0);
   const packDialogsPaginationEnd = ref(0);
   watch(
@@ -123,5 +169,6 @@ export function usePackDialogs(
     changePackDialogsLimit,
     applyPackDialogsFilter,
     clearPackDialogsFilter,
+    removeDialogFromPack,
   };
 }

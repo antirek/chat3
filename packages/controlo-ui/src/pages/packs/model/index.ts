@@ -44,7 +44,12 @@ export function usePacksPage() {
     applyPackFilter,
   } = packsModule;
 
-  const packDialogsModule = usePackDialogs(getApiKey, configStore, credentialsStore);
+  const packDialogsModule = usePackDialogs(
+    getApiKey,
+    configStore,
+    credentialsStore,
+    () => loadPacks(currentPage.value, currentLimit.value),
+  );
   const {
     selectedPackId,
     packDialogs,
@@ -63,6 +68,7 @@ export function usePacksPage() {
     changePackDialogsLimit,
     applyPackDialogsFilter,
     clearPackDialogsFilter,
+    removeDialogFromPack,
   } = packDialogsModule;
 
   const packMessagesModule = usePackMessages(getApiKey, configStore, credentialsStore, selectedPackId);
@@ -226,6 +232,7 @@ export function usePacksPage() {
     packDialogsFilterValue,
     applyPackDialogsFilter,
     clearPackDialogsFilter,
+    removeDialogFromPack,
     packMessages,
     packMessagesLoading,
     packMessagesError,

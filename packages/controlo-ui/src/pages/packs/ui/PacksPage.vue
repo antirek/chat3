@@ -137,6 +137,7 @@
               :loading="packDialogsLoading"
               :error="packDialogsError"
               @show-dialog-info="showDialogInfoModal"
+              @remove-from-pack="removeDialogFromPack"
             />
           </div>
 
@@ -328,6 +329,7 @@ const {
   packDialogsFilterValue,
   applyPackDialogsFilter,
   clearPackDialogsFilter,
+  removeDialogFromPack,
   currentPage,
   currentLimit,
   totalPages,
