@@ -240,7 +240,9 @@ export const setUnreadCountSchema = Joi.object({
 /**
  * Схема валидации создания пака
  */
-export const createPackSchema = Joi.object({});
+export const createPackSchema = Joi.object({
+  meta: OPTIONAL_META_SCHEMA
+});
 
 /**
  * Схема валидации добавления диалога в пак

@@ -53,13 +53,27 @@ router.get(
  * /api/packs:
  *   post:
  *     summary: Создать пак
- *     description: Создаёт новый пак. Тело запроса пустое.
+ *     description: Создаёт новый пак. Опционально можно передать meta-теги.
  *     tags: [Packs]
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
  *       - $ref: '#/components/parameters/TenantIdHeader'
- *     requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               meta:
+ *                 type: object
+ *                 additionalProperties: true
+ *                 description: Meta-теги пака (ключ — строка, значение — примитив, массив, объект или { value, dataType })
+ *           example:
+ *             meta:
+ *               category: support
+ *               priority: 5
  *     responses:
  *       201: { description: Пак создан }
  *       401: { description: Unauthorized }

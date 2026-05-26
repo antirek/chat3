@@ -101,17 +101,53 @@ export const packController = {
   async create(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const tenantId = req.tenantId!;
+      const { meta: metaPayload } = req.body as { meta?: Record<string, unknown> };
 
       const pack = await Pack.create([{ tenantId }]);
 
       const created = pack[0];
 
       const { actorId, actorType } = resolveEventActor(req);
+
+      if (metaPayload && typeof metaPayload === 'object' && Object.keys(metaPayload).length > 0) {
+        for (const [key, value] of Object.entries(metaPayload)) {
+          const metaOptions = { createdBy: actorId };
+
+          if (typeof value === 'object' && value !== null && Object.prototype.hasOwnProperty.call(value, 'value')) {
+            const valueObj = value as { value?: unknown; dataType?: string };
+            await metaUtils.setEntityMeta(
+              tenantId,
+              'pack',
+              created.packId,
+              key,
+              valueObj.value,
+              (valueObj.dataType as 'string' | 'number' | 'boolean' | 'object' | 'array') || 'string',
+              metaOptions
+            );
+          } else {
+            await metaUtils.setEntityMeta(
+              tenantId,
+              'pack',
+              created.packId,
+              key,
+              value,
+              typeof value === 'number' ? 'number' :
+              typeof value === 'boolean' ? 'boolean' :
+              Array.isArray(value) ? 'array' :
+              typeof value === 'object' && value !== null ? 'object' : 'string',
+              metaOptions
+            );
+          }
+        }
+      }
+
+      const packMeta = await metaUtils.getEntityMeta(tenantId, 'pack', created.packId);
+
       const packSection = eventUtils.buildPackSection({
         packId: created.packId,
         tenantId,
         createdAt: created.createdAt,
-        meta: {},
+        meta: packMeta || {},
         stats: { dialogCount: 0 }
       });
       const packContext = eventUtils.buildEventContext({
@@ -139,7 +175,8 @@ export const packController = {
         data: sanitizeResponse({
           packId: created.packId,
           tenantId: created.tenantId,
-          createdAt: created.createdAt
+          createdAt: created.createdAt,
+          meta: packMeta || {}
         })
       });
     } catch (error: any) {

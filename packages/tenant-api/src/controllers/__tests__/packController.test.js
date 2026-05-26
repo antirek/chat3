@@ -372,8 +372,41 @@ describe('packController.create', () => {
     expect(res.body.data.packId).toMatch(/^pck_[a-z0-9]{20}$/);
     expect(res.body.data.tenantId).toBe(tenantId);
     expect(res.body.data.createdAt).toBeDefined();
+    expect(res.body.data.meta).toEqual({});
     const count = await Pack.countDocuments({ tenantId });
     expect(count).toBe(1);
+  });
+
+  test('creates pack with meta tags', async () => {
+    const req = createMockReqWithBody({
+      meta: {
+        category: 'support',
+        priority: 5,
+        label: { value: 'VIP', dataType: 'string' }
+      }
+    });
+    const res = createMockRes();
+
+    await packController.create(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.meta).toEqual({
+      category: 'support',
+      priority: 5,
+      label: 'VIP'
+    });
+
+    const metaRecords = await Meta.find({
+      tenantId,
+      entityType: 'pack',
+      entityId: res.body.data.packId
+    }).lean();
+
+    expect(metaRecords).toHaveLength(3);
+    const metaMap = Object.fromEntries(metaRecords.map((m) => [m.key, m.value]));
+    expect(metaMap.category).toBe('support');
+    expect(metaMap.priority).toBe(5);
+    expect(metaMap.label).toBe('VIP');
   });
 });
 

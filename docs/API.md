@@ -711,9 +711,23 @@ npm run generate-key
 #### POST /api/packs
 Создать пак
 
-**Body:** пустой объект `{}` или не передавать.
+**Body:**
+```json
+{
+  "meta": {
+    "category": "support",
+    "priority": 5,
+    "label": {
+      "value": "VIP",
+      "dataType": "string"
+    }
+  }
+}
+```
+- `meta` — опционально; те же правила ключей и значений, что и для Meta API (`PUT /api/meta/pack/{packId}/{key}`)
+- Пустой объект `{}` или отсутствие `meta` — пак без мета-тегов
 
-**Ответ:** `packId`, `tenantId`, `createdAt`
+**Ответ:** `packId`, `tenantId`, `createdAt`, `meta` (объект, может быть пустым)
 
 #### GET /api/packs
 Список паков тенанта (все паки по текущему X-Tenant-ID).
