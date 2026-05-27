@@ -33,6 +33,13 @@ RUN npm run build --workspace=@chat3/tenant-api && \
 # Собираем controlo-ui (Vite build для Vue приложения)
 RUN npm run build --workspace=@chat3/controlo-ui
 
+# Проверка: в образ должен попасть актуальный /meta-indexes (не закэшированный пустой dist)
+RUN set -e; \
+  test -f packages/controlo-ui/dist/index.html; \
+  grep -rql "Полный ответ API" packages/controlo-ui/dist/assets/ || \
+  grep -rql "clear-dup" packages/controlo-ui/dist/assets/ || \
+  (echo "ERROR: controlo-ui dist не содержит meta-indexes UI — пересоберите: docker build --no-cache" && exit 1)
+
 # Финальный образ
 FROM node:20-alpine AS runner
 
@@ -46,7 +53,11 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --chown=chat3user:nodejs package*.json ./
 COPY --chown=chat3user:nodejs tsconfig.json ./
 
-# Копируем собранные dist директории из первого stage
+# Исходники и package.json (dist с хоста не копируется — см. .dockerignore)
+COPY --chown=chat3user:nodejs packages/ ./packages/
+COPY --chown=chat3user:nodejs packages-shared/ ./packages-shared/
+
+# Собранные dist поверх (после packages/, чтобы не затереть артефакты vite/tsc)
 COPY --from=base --chown=chat3user:nodejs /app/packages/tenant-api/dist ./packages/tenant-api/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/controlo-backend/dist ./packages/controlo-backend/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/update-worker/dist ./packages/update-worker/dist
@@ -54,10 +65,6 @@ COPY --from=base --chown=chat3user:nodejs /app/packages/dialog-read-worker/dist 
 COPY --from=base --chown=chat3user:nodejs /app/packages/controlo-ui/dist ./packages/controlo-ui/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-shared/models/dist ./packages-shared/models/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-shared/utils/dist ./packages-shared/utils/dist
-
-# Копируем package.json файлы для установки зависимостей
-COPY --chown=chat3user:nodejs packages/ ./packages/
-COPY --chown=chat3user:nodejs packages-shared/ ./packages-shared/
 
 # Устанавливаем только production зависимости
 RUN npm ci --omit=dev && npm cache clean --force

@@ -14,10 +14,11 @@ if [ ! -f "Dockerfile" ]; then
     exit 1
 fi
 
-IMAGE=antirek/mms3:0.0.63
+IMAGE=antirek/mms3:0.0.64
 
 
 echo "📦 Building..."
+# При изменениях controlo-ui без пересборки слоя vite: docker build --no-cache -t ${IMAGE} .
 docker build -t ${IMAGE} .
 
 

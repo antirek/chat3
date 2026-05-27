@@ -71,6 +71,47 @@ function parseConflictDetails(err: Record<string, unknown> | null): IndexConflic
   return null;
 }
 
+function findDuplicateUniqueViolations(err: Record<string, unknown> | null): IndexConflictViolation[] {
+  const details = parseConflictDetails(err);
+  if (details?.violations?.length) {
+    return details.violations.filter((v) => v.reason === 'duplicateUnique');
+  }
+
+  const stack: unknown[] = [err];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || typeof current !== 'object') {
+      continue;
+    }
+    if (Array.isArray((current as { violations?: unknown }).violations)) {
+      return ((current as { violations: IndexConflictViolation[] }).violations).filter(
+        (v) => v.reason === 'duplicateUnique'
+      );
+    }
+    for (const value of Object.values(current as Record<string, unknown>)) {
+      if (value && typeof value === 'object') {
+        stack.push(value);
+      }
+    }
+  }
+
+  return [];
+}
+
+function errorLooksLikeIndexConflict(err: Record<string, unknown> | null): boolean {
+  if (!err) {
+    return false;
+  }
+  if (err.code === 'INDEX_CONFLICT_EXISTING_DATA') {
+    return true;
+  }
+  try {
+    return JSON.stringify(err).includes('INDEX_CONFLICT_EXISTING_DATA');
+  } catch {
+    return false;
+  }
+}
+
 export function useMetaIndexRegistry() {
   const configStore = useConfigStore();
   const credentialsStore = useCredentialsStore();
@@ -95,13 +136,9 @@ export function useMetaIndexRegistry() {
     parseConflictDetails(lastApiError.value)
   );
 
-  const duplicateUniqueViolations = computed(() => {
-    const details = indexConflictDetails.value;
-    if (!details?.violations?.length) {
-      return [];
-    }
-    return details.violations.filter((v) => v.reason === 'duplicateUnique');
-  });
+  const duplicateUniqueViolations = computed(() =>
+    findDuplicateUniqueViolations(lastApiError.value)
+  );
 
   const effectiveConflictKeys = computed((): string[] => {
     const fromDetails = indexConflictDetails.value?.keys;
@@ -115,22 +152,26 @@ export function useMetaIndexRegistry() {
     }
   });
 
-  const canClearDuplicateViolations = computed(() => {
-    if (lastApiError.value?.code !== 'INDEX_CONFLICT_EXISTING_DATA') {
-      return false;
-    }
-    if (duplicateUniqueViolations.value.length === 0) {
-      return false;
+  const hasIndexDataConflict = computed(() => errorLooksLikeIndexConflict(lastApiError.value));
+
+  const isUniqueConflictRegistration = computed(() => {
+    if (formMode.value === 'unique') {
+      return true;
     }
     const mode = indexConflictDetails.value?.mode;
-    if (mode && mode !== 'unique') {
-      return false;
+    if (mode === 'unique') {
+      return true;
     }
-    return effectiveConflictKeys.value.length > 0;
+    const indexId = indexConflictDetails.value?.indexId;
+    return typeof indexId === 'string' && indexId.startsWith('unique:');
   });
 
-  const hasIndexDataConflict = computed(
-    () => lastApiError.value?.code === 'INDEX_CONFLICT_EXISTING_DATA'
+  /** Кнопка очистки: конфликт unique + есть ключи (violations подтянутся в цикле dryRun). */
+  const showClearDuplicatesButton = computed(
+    () =>
+      hasIndexDataConflict.value &&
+      isUniqueConflictRegistration.value &&
+      effectiveConflictKeys.value.length > 0
   );
 
   function baseUrl(): string {
@@ -239,7 +280,7 @@ export function useMetaIndexRegistry() {
   async function clearDuplicateMetaValues(): Promise<void> {
     const details = indexConflictDetails.value;
     const keys = effectiveConflictKeys.value;
-    if (!keys.length || !canClearDuplicateViolations.value) {
+    if (!keys.length || !showClearDuplicatesButton.value) {
       return;
     }
 
@@ -250,10 +291,14 @@ export function useMetaIndexRegistry() {
       details?.totalViolations != null
         ? ` (всего нарушений: ${details.totalViolations}${details.truncated ? ', в ответе показана часть' : ''})`
         : '';
+    const countLabel =
+      previewIds.length > 0
+        ? `${previewIds.length} сущностей-дубликатов из ответа`
+        : 'дубликатов (список уточнится при dryRun)';
 
     if (
       !confirm(
-        `Удалить ключи [${keys.join(', ')}] у ${previewIds.length} сущностей-дубликатов${totalHint}? ` +
+        `Удалить ключи [${keys.join(', ')}] у ${countLabel}${totalHint}? ` +
           'У каждой пары останется сущность-«оригинал» (duplicateWith), значение у дубликата будет снято.'
       )
     ) {
@@ -403,7 +448,7 @@ export function useMetaIndexRegistry() {
     duplicateUniqueViolations,
     effectiveConflictKeys,
     hasIndexDataConflict,
-    canClearDuplicateViolations,
+    showClearDuplicatesButton,
     formMode,
     formKeys,
     formId,

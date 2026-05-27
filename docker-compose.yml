@@ -84,11 +84,7 @@ services:
         condition: service_started
       mongodb:
         condition: service_healthy
-    volumes:
-      # Монтируем исходный код для разработки (изменения применяются без пересборки)
-      - ./src:/app/src
-      # Используем named volume для node_modules, чтобы не перезаписывать зависимости из образа
-      - gateway_node_modules:/app/node_modules
+    # UI отдаётся из packages/controlo-ui/dist внутри образа (см. controlo-backend index.ts)
     networks:
       - chat3-network
     healthcheck:

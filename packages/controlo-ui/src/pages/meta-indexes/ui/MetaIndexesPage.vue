@@ -2,7 +2,10 @@
   <div class="meta-indexes-page">
     <div class="page-header">
       <h1>Meta индексы</h1>
-      <p class="subtitle">Registry: unique / required для tenant-api</p>
+      <p class="subtitle">
+        Registry: unique / required для tenant-api
+        <span class="ui-build-tag" title="Признак сборки с кнопкой очистки дубликатов">· clear-dup v2</span>
+      </p>
     </div>
 
     <div class="toolbar">
@@ -24,23 +27,33 @@
       <strong>{{ lastApiError.code || 'API error' }}</strong>
       <p v-if="lastApiError.message" class="api-message">{{ lastApiError.message }}</p>
 
-      <p
-        v-else-if="hasIndexDataConflict && !canClearDuplicateViolations"
-        class="conflict-summary conflict-summary-muted"
-      >
-        Конфликт данных есть, но автоматическая очистка дубликатов недоступна (нет
-        <code>duplicateUnique</code> в ответе или режим не unique). Смотрите полный JSON ниже.
-      </p>
-
-      <template v-if="canClearDuplicateViolations">
+      <div v-if="showClearDuplicatesButton" class="clear-duplicates-block">
         <p class="conflict-summary">
           Дубликаты unique по ключам
-          <code>{{ effectiveConflictKeys.join(', ') }}</code>:
-          {{ duplicateUniqueViolations.length }} в ответе
+          <code>{{ effectiveConflictKeys.join(', ') }}</code>
+          <span v-if="duplicateUniqueViolations.length">
+            : {{ duplicateUniqueViolations.length }} в ответе
+          </span>
           <span v-if="indexConflictDetails?.totalViolations">
             (всего {{ indexConflictDetails.totalViolations
             }}<span v-if="indexConflictDetails.truncated">, список обрезан</span>)
           </span>
+        </p>
+        <button
+          type="button"
+          class="btn-warning"
+          :disabled="submitting || clearingDuplicates"
+          @click="clearDuplicateMetaValues"
+        >
+          {{
+            clearingDuplicates
+              ? 'Очистка…'
+              : 'Удалить значения в дублирующихся сущностях'
+          }}
+        </button>
+        <p class="hint conflict-hint">
+          Снимает meta-ключи у дубликатов (не у «оригинала»). Цикл dryRun + bulk DELETE, пока
+          конфликт не исчезнет.
         </p>
         <table v-if="duplicateUniqueViolations.length" class="violations-table">
           <thead>
@@ -56,23 +69,15 @@
             </tr>
           </tbody>
         </table>
-        <button
-          type="button"
-          class="btn-warning"
-          :disabled="submitting || clearingDuplicates"
-          @click="clearDuplicateMetaValues"
-        >
-          {{
-            clearingDuplicates
-              ? 'Очистка…'
-              : 'Удалить значения в дублирующихся сущностях'
-          }}
-        </button>
-        <p class="hint conflict-hint">
-          Снимает указанные meta-ключи у сущностей-дубликатов (не у «оригинала»). При обрезанном
-          списке очистка повторяется, пока dryRun не пройдёт.
-        </p>
-      </template>
+      </div>
+
+      <p
+        v-else-if="hasIndexDataConflict"
+        class="conflict-summary conflict-summary-muted"
+      >
+        Конфликт данных: для очистки дубликатов выберите mode <code>unique</code> и укажите keys
+        (как при POST registry).
+      </p>
 
       <details class="error-details">
         <summary>Полный ответ API</summary>
@@ -182,7 +187,7 @@ const {
   duplicateUniqueViolations,
   effectiveConflictKeys,
   hasIndexDataConflict,
-  canClearDuplicateViolations,
+  showClearDuplicatesButton,
   formMode,
   formKeys,
   formId,
@@ -211,6 +216,12 @@ const {
 .subtitle {
   color: #6c757d;
   margin: 0 0 20px;
+}
+
+.ui-build-tag {
+  font-size: 11px;
+  color: #198754;
+  font-weight: 600;
 }
 
 .toolbar {
@@ -359,6 +370,12 @@ tr.selected {
 
 .conflict-summary-muted {
   color: #856404;
+}
+
+.clear-duplicates-block {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ffe69c;
 }
 
 .violations-table {
