@@ -366,6 +366,75 @@ describe('metaIndexUtils', () => {
     });
   });
 
+  describe('allowlist', () => {
+    test('register allowlist and reject unknown meta key', async () => {
+      await registerDefinition(tenantId, 'pack', {
+        keys: ['key', 'label'],
+        mode: 'allowed'
+      });
+
+      const pack = await Pack.create({ tenantId });
+      await setEntityMetaBulk(tenantId, 'pack', pack.packId, { key: 1, label: 'x' });
+
+      await expect(
+        setEntityMeta(tenantId, 'pack', pack.packId, 'unknownField', 'nope', 'string')
+      ).rejects.toMatchObject({ code: 'META_KEY_NOT_ALLOWED' });
+    });
+
+    test('without allowlist any key is allowed', async () => {
+      const pack = await Pack.create({ tenantId });
+      await setEntityMeta(tenantId, 'pack', pack.packId, 'anything', 'ok', 'string');
+      const meta = await Meta.findOne({ tenantId, entityId: pack.packId, key: 'anything' });
+      expect(meta?.value).toBe('ok');
+    });
+
+    test('register unique rejects key outside allowlist', async () => {
+      await registerDefinition(tenantId, 'pack', {
+        keys: ['key', 'channel'],
+        mode: 'allowed'
+      });
+
+      await expect(
+        registerDefinition(tenantId, 'pack', { keys: ['externalId'], mode: 'unique' })
+      ).rejects.toMatchObject({ code: 'INDEX_KEYS_NOT_IN_ALLOWLIST' });
+    });
+
+    test('register allowlist rejects existing extra meta keys', async () => {
+      const pack = await Pack.create({ tenantId });
+      await Meta.create({
+        tenantId,
+        entityType: 'pack',
+        entityId: pack.packId,
+        key: 'legacy',
+        value: 'x',
+        dataType: 'string'
+      });
+
+      await expect(
+        registerDefinition(tenantId, 'pack', { keys: ['key'], mode: 'allowed' })
+      ).rejects.toMatchObject({ code: 'SCHEMA_CONFLICT_EXISTING_DATA' });
+    });
+
+    test('register allowlist rejects empty keys', async () => {
+      await expect(
+        registerDefinition(tenantId, 'pack', { keys: [], mode: 'allowed' })
+      ).rejects.toMatchObject({ code: 'INVALID_INDEX_SPEC' });
+    });
+
+    test('idempotent allowlist register with same keys', async () => {
+      const first = await registerDefinition(tenantId, 'pack', {
+        keys: ['key', 'label'],
+        mode: 'allowed'
+      });
+      const second = await registerDefinition(tenantId, 'pack', {
+        keys: ['label', 'key'],
+        mode: 'allowed'
+      });
+      expect(second.indexId).toBe(first.indexId);
+      expect(await MetaIndexDefinition.countDocuments({ tenantId, mode: 'allowed' })).toBe(1);
+    });
+  });
+
   describe('cascade', () => {
     test('deleteAllMetaForEntity releases unique slots', async () => {
       await registerDefinition(tenantId, 'pack', { keys: ['key'], mode: 'unique' });

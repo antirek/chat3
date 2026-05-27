@@ -349,6 +349,48 @@ describe('metaIndexController (registry)', () => {
     });
   });
 
+  describe('allowlist', () => {
+    test('registers allowed keys policy', async () => {
+      const req = createReq({
+        body: { keys: ['key', 'channel', 'label'], mode: 'allowed' }
+      });
+      const res = createMockRes();
+
+      await metaIndexController.registerDefinitions(req, res);
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body.data).toMatchObject({
+        indexId: 'allowed:keys',
+        mode: 'allowed',
+        keys: ['channel', 'key', 'label']
+      });
+    });
+
+    test('dryRun reports schema conflict for extra meta keys', async () => {
+      const pack = await Pack.create({ tenantId });
+      await Meta.create({
+        tenantId,
+        entityType: 'pack',
+        entityId: pack.packId,
+        key: 'legacy',
+        value: 1,
+        dataType: 'number'
+      });
+
+      const req = createReq({
+        body: { keys: ['key'], mode: 'allowed' },
+        query: { dryRun: 'true' }
+      });
+      const res = createMockRes();
+
+      await metaIndexController.registerDefinitions(req, res);
+
+      expect(res.statusCode).toBe(409);
+      expect(res.body.code).toBe('SCHEMA_CONFLICT_EXISTING_DATA');
+      expect(res.body.details.extraKeys).toContain('legacy');
+    });
+  });
+
   describe('DELETE deleteDefinition', () => {
     test('deletes definition and cascades MetaIndex slots', async () => {
       await metaIndexController.registerDefinitions(

@@ -18,8 +18,14 @@ export type MetaEntityTypeOption = (typeof ENTITY_TYPES)[number];
 export interface MetaIndexDefinitionRow {
   indexId: string;
   keys: string[];
-  mode: 'unique' | 'required';
+  mode: 'unique' | 'required' | 'allowed';
   createdAt?: number;
+}
+
+export interface SchemaConflictViolation {
+  entityId: string;
+  reason: string;
+  extraKeys?: string[];
 }
 
 export interface IndexConflictViolation {
@@ -40,7 +46,10 @@ export interface IndexConflictDetails {
 const MAX_CLEAR_DUPLICATE_ITERATIONS = 100;
 
 function parseConflictDetails(err: Record<string, unknown> | null): IndexConflictDetails | null {
-  if (!err || err.code !== 'INDEX_CONFLICT_EXISTING_DATA') {
+  if (
+    !err ||
+    (err.code !== 'INDEX_CONFLICT_EXISTING_DATA' && err.code !== 'SCHEMA_CONFLICT_EXISTING_DATA')
+  ) {
     return null;
   }
 
@@ -102,14 +111,26 @@ function errorLooksLikeIndexConflict(err: Record<string, unknown> | null): boole
   if (!err) {
     return false;
   }
-  if (err.code === 'INDEX_CONFLICT_EXISTING_DATA') {
+  if (err.code === 'INDEX_CONFLICT_EXISTING_DATA' || err.code === 'SCHEMA_CONFLICT_EXISTING_DATA') {
     return true;
   }
   try {
-    return JSON.stringify(err).includes('INDEX_CONFLICT_EXISTING_DATA');
+    const s = JSON.stringify(err);
+    return s.includes('INDEX_CONFLICT_EXISTING_DATA') || s.includes('SCHEMA_CONFLICT_EXISTING_DATA');
   } catch {
     return false;
   }
+}
+
+function findSchemaExtraKeyViolations(err: Record<string, unknown> | null): SchemaConflictViolation[] {
+  if (!err || err.code !== 'SCHEMA_CONFLICT_EXISTING_DATA') {
+    return [];
+  }
+  const details = parseConflictDetails(err);
+  if (details?.violations?.length) {
+    return details.violations.filter((v) => v.reason === 'extraKeys') as SchemaConflictViolation[];
+  }
+  return [];
 }
 
 export function useMetaIndexRegistry() {
@@ -122,7 +143,7 @@ export function useMetaIndexRegistry() {
   const error = ref<string | null>(null);
   const lastApiError = ref<Record<string, unknown> | null>(null);
 
-  const formMode = ref<'unique' | 'required'>('unique');
+  const formMode = ref<'unique' | 'required' | 'allowed'>('unique');
   const formKeys = ref('key');
   const formId = ref('');
   const formDryRun = ref(false);
@@ -155,6 +176,9 @@ export function useMetaIndexRegistry() {
   const hasIndexDataConflict = computed(() => errorLooksLikeIndexConflict(lastApiError.value));
 
   const isUniqueConflictRegistration = computed(() => {
+    if (lastApiError.value?.code === 'SCHEMA_CONFLICT_EXISTING_DATA') {
+      return false;
+    }
     if (formMode.value === 'unique') {
       return true;
     }
@@ -166,13 +190,41 @@ export function useMetaIndexRegistry() {
     return typeof indexId === 'string' && indexId.startsWith('unique:');
   });
 
-  /** Кнопка очистки: конфликт unique + есть ключи (violations подтянутся в цикле dryRun). */
+  const schemaExtraViolations = computed(() => findSchemaExtraKeyViolations(lastApiError.value));
+
+  const isAllowlistConflict = computed(
+    () =>
+      lastApiError.value?.code === 'SCHEMA_CONFLICT_EXISTING_DATA' ||
+      formMode.value === 'allowed' ||
+      indexConflictDetails.value?.mode === 'allowed'
+  );
+
+  /** Кнопка очистки дубликатов unique. */
   const showClearDuplicatesButton = computed(
     () =>
       hasIndexDataConflict.value &&
       isUniqueConflictRegistration.value &&
       effectiveConflictKeys.value.length > 0
   );
+
+  /** Кнопка удаления лишних meta-ключей при конфликте allowlist. */
+  const showClearExtraKeysButton = computed(() => {
+    if (!hasIndexDataConflict.value || !isAllowlistConflict.value) {
+      return false;
+    }
+    if (schemaExtraViolations.value.length > 0) {
+      return true;
+    }
+    return formMode.value === 'allowed' && parseKeysInputSafe(formKeys.value).length > 0;
+  });
+
+  function parseKeysInputSafe(raw: string): string[] {
+    try {
+      return parseKeysInput(raw);
+    } catch {
+      return [];
+    }
+  }
 
   function baseUrl(): string {
     return configStore.config.TENANT_API_URL || 'http://localhost:3000';
@@ -227,14 +279,15 @@ export function useMetaIndexRegistry() {
 
   function buildRegisterPayload(): Record<string, unknown> {
     const keys = parseKeysInput(formKeys.value);
-    if (keys.length < 1 || keys.length > 3) {
-      throw new Error('Укажите от 1 до 3 ключей через запятую');
+    const maxKeys = formMode.value === 'allowed' ? 50 : 3;
+    if (keys.length < 1 || keys.length > maxKeys) {
+      throw new Error(`Укажите от 1 до ${maxKeys} ключей через запятую`);
     }
     const payload: Record<string, unknown> = {
       keys,
       mode: formMode.value
     };
-    if (formId.value.trim()) {
+    if (formMode.value !== 'allowed' && formId.value.trim()) {
       payload.id = formId.value.trim();
     }
     return payload;
@@ -375,6 +428,81 @@ export function useMetaIndexRegistry() {
     }
   }
 
+  async function clearExtraMetaKeys(): Promise<void> {
+    if (!showClearExtraKeysButton.value) {
+      return;
+    }
+
+    const allowedKeys = parseKeysInputSafe(formKeys.value);
+    if (!allowedKeys.length) {
+      return;
+    }
+
+    if (
+      !confirm(
+        `Удалить у сущностей meta-ключи, не входящие в allowlist [${allowedKeys.join(', ')}]?`
+      )
+    ) {
+      return;
+    }
+
+    clearingDuplicates.value = true;
+    error.value = null;
+    successMessage.value = null;
+    let clearedEntities = 0;
+
+    try {
+      for (let iteration = 0; iteration < MAX_CLEAR_DUPLICATE_ITERATIONS; iteration++) {
+        const reg = await postRegisterDefinition(true);
+        if (reg.ok) {
+          lastApiError.value = null;
+          successMessage.value =
+            clearedEntities > 0
+              ? `Удалены лишние ключи у ${clearedEntities} сущностей. Можно нажать POST registry.`
+              : 'Лишних meta-ключей нет — можно нажать POST registry.';
+          return;
+        }
+
+        if (reg.body.code !== 'SCHEMA_CONFLICT_EXISTING_DATA') {
+          lastApiError.value = reg.body;
+          throw new Error(
+            typeof reg.body.message === 'string' ? reg.body.message : 'Не удалось проверить данные'
+          );
+        }
+
+        lastApiError.value = reg.body;
+        const rows = findSchemaExtraKeyViolations(reg.body);
+        if (rows.length === 0) {
+          throw new Error('Конфликт allowlist остался, но нет extraKeys в ответе API');
+        }
+
+        const failures: string[] = [];
+        for (const row of rows) {
+          const keys = row.extraKeys?.length ? row.extraKeys : [];
+          if (keys.length === 0) {
+            continue;
+          }
+          try {
+            await deleteMetaKeysForEntity(row.entityId, keys);
+            clearedEntities += 1;
+          } catch (e: unknown) {
+            failures.push(e instanceof Error ? e.message : String(e));
+          }
+        }
+
+        if (failures.length > 0) {
+          throw new Error(failures.join('\n'));
+        }
+      }
+
+      throw new Error('Слишком много итераций очистки allowlist');
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      clearingDuplicates.value = false;
+    }
+  }
+
   async function createDefinition() {
     submitting.value = true;
     error.value = null;
@@ -449,6 +577,8 @@ export function useMetaIndexRegistry() {
     effectiveConflictKeys,
     hasIndexDataConflict,
     showClearDuplicatesButton,
+    showClearExtraKeysButton,
+    schemaExtraViolations,
     formMode,
     formKeys,
     formId,
@@ -461,6 +591,7 @@ export function useMetaIndexRegistry() {
     loadDefinition,
     createDefinition,
     clearDuplicateMetaValues,
+    clearExtraMetaKeys,
     deleteDefinition
   };
 }

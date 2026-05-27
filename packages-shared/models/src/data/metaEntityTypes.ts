@@ -12,4 +12,4 @@ export const META_ENTITY_TYPES = [
 
 export type MetaEntityType = (typeof META_ENTITY_TYPES)[number];
 
-export type MetaIndexMode = 'unique' | 'required';
+export type MetaIndexMode = 'unique' | 'required' | 'allowed';

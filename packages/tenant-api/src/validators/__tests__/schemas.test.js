@@ -420,8 +420,18 @@ describe('bodySchemas.registerMetaIndexSchema', () => {
     expect(error).toBeDefined();
   });
 
-  test('rejects invalid mode', () => {
-    const { error } = validate({ keys: ['key'], mode: 'allowed' });
+  test('accepts allowlist mode', () => {
+    const { error, value } = validate({
+      keys: ['key', 'channel', 'label'],
+      mode: 'allowed'
+    });
+    expect(error).toBeUndefined();
+    expect(value.mode).toBe('allowed');
+    expect(value.keys).toHaveLength(3);
+  });
+
+  test('rejects empty keys for allowlist', () => {
+    const { error } = validate({ keys: [], mode: 'allowed' });
     expect(error).toBeDefined();
   });
 

@@ -12,6 +12,10 @@ const COMPOSITE_SEP = '\u001f';
 const VIOLATIONS_CAP = 20;
 const CLIENT_ID_PATTERN = /^[a-z0-9._-]{1,64}$/;
 
+/** Фиксированный indexId для allowlist (один на tenant + entityType). */
+export const ALLOWLIST_INDEX_ID = 'allowed:keys';
+export const ALLOWLIST_KEYS_MAX = 50;
+
 export interface IndexDefinitionSpec {
   keys: string[];
   mode: MetaIndexMode;
@@ -38,6 +42,103 @@ export function buildIndexId(mode: MetaIndexMode, keys: string[], clientId?: str
   }
   const sorted = sortIndexKeys(keys);
   return `${mode}:${sorted.join('+')}`;
+}
+
+export function findAllowlistDefinition(
+  definitions: MetaIndexDefinitionLean[]
+): MetaIndexDefinitionLean | null {
+  return definitions.find((d) => d.mode === 'allowed') ?? null;
+}
+
+export function getIndexDefinitions(
+  definitions: MetaIndexDefinitionLean[]
+): MetaIndexDefinitionLean[] {
+  return definitions.filter((d) => d.mode !== 'allowed');
+}
+
+export function assertMetaKeysAllowed(
+  keys: string[],
+  allowlist: MetaIndexDefinitionLean | null,
+  entityType: MetaEntityType
+): void {
+  if (!allowlist) {
+    return;
+  }
+  const allowedSet = new Set(allowlist.keys);
+  for (const key of keys) {
+    if (!allowedSet.has(key)) {
+      throw new MetaIndexError(400, 'META_KEY_NOT_ALLOWED', `Meta key ${key} is not in allowlist for ${entityType}`, {
+        entityType,
+        key,
+        allowedKeys: sortIndexKeys([...allowlist.keys])
+      });
+    }
+  }
+}
+
+export function assertIndexKeysInAllowlist(
+  indexKeys: string[],
+  allowlist: MetaIndexDefinitionLean,
+  entityType: MetaEntityType
+): void {
+  const missing = indexKeys.filter((k) => !allowlist.keys.includes(k));
+  if (missing.length > 0) {
+    throw new MetaIndexError(400, 'INDEX_KEYS_NOT_IN_ALLOWLIST', `Index keys must be included in allowlist for ${entityType}`, {
+      entityType,
+      keys: missing,
+      allowedKeys: sortIndexKeys([...allowlist.keys])
+    });
+  }
+}
+
+function assertRegisteredIndexesFitAllowlist(
+  indexDefs: MetaIndexDefinitionLean[],
+  allowedKeys: string[],
+  entityType: MetaEntityType
+): void {
+  const allowedSet = new Set(allowedKeys);
+  const orphanKeys: string[] = [];
+  for (const def of indexDefs) {
+    for (const key of def.keys) {
+      if (!allowedSet.has(key)) {
+        orphanKeys.push(key);
+      }
+    }
+  }
+  if (orphanKeys.length > 0) {
+    throw new MetaIndexError(
+      400,
+      'INDEX_KEYS_NOT_IN_ALLOWLIST',
+      `Existing index definitions reference keys not in allowlist for ${entityType}`,
+      {
+        entityType,
+        keys: [...new Set(orphanKeys)],
+        allowedKeys: sortIndexKeys(allowedKeys)
+      }
+    );
+  }
+}
+
+export function validateAllowlistSpec(spec: IndexDefinitionSpec): string[] {
+  const keys = spec.keys;
+  if (!Array.isArray(keys) || keys.length < 1 || keys.length > ALLOWLIST_KEYS_MAX) {
+    throw new MetaIndexError(
+      400,
+      'INVALID_INDEX_SPEC',
+      `keys must be an array of 1 to ${ALLOWLIST_KEYS_MAX} items for allowlist`
+    );
+  }
+  const sorted = sortIndexKeys(keys);
+  if (new Set(sorted).size !== sorted.length) {
+    throw new MetaIndexError(400, 'INVALID_INDEX_SPEC', 'keys must not contain duplicates');
+  }
+  if (spec.mode !== 'allowed') {
+    throw new MetaIndexError(400, 'INVALID_INDEX_SPEC', 'mode must be allowed');
+  }
+  if (spec.id && spec.id !== ALLOWLIST_INDEX_ID) {
+    throw new MetaIndexError(400, 'INVALID_INDEX_SPEC', `allowlist id must be ${ALLOWLIST_INDEX_ID}`);
+  }
+  return sorted;
 }
 
 export function validateIndexSpec(spec: IndexDefinitionSpec): string[] {
@@ -173,7 +274,7 @@ export async function metaMapFromDb(
 }
 
 function definitionsForKey(definitions: MetaIndexDefinitionLean[], key: string): MetaIndexDefinitionLean[] {
-  return definitions.filter((d) => d.keys.includes(key));
+  return definitions.filter((d) => d.mode !== 'allowed' && d.keys.includes(key));
 }
 
 export function validateRequiredBundle(
@@ -364,12 +465,14 @@ export async function validateRequiredMetaForCreate(
   meta: Record<string, unknown> = {}
 ): Promise<void> {
   const definitions = await loadDefinitions(tenantId, entityType);
-  const requiredDefs = definitions.filter((d) => d.mode === 'required');
+  const { values, dataTypes } = parseMetaPayload(meta);
+  assertMetaKeysAllowed(Object.keys(values), findAllowlistDefinition(definitions), entityType);
+
+  const requiredDefs = getIndexDefinitions(definitions).filter((d) => d.mode === 'required');
   if (requiredDefs.length === 0) {
     return;
   }
 
-  const { values, dataTypes } = parseMetaPayload(meta);
   for (const def of requiredDefs) {
     validateRequiredBundle(values, dataTypes, def);
   }
@@ -402,7 +505,8 @@ export async function enforceMetaState(
   definitions: MetaIndexDefinitionLean[],
   session?: ClientSession | null
 ): Promise<void> {
-  for (const def of definitions) {
+  const indexDefs = getIndexDefinitions(definitions);
+  for (const def of indexDefs) {
     if (def.mode === 'required') {
       validateRequiredBundle(metaValues, dataTypes, def);
     } else {
@@ -410,7 +514,7 @@ export async function enforceMetaState(
     }
   }
 
-  for (const def of definitions) {
+  for (const def of indexDefs) {
     if (def.mode === 'unique') {
       await syncUniqueForDefinition(tenantId, entityType, entityId, def, metaValues, dataTypes, session);
     }
@@ -528,6 +632,12 @@ export interface ScanViolation {
   duplicateWith?: string;
 }
 
+export interface ScanAllowlistViolation {
+  entityId: string;
+  reason: 'extraKeys';
+  extraKeys: string[];
+}
+
 export async function scanExistingDataForDefinition(
   tenantId: string,
   entityType: MetaEntityType,
@@ -628,12 +738,138 @@ export async function scanExistingDataForDefinition(
   return { violations, totalViolations };
 }
 
+export async function scanExistingDataForAllowlist(
+  tenantId: string,
+  entityType: MetaEntityType,
+  allowedKeys: string[]
+): Promise<{
+  violations: ScanAllowlistViolation[];
+  totalViolations: number;
+  extraKeys: string[];
+}> {
+  const allowedSet = new Set(allowedKeys);
+  const records = await Meta.find({ tenantId, entityType }).lean();
+  const byEntity = new Map<string, Set<string>>();
+
+  for (const r of records) {
+    if (!byEntity.has(r.entityId)) {
+      byEntity.set(r.entityId, new Set());
+    }
+    byEntity.get(r.entityId)!.add(r.key);
+  }
+
+  const globalExtra = new Set<string>();
+  const violations: ScanAllowlistViolation[] = [];
+  let totalViolations = 0;
+
+  for (const [entityId, keys] of byEntity) {
+    const extraKeys = [...keys].filter((k) => !allowedSet.has(k));
+    if (extraKeys.length === 0) {
+      continue;
+    }
+    totalViolations++;
+    for (const k of extraKeys) {
+      globalExtra.add(k);
+    }
+    if (violations.length < VIOLATIONS_CAP) {
+      violations.push({ entityId, reason: 'extraKeys', extraKeys: sortIndexKeys(extraKeys) });
+    }
+  }
+
+  return {
+    violations,
+    totalViolations,
+    extraKeys: sortIndexKeys([...globalExtra])
+  };
+}
+
+async function registerAllowlistDefinition(
+  tenantId: string,
+  entityType: MetaEntityType,
+  spec: IndexDefinitionSpec,
+  options: { dryRun?: boolean; createdBy?: string } = {}
+): Promise<MetaIndexDefinitionLean> {
+  const sortedKeys = validateAllowlistSpec(spec);
+  const indexId = ALLOWLIST_INDEX_ID;
+  const definition: MetaIndexDefinitionLean = {
+    tenantId,
+    entityType,
+    indexId,
+    keys: sortedKeys,
+    mode: 'allowed'
+  };
+
+  const allDefs = await loadDefinitions(tenantId, entityType);
+  const existingAllowed = findAllowlistDefinition(allDefs);
+  if (existingAllowed && existingAllowed.indexId !== indexId) {
+    throw new MetaIndexError(409, 'INDEX_DEFINITION_CONFLICT', 'Only one allowlist per entity type is allowed', {
+      indexId: existingAllowed.indexId
+    });
+  }
+
+  assertRegisteredIndexesFitAllowlist(getIndexDefinitions(allDefs), sortedKeys, entityType);
+
+  const { violations, totalViolations, extraKeys } = await scanExistingDataForAllowlist(
+    tenantId,
+    entityType,
+    sortedKeys
+  );
+  if (totalViolations > 0) {
+    throw new MetaIndexError(
+      409,
+      'SCHEMA_CONFLICT_EXISTING_DATA',
+      `Cannot register allowlist ${indexId}: existing meta uses keys outside the list`,
+      {
+        indexId,
+        mode: 'allowed',
+        keys: sortedKeys,
+        extraKeys,
+        violations,
+        totalViolations,
+        truncated: totalViolations > violations.length
+      }
+    );
+  }
+
+  if (options.dryRun) {
+    return definition;
+  }
+
+  if (existingAllowed) {
+    const same =
+      existingAllowed.keys.length === sortedKeys.length &&
+      sortIndexKeys([...existingAllowed.keys]).join(',') === sortedKeys.join(',');
+    if (same) {
+      return existingAllowed;
+    }
+    await MetaIndexDefinition.updateOne(
+      { tenantId, entityType, indexId },
+      { $set: { keys: sortedKeys } }
+    );
+    return { ...existingAllowed, keys: sortedKeys };
+  }
+
+  const created = await MetaIndexDefinition.create({
+    tenantId,
+    entityType,
+    indexId,
+    keys: sortedKeys,
+    mode: 'allowed',
+    createdBy: options.createdBy
+  });
+  return created.toObject() as MetaIndexDefinitionLean;
+}
+
 export async function registerDefinition(
   tenantId: string,
   entityType: MetaEntityType,
   spec: IndexDefinitionSpec,
   options: { dryRun?: boolean; createdBy?: string } = {}
 ): Promise<MetaIndexDefinitionLean> {
+  if (spec.mode === 'allowed') {
+    return registerAllowlistDefinition(tenantId, entityType, spec, options);
+  }
+
   const sortedKeys = validateIndexSpec(spec);
   const indexId = buildIndexId(spec.mode, sortedKeys, spec.id);
   const definition: MetaIndexDefinitionLean = {
@@ -643,6 +879,12 @@ export async function registerDefinition(
     keys: sortedKeys,
     mode: spec.mode
   };
+
+  const allDefs = await loadDefinitions(tenantId, entityType);
+  const allowlist = findAllowlistDefinition(allDefs);
+  if (allowlist) {
+    assertIndexKeysInAllowlist(sortedKeys, allowlist, entityType);
+  }
 
   const { violations, totalViolations } = await scanExistingDataForDefinition(tenantId, entityType, definition);
   if (totalViolations > 0) {

@@ -3,7 +3,7 @@
     <div class="page-header">
       <h1>Meta индексы</h1>
       <p class="subtitle">
-        Registry: unique / required для tenant-api
+        Registry: unique / required / allowed для tenant-api
         <span class="ui-build-tag" title="Признак сборки с кнопкой очистки дубликатов">· clear-dup v2</span>
       </p>
     </div>
@@ -71,12 +71,32 @@
         </table>
       </div>
 
+      <div v-else-if="showClearExtraKeysButton" class="clear-duplicates-block">
+        <p class="conflict-summary">
+          Лишние meta-ключи вне allowlist
+          <span v-if="schemaExtraViolations.length">
+            : {{ schemaExtraViolations.length }} сущностей в ответе
+          </span>
+        </p>
+        <button
+          type="button"
+          class="btn-warning"
+          :disabled="submitting || clearingDuplicates"
+          @click="clearExtraMetaKeys"
+        >
+          {{ clearingDuplicates ? 'Очистка…' : 'Удалить лишние meta-ключи' }}
+        </button>
+        <p class="hint conflict-hint">
+          Удаляет ключи, не входящие в новый allowlist (цикл dryRun + bulk DELETE).
+        </p>
+      </div>
+
       <p
         v-else-if="hasIndexDataConflict"
         class="conflict-summary conflict-summary-muted"
       >
-        Конфликт данных: для очистки дубликатов выберите mode <code>unique</code> и укажите keys
-        (как при POST registry).
+        Конфликт данных: для очистки дубликатов — mode <code>unique</code>; для allowlist —
+        mode <code>allowed</code> и keys в форме.
       </p>
 
       <details class="error-details">
@@ -140,13 +160,19 @@
             <select v-model="formMode" class="select">
               <option value="unique">unique</option>
               <option value="required">required</option>
+              <option value="allowed">allowed (allowlist)</option>
             </select>
           </label>
           <label>
-            keys (1–3, через запятую)
-            <input v-model="formKeys" type="text" class="input" placeholder="channel, externalId" />
+            keys ({{ formMode === 'allowed' ? '1–50' : '1–3' }}, через запятую)
+            <input
+              v-model="formKeys"
+              type="text"
+              class="input"
+              :placeholder="formMode === 'allowed' ? 'key, channel, label' : 'channel, externalId'"
+            />
           </label>
-          <label>
+          <label v-if="formMode !== 'allowed'">
             id (опционально)
             <input v-model="formId" type="text" class="input" placeholder="crm_external_ref" />
           </label>
@@ -188,6 +214,8 @@ const {
   effectiveConflictKeys,
   hasIndexDataConflict,
   showClearDuplicatesButton,
+  showClearExtraKeysButton,
+  schemaExtraViolations,
   formMode,
   formKeys,
   formId,
@@ -199,6 +227,7 @@ const {
   loadDefinition,
   createDefinition,
   clearDuplicateMetaValues,
+  clearExtraMetaKeys,
   deleteDefinition
 } = useMetaIndexRegistry();
 </script>

@@ -7,7 +7,7 @@ import {
   deleteDefinition,
   type IndexDefinitionSpec
 } from '@chat3/utils/metaIndexUtils.js';
-import type { MetaEntityType } from '@chat3/models';
+import type { MetaEntityType, MetaIndexMode } from '@chat3/models';
 import { handleMetaIndexError } from '../utils/metaIndexErrorHandler.js';
 
 function parseSpecs(body: Record<string, unknown>): IndexDefinitionSpec[] {
@@ -16,7 +16,7 @@ function parseSpecs(body: Record<string, unknown>): IndexDefinitionSpec[] {
   }
   return [{
     keys: body.keys as string[],
-    mode: body.mode as 'unique' | 'required',
+    mode: body.mode as MetaIndexMode,
     id: body.id as string | undefined
   }];
 }

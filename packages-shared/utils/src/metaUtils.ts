@@ -2,6 +2,9 @@ import { Meta, Message, Pack, Dialog, Topic } from '@chat3/models';
 import type { MetaEntityType } from '@chat3/models';
 import {
   loadDefinitions,
+  findAllowlistDefinition,
+  getIndexDefinitions,
+  assertMetaKeysAllowed,
   validateBeforeSingleKeyWrite,
   validateBeforeSingleKeyDelete,
   validateBeforeBulkDelete,
@@ -119,6 +122,9 @@ export async function setEntityMeta(
 ): Promise<unknown> {
   try {
     const definitions = await loadDefinitions(tenantId, entityType);
+    const allowlist = findAllowlistDefinition(definitions);
+    assertMetaKeysAllowed([key], allowlist, entityType);
+    const indexDefs = getIndexDefinitions(definitions);
 
     return await runWithOptionalTransaction(async (session) => {
       await validateBeforeSingleKeyWrite(
@@ -128,7 +134,7 @@ export async function setEntityMeta(
         key,
         value,
         dataType,
-        definitions,
+        indexDefs,
         session
       );
 
@@ -144,12 +150,12 @@ export async function setEntityMeta(
       );
 
       const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId, session);
-      const uniqueDefs = definitions.filter((d) => d.mode === 'unique' && d.keys.includes(key));
+      const uniqueDefs = indexDefs.filter((d) => d.mode === 'unique' && d.keys.includes(key));
       for (const def of uniqueDefs) {
         await syncUniqueForDefinition(tenantId, entityType, entityId, def, values, dataTypes, session);
       }
 
-      for (const def of definitions.filter((d) => d.mode === 'required')) {
+      for (const def of indexDefs.filter((d) => d.mode === 'required')) {
         validateRequiredBundle(values, dataTypes, def);
       }
 
@@ -171,12 +177,16 @@ export async function setEntityMetaBulk(
   options: SetEntityMetaOptions = {}
 ): Promise<Record<string, unknown>> {
   const definitions = await loadDefinitions(tenantId, entityType);
+  const allowlist = findAllowlistDefinition(definitions);
+  const indexDefs = getIndexDefinitions(definitions);
   const { values: parsedValues, dataTypes: parsedDataTypes } = parseMetaPayload(meta as Record<string, unknown>);
   const entries = Object.keys(parsedValues).map((key) => ({
     key,
     value: parsedValues[key],
     dataType: parsedDataTypes[key] as 'string' | 'number' | 'boolean' | 'object' | 'array'
   }));
+
+  assertMetaKeysAllowed(entries.map((e) => e.key), allowlist, entityType);
 
   return await runWithOptionalTransaction(async (session) => {
     const { values: currentValues, dataTypes: currentDataTypes } = await metaMapFromDb(
@@ -193,7 +203,7 @@ export async function setEntityMetaBulk(
       nextDataTypes[key] = dataType;
     }
 
-    for (const def of definitions) {
+    for (const def of indexDefs) {
       const touches = def.keys.some((k) => entries.some((e) => e.key === k));
       if (!touches) {
         continue;
@@ -209,7 +219,7 @@ export async function setEntityMetaBulk(
     }
 
     const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId, session);
-    await enforceMetaState(tenantId, entityType, entityId, values, dataTypes, definitions, session);
+    await enforceMetaState(tenantId, entityType, entityId, values, dataTypes, indexDefs, session);
 
     return values;
   });
@@ -225,7 +235,8 @@ export async function deleteEntityMeta(
 ): Promise<boolean> {
   try {
     const definitions = await loadDefinitions(tenantId, entityType);
-    await validateBeforeSingleKeyDelete(tenantId, entityType, entityId, key, definitions);
+    const indexDefs = getIndexDefinitions(definitions);
+    await validateBeforeSingleKeyDelete(tenantId, entityType, entityId, key, indexDefs);
 
     return await runWithOptionalTransaction(async (session) => {
       const op = Meta.deleteOne({ tenantId, entityType, entityId, key });
@@ -238,7 +249,7 @@ export async function deleteEntityMeta(
       }
 
       const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId, session);
-      for (const def of definitions.filter((d) => d.mode === 'unique' && d.keys.includes(key))) {
+      for (const def of indexDefs.filter((d) => d.mode === 'unique' && d.keys.includes(key))) {
         await syncUniqueForDefinition(tenantId, entityType, entityId, def, values, dataTypes, session);
       }
 
@@ -259,7 +270,8 @@ export async function deleteEntityMetaBulk(
   keys: string[]
 ): Promise<Record<string, unknown>> {
   const definitions = await loadDefinitions(tenantId, entityType);
-  await validateBeforeBulkDelete(tenantId, entityType, entityId, keys, definitions);
+  const indexDefs = getIndexDefinitions(definitions);
+  await validateBeforeBulkDelete(tenantId, entityType, entityId, keys, indexDefs);
 
   return await runWithOptionalTransaction(async (session) => {
     const op = Meta.deleteMany({
@@ -276,7 +288,7 @@ export async function deleteEntityMetaBulk(
     const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId, session);
     // После bulk delete required-связки meta может не удовлетворять required — это OK (B3).
     // Обновляем только слоты unique.
-    for (const def of definitions.filter((d) => d.mode === 'unique')) {
+    for (const def of indexDefs.filter((d) => d.mode === 'unique')) {
       await syncUniqueForDefinition(tenantId, entityType, entityId, def, values, dataTypes, session);
     }
 

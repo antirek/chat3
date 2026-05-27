@@ -5,6 +5,8 @@ export type MetaIndexErrorCode =
   | 'INVALID_INDEX_SPEC'
   | 'INDEX_DEFINITION_CONFLICT'
   | 'INDEX_CONFLICT_EXISTING_DATA'
+  | 'SCHEMA_CONFLICT_EXISTING_DATA'
+  | 'INDEX_KEYS_NOT_IN_ALLOWLIST'
   | 'META_KEY_NOT_ALLOWED';
 
 export class MetaIndexError extends Error {

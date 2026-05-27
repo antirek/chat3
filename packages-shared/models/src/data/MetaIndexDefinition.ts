@@ -34,7 +34,7 @@ const metaIndexDefinitionSchema = new mongoose.Schema<IMetaIndexDefinition>({
   },
   mode: {
     type: String,
-    enum: ['unique', 'required'],
+    enum: ['unique', 'required', 'allowed'],
     required: true
   },
   createdBy: {

@@ -264,10 +264,21 @@ const META_INDEX_RULE_SCHEMA = Joi.object({
   id: Joi.string().pattern(/^[a-z0-9._-]{1,64}$/).optional()
 });
 
-export const registerMetaIndexSchema = Joi.alternatives().try(
+const META_ALLOWLIST_RULE_SCHEMA = Joi.object({
+  keys: Joi.array().items(META_KEY_SCHEMA).min(1).max(50).unique().required(),
+  mode: Joi.string().valid('allowed').required(),
+  id: Joi.string().valid('allowed:keys').optional()
+});
+
+const META_REGISTRY_RULE_SCHEMA = Joi.alternatives().try(
   META_INDEX_RULE_SCHEMA,
+  META_ALLOWLIST_RULE_SCHEMA
+);
+
+export const registerMetaIndexSchema = Joi.alternatives().try(
+  META_REGISTRY_RULE_SCHEMA,
   Joi.object({
-    indexes: Joi.array().items(META_INDEX_RULE_SCHEMA).min(1).required()
+    indexes: Joi.array().items(META_REGISTRY_RULE_SCHEMA).min(1).required()
   })
 );
 
