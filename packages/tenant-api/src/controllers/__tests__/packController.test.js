@@ -10,6 +10,7 @@ import {
   Meta
 } from '@chat3/models';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { registerDefinition } from '@chat3/utils/metaIndexUtils.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 
 const tenantId = 'tnt_pack_test';
@@ -407,6 +408,65 @@ describe('packController.create', () => {
     expect(metaMap.category).toBe('support');
     expect(metaMap.priority).toBe(5);
     expect(metaMap.label).toBe('VIP');
+  });
+
+  test('rejects create without required meta when registry has required index', async () => {
+    await registerDefinition(tenantId, 'pack', { keys: ['contactId'], mode: 'required' });
+
+    const req = createMockReqWithBody({});
+    const res = createMockRes();
+
+    await packController.create(req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.code).toBe('INDEX_KEYS_REQUIRED');
+    expect(await Pack.countDocuments({ tenantId })).toBe(0);
+  });
+
+  test('creates pack when required meta is provided', async () => {
+    await registerDefinition(tenantId, 'pack', { keys: ['contactId'], mode: 'required' });
+
+    const req = createMockReqWithBody({ meta: { contactId: 'c_123' } });
+    const res = createMockRes();
+
+    await packController.create(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.meta.contactId).toBe('c_123');
+  });
+
+  test('rejects create with duplicate unique meta', async () => {
+    await registerDefinition(tenantId, 'pack', { keys: ['contactId'], mode: 'unique' });
+
+    const req1 = createMockReqWithBody({ meta: { contactId: 'dup' } });
+    const res1 = createMockRes();
+    await packController.create(req1, res1);
+    expect(res1.statusCode).toBe(201);
+
+    const req2 = createMockReqWithBody({ meta: { contactId: 'dup' } });
+    const res2 = createMockRes();
+    await packController.create(req2, res2);
+
+    expect(res2.statusCode).toBe(409);
+    expect(res2.body.code).toBe('DUPLICATE_INDEX');
+    expect(res2.body.details.existingEntityId).toBe(res1.body.data.packId);
+    expect(await Pack.countDocuments({ tenantId })).toBe(1);
+  });
+
+  test('creates pack with composite required meta', async () => {
+    await registerDefinition(tenantId, 'pack', {
+      keys: ['channel', 'externalId'],
+      mode: 'required'
+    });
+
+    const req = createMockReqWithBody({
+      meta: { channel: 'telegram', externalId: '99' }
+    });
+    const res = createMockRes();
+    await packController.create(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.meta).toEqual({ channel: 'telegram', externalId: '99' });
   });
 });
 

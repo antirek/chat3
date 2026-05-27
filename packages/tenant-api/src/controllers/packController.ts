@@ -12,6 +12,7 @@ import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { applyMarkDialogAllRead } from '../utils/dialogMemberUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
+import { handleMetaIndexError } from '../utils/metaIndexErrorHandler.js';
 
 export const packController = {
   async list(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -101,7 +102,11 @@ export const packController = {
   async create(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const tenantId = req.tenantId!;
-      const { meta: metaPayload } = req.body as { meta?: Record<string, unknown> };
+      const bodyMeta = (req.body as { meta?: Record<string, unknown> }).meta;
+      const metaPayload =
+        bodyMeta && typeof bodyMeta === 'object' && !Array.isArray(bodyMeta) ? bodyMeta : {};
+
+      await metaUtils.validateRequiredMetaForCreate(tenantId, 'pack', metaPayload);
 
       const pack = await Pack.create([{ tenantId }]);
 
@@ -109,35 +114,18 @@ export const packController = {
 
       const { actorId, actorType } = resolveEventActor(req);
 
-      if (metaPayload && typeof metaPayload === 'object' && Object.keys(metaPayload).length > 0) {
-        for (const [key, value] of Object.entries(metaPayload)) {
-          const metaOptions = { createdBy: actorId };
-
-          if (typeof value === 'object' && value !== null && Object.prototype.hasOwnProperty.call(value, 'value')) {
-            const valueObj = value as { value?: unknown; dataType?: string };
-            await metaUtils.setEntityMeta(
-              tenantId,
-              'pack',
-              created.packId,
-              key,
-              valueObj.value,
-              (valueObj.dataType as 'string' | 'number' | 'boolean' | 'object' | 'array') || 'string',
-              metaOptions
-            );
-          } else {
-            await metaUtils.setEntityMeta(
-              tenantId,
-              'pack',
-              created.packId,
-              key,
-              value,
-              typeof value === 'number' ? 'number' :
-              typeof value === 'boolean' ? 'boolean' :
-              Array.isArray(value) ? 'array' :
-              typeof value === 'object' && value !== null ? 'object' : 'string',
-              metaOptions
-            );
-          }
+      if (Object.keys(metaPayload).length > 0) {
+        try {
+          await metaUtils.setEntityMetaBulk(
+            tenantId,
+            'pack',
+            created.packId,
+            metaPayload,
+            { createdBy: actorId }
+          );
+        } catch (metaError) {
+          await Pack.deleteOne({ packId: created.packId, tenantId });
+          throw metaError;
         }
       }
 
@@ -180,6 +168,9 @@ export const packController = {
         })
       });
     } catch (error: any) {
+      if (handleMetaIndexError(res, error)) {
+        return;
+      }
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message
@@ -293,6 +284,7 @@ export const packController = {
       await PackLink.deleteMany({ packId, tenantId });
       await PackStats.deleteOne({ tenantId, packId });
       await UserPackUnreadBySenderType.deleteMany({ tenantId, packId });
+      await metaUtils.deleteAllMetaForEntity(tenantId, 'pack', packId);
       await Pack.deleteOne({ packId, tenantId });
 
       await eventUtils.createEvent({

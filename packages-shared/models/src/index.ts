@@ -4,6 +4,8 @@ import User from './data/User.js';
 import Dialog from './data/Dialog.js';
 import Message from './data/Message.js';
 import Meta from './data/Meta.js';
+import MetaIndexDefinition from './data/MetaIndexDefinition.js';
+import MetaIndex from './data/MetaIndex.js';
 import ApiKey from './data/ApiKey.js';
 import MessageStatus from './data/MessageStatus.js';
 import DialogMember from './data/DialogMember.js';
@@ -41,6 +43,8 @@ export {
   Dialog,
   Message,
   Meta,
+  MetaIndexDefinition,
+  MetaIndex,
   ApiKey,
   MessageStatus,
   DialogMember,
@@ -72,6 +76,9 @@ export type { IUser } from './data/User';
 export type { IDialog } from './data/Dialog';
 export type { IMessage } from './data/Message';
 export type { IMeta } from './data/Meta';
+export type { IMetaIndexDefinition } from './data/MetaIndexDefinition';
+export type { IMetaIndex } from './data/MetaIndex';
+export { META_ENTITY_TYPES, type MetaEntityType, type MetaIndexMode } from './data/metaEntityTypes.js';
 export type { IApiKey, IApiKeyModel } from './data/ApiKey';
 export type { IMessageStatus } from './data/MessageStatus';
 export type { IDialogMember } from './data/DialogMember';

@@ -257,3 +257,24 @@ export const addDialogToPackSchema = Joi.object({
       'string.pattern.base': 'dialogId must be in format dlg_ followed by 20 lowercase alphanumeric characters'
     })
 });
+
+const META_INDEX_RULE_SCHEMA = Joi.object({
+  keys: Joi.array().items(META_KEY_SCHEMA).min(1).max(3).unique().required(),
+  mode: Joi.string().valid('unique', 'required').required(),
+  id: Joi.string().pattern(/^[a-z0-9._-]{1,64}$/).optional()
+});
+
+export const registerMetaIndexSchema = Joi.alternatives().try(
+  META_INDEX_RULE_SCHEMA,
+  Joi.object({
+    indexes: Joi.array().items(META_INDEX_RULE_SCHEMA).min(1).required()
+  })
+);
+
+export const bulkSetMetaSchema = Joi.object({
+  meta: BASE_META_SCHEMA.min(1).required()
+});
+
+export const bulkDeleteMetaSchema = Joi.object({
+  keys: Joi.array().items(META_KEY_SCHEMA).min(1).unique().required()
+});

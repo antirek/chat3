@@ -167,6 +167,14 @@
           </router-link>
 
           <router-link
+            to="/meta-indexes"
+            class="nav-link"
+            title="Meta индексы"
+          >
+            <span class="nav-link-icon">🏷️</span>
+          </router-link>
+
+          <router-link
             to="/events-updates"
             class="nav-link"
             title="События и Updates"

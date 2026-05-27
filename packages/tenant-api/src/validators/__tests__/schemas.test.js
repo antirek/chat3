@@ -3,6 +3,7 @@ import {
   createUserSchema,
   createTenantSchema,
   setMetaSchema,
+  registerMetaIndexSchema,
   updateMessageContentSchema,
   updateMessageTopicSchema
 } from '../schemas/bodySchemas.js';
@@ -391,6 +392,45 @@ describe('querySchemas', () => {
     });
 
     expect(error).toBeUndefined();
+  });
+});
+
+describe('bodySchemas.registerMetaIndexSchema', () => {
+  const validate = (payload) => registerMetaIndexSchema.validate(payload, { abortEarly: false });
+
+  test('accepts single rule in root', () => {
+    const { error, value } = validate({ keys: ['contactId'], mode: 'unique' });
+    expect(error).toBeUndefined();
+    expect(value.keys).toEqual(['contactId']);
+  });
+
+  test('accepts batch indexes[]', () => {
+    const { error, value } = validate({
+      indexes: [
+        { keys: ['a'], mode: 'unique' },
+        { keys: ['b', 'c'], mode: 'required' }
+      ]
+    });
+    expect(error).toBeUndefined();
+    expect(value.indexes).toHaveLength(2);
+  });
+
+  test('rejects empty keys', () => {
+    const { error } = validate({ keys: [], mode: 'unique' });
+    expect(error).toBeDefined();
+  });
+
+  test('rejects invalid mode', () => {
+    const { error } = validate({ keys: ['key'], mode: 'allowed' });
+    expect(error).toBeDefined();
+  });
+
+  test('rejects more than 3 keys', () => {
+    const { error } = validate({
+      keys: ['a', 'b', 'c', 'd'],
+      mode: 'unique'
+    });
+    expect(error).toBeDefined();
   });
 });
 

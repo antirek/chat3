@@ -209,8 +209,16 @@
 
     <CreatePackModal
       :is-open="showCreateModalFlag"
+      :meta-tags="createMetaTags"
+      :new-meta-key="newMetaKeyForCreate"
+      :new-meta-value="newMetaValueForCreate"
+      :submitting="createSubmitting"
       @close="closeCreateModal"
       @submit="createPack"
+      @add-meta-tag="addCreateMetaTag"
+      @remove-meta-tag="removeCreateMetaTag"
+      @update:new-meta-key="newMetaKeyForCreate = $event"
+      @update:new-meta-value="newMetaValueForCreate = $event"
     />
 
     <AddDialogToPackModal
@@ -366,8 +374,14 @@ const {
   getSortIndicator,
   toggleSort,
   formatTimestamp,
+  createMetaTags,
+  newMetaKeyForCreate,
+  newMetaValueForCreate,
+  createSubmitting,
   showCreateModal,
   closeCreateModal,
+  addCreateMetaTag,
+  removeCreateMetaTag,
   createPack,
   showAddDialogModal,
   closeAddDialogModal,

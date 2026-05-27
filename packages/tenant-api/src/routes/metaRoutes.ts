@@ -1,5 +1,6 @@
 import express from 'express';
 import metaController from '../controllers/metaController.js';
+import metaIndexController from '../controllers/metaIndexController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { 
     validateEntityType, 
@@ -7,9 +8,47 @@ import {
     validateMetaKey,
 } from '../validators/urlValidators/index.js';
 import { validateBody } from '../validators/middleware.js';
-import { setMetaSchema } from '../validators/schemas/index.js';
+import {
+  setMetaSchema,
+  registerMetaIndexSchema,
+  bulkSetMetaSchema,
+  bulkDeleteMetaSchema
+} from '../validators/schemas/index.js';
 
 const router = express.Router();
+
+router.post(
+  '/index/:entityType',
+  apiAuth,
+  requirePermission('write'),
+  validateEntityType,
+  validateBody(registerMetaIndexSchema),
+  metaIndexController.registerDefinitions
+);
+
+router.get(
+  '/index/:entityType',
+  apiAuth,
+  requirePermission('read'),
+  validateEntityType,
+  metaIndexController.listDefinitions
+);
+
+router.get(
+  '/index/:entityType/:indexId',
+  apiAuth,
+  requirePermission('read'),
+  validateEntityType,
+  metaIndexController.getDefinition
+);
+
+router.delete(
+  '/index/:entityType/:indexId',
+  apiAuth,
+  requirePermission('write'),
+  validateEntityType,
+  metaIndexController.deleteDefinition
+);
 
 /**
  * @swagger
@@ -64,6 +103,26 @@ const router = express.Router();
  *       404:
  *         description: Entity not found
  */
+router.put(
+  '/:entityType/:entityId',
+  apiAuth,
+  requirePermission('write'),
+  validateEntityType,
+  validateEntityId,
+  validateBody(bulkSetMetaSchema),
+  metaController.setMetaBulk
+);
+
+router.delete(
+  '/:entityType/:entityId',
+  apiAuth,
+  requirePermission('delete'),
+  validateEntityType,
+  validateEntityId,
+  validateBody(bulkDeleteMetaSchema),
+  metaController.deleteMetaBulk
+);
+
 router.put('/:entityType/:entityId/:key', 
     apiAuth, requirePermission('write'), validateEntityType, 
     validateEntityId, validateMetaKey, 

@@ -15,6 +15,8 @@
     "./dialogReadTaskUtils.js": "./dist/dialogReadTaskUtils.js",
     "./eventUtils.js": "./dist/eventUtils.js",
     "./metaUtils.js": "./dist/metaUtils.js",
+    "./metaIndexUtils.js": "./dist/metaIndexUtils.js",
+    "./metaIndexErrors.js": "./dist/metaIndexErrors.js",
     "./responseUtils.js": "./dist/responseUtils.js",
     "./timestampUtils.js": "./dist/timestampUtils.js",
     "./topicUtils.js": "./dist/topicUtils.js",

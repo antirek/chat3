@@ -1041,7 +1041,7 @@ export const dialogController = {
 
       log(`Удаление метаданных диалога: id=${id}`);
       // Удаляем все метаданные диалога
-      await Meta.deleteMany({ entityType: 'dialog', entityId: id });
+      await metaUtils.deleteAllMetaForEntity(req.tenantId!, 'dialog', id);
 
       log(`Удаление связей паков с диалогом: dialogId=${dialog.dialogId}`);
       await PackLink.deleteMany({ dialogId: dialog.dialogId, tenantId: req.tenantId! });

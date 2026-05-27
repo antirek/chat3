@@ -900,6 +900,65 @@ GET /api/meta/dialog/dlg_abc123?scope=user_alice
 - Если `scope` не указан, удаляется глобальное значение
 - Если `scope` указан, удаляется только значение с этим scope
 
+#### PUT /api/meta/:entityType/:entityId
+Bulk upsert meta (merge): только перечисленные ключи создаются/обновляются.
+
+```json
+{
+  "meta": {
+    "channel": "telegram",
+    "externalId": "42"
+  }
+}
+```
+
+Обязательно для composite `required` (2–3 ключа) — все ключи связки в одном запросе.
+
+#### DELETE /api/meta/:entityType/:entityId
+Bulk delete meta keys:
+
+```json
+{
+  "keys": ["channel", "externalId"]
+}
+```
+
+### Meta Index Registry
+
+DDL правил уникальности/обязательности meta в рамках тенанта.
+
+#### POST /api/meta/index/:entityType
+Зарегистрировать правило. Query: `?dryRun=true` — только проверка данных.
+
+```json
+{
+  "keys": ["key"],
+  "mode": "unique"
+}
+```
+
+Пакет:
+
+```json
+{
+  "indexes": [
+    { "keys": ["key"], "mode": "unique" },
+    { "keys": ["key"], "mode": "required" }
+  ]
+}
+```
+
+Коды ошибок: `DUPLICATE_INDEX`, `INDEX_KEYS_REQUIRED`, `INDEX_CONFLICT_EXISTING_DATA`, `INDEX_DEFINITION_CONFLICT`, `INVALID_INDEX_SPEC`.
+
+#### GET /api/meta/index/:entityType
+Список definitions тенанта.
+
+#### GET /api/meta/index/:entityType/:indexId
+Одно правило.
+
+#### DELETE /api/meta/index/:entityType/:indexId
+Снять definition; для `unique` — удалить слоты `MetaIndex`.
+
 ---
 
 ### Typing (Индикатор печати)

@@ -53,6 +53,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/db-explorer'),
   },
   {
+    path: '/meta-indexes',
+    name: 'meta-indexes',
+    component: () => import('@/pages/meta-indexes'),
+  },
+  {
     path: '/events-updates',
     name: 'events-updates',
     component: () => import('@/pages/events-updates'),

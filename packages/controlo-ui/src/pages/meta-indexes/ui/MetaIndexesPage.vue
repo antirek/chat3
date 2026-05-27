@@ -1,0 +1,305 @@
+<template>
+  <div class="meta-indexes-page">
+    <div class="page-header">
+      <h1>Meta индексы</h1>
+      <p class="subtitle">Registry: unique / required для tenant-api</p>
+    </div>
+
+    <div class="toolbar">
+      <label>
+        entityType
+        <select v-model="entityType" class="select">
+          <option v-for="t in ENTITY_TYPES" :key="t" :value="t">{{ t }}</option>
+        </select>
+      </label>
+      <button type="button" class="btn-secondary" :disabled="loading" @click="loadDefinitions">
+        Обновить
+      </button>
+    </div>
+
+    <div v-if="error" class="alert alert-error">{{ error }}</div>
+
+    <div v-if="lastApiError" class="alert alert-warn">
+      <strong>{{ lastApiError.code || 'API error' }}</strong>
+      <pre class="error-json">{{ JSON.stringify(lastApiError, null, 2) }}</pre>
+    </div>
+
+    <div class="layout">
+      <section class="panel">
+        <h2>Правила ({{ entityType }})</h2>
+        <div v-if="loading" class="muted">Загрузка…</div>
+        <table v-else-if="definitions.length" class="table">
+          <thead>
+            <tr>
+              <th>indexId</th>
+              <th>mode</th>
+              <th>keys</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in definitions"
+              :key="row.indexId"
+              :class="{ selected: selectedDefinition?.indexId === row.indexId }"
+            >
+              <td>
+                <button type="button" class="link-btn" @click="loadDefinition(row.indexId)">
+                  {{ row.indexId }}
+                </button>
+              </td>
+              <td>{{ row.mode }}</td>
+              <td>{{ row.keys.join(', ') }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="btn-danger-sm"
+                  :disabled="submitting"
+                  @click="deleteDefinition(row.indexId)"
+                >
+                  Удалить
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else class="muted">Нет зарегистрированных индексов</p>
+
+        <div v-if="selectedDefinition" class="detail">
+          <h3>Детали</h3>
+          <pre>{{ JSON.stringify(selectedDefinition, null, 2) }}</pre>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Создать правило</h2>
+        <div class="form">
+          <label>
+            mode
+            <select v-model="formMode" class="select">
+              <option value="unique">unique</option>
+              <option value="required">required</option>
+            </select>
+          </label>
+          <label>
+            keys (1–3, через запятую)
+            <input v-model="formKeys" type="text" class="input" placeholder="channel, externalId" />
+          </label>
+          <label>
+            id (опционально)
+            <input v-model="formId" type="text" class="input" placeholder="crm_external_ref" />
+          </label>
+          <label class="checkbox-row">
+            <input v-model="formDryRun" type="checkbox" />
+            dryRun (только проверка данных)
+          </label>
+          <button
+            type="button"
+            class="btn-primary"
+            :disabled="submitting"
+            @click="createDefinition"
+          >
+            {{ submitting ? '…' : 'POST registry' }}
+          </button>
+        </div>
+        <p class="hint">
+          При конфликте с данными вернётся <code>INDEX_CONFLICT_EXISTING_DATA</code> с violations.
+          Слоты смотрите в DB Explorer → MetaIndex.
+        </p>
+      </section>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useMetaIndexRegistry } from '../model/useMetaIndexRegistry';
+
+const {
+  ENTITY_TYPES,
+  entityType,
+  definitions,
+  loading,
+  error,
+  lastApiError,
+  formMode,
+  formKeys,
+  formId,
+  formDryRun,
+  submitting,
+  selectedDefinition,
+  loadDefinitions,
+  loadDefinition,
+  createDefinition,
+  deleteDefinition
+} = useMetaIndexRegistry();
+</script>
+
+<style scoped>
+.meta-indexes-page {
+  padding: 24px;
+  max-width: 1200px;
+}
+
+.page-header h1 {
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  color: #6c757d;
+  margin: 0 0 20px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid #eee;
+  padding: 8px;
+  text-align: left;
+}
+
+tr.selected {
+  background: #f0f7ff;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #0d6efd;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.input,
+.select {
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.checkbox-row {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger-sm {
+  padding: 8px 14px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-primary {
+  background: #0d6efd;
+  color: #fff;
+}
+
+.btn-secondary {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+
+.btn-danger-sm {
+  background: #dc3545;
+  color: #fff;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.alert {
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.alert-error {
+  background: #f8d7da;
+  color: #842029;
+}
+
+.alert-warn {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.error-json {
+  font-size: 11px;
+  overflow: auto;
+  max-height: 200px;
+  margin: 8px 0 0;
+}
+
+.detail pre {
+  font-size: 12px;
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 4px;
+  overflow: auto;
+}
+
+.muted {
+  color: #6c757d;
+}
+
+.hint {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 12px;
+}
+</style>

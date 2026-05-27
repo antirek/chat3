@@ -42,13 +42,63 @@ export function usePackModals(
   const copyJsonButtonText = ref('📋 Копировать JSON');
   const generatedUrl = ref('');
   const copyUrlButtonText = ref('📋 Скопировать');
+  const createMetaTags = ref<Array<{ key: string; value: unknown }>>([]);
+  const newMetaKeyForCreate = ref('');
+  const newMetaValueForCreate = ref('');
+  const createSubmitting = ref(false);
   const dialogInfoUrl = ref('');
   const dialogInfoJsonContent = ref('');
   const dialogInfoJsonForCopy = ref('');
   const dialogInfoCopyButtonText = ref('📋 Копировать JSON');
 
   function showCreateModal() {
+    createMetaTags.value = [];
+    newMetaKeyForCreate.value = '';
+    newMetaValueForCreate.value = '';
+    createSubmitting.value = false;
     createModal.open();
+  }
+
+  function closeCreateModal() {
+    createModal.close();
+    createMetaTags.value = [];
+    newMetaKeyForCreate.value = '';
+    newMetaValueForCreate.value = '';
+    createSubmitting.value = false;
+  }
+
+  function addCreateMetaTag() {
+    const key = newMetaKeyForCreate.value.trim();
+    const valueStr = newMetaValueForCreate.value.trim();
+
+    if (!key) {
+      alert('Укажите ключ meta');
+      return;
+    }
+    if (!valueStr) {
+      alert('Укажите значение meta');
+      return;
+    }
+
+    let value: unknown;
+    try {
+      value = JSON.parse(valueStr);
+    } catch {
+      value = valueStr;
+    }
+
+    if (createMetaTags.value.some((tag) => tag.key === key)) {
+      alert('Мета-тег с таким ключом уже добавлен');
+      return;
+    }
+
+    createMetaTags.value.push({ key, value });
+    newMetaKeyForCreate.value = '';
+    newMetaValueForCreate.value = '';
+  }
+
+  function removeCreateMetaTag(key: string) {
+    createMetaTags.value = createMetaTags.value.filter((tag) => tag.key !== key);
   }
 
   function showAddDialogModal(packId: string) {
@@ -140,9 +190,18 @@ export function usePackModals(
   }
 
   async function createPack() {
+    createSubmitting.value = true;
     try {
       getApiKey();
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+
+      const body: { meta?: Record<string, unknown> } = {};
+      if (createMetaTags.value.length > 0) {
+        body.meta = {};
+        for (const tag of createMetaTags.value) {
+          body.meta[tag.key] = tag.value;
+        }
+      }
 
       const response = await fetch(`${baseUrl}/api/packs`, {
         method: 'POST',
@@ -150,20 +209,24 @@ export function usePackModals(
           ...credentialsStore.getHeaders(),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify(body),
       });
 
+      const errorData = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create pack');
+        const code = errorData.code ? `${errorData.code}: ` : '';
+        throw new Error(code + (errorData.message || 'Failed to create pack'));
       }
 
-      createModal.close();
+      closeCreateModal();
       loadPacks(1, currentLimit.value);
       alert('Пак успешно создан!');
     } catch (err) {
       console.error('Error creating pack:', err);
       alert('Ошибка создания пака: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      createSubmitting.value = false;
     }
   }
 
@@ -464,7 +527,14 @@ export function usePackModals(
     dialogInfoCopyButtonText,
     generatedUrl,
     copyUrlButtonText,
+    createMetaTags,
+    newMetaKeyForCreate,
+    newMetaValueForCreate,
+    createSubmitting,
     showCreateModal,
+    closeCreateModal,
+    addCreateMetaTag,
+    removeCreateMetaTag,
     createPack,
     showMetaModal,
     closeMetaModal,

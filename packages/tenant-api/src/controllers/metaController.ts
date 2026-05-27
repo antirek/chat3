@@ -4,6 +4,7 @@ import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
+import { handleMetaIndexError } from '../utils/metaIndexErrorHandler.js';
 
 interface ErrorWithStatusCode extends Error {
   statusCode?: number;
@@ -143,6 +144,9 @@ const metaController = {
     } catch (error: any) {
       log(`Ошибка обработки запроса:`, error.message);
       console.error('Error in setMeta:', error);
+      if (handleMetaIndexError(res, error)) {
+        return;
+      }
       if ((error as ErrorWithStatusCode).statusCode === 404) {
         res.status(404).json({
           error: 'Not Found',
@@ -240,6 +244,9 @@ const metaController = {
       });
     } catch (error: any) {
       log(`Ошибка обработки запроса:`, error.message);
+      if (handleMetaIndexError(res, error)) {
+        return;
+      }
       if ((error as ErrorWithStatusCode).statusCode === 404) {
         res.status(404).json({
           error: 'Not Found',
@@ -253,6 +260,68 @@ const metaController = {
       });
     } finally {
       log('>>>>> end');
+    }
+  },
+
+  async setMetaBulk(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { entityType, entityId: rawEntityId } = req.params;
+      const entityId = decodeURIComponent(rawEntityId || '');
+      const { meta } = req.body as { meta: Record<string, unknown> };
+
+      await verifyEntityExists(entityType, entityId, req.tenantId!);
+
+      const metaResult = await metaUtils.setEntityMetaBulk(
+        req.tenantId!,
+        entityType as any,
+        entityId,
+        meta,
+        { createdBy: req.apiKey?.name || 'api' }
+      );
+
+      res.json({
+        data: sanitizeResponse(metaResult),
+        message: 'Meta updated successfully'
+      });
+    } catch (error: any) {
+      if (handleMetaIndexError(res, error)) {
+        return;
+      }
+      if ((error as ErrorWithStatusCode).statusCode === 404) {
+        res.status(404).json({ error: 'Not Found', message: error.message });
+        return;
+      }
+      res.status(500).json({ error: 'Internal Server Error', message: error.message });
+    }
+  },
+
+  async deleteMetaBulk(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const { entityType, entityId } = req.params;
+      const { keys } = req.body as { keys: string[] };
+
+      await verifyEntityExists(entityType, entityId, req.tenantId!);
+
+      const metaResult = await metaUtils.deleteEntityMetaBulk(
+        req.tenantId!,
+        entityType as any,
+        entityId,
+        keys
+      );
+
+      res.json({
+        data: sanitizeResponse(metaResult),
+        message: 'Meta keys deleted successfully'
+      });
+    } catch (error: any) {
+      if (handleMetaIndexError(res, error)) {
+        return;
+      }
+      if ((error as ErrorWithStatusCode).statusCode === 404) {
+        res.status(404).json({ error: 'Not Found', message: error.message });
+        return;
+      }
+      res.status(500).json({ error: 'Internal Server Error', message: error.message });
     }
   }
 };

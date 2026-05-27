@@ -1,5 +1,25 @@
 import { Meta, Message } from '@chat3/models';
-import type { EntityType } from '@chat3/models';
+import type { MetaEntityType } from '@chat3/models';
+import {
+  loadDefinitions,
+  validateBeforeSingleKeyWrite,
+  validateBeforeSingleKeyDelete,
+  validateBeforeBulkDelete,
+  enforceMetaState,
+  releaseAllMetaIndexForEntity,
+  syncUniqueForDefinition,
+  validateRequiredBundle,
+  assertNoPartialRequiredBundle,
+  validateRequiredMetaForCreate,
+  parseMetaPayload,
+  runWithOptionalTransaction,
+  metaMapFromDb
+} from './metaIndexUtils.js';
+import { MetaIndexError } from './metaIndexErrors.js';
+import type { ClientSession } from 'mongoose';
+
+/** @deprecated use MetaEntityType from @chat3/models */
+export type EntityType = MetaEntityType;
 /**
  * Утилиты для работы с метаданными
  */
@@ -7,6 +27,8 @@ import type { EntityType } from '@chat3/models';
 interface GetEntityMetaOptions {
   [key: string]: unknown;
 }
+
+export { validateRequiredMetaForCreate, parseMetaPayload } from './metaIndexUtils.js';
 
 // Получить все метаданные для сущности в виде объекта {key: value}
 export async function getEntityMeta(
@@ -64,63 +86,216 @@ interface SetEntityMetaOptions {
   createdBy?: string;
 }
 
+export interface MetaBulkEntry {
+  value: unknown;
+  dataType?: 'string' | 'number' | 'boolean' | 'object' | 'array';
+}
+
+async function upsertMetaRecord(
+  tenantId: string,
+  entityType: MetaEntityType,
+  entityId: string,
+  key: string,
+  value: unknown,
+  dataType: 'string' | 'number' | 'boolean' | 'object' | 'array',
+  createdBy: string | undefined,
+  session: ClientSession | null
+): Promise<unknown> {
+  const filter = { tenantId, entityType, entityId, key };
+  const update = { value, dataType, createdBy };
+  const opts = { upsert: true, new: true, setDefaultsOnInsert: true, session: session ?? undefined };
+  return Meta.findOneAndUpdate(filter, update, opts);
+}
+
 // Установить или обновить метаданные
 export async function setEntityMeta(
-  tenantId: string, 
-  entityType: EntityType, 
-  entityId: string, 
-  key: string, 
-  value: unknown, 
-  dataType: 'string' | 'number' | 'boolean' | 'object' | 'array' = 'string', 
+  tenantId: string,
+  entityType: MetaEntityType,
+  entityId: string,
+  key: string,
+  value: unknown,
+  dataType: 'string' | 'number' | 'boolean' | 'object' | 'array' = 'string',
   options: SetEntityMetaOptions = {}
 ): Promise<unknown> {
   try {
-    const meta = await Meta.findOneAndUpdate(
-      {
+    const definitions = await loadDefinitions(tenantId, entityType);
+
+    return await runWithOptionalTransaction(async (session) => {
+      await validateBeforeSingleKeyWrite(
         tenantId,
         entityType,
         entityId,
-        key
-      },
-      {
+        key,
         value,
         dataType,
-        createdBy: options.createdBy
-      },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true
-      }
-    );
+        definitions,
+        session
+      );
 
-    return meta;
+      const meta = await upsertMetaRecord(
+        tenantId,
+        entityType,
+        entityId,
+        key,
+        value,
+        dataType,
+        options.createdBy,
+        session
+      );
+
+      const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId, session);
+      const uniqueDefs = definitions.filter((d) => d.mode === 'unique' && d.keys.includes(key));
+      for (const def of uniqueDefs) {
+        await syncUniqueForDefinition(tenantId, entityType, entityId, def, values, dataTypes, session);
+      }
+
+      for (const def of definitions.filter((d) => d.mode === 'required')) {
+        validateRequiredBundle(values, dataTypes, def);
+      }
+
+      return meta;
+    });
   } catch (error) {
+    if (error instanceof MetaIndexError) {
+      throw error;
+    }
     throw new Error(`Failed to set entity meta: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-// Удалить метаданные
- 
-export async function deleteEntityMeta(
-  tenantId: string, 
-  entityType: EntityType, 
-  entityId: string, 
-  key: string, 
-  _options: GetEntityMetaOptions = {}
-): Promise<boolean> {
-  try {
-    const result = await Meta.deleteOne({
+export async function setEntityMetaBulk(
+  tenantId: string,
+  entityType: MetaEntityType,
+  entityId: string,
+  meta: Record<string, MetaBulkEntry | unknown>,
+  options: SetEntityMetaOptions = {}
+): Promise<Record<string, unknown>> {
+  const definitions = await loadDefinitions(tenantId, entityType);
+  const { values: parsedValues, dataTypes: parsedDataTypes } = parseMetaPayload(meta as Record<string, unknown>);
+  const entries = Object.keys(parsedValues).map((key) => ({
+    key,
+    value: parsedValues[key],
+    dataType: parsedDataTypes[key] as 'string' | 'number' | 'boolean' | 'object' | 'array'
+  }));
+
+  return await runWithOptionalTransaction(async (session) => {
+    const { values: currentValues, dataTypes: currentDataTypes } = await metaMapFromDb(
       tenantId,
       entityType,
       entityId,
-      key
-    });
+      session
+    );
+    const nextValues = { ...currentValues };
+    const nextDataTypes = { ...currentDataTypes };
 
-    return result.deletedCount > 0;
+    for (const { key, value, dataType } of entries) {
+      nextValues[key] = value;
+      nextDataTypes[key] = dataType;
+    }
+
+    for (const def of definitions) {
+      const touches = def.keys.some((k) => entries.some((e) => e.key === k));
+      if (!touches) {
+        continue;
+      }
+      if (def.mode === 'required' && def.keys.length > 1) {
+        assertNoPartialRequiredBundle(nextValues, def);
+        validateRequiredBundle(nextValues, nextDataTypes, def);
+      }
+    }
+
+    for (const { key, value, dataType } of entries) {
+      await upsertMetaRecord(tenantId, entityType, entityId, key, value, dataType, options.createdBy, session);
+    }
+
+    const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId, session);
+    await enforceMetaState(tenantId, entityType, entityId, values, dataTypes, definitions, session);
+
+    return values;
+  });
+}
+
+// Удалить метаданные
+export async function deleteEntityMeta(
+  tenantId: string,
+  entityType: MetaEntityType,
+  entityId: string,
+  key: string,
+  _options: GetEntityMetaOptions = {}
+): Promise<boolean> {
+  try {
+    const definitions = await loadDefinitions(tenantId, entityType);
+    await validateBeforeSingleKeyDelete(tenantId, entityType, entityId, key, definitions);
+
+    return await runWithOptionalTransaction(async (session) => {
+      const op = Meta.deleteOne({ tenantId, entityType, entityId, key });
+      if (session) {
+        op.session(session);
+      }
+      const result = await op;
+      if (result.deletedCount === 0) {
+        return false;
+      }
+
+      const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId, session);
+      for (const def of definitions.filter((d) => d.mode === 'unique' && d.keys.includes(key))) {
+        await syncUniqueForDefinition(tenantId, entityType, entityId, def, values, dataTypes, session);
+      }
+
+      return true;
+    });
   } catch (error) {
+    if (error instanceof MetaIndexError) {
+      throw error;
+    }
     throw new Error(`Failed to delete entity meta: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+export async function deleteEntityMetaBulk(
+  tenantId: string,
+  entityType: MetaEntityType,
+  entityId: string,
+  keys: string[]
+): Promise<Record<string, unknown>> {
+  const definitions = await loadDefinitions(tenantId, entityType);
+  await validateBeforeBulkDelete(tenantId, entityType, entityId, keys, definitions);
+
+  return await runWithOptionalTransaction(async (session) => {
+    const op = Meta.deleteMany({
+      tenantId,
+      entityType,
+      entityId,
+      key: { $in: keys }
+    });
+    if (session) {
+      op.session(session);
+    }
+    await op;
+
+    const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId, session);
+    // После bulk delete required-связки meta может не удовлетворять required — это OK (B3).
+    // Обновляем только слоты unique.
+    for (const def of definitions.filter((d) => d.mode === 'unique')) {
+      await syncUniqueForDefinition(tenantId, entityType, entityId, def, values, dataTypes, session);
+    }
+
+    return values;
+  });
+}
+
+export async function deleteAllMetaForEntity(
+  tenantId: string,
+  entityType: MetaEntityType,
+  entityId: string,
+  session: ClientSession | null = null
+): Promise<void> {
+  const metaOp = Meta.deleteMany({ tenantId, entityType, entityId });
+  if (session) {
+    metaOp.session(session);
+  }
+  await metaOp;
+  await releaseAllMetaIndexForEntity(tenantId, entityType, entityId, session);
 }
 
 // Получить конкретное значение метаданных
