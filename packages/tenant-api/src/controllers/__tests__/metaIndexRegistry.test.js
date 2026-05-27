@@ -3,6 +3,7 @@
  * (тестируем metaIndexController напрямую, как остальные controller tests)
  */
 import metaIndexController from '../metaIndexController.js';
+import metaController from '../metaController.js';
 import { Pack, Meta, MetaIndexDefinition, MetaIndex } from '@chat3/models';
 import { setEntityMetaBulk } from '@chat3/utils/metaUtils.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
@@ -156,6 +157,85 @@ describe('metaIndexController (registry)', () => {
       expect(res.body.code).toBe('INDEX_CONFLICT_EXISTING_DATA');
       expect(res.body.details.truncated).toBeDefined();
       expect(await MetaIndexDefinition.countDocuments({ tenantId })).toBe(0);
+    });
+
+    test('after bulk delete on duplicate entity, unique index registers (UI clear flow)', async () => {
+      const p1 = await Pack.create({ tenantId });
+      const p2 = await Pack.create({ tenantId });
+      await Meta.create([
+        {
+          tenantId,
+          entityType: 'pack',
+          entityId: p1.packId,
+          key: 'contactId',
+          value: 'dup',
+          dataType: 'string'
+        },
+        {
+          tenantId,
+          entityType: 'pack',
+          entityId: p2.packId,
+          key: 'contactId',
+          value: 'dup',
+          dataType: 'string'
+        }
+      ]);
+
+      const registerBody = { keys: ['contactId'], mode: 'unique' };
+
+      const conflictRes = createMockRes();
+      await metaIndexController.registerDefinitions(
+        createReq({ body: registerBody }),
+        conflictRes
+      );
+
+      expect(conflictRes.statusCode).toBe(409);
+      const violation = conflictRes.body.details.violations.find(
+        (v) => v.reason === 'duplicateUnique'
+      );
+      expect(violation).toBeDefined();
+      expect([p1.packId, p2.packId]).toContain(violation.entityId);
+      expect([p1.packId, p2.packId]).toContain(violation.duplicateWith);
+      expect(violation.entityId).not.toBe(violation.duplicateWith);
+
+      const deleteRes = createMockRes();
+      await metaController.deleteMetaBulk(
+        createReq({
+          params: { entityType: 'pack', entityId: violation.entityId },
+          body: { keys: ['contactId'] }
+        }),
+        deleteRes
+      );
+      expect(deleteRes.statusCode).toBe(200);
+
+      const dryRes = createMockRes();
+      await metaIndexController.registerDefinitions(
+        createReq({ body: registerBody, query: { dryRun: 'true' } }),
+        dryRes
+      );
+      expect(dryRes.statusCode).toBe(200);
+      expect(dryRes.body.message).toBe('Dry run passed');
+      expect(await MetaIndexDefinition.countDocuments({ tenantId })).toBe(0);
+
+      const registerRes = createMockRes();
+      await metaIndexController.registerDefinitions(
+        createReq({ body: registerBody }),
+        registerRes
+      );
+      expect(registerRes.statusCode).toBe(201);
+      expect(registerRes.body.data.indexId).toBe('unique:contactId');
+      expect(await MetaIndexDefinition.countDocuments({ tenantId })).toBe(1);
+
+      expect(
+        await Meta.countDocuments({
+          tenantId,
+          entityId: violation.duplicateWith,
+          key: 'contactId'
+        })
+      ).toBe(1);
+      expect(
+        await Meta.countDocuments({ tenantId, entityId: violation.entityId, key: 'contactId' })
+      ).toBe(0);
     });
 
     test('returns 409 INDEX_DEFINITION_CONFLICT for same id different spec', async () => {

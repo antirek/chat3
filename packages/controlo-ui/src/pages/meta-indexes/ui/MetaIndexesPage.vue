@@ -18,10 +18,58 @@
     </div>
 
     <div v-if="error" class="alert alert-error">{{ error }}</div>
+    <div v-if="successMessage" class="alert alert-success">{{ successMessage }}</div>
 
     <div v-if="lastApiError" class="alert alert-warn">
       <strong>{{ lastApiError.code || 'API error' }}</strong>
-      <pre class="error-json">{{ JSON.stringify(lastApiError, null, 2) }}</pre>
+      <p v-if="lastApiError.message" class="api-message">{{ lastApiError.message }}</p>
+
+      <template v-if="canClearDuplicateViolations">
+        <p class="conflict-summary">
+          Дубликаты unique по ключам
+          <code>{{ indexConflictDetails?.keys?.join(', ') }}</code>:
+          {{ duplicateUniqueViolations.length }} в ответе
+          <span v-if="indexConflictDetails?.totalViolations">
+            (всего {{ indexConflictDetails.totalViolations
+            }}<span v-if="indexConflictDetails.truncated">, список обрезан</span>)
+          </span>
+        </p>
+        <table v-if="duplicateUniqueViolations.length" class="violations-table">
+          <thead>
+            <tr>
+              <th>сущность (дубликат)</th>
+              <th>оригинал</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in duplicateUniqueViolations" :key="row.entityId">
+              <td><code>{{ row.entityId }}</code></td>
+              <td><code>{{ row.duplicateWith }}</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <button
+          type="button"
+          class="btn-warning"
+          :disabled="submitting || clearingDuplicates"
+          @click="clearDuplicateMetaValues"
+        >
+          {{
+            clearingDuplicates
+              ? 'Очистка…'
+              : 'Удалить значения в дублирующихся сущностях'
+          }}
+        </button>
+        <p class="hint conflict-hint">
+          Снимает указанные meta-ключи у сущностей-дубликатов (не у «оригинала»). При обрезанном
+          списке очистка повторяется, пока dryRun не пройдёт.
+        </p>
+      </template>
+
+      <details class="error-details">
+        <summary>Полный ответ API</summary>
+        <pre class="error-json">{{ JSON.stringify(lastApiError, null, 2) }}</pre>
+      </details>
     </div>
 
     <div class="layout">
@@ -120,16 +168,22 @@ const {
   definitions,
   loading,
   error,
+  successMessage,
   lastApiError,
+  indexConflictDetails,
+  duplicateUniqueViolations,
+  canClearDuplicateViolations,
   formMode,
   formKeys,
   formId,
   formDryRun,
   submitting,
+  clearingDuplicates,
   selectedDefinition,
   loadDefinitions,
   loadDefinition,
   createDefinition,
+  clearDuplicateMetaValues,
   deleteDefinition
 } = useMetaIndexRegistry();
 </script>
@@ -275,6 +329,65 @@ tr.selected {
 
 .alert-warn {
   background: #fff3cd;
+  color: #664d03;
+}
+
+.alert-success {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.api-message {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.conflict-summary {
+  margin: 12px 0 8px;
+  font-size: 13px;
+}
+
+.violations-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.violations-table th,
+.violations-table td {
+  border-bottom: 1px solid #ffe69c;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.btn-warning {
+  padding: 8px 14px;
+  border-radius: 4px;
+  border: 1px solid #ffc107;
+  background: #ffc107;
+  color: #212529;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-warning:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.conflict-hint {
+  margin-top: 8px;
+}
+
+.error-details {
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.error-details summary {
+  cursor: pointer;
   color: #664d03;
 }
 
