@@ -6,7 +6,7 @@ import {
   getEntityMetaValue,
   buildMetaQuery
 } from '../metaUtils.js';
-import { Meta } from '@chat3/models';
+import { Meta, Pack, Dialog, Topic, Message } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '@chat3/tenant-api/src/utils/__tests__/setup.js';
 
 // Setup MongoDB перед всеми тестами в этом файле
@@ -339,6 +339,174 @@ describe('metaUtils - Integration Tests with MongoDB', () => {
       expect(query).toBeDefined();
       expect(query.dialogId.$in).toContain(dialogId2);
       expect(query.dialogId.$in).not.toContain(dialogId1);
+    });
+
+    test('should handle $exists:false for pack (packs without meta key)', async () => {
+      const p1 = await Pack.create({ tenantId });
+      const p2 = await Pack.create({ tenantId });
+
+      await Meta.create({
+        tenantId,
+        entityType: 'pack',
+        entityId: p1.packId,
+        key: 'contactId',
+        value: 'x',
+        dataType: 'string'
+      });
+
+      const query = await buildMetaQuery(tenantId, 'pack', {
+        contactId: { $exists: false }
+      });
+
+      expect(query).toBeDefined();
+      expect(query).toHaveProperty('packId');
+      expect(query.packId.$in).toContain(p2.packId);
+      expect(query.packId.$in).not.toContain(p1.packId);
+    });
+
+    test('should handle $exists:false for dialog (dialogs without meta key)', async () => {
+      const d1 = await Dialog.create({ tenantId });
+      const d2 = await Dialog.create({ tenantId });
+
+      await Meta.create({
+        tenantId,
+        entityType: 'dialog',
+        entityId: d1.dialogId,
+        key: 'contactId',
+        value: 'x',
+        dataType: 'string'
+      });
+
+      const query = await buildMetaQuery(tenantId, 'dialog', {
+        contactId: { $exists: false }
+      });
+
+      expect(query.dialogId.$in).toContain(d2.dialogId);
+      expect(query.dialogId.$in).not.toContain(d1.dialogId);
+    });
+
+    test('should handle $exists:true for dialog (dialogs with meta key)', async () => {
+      const d1 = await Dialog.create({ tenantId });
+      const d2 = await Dialog.create({ tenantId });
+
+      await Meta.create({
+        tenantId,
+        entityType: 'dialog',
+        entityId: d1.dialogId,
+        key: 'contactId',
+        value: 'x',
+        dataType: 'string'
+      });
+
+      const query = await buildMetaQuery(tenantId, 'dialog', {
+        contactId: { $exists: true }
+      });
+
+      expect(query.dialogId.$in).toContain(d1.dialogId);
+      expect(query.dialogId.$in).not.toContain(d2.dialogId);
+    });
+
+    test('should handle $exists:false for topic (topics without meta key)', async () => {
+      const dialogId = (await Dialog.create({ tenantId })).dialogId;
+      const t1 = await Topic.create({ tenantId, dialogId });
+      const t2 = await Topic.create({ tenantId, dialogId });
+
+      await Meta.create({
+        tenantId,
+        entityType: 'topic',
+        entityId: t1.topicId,
+        key: 'contactId',
+        value: 'x',
+        dataType: 'string'
+      });
+
+      const query = await buildMetaQuery(tenantId, 'topic', {
+        contactId: { $exists: false }
+      });
+
+      expect(query.topicId.$in).toContain(t2.topicId);
+      expect(query.topicId.$in).not.toContain(t1.topicId);
+    });
+
+    test('should handle $exists:true for topic (topics with meta key)', async () => {
+      const dialogId = (await Dialog.create({ tenantId })).dialogId;
+      const t1 = await Topic.create({ tenantId, dialogId });
+      const t2 = await Topic.create({ tenantId, dialogId });
+
+      await Meta.create({
+        tenantId,
+        entityType: 'topic',
+        entityId: t1.topicId,
+        key: 'contactId',
+        value: 'x',
+        dataType: 'string'
+      });
+
+      const query = await buildMetaQuery(tenantId, 'topic', {
+        contactId: { $exists: true }
+      });
+
+      expect(query.topicId.$in).toContain(t1.topicId);
+      expect(query.topicId.$in).not.toContain(t2.topicId);
+    });
+
+    test('should handle $exists:false for message (messages without meta key)', async () => {
+      const dialogId = (await Dialog.create({ tenantId })).dialogId;
+      const m1 = await Message.create({
+        tenantId,
+        dialogId,
+        messageId: 'msg_testexistsfalse00001',
+        senderId: 'user1',
+        type: 'internal.text',
+        content: 'a'
+      });
+      const m2 = await Message.create({
+        tenantId,
+        dialogId,
+        messageId: 'msg_testexistsfalse00002',
+        senderId: 'user1',
+        type: 'internal.text',
+        content: 'b'
+      });
+
+      await Meta.create({
+        tenantId,
+        entityType: 'message',
+        entityId: m1.messageId,
+        key: 'contactId',
+        value: 'x',
+        dataType: 'string'
+      });
+
+      const query = await buildMetaQuery(tenantId, 'message', {
+        contactId: { $exists: false }
+      });
+
+      expect(query.messageId.$in).toContain(m2.messageId);
+      expect(query.messageId.$in).not.toContain(m1.messageId);
+    });
+
+    test('should handle $exists:true for pack (packs with meta key)', async () => {
+      const p1 = await Pack.create({ tenantId });
+      const p2 = await Pack.create({ tenantId });
+
+      await Meta.create({
+        tenantId,
+        entityType: 'pack',
+        entityId: p1.packId,
+        key: 'contactId',
+        value: 'x',
+        dataType: 'string'
+      });
+
+      const query = await buildMetaQuery(tenantId, 'pack', {
+        contactId: { $exists: true }
+      });
+
+      expect(query).toBeDefined();
+      expect(query).toHaveProperty('packId');
+      expect(query.packId.$in).toContain(p1.packId);
+      expect(query.packId.$in).not.toContain(p2.packId);
     });
 
     test('should handle complex filters with operators', async () => {

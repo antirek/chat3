@@ -98,7 +98,12 @@ npm run generate-key
 - `lt` - меньше
 - `lte` - меньше или равно
 - `regex` - регулярное выражение
-- `exists` - существование поля
+- `exists` - существование поля (для `meta.*`: `true` — ключ есть у сущности, `false` — ключа нет; для `pack`, `dialog`, `topic`, `message`)
+
+**Meta `exists` (наличие ключа, не значения):**
+- `(meta.contactId,exists,true)` — сущности, у которых задан meta-ключ `contactId`
+- `(meta.contactId,exists,false)` — сущности **без** этого meta-ключа
+- «ключ есть и не пустой»: `(meta.contactId,exists,true)&(meta.contactId,ne,"")&(meta.contactId,ne,null)`
 
 **Комбинирование (AND):**
 ```

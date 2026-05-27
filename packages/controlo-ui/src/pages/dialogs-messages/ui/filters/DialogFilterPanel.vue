@@ -8,7 +8,7 @@
       :selected-example="selectedFilterExample"
       :examples="filterExamples"
       placeholder="Введите или выберите фильтр"
-      hint="Поля: dialogId, meta.*, member, message.createdAt (диалоги с сообщениями во времени; при gte+lte интервал ≤24 ч; с | и message.* нельзя). Операторы: eq, ne, in, nin, regex, gt, gte, lt, lte. И и ИЛИ: & и |; скобки задают группы, внутри группы только И или только ИЛИ (макс. 5 в группе)."
+      hint="Поля: dialogId, meta.*, member, message.createdAt. meta exists:true — ключ есть; exists:false — ключа нет. Операторы: eq, ne, in, nin, regex, exists, gt, gte, lt, lte. И и ИЛИ: & и |; скобки (макс. 5 в группе)."
       container-style="padding: 0; border: none; background: transparent; margin-bottom: 12px;"
       :show-actions="false"
       @update:filter-value="(v) => emit('update:filterValue', v)"

@@ -1,9 +1,22 @@
 import type { FilterExample } from '@/shared/ui';
 
 // Примеры фильтров для диалогов
+const dialogMetaExistsExamples = [
+  { value: '(meta.contactId,exists,true)', label: 'contactId: ключ есть' },
+  { value: '(meta.contactId,exists,false)', label: 'contactId: ключа нет' },
+  {
+    value: '(meta.contactId,exists,true)&(meta.contactId,ne,"")&(meta.contactId,ne,null)',
+    label: 'contactId: есть и не пустой'
+  }
+];
+
 export const dialogFilterExamples: FilterExample[] = [
   {
-    label: 'Фильтры по meta',
+    label: 'meta: наличие ключа',
+    options: dialogMetaExistsExamples
+  },
+  {
+    label: 'Фильтры по meta (значение)',
     options: [
       { value: '(meta.channelType,eq,whatsapp)', label: 'meta. Тип канала = whatsapp' },
       { value: '(meta.channelType,ne,telegram)', label: 'meta. Тип канала ≠ telegram' },

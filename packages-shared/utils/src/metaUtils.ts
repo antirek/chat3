@@ -1,4 +1,4 @@
-import { Meta, Message } from '@chat3/models';
+import { Meta, Message, Pack, Dialog, Topic } from '@chat3/models';
 import type { MetaEntityType } from '@chat3/models';
 import {
   loadDefinitions,
@@ -342,6 +342,36 @@ export async function buildMetaQuery(
     // Используем пересечение (AND): топик должен удовлетворять ВСЕМ meta-фильтрам
     let allEntityIds: Set<string> | null = null;
     
+    const emptyResult = () => {
+      if (entityType === 'message') return { messageId: { $in: [] } };
+      if (entityType === 'dialog') return { dialogId: { $in: [] } };
+      if (entityType === 'topic') return { topicId: { $in: [] } };
+      if (entityType === 'pack') return { packId: { $in: [] } };
+      if (entityType === 'dialogMember') return { _id: { $in: [] } };
+      return { _id: { $in: [] } };
+    };
+
+    const getAllEntityIdsForExists = async (): Promise<Set<string>> => {
+      if (entityType === 'message') {
+        const all = await Message.find({ tenantId }).select('messageId').lean();
+        return new Set(all.map((m) => String((m as any).messageId)));
+      }
+      if (entityType === 'dialog') {
+        const all = await Dialog.find({ tenantId }).select('dialogId').lean();
+        return new Set(all.map((d) => String((d as any).dialogId)));
+      }
+      if (entityType === 'topic') {
+        const all = await Topic.find({ tenantId }).select('topicId').lean();
+        return new Set(all.map((t) => String((t as any).topicId)));
+      }
+      if (entityType === 'pack') {
+        const all = await Pack.find({ tenantId }).select('packId').lean();
+        return new Set(all.map((p) => String((p as any).packId)));
+      }
+      // user/tenant/system/dialogMember — для них list endpoints либо не поддерживают meta-фильтры, либо entityId не представим одним полем
+      return new Set();
+    };
+
     for (const [key, value] of Object.entries(metaFilters)) {
       console.log(`Looking for ${key}=${JSON.stringify(value)}, type=${typeof value}`);
       
@@ -359,11 +389,46 @@ export async function buildMetaQuery(
       
       // Если value - это объект с операторами MongoDB (например, { $ne: "armor" })
       if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        const valueObj = value as { $ne?: unknown; $exists?: unknown };
+
+        // exists: true/false по наличию meta-ключа. Для exists:false нужно множество всех сущностей.
+        if (typeof valueObj.$exists === 'boolean') {
+          const allWithKey = await Meta.find({ tenantId, entityType, key }).select('entityId').lean();
+          const withKeyIds = new Set(allWithKey.map((r) => String((r as any).entityId)));
+
+          const currentEntityIds = new Set<string>();
+          if (valueObj.$exists) {
+            for (const id of withKeyIds) currentEntityIds.add(id);
+          } else {
+            const universeIds = await getAllEntityIdsForExists();
+            // если тип не поддерживает exists:false корректно — вернём пусто (безопаснее, чем “все”)
+            if (universeIds.size === 0) {
+              return emptyResult();
+            }
+            for (const id of universeIds) {
+              if (!withKeyIds.has(id)) currentEntityIds.add(id);
+            }
+          }
+
+          if (currentEntityIds.size === 0) {
+            return emptyResult();
+          }
+
+          if (allEntityIds === null) {
+            allEntityIds = currentEntityIds;
+          } else {
+            allEntityIds = new Set([...allEntityIds].filter((id) => currentEntityIds.has(id)));
+            if (allEntityIds.size === 0) {
+              return emptyResult();
+            }
+          }
+          continue;
+        }
+
         // Применяем оператор к полю value в коллекции Meta
         metaQuery.value = value;
         
         // Для оператора $ne нужна особая логика
-        const valueObj = value as { $ne?: unknown };
         if (valueObj.$ne !== undefined) {
           console.log(`Handling $ne operator for ${key}`);
           
@@ -400,29 +465,13 @@ export async function buildMetaQuery(
             }
           });
           
-          // Также нужно добавить entityId, которые вообще не имеют этого ключа
-          // Для этого нам нужно получить все entityId данного типа и исключить те, что имеют этот ключ
-          if (entityType === 'message') {
-            // Message уже импортирован в начале файла
-            const allMessages = await Message.find({ tenantId }).select('messageId').lean();
-            const allMessageIds = new Set(allMessages.map(m => String(m.messageId)));
-            
-            const withKeyIds = new Set(allWithKey.map(r => String(r.entityId)));
-            
-            // Добавляем entityId, которые не имеют этого ключа вообще
-            allMessageIds.forEach(id => {
-              const idStr = String(id);
-              if (!withKeyIds.has(idStr)) {
-                neEntityIds.add(idStr);
-              }
-            });
-          } else {
-            // Для других типов (dialog, user и т.д.) entityId уже строки в Meta коллекции
-            // Просто добавляем все entityId из Meta, которые не имеют этого ключа
-             
-            const _withKeyIds = new Set(allWithKey.map(r => String(r.entityId)));
-            // Для других типов просто не добавляем пустые значения
-            // Эта логика может быть расширена при необходимости
+          // entityId без meta-ключа (для message/dialog/topic/pack)
+          const withKeyIds = new Set(allWithKey.map((r) => String(r.entityId)));
+          const universeIds = await getAllEntityIdsForExists();
+          for (const id of universeIds) {
+            if (!withKeyIds.has(id)) {
+              neEntityIds.add(id);
+            }
           }
           
           // Пересечение с neEntityIds (как для обычного фильтра)
@@ -473,19 +522,7 @@ export async function buildMetaQuery(
       if (currentEntityIds.size === 0) {
         // Если нет записей для этого фильтра, возвращаем пустой результат (пересечение с пустым = пусто)
         console.log(`No records found for ${key}=${JSON.stringify(value)}, returning empty result`);
-        if (entityType === 'message') {
-          return { messageId: { $in: [] } };
-        } else if (entityType === 'dialog') {
-          return { dialogId: { $in: [] } };
-        } else if (entityType === 'dialogMember') {
-          return { _id: { $in: [] } };
-        } else if (entityType === 'topic') {
-          return { topicId: { $in: [] } };
-        } else if (entityType === 'pack') {
-          return { packId: { $in: [] } };
-        } else {
-          return { _id: { $in: [] } };
-        }
+        return emptyResult();
       }
       
       // Пересечение (AND): оставляем только те entityId, которые есть в текущем множестве
@@ -499,19 +536,7 @@ export async function buildMetaQuery(
         if (allEntityIds.size === 0) {
           // Пересечение пусто — возвращаем пустой результат
           console.log(`Intersection is empty after ${key}, returning empty result`);
-          if (entityType === 'message') {
-            return { messageId: { $in: [] } };
-          } else if (entityType === 'dialog') {
-            return { dialogId: { $in: [] } };
-          } else if (entityType === 'topic') {
-            return { topicId: { $in: [] } };
-          } else if (entityType === 'pack') {
-            return { packId: { $in: [] } };
-          } else if (entityType === 'dialogMember') {
-            return { _id: { $in: [] } };
-          } else {
-            return { _id: { $in: [] } };
-          }
+          return emptyResult();
         }
       }
     }

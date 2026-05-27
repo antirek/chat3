@@ -29,7 +29,7 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   examples: () => [],
   placeholder: '(meta.key,eq,value) или (dialogId,eq,dlg_...)',
-  hint: 'Фильтр по meta диалогов и dialogId. Примеры: (meta.channel,eq,telegram), (dialogId,eq,dlg_xxx)',
+  hint: 'meta диалогов и dialogId. exists:true — ключ есть; exists:false — ключа нет. Пример: (meta.contactId,exists,false)',
 });
 
 const emit = defineEmits<{
