@@ -24,10 +24,18 @@
       <strong>{{ lastApiError.code || 'API error' }}</strong>
       <p v-if="lastApiError.message" class="api-message">{{ lastApiError.message }}</p>
 
+      <p
+        v-else-if="hasIndexDataConflict && !canClearDuplicateViolations"
+        class="conflict-summary conflict-summary-muted"
+      >
+        Конфликт данных есть, но автоматическая очистка дубликатов недоступна (нет
+        <code>duplicateUnique</code> в ответе или режим не unique). Смотрите полный JSON ниже.
+      </p>
+
       <template v-if="canClearDuplicateViolations">
         <p class="conflict-summary">
           Дубликаты unique по ключам
-          <code>{{ indexConflictDetails?.keys?.join(', ') }}</code>:
+          <code>{{ effectiveConflictKeys.join(', ') }}</code>:
           {{ duplicateUniqueViolations.length }} в ответе
           <span v-if="indexConflictDetails?.totalViolations">
             (всего {{ indexConflictDetails.totalViolations
@@ -172,6 +180,8 @@ const {
   lastApiError,
   indexConflictDetails,
   duplicateUniqueViolations,
+  effectiveConflictKeys,
+  hasIndexDataConflict,
   canClearDuplicateViolations,
   formMode,
   formKeys,
@@ -345,6 +355,10 @@ tr.selected {
 .conflict-summary {
   margin: 12px 0 8px;
   font-size: 13px;
+}
+
+.conflict-summary-muted {
+  color: #856404;
 }
 
 .violations-table {

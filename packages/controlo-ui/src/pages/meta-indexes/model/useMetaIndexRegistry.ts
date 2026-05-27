@@ -39,6 +39,38 @@ export interface IndexConflictDetails {
 
 const MAX_CLEAR_DUPLICATE_ITERATIONS = 100;
 
+function parseConflictDetails(err: Record<string, unknown> | null): IndexConflictDetails | null {
+  if (!err || err.code !== 'INDEX_CONFLICT_EXISTING_DATA') {
+    return null;
+  }
+
+  let raw: unknown = err.details;
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      raw = undefined;
+    }
+  }
+
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw as IndexConflictDetails;
+  }
+
+  if (Array.isArray(err.violations)) {
+    return {
+      indexId: typeof err.indexId === 'string' ? err.indexId : undefined,
+      mode: typeof err.mode === 'string' ? err.mode : undefined,
+      keys: Array.isArray(err.keys) ? (err.keys as string[]) : undefined,
+      violations: err.violations as IndexConflictViolation[],
+      totalViolations: typeof err.totalViolations === 'number' ? err.totalViolations : undefined,
+      truncated: typeof err.truncated === 'boolean' ? err.truncated : undefined
+    };
+  }
+
+  return null;
+}
+
 export function useMetaIndexRegistry() {
   const configStore = useConfigStore();
   const credentialsStore = useCredentialsStore();
@@ -59,13 +91,9 @@ export function useMetaIndexRegistry() {
 
   const selectedDefinition = ref<MetaIndexDefinitionRow | null>(null);
 
-  const indexConflictDetails = computed((): IndexConflictDetails | null => {
-    const err = lastApiError.value;
-    if (!err || err.code !== 'INDEX_CONFLICT_EXISTING_DATA') {
-      return null;
-    }
-    return (err.details as IndexConflictDetails | undefined) ?? null;
-  });
+  const indexConflictDetails = computed((): IndexConflictDetails | null =>
+    parseConflictDetails(lastApiError.value)
+  );
 
   const duplicateUniqueViolations = computed(() => {
     const details = indexConflictDetails.value;
@@ -75,11 +103,34 @@ export function useMetaIndexRegistry() {
     return details.violations.filter((v) => v.reason === 'duplicateUnique');
   });
 
-  const canClearDuplicateViolations = computed(
-    () =>
-      indexConflictDetails.value?.mode === 'unique' &&
-      duplicateUniqueViolations.value.length > 0 &&
-      (indexConflictDetails.value.keys?.length ?? 0) > 0
+  const effectiveConflictKeys = computed((): string[] => {
+    const fromDetails = indexConflictDetails.value?.keys;
+    if (fromDetails?.length) {
+      return fromDetails;
+    }
+    try {
+      return parseKeysInput(formKeys.value);
+    } catch {
+      return [];
+    }
+  });
+
+  const canClearDuplicateViolations = computed(() => {
+    if (lastApiError.value?.code !== 'INDEX_CONFLICT_EXISTING_DATA') {
+      return false;
+    }
+    if (duplicateUniqueViolations.value.length === 0) {
+      return false;
+    }
+    const mode = indexConflictDetails.value?.mode;
+    if (mode && mode !== 'unique') {
+      return false;
+    }
+    return effectiveConflictKeys.value.length > 0;
+  });
+
+  const hasIndexDataConflict = computed(
+    () => lastApiError.value?.code === 'INDEX_CONFLICT_EXISTING_DATA'
   );
 
   function baseUrl(): string {
@@ -96,7 +147,6 @@ export function useMetaIndexRegistry() {
   async function loadDefinitions() {
     loading.value = true;
     error.value = null;
-    lastApiError.value = null;
     try {
       const response = await fetch(
         `${baseUrl()}/api/meta/index/${entityType.value}`,
@@ -188,7 +238,8 @@ export function useMetaIndexRegistry() {
 
   async function clearDuplicateMetaValues(): Promise<void> {
     const details = indexConflictDetails.value;
-    if (!details?.keys?.length || !canClearDuplicateViolations.value) {
+    const keys = effectiveConflictKeys.value;
+    if (!keys.length || !canClearDuplicateViolations.value) {
       return;
     }
 
@@ -196,13 +247,13 @@ export function useMetaIndexRegistry() {
       ...new Set(duplicateUniqueViolations.value.map((v) => v.entityId))
     ];
     const totalHint =
-      details.totalViolations != null
+      details?.totalViolations != null
         ? ` (всего нарушений: ${details.totalViolations}${details.truncated ? ', в ответе показана часть' : ''})`
         : '';
 
     if (
       !confirm(
-        `Удалить ключи [${details.keys.join(', ')}] у ${previewIds.length} сущностей-дубликатов${totalHint}? ` +
+        `Удалить ключи [${keys.join(', ')}] у ${previewIds.length} сущностей-дубликатов${totalHint}? ` +
           'У каждой пары останется сущность-«оригинал» (duplicateWith), значение у дубликата будет снято.'
       )
     ) {
@@ -235,12 +286,13 @@ export function useMetaIndexRegistry() {
         }
 
         lastApiError.value = reg.body;
-        const scan = reg.body.details as IndexConflictDetails | undefined;
-        if (scan?.mode !== 'unique') {
+        const scan = parseConflictDetails(reg.body);
+        if (scan?.mode && scan.mode !== 'unique') {
           throw new Error('Автоочистка доступна только для unique-индексов с дубликатами');
         }
 
-        const keys = scan.keys ?? details.keys;
+        const keys =
+          scan?.keys?.length ? scan.keys : effectiveConflictKeys.value;
         const entityIds = [
           ...new Set(
             (scan.violations ?? [])
@@ -333,6 +385,8 @@ export function useMetaIndexRegistry() {
 
   watch(entityType, () => {
     selectedDefinition.value = null;
+    lastApiError.value = null;
+    successMessage.value = null;
     loadDefinitions();
   });
 
@@ -347,6 +401,8 @@ export function useMetaIndexRegistry() {
     lastApiError,
     indexConflictDetails,
     duplicateUniqueViolations,
+    effectiveConflictKeys,
+    hasIndexDataConflict,
     canClearDuplicateViolations,
     formMode,
     formKeys,
