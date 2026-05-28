@@ -749,29 +749,30 @@ export async function recalculateUserStats(
   totalUnreadCount: number;
   totalMessagesCount: number;
 }> {
+  const uid = (userId || '').trim().toLowerCase();
   // Пересчитываем dialogCount из DialogMember (основная таблица участников диалогов)
-  const dialogCount = await DialogMember.countDocuments({ tenantId, userId });
+  const dialogCount = await DialogMember.countDocuments({ tenantId, userId: uid });
   
   // КРИТИЧНО: Сначала создаем и пересчитываем UserDialogStats для всех DialogMember
   // Это нужно, чтобы пересчет unreadDialogsCount был корректным
-  const dialogMembers = await DialogMember.find({ tenantId, userId }).select('dialogId').lean();
+  const dialogMembers = await DialogMember.find({ tenantId, userId: uid }).select('dialogId').lean();
   const allowedDialogIds = new Set((dialogMembers as Array<{ dialogId: string }>).map(m => m.dialogId));
 
   // Удаляем сиротские записи: диалоги, в которых пользователь уже не участник (см. PACK_LEAVE_RECALC_PLAN.md)
   if (allowedDialogIds.size > 0) {
     await UserDialogStats.deleteMany({
       tenantId,
-      userId,
+      userId: uid,
       dialogId: { $nin: Array.from(allowedDialogIds) }
     });
     await UserDialogUnreadBySenderType.deleteMany({
       tenantId,
-      userId,
+      userId: uid,
       dialogId: { $nin: Array.from(allowedDialogIds) }
     });
   } else {
-    await UserDialogStats.deleteMany({ tenantId, userId });
-    await UserDialogUnreadBySenderType.deleteMany({ tenantId, userId });
+    await UserDialogStats.deleteMany({ tenantId, userId: uid });
+    await UserDialogUnreadBySenderType.deleteMany({ tenantId, userId: uid });
   }
 
   for (const member of dialogMembers) {
@@ -788,7 +789,7 @@ export async function recalculateUserStats(
         $match: {
           tenantId,
           dialogId: memberObj.dialogId,
-          senderId: { $ne: userId }
+          senderId: { $ne: uid }
         }
       },
       // Соединяем с MessageStatus для поиска статусов 'read' от этого пользователя
@@ -803,7 +804,7 @@ export async function recalculateUserStats(
                   $and: [
                     { $eq: ['$messageId', '$$messageId'] },
                     { $eq: ['$tenantId', tenantId] },
-                    { $eq: ['$userId', userId] },
+                    { $eq: [{ $toLower: '$userId' }, uid] },
                     { $eq: ['$status', 'read'] }
                   ]
                 }
@@ -834,7 +835,7 @@ export async function recalculateUserStats(
     if (unreadCount === undefined) {
       const existingStats = await UserDialogStats.findOne({
         tenantId,
-        userId,
+        userId: uid,
         dialogId: memberObj.dialogId
       }).lean();
       const statsObj = existingStats as { unreadCount?: number } | null;
@@ -843,7 +844,7 @@ export async function recalculateUserStats(
     
     // Обновляем или создаем UserDialogStats с пересчитанным unreadCount
     await UserDialogStats.findOneAndUpdate(
-      { tenantId, userId, dialogId: memberObj.dialogId },
+      { tenantId, userId: uid, dialogId: memberObj.dialogId },
       {
         $set: {
           unreadCount,
@@ -863,7 +864,7 @@ export async function recalculateUserStats(
         $match: {
           tenantId,
           dialogId: memberObj.dialogId,
-          senderId: { $ne: userId }
+          senderId: { $ne: uid }
         }
       },
       {
@@ -877,7 +878,7 @@ export async function recalculateUserStats(
                   $and: [
                     { $eq: ['$messageId', '$$messageId'] },
                     { $eq: ['$tenantId', tenantId] },
-                    { $eq: ['$userId', userId] },
+                    { $eq: [{ $toLower: '$userId' }, uid] },
                     { $eq: ['$status', 'read'] }
                   ]
                 }
@@ -905,7 +906,7 @@ export async function recalculateUserStats(
     for (const fromType of PACK_UNREAD_SENDER_TYPES) {
       const countUnread = byType[fromType] ?? 0;
       await UserDialogUnreadBySenderType.findOneAndUpdate(
-        { tenantId, userId, dialogId: memberObj.dialogId, fromType },
+        { tenantId, userId: uid, dialogId: memberObj.dialogId, fromType },
         {
           $set: { countUnread, lastUpdatedAt: now },
           $setOnInsert: { createdAt: now }
@@ -915,12 +916,12 @@ export async function recalculateUserStats(
     }
   }
 
-  const { totalUnreadCount, unreadDialogsCount } = await recalculateUserUnreadBySenderType(tenantId, userId);
+  const { totalUnreadCount, unreadDialogsCount } = await recalculateUserUnreadBySenderType(tenantId, uid);
 
-  const totalMessagesCount = await Message.countDocuments({ tenantId, senderId: userId });
+  const totalMessagesCount = await Message.countDocuments({ tenantId, senderId: uid });
 
   await UserStats.findOneAndUpdate(
-    { tenantId, userId },
+    { tenantId, userId: uid },
     {
       $set: {
         dialogCount,

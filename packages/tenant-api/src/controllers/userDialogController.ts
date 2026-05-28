@@ -2055,6 +2055,7 @@ const userDialogController = {
     
     try {
       const { userId, dialogId, messageId, status } = req.params;
+      const normalizedUserId = (userId || '').trim().toLowerCase();
       log(`Получены параметры: userId=${userId}, dialogId=${dialogId}, messageId=${messageId}, status=${status}`);
 
       // Формат status проверяется validateStatus в роуте (произвольный статус: [a-z0-9_-], 1–64 символа)
@@ -2171,7 +2172,7 @@ const userDialogController = {
         await decrementUserDialogUnreadBySenderTypeForRead(
           req.tenantId,
           dialogId,
-          userId,
+          normalizedUserId,
           message?.senderId ?? null
         );
       }
@@ -2207,7 +2208,7 @@ const userDialogController = {
       log(`Создание новой записи статуса: messageId=${messageId}, userId=${userId}, status=${status}`);
       const newStatusData: any = {
         messageId: messageId,
-        userId: userId,
+        userId: normalizedUserId,
         tenantId: req.tenantId,
         dialogId: dialogId, // КРИТИЧНО: Передаем dialogId для избежания поиска Message
         status: status,

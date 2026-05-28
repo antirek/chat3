@@ -463,7 +463,7 @@ const messageController = {
             // 2. Создаем MessageStatus записи батчем через insertMany
             const messageStatuses = recipients.map(member => ({
               messageId: createdMessage.messageId,
-              userId: member.userId,
+              userId: (member.userId || '').trim().toLowerCase(),
               dialogId: dialog.dialogId, // КРИТИЧНО: Передаем dialogId для избежания поиска Message
               userType: userTypeMap.get(member.userId) || null,
               tenantId: req.tenantId!,
