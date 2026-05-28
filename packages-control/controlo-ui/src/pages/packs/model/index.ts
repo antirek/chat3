@@ -102,10 +102,33 @@ export function usePacksPage() {
     packUsersPaginationStart,
     packUsersPaginationEnd,
     packUsersPaginated,
+    removingPackUserId,
     loadPackUsers,
     goToPackUsersPage,
     changePackUsersLimit,
+    removeUserFromPack,
   } = packUsersModule;
+
+  async function removePackUserWithRefresh(userId: string) {
+    const packId = selectedPackId.value;
+    if (!packId) {
+      alert('Сначала выберите пак');
+      return;
+    }
+    if (!confirm(`Удалить участника ${userId} из пака (leave)?`)) {
+      return;
+    }
+    try {
+      await removeUserFromPack(userId);
+      await Promise.all([
+        loadPackUsers(),
+        loadPackDialogs(),
+      ]);
+      alert(`Участник ${userId} покинул пак`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Ошибка удаления участника из пака');
+    }
+  }
 
   const modalsModule = usePackModals(
     getApiKey,
@@ -120,9 +143,13 @@ export function usePacksPage() {
   const {
     createModal,
     addDialogModal,
+    addMemberModal,
     markAllReadModal,
     addDialogPackId,
     addDialogDialogId,
+    addMemberPackId,
+    addMemberUserId,
+    addMemberUserType,
     markAllReadPackId,
     markAllReadSubmitting,
     markAllReadError,
@@ -146,6 +173,9 @@ export function usePacksPage() {
     showAddDialogModal,
     closeAddDialogModal,
     addDialogToPack,
+    showAddMemberModal,
+    closeAddMemberModal,
+    addMemberToPack,
     showMarkAllReadModal,
     closeMarkAllReadModal,
     markPackAllReadForAllUsers,
@@ -258,9 +288,11 @@ export function usePacksPage() {
     packUsersPaginationStart,
     packUsersPaginationEnd,
     packUsersPaginated,
+    removingPackUserId,
     loadPackUsers,
     goToPackUsersPage,
     changePackUsersLimit,
+    removePackUserFromPack: removePackUserWithRefresh,
     currentPage,
     currentLimit,
     totalPages,
@@ -274,8 +306,12 @@ export function usePacksPage() {
     currentSort,
     showCreateModalFlag: createModal.isOpen,
     showAddDialogModalFlag: modalsModule.addDialogModal.isOpen,
+    showAddMemberModalFlag: modalsModule.addMemberModal.isOpen,
     addDialogPackId: modalsModule.addDialogPackId,
     addDialogDialogId: modalsModule.addDialogDialogId,
+    addMemberPackId: modalsModule.addMemberPackId,
+    addMemberUserId: modalsModule.addMemberUserId,
+    addMemberUserType: modalsModule.addMemberUserType,
     showMarkAllReadModalFlag: markAllReadModal.isOpen,
     markAllReadPackId,
     markAllReadSubmitting,
@@ -317,7 +353,12 @@ export function usePacksPage() {
     showAddDialogModal,
     closeAddDialogModal,
     addDialogToPack,
+    showAddMemberModal,
+    closeAddMemberModal,
+    addMemberToPack,
     onUpdateAddDialogDialogId: (v: string) => { addDialogDialogId.value = v; },
+    onUpdateAddMemberUserId: (v: string) => { addMemberUserId.value = v; },
+    onUpdateAddMemberUserType: (v: string) => { addMemberUserType.value = v; },
     showMarkAllReadModal,
     closeMarkAllReadModal,
     markPackAllReadForAllUsers,

@@ -16,6 +16,7 @@ export function usePackUsers(
   const packUsersFilterValue = ref('');
   const packUsersPage = ref(1);
   const packUsersLimit = ref(20);
+  const removingPackUserId = ref<string | null>(null);
 
   const packUsersFiltered = computed(() => {
     const q = packUsersFilterValue.value.trim().toLowerCase();
@@ -85,6 +86,40 @@ export function usePackUsers(
     packUsersPage.value = 1;
   }
 
+  async function removeUserFromPack(userId: string): Promise<void> {
+    const packId = selectedPackId.value;
+    if (!packId) {
+      alert('Сначала выберите пак');
+      return;
+    }
+    const key = getApiKey();
+    if (!key) {
+      alert('API ключ не задан');
+      return;
+    }
+    if (!userId) {
+      return;
+    }
+
+    removingPackUserId.value = userId;
+    try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const response = await fetch(
+        `${baseUrl}/api/users/${encodeURIComponent(userId)}/packs/${encodeURIComponent(packId)}/leave`,
+        {
+          method: 'POST',
+          headers: credentialsStore.getHeaders(),
+        }
+      );
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error((errData as { message?: string }).message || `HTTP ${response.status}`);
+      }
+    } finally {
+      removingPackUserId.value = null;
+    }
+  }
+
   watch(selectedPackId, (id, prevId) => {
     if (id !== prevId) clearPackUsers();
   });
@@ -102,9 +137,11 @@ export function usePackUsers(
     packUsersPaginationStart,
     packUsersPaginationEnd,
     packUsersPaginated,
+    removingPackUserId,
     loadPackUsers,
     clearPackUsers,
     goToPackUsersPage,
     changePackUsersLimit,
+    removeUserFromPack,
   };
 }

@@ -189,6 +189,13 @@
             <span class="right-panel-title">Участники пака</span>
             <BaseButton
               size="small"
+              variant="success"
+              @click="selectedPackId && showAddMemberModal(selectedPackId)"
+            >
+              + Добавить участника
+            </BaseButton>
+            <BaseButton
+              size="small"
               variant="secondary"
               :disabled="packUsersLoading"
               @click="loadPackUsers"
@@ -201,6 +208,8 @@
               :users="packUsers"
               :loading="packUsersLoading"
               :error="packUsersError"
+              :removing-user-id="removingPackUserId"
+              @remove-user="removePackUserFromPack"
             />
           </div>
         </template>
@@ -228,6 +237,17 @@
       @close="closeAddDialogModal"
       @submit="addDialogToPack"
       @update:dialog-id="onUpdateAddDialogDialogId"
+    />
+
+    <AddMemberToPackModal
+      :is-open="showAddMemberModalFlag"
+      :pack-id="addMemberPackId"
+      :user-id="addMemberUserId"
+      :user-type="addMemberUserType"
+      @close="closeAddMemberModal"
+      @submit="addMemberToPack"
+      @update:user-id="onUpdateAddMemberUserId"
+      @update:user-type="onUpdateAddMemberUserType"
     />
 
     <MarkPackAllReadModal
@@ -284,7 +304,7 @@ import { usePacksPage } from '../model';
 import { PackFilterPanel, PackTabTextFilterPanel, packDialogsFilterExamples } from './filters';
 import { MessageFilterPanel } from '@/pages/dialogs-messages/ui/filters';
 import { PackTable, PackDialogsTable, PackMessagesTable, PackUsersTable } from './tables';
-import { PackInfoModal, PackUrlModal, CreatePackModal, AddDialogToPackModal, MarkPackAllReadModal, DialogInfoModal } from './modals';
+import { PackInfoModal, PackUrlModal, CreatePackModal, AddDialogToPackModal, AddMemberToPackModal, MarkPackAllReadModal, DialogInfoModal } from './modals';
 import { PacksPagination } from './pagination';
 import { ExtendedPagination } from '@/pages/dialogs-messages/ui/pagination';
 import { MetaModal } from '@/widgets/meta-modal';
@@ -327,9 +347,11 @@ const {
   packUsersPaginationStart,
   packUsersPaginationEnd,
   packUsersPaginated,
+  removingPackUserId,
   loadPackUsers,
   goToPackUsersPage,
   changePackUsersLimit,
+  removePackUserFromPack,
   selectPack,
   loadPackDialogs,
   goToPackDialogsPage,
@@ -346,8 +368,12 @@ const {
   selectedFilterExample,
   showCreateModalFlag,
   showAddDialogModalFlag,
+  showAddMemberModalFlag,
   addDialogPackId,
   addDialogDialogId,
+  addMemberPackId,
+  addMemberUserId,
+  addMemberUserType,
   showMetaModalFlag,
   showInfoModalFlag,
   showDialogInfoModalFlag,
@@ -386,7 +412,12 @@ const {
   showAddDialogModal,
   closeAddDialogModal,
   addDialogToPack,
+  showAddMemberModal,
+  closeAddMemberModal,
+  addMemberToPack,
   onUpdateAddDialogDialogId,
+  onUpdateAddMemberUserId,
+  onUpdateAddMemberUserType,
   showMarkAllReadModal,
   showMarkAllReadModalFlag,
   markAllReadPackId,

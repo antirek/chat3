@@ -21,6 +21,7 @@ export function usePackModals(
 ) {
   const createModal = useModal();
   const addDialogModal = useModal();
+  const addMemberModal = useModal();
   const markAllReadModal = useModal();
   const metaModal = useModal();
   const infoModal = useModal();
@@ -29,6 +30,9 @@ export function usePackModals(
 
   const addDialogPackId = ref('');
   const addDialogDialogId = ref('');
+  const addMemberPackId = ref('');
+  const addMemberUserId = ref('');
+  const addMemberUserType = ref('');
   const markAllReadPackId = ref('');
   const markAllReadSubmitting = ref(false);
   const markAllReadError = ref<string | null>(null);
@@ -112,6 +116,19 @@ export function usePackModals(
     addDialogDialogId.value = '';
   }
 
+  function showAddMemberModal(packId: string) {
+    addMemberPackId.value = packId;
+    addMemberUserId.value = '';
+    addMemberUserType.value = '';
+    addMemberModal.open();
+  }
+
+  function closeAddMemberModal() {
+    addMemberModal.close();
+    addMemberUserId.value = '';
+    addMemberUserType.value = '';
+  }
+
   function showMarkAllReadModal(packId: string) {
     markAllReadPackId.value = packId;
     markAllReadError.value = null;
@@ -185,6 +202,47 @@ export function usePackModals(
       alert('Диалог добавлен в пак');
     } catch (err) {
       console.error('Error adding dialog to pack:', err);
+      alert('Ошибка: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+  }
+
+  async function addMemberToPack() {
+    const packId = addMemberPackId.value;
+    const userId = addMemberUserId.value.trim();
+    const userType = addMemberUserType.value.trim();
+
+    if (!userId) {
+      alert('Введите User ID');
+      return;
+    }
+
+    try {
+      getApiKey();
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const response = await fetch(
+        `${baseUrl}/api/users/${encodeURIComponent(userId)}/packs/${encodeURIComponent(packId)}/join`,
+        {
+          method: 'POST',
+          headers: {
+            ...credentialsStore.getHeaders(),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(userType ? { type: userType } : {}),
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to join pack');
+      }
+
+      closeAddMemberModal();
+      loadPacks(currentPage.value, currentLimit.value);
+      const joined = data?.data?.joinedDialogsCount ?? 0;
+      const already = data?.data?.alreadyMemberCount ?? 0;
+      alert(`Участник присоединился к паку: добавлен в ${joined} диалог(ов), уже был в ${already}`);
+    } catch (err) {
+      console.error('Error adding member to pack:', err);
       alert('Ошибка: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   }
@@ -500,15 +558,22 @@ export function usePackModals(
   return {
     createModal,
     addDialogModal,
+    addMemberModal,
     markAllReadModal,
     addDialogPackId,
     addDialogDialogId,
+    addMemberPackId,
+    addMemberUserId,
+    addMemberUserType,
     markAllReadPackId,
     markAllReadSubmitting,
     markAllReadError,
     showAddDialogModal,
     closeAddDialogModal,
     addDialogToPack,
+    showAddMemberModal,
+    closeAddMemberModal,
+    addMemberToPack,
     showMarkAllReadModal,
     closeMarkAllReadModal,
     markPackAllReadForAllUsers,

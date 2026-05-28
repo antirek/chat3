@@ -229,6 +229,69 @@ router.post(
 
 /**
  * @swagger
+ * /api/users/{userId}/packs/{packId}/join:
+ *   post:
+ *     summary: Пользователь присоединяется к паку
+ *     description: |
+ *       Пользователь добавляется во все диалоги пака (становится участником).
+ *       Идемпотентно для диалогов, где пользователь уже участник.
+ *     tags: [UserPacks]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: packId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 description: Тип пользователя при автосоздании (user/contact/bot)
+ *               name:
+ *                 type: string
+ *                 description: Имя пользователя при автосоздании
+ *     responses:
+ *       200:
+ *         description: Успех
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     packId: { type: string }
+ *                     joinedDialogsCount: { type: integer }
+ *                     alreadyMemberCount: { type: integer }
+ *                 message: { type: string }
+ *       404: { description: Pack not found }
+ *       401: { description: Unauthorized }
+ *       403: { description: Forbidden }
+ *       500: { description: Internal Server Error }
+ */
+router.post(
+  '/:userId/packs/:packId/join',
+  apiAuth,
+  requirePermission('write'),
+  validateUserId,
+  validatePackId,
+  userPackController.joinPack
+);
+
+/**
+ * @swagger
  * /api/users/{userId}/packs/{packId}/leave:
  *   post:
  *     summary: Пользователь покидает пак

@@ -12,7 +12,8 @@ import { updateUserStatsDialogCount, finalizeCounterUpdateContext } from '@chat3
 import { Response } from 'express';
 import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
-import { applyMarkDialogAllRead, removeDialogMember } from '../utils/dialogMemberUtils.js';
+import { applyMarkDialogAllRead, addDialogMember, removeDialogMember } from '../utils/dialogMemberUtils.js';
+import * as userUtils from '../utils/userUtils.js';
 
 /**
  * Получить пак в контексте пользователя
@@ -241,6 +242,145 @@ export async function markPackAllRead(req: AuthenticatedRequest, res: Response):
     });
   } finally {
     log('>>>>> end');
+  }
+}
+
+/**
+ * Пользователь присоединяется к паку: добавляется во все диалоги пака.
+ * POST /api/users/:userId/packs/:packId/join
+ */
+export async function joinPack(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const { userId, packId } = req.params;
+    const tenantId = req.tenantId!;
+    const { type, name } = (req.body || {}) as { type?: string; name?: string };
+    const actorId = req.apiKey?.name || 'unknown';
+    const actorType = 'api';
+
+    const pack = await Pack.findOne({ packId, tenantId }).lean();
+    if (!pack) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'Pack not found'
+      });
+      return;
+    }
+
+    await userUtils.ensureUserExists(tenantId, userId, {
+      type,
+      ...(name ? { name } : {})
+    } as any);
+
+    const packDialogIds = await getPackDialogIds(tenantId, packId);
+    if (packDialogIds.length === 0) {
+      res.json({
+        data: sanitizeResponse({ packId, joinedDialogsCount: 0, alreadyMemberCount: 0 }),
+        message: 'User joined pack (no dialogs in pack)'
+      });
+      return;
+    }
+
+    let joinedDialogsCount = 0;
+    let alreadyMemberCount = 0;
+
+    for (const dialogId of packDialogIds) {
+      const existingMember = await DialogMember.findOne({
+        tenantId,
+        userId,
+        dialogId
+      }).lean();
+      if (existingMember) {
+        alreadyMemberCount += 1;
+        continue;
+      }
+
+      const dialog = await Dialog.findOne({ dialogId, tenantId }).lean();
+      if (!dialog) {
+        continue;
+      }
+
+      const member = await addDialogMember(tenantId, userId, dialogId);
+
+      const userDialogStats = await UserDialogStats.findOne({
+        tenantId,
+        userId,
+        dialogId
+      }).lean();
+      const unreadCount = userDialogStats?.unreadCount ?? 0;
+      const activity = await UserDialogActivity.findOne({
+        tenantId,
+        userId,
+        dialogId
+      }).lean();
+
+      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId,
+        tenantId: dialog.tenantId,
+        createdAt: dialog.createdAt,
+        meta: dialogMeta || {}
+      });
+      const memberSection = eventUtils.buildMemberSection({
+        userId: member.userId,
+        state: {
+          unreadCount,
+          lastSeenAt: activity?.lastSeenAt ?? 0,
+          lastMessageAt: activity?.lastMessageAt ?? 0
+        }
+      });
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'dialog.member.add',
+        dialogId,
+        entityId: `${dialogId}:${userId}`,
+        includedSections: ['dialog', 'member'],
+        updatedFields: ['member']
+      });
+      const memberEvent = await eventUtils.createEvent({
+        tenantId,
+        eventType: 'dialog.member.add',
+        entityType: 'dialogMember',
+        entityId: `${dialogId}:${userId}`,
+        actorId,
+        actorType,
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection,
+          member: memberSection
+        })
+      });
+      const sourceEventId = memberEvent?.eventId ?? null;
+
+      try {
+        if (sourceEventId) {
+          await updateUserStatsDialogCount(
+            tenantId,
+            userId,
+            1,
+            'dialog.member.add',
+            sourceEventId,
+            actorId,
+            actorType
+          );
+        }
+      } finally {
+        if (sourceEventId) {
+          await finalizeCounterUpdateContext(tenantId, userId, sourceEventId).catch(() => {});
+        }
+      }
+
+      joinedDialogsCount += 1;
+    }
+
+    res.json({
+      data: sanitizeResponse({ packId, joinedDialogsCount, alreadyMemberCount }),
+      message: 'User joined pack'
+    });
+  } catch (error: any) {
+    console.error('Error in joinPack:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message
+    });
   }
 }
 

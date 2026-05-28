@@ -11,17 +11,28 @@
       <template #header>
         <tr>
           <th>User ID</th>
+          <th>Действия</th>
         </tr>
       </template>
       <template #row="{ item }">
         <td><strong>{{ (item as PackUser).userId }}</strong></td>
+        <td>
+          <BaseButton
+            size="small"
+            variant="danger"
+            :disabled="removingUserId === (item as PackUser).userId"
+            @click="removeUser((item as PackUser).userId)"
+          >
+            {{ removingUserId === (item as PackUser).userId ? 'Удаление…' : 'Удалить' }}
+          </BaseButton>
+        </td>
       </template>
     </BaseTable>
   </div>
 </template>
 
 <script setup lang="ts">
-import { BaseTable } from '@/shared/ui';
+import { BaseTable, BaseButton } from '@/shared/ui';
 
 interface PackUser {
   userId: string;
@@ -31,9 +42,20 @@ interface Props {
   users: PackUser[];
   loading: boolean;
   error: string | null;
+  removingUserId?: string | null;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  removingUserId: null
+});
+
+const emit = defineEmits<{
+  (e: 'remove-user', userId: string): void;
+}>();
+
+function removeUser(userId: string) {
+  emit('remove-user', userId);
+}
 </script>
 
 <style scoped>
