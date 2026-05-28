@@ -1,8 +1,8 @@
 /**
  * Скрипт создания паков и привязки к ним диалогов.
  * Использует только диалоги, в которых участвует alice_default (или другой указанный пользователь).
- * Запуск из корня репозитория: node packages/controlo-backend/scripts/seed-packs.js
- * Или из packages/controlo-backend: node scripts/seed-packs.js
+ * Запуск из корня репозитория: node packages-control/controlo-backend/scripts/seed-packs.js
+ * Или из packages-control/controlo-backend: node scripts/seed-packs.js
  */
 import connectDB from '@chat3/utils/databaseUtils.js';
 import { Pack, PackLink, DialogMember } from '@chat3/models';

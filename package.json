@@ -5,6 +5,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
+    "packages-control/*",
+    "packages-clients/*",
     "packages-shared/*"
   ],
   "scripts": {
@@ -30,10 +32,10 @@
     "test:mark-read-api:multi-pack": "node scripts/test-mark-read-multi-pack-via-api.mjs",
     "build": "npm run build -w @chat3/models && npm run build -w @chat3/utils && npm run build --workspaces --if-present",
     "build:watch": "npm run build:watch --workspaces --if-present",
-    "publish:client": "npm run build --workspace=@chottodev/chat3-tenant-api-client && (cd packages/tenant-api-client && npm publish)",
-    "publish:client:patch": "npm run build --workspace=@chottodev/chat3-tenant-api-client && (cd packages/tenant-api-client && npm version patch && npm publish)",
-    "publish:client:minor": "npm run build --workspace=@chottodev/chat3-tenant-api-client && (cd packages/tenant-api-client && npm version minor && npm publish)",
-    "publish:client:major": "npm run build --workspace=@chottodev/chat3-tenant-api-client && (cd packages/tenant-api-client && npm version major && npm publish)",
+    "publish:client": "npm run build --workspace=@chat3/tenant-api-client && (cd packages-clients/tenant-api-client && npm publish)",
+    "publish:client:patch": "npm run build --workspace=@chat3/tenant-api-client && (cd packages-clients/tenant-api-client && npm version patch && npm publish)",
+    "publish:client:minor": "npm run build --workspace=@chat3/tenant-api-client && (cd packages-clients/tenant-api-client && npm version minor && npm publish)",
+    "publish:client:major": "npm run build --workspace=@chat3/tenant-api-client && (cd packages-clients/tenant-api-client && npm version major && npm publish)",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },

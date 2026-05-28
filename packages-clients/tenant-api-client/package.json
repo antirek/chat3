@@ -1,5 +1,5 @@
 {
-  "name": "@chottodev/chat3-tenant-api-client",
+  "name": "@chat3/tenant-api-client",
   "version": "0.0.66",
   "description": "TypeScript/JavaScript client library for Chat3 Tenant API",
   "main": "dist/Chat3Client.js",
@@ -46,7 +46,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/antirek/chat3.git",
-    "directory": "packages/tenant-api-client"
+    "directory": "packages-clients/tenant-api-client"
   },
   "publishConfig": {
     "access": "public"

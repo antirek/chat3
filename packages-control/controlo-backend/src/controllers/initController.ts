@@ -16,10 +16,10 @@ const execAsync = promisify(exec);
 // Получаем абсолютный путь к seed.js относительно корня проекта
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// От packages/controlo-backend/src/controllers/ поднимаемся на 4 уровня вверх к корню проекта
-// controllers -> src -> controlo-backend -> packages -> корень
+// От packages-control/controlo-backend/src/controllers/ поднимаемся на 4 уровня вверх к корню проекта
+// controllers -> src -> controlo-backend -> packages-control -> корень
 const projectRoot = resolve(__dirname, '../../../../');
-const seedScriptPath = resolve(projectRoot, 'packages/controlo-backend/scripts/seed.js');
+const seedScriptPath = resolve(projectRoot, 'packages-control/controlo-backend/scripts/seed.js');
 
 export const initController = {
   // Инициализация: удаление всех данных, создание tenant и API ключа

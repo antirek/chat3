@@ -84,7 +84,7 @@ services:
         condition: service_started
       mongodb:
         condition: service_healthy
-    # UI отдаётся из packages/controlo-ui/dist внутри образа (см. controlo-backend index.ts)
+    # UI отдаётся из packages-control/controlo-ui/dist внутри образа (см. controlo-backend index.ts)
     networks:
       - chat3-network
     healthcheck:
@@ -152,16 +152,16 @@ services:
     # Для разработки: монтируем исходники и запускаем Vite dev server
     # Для production: используем собранные файлы из dist
     volumes:
-      - ./packages/controlo-ui/src:/app/packages/controlo-ui/src
-      - ./packages/controlo-ui/vite.config.ts:/app/packages/controlo-ui/vite.config.ts
-      - ./packages/controlo-ui/tsconfig.json:/app/packages/controlo-ui/tsconfig.json
-      - ./packages/controlo-ui/index.html:/app/packages/controlo-ui/index.html
-      - ./packages/controlo-ui/package.json:/app/packages/controlo-ui/package.json
-      - controlo_ui_node_modules:/app/packages/controlo-ui/node_modules
+      - ./packages-control/controlo-ui/src:/app/packages-control/controlo-ui/src
+      - ./packages-control/controlo-ui/vite.config.ts:/app/packages-control/controlo-ui/vite.config.ts
+      - ./packages-control/controlo-ui/tsconfig.json:/app/packages-control/controlo-ui/tsconfig.json
+      - ./packages-control/controlo-ui/index.html:/app/packages-control/controlo-ui/index.html
+      - ./packages-control/controlo-ui/package.json:/app/packages-control/controlo-ui/package.json
+      - controlo_ui_node_modules:/app/packages-control/controlo-ui/node_modules
     command: >
       sh -c "
       if [ \"$$CONTROLO_UI_NODE_ENV\" = \"development\" ]; then
-        cd /app/packages/controlo-ui && npm run dev
+        cd /app/packages-control/controlo-ui && npm run dev
       else
         npm run start:controlo-ui
       fi

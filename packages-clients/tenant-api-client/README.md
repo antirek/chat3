@@ -1,17 +1,17 @@
-# @chottodev/chat3-tenant-api-client
+# @chat3/tenant-api-client
 
 JavaScript клиент для Chat3 Tenant API.
 
 ## Установка
 
 ```bash
-npm install @chottodev/chat3-tenant-api-client
+npm install @chat3/tenant-api-client
 ```
 
 ## Использование
 
 ```javascript
-const { Chat3Client } = require('@chottodev/chat3-tenant-api-client');
+const { Chat3Client } = require('@chat3/tenant-api-client');
 
 // Инициализация клиента
 const client = new Chat3Client({

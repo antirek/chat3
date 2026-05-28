@@ -13,9 +13,11 @@ export default [
       'dist/**',
       'build/**',
       'packages/*/dist/**',
+      'packages-control/*/dist/**',
+      'packages-clients/*/dist/**',
       'packages-shared/*/dist/**',
-      'packages/tenant-api-client/node_modules/**',
-      'packages/tenant-api-client/coverage/**',
+      'packages-clients/tenant-api-client/node_modules/**',
+      'packages-clients/tenant-api-client/coverage/**',
       '**/*.d.ts',
     ],
   },
@@ -75,7 +77,7 @@ export default [
   },
   // Конфигурация для UI файлов (браузерное окружение)
   {
-    files: ['packages/controlo-ui/src/**/*.ts', 'packages/controlo-ui/src/**/*.js'],
+    files: ['packages-control/controlo-ui/src/**/*.ts', 'packages-control/controlo-ui/src/**/*.js'],
     languageOptions: {
       globals: {
         window: 'readonly',
@@ -93,7 +95,7 @@ export default [
   },
   // Конфигурация для роутера (разрешаем динамические импорты для code splitting)
   {
-    files: ['**/router/**', '**/router/**/*.ts', '**/router/**/*.js', 'packages/controlo-ui/src/app/router/**'],
+    files: ['**/router/**', '**/router/**/*.ts', '**/router/**/*.js', 'packages-control/controlo-ui/src/app/router/**'],
     rules: {
       'no-restricted-syntax': 'off', // Разрешаем динамические импорты в роутере (стандартная практика Vue Router)
     },

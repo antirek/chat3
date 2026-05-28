@@ -10,6 +10,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 COPY packages/ ./packages/
+COPY packages-control/ ./packages-control/
+COPY packages-clients/ ./packages-clients/
 COPY packages-shared/ ./packages-shared/
 
 # Устанавливаем все зависимости (включая dev для сборки TypeScript)
@@ -35,9 +37,9 @@ RUN npm run build --workspace=@chat3/controlo-ui
 
 # Проверка: в образ должен попасть актуальный /meta-indexes (не закэшированный пустой dist)
 RUN set -e; \
-  test -f packages/controlo-ui/dist/index.html; \
-  grep -rql "Полный ответ API" packages/controlo-ui/dist/assets/ || \
-  grep -rql "clear-dup" packages/controlo-ui/dist/assets/ || \
+  test -f packages-control/controlo-ui/dist/index.html; \
+  grep -rql "Полный ответ API" packages-control/controlo-ui/dist/assets/ || \
+  grep -rql "clear-dup" packages-control/controlo-ui/dist/assets/ || \
   (echo "ERROR: controlo-ui dist не содержит meta-indexes UI — пересоберите: docker build --no-cache" && exit 1)
 
 # Финальный образ
@@ -55,14 +57,16 @@ COPY --chown=chat3user:nodejs tsconfig.json ./
 
 # Исходники и package.json (dist с хоста не копируется — см. .dockerignore)
 COPY --chown=chat3user:nodejs packages/ ./packages/
+COPY --chown=chat3user:nodejs packages-control/ ./packages-control/
+COPY --chown=chat3user:nodejs packages-clients/ ./packages-clients/
 COPY --chown=chat3user:nodejs packages-shared/ ./packages-shared/
 
 # Собранные dist поверх (после packages/, чтобы не затереть артефакты vite/tsc)
 COPY --from=base --chown=chat3user:nodejs /app/packages/tenant-api/dist ./packages/tenant-api/dist
-COPY --from=base --chown=chat3user:nodejs /app/packages/controlo-backend/dist ./packages/controlo-backend/dist
+COPY --from=base --chown=chat3user:nodejs /app/packages-control/controlo-backend/dist ./packages-control/controlo-backend/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/update-worker/dist ./packages/update-worker/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/dialog-read-worker/dist ./packages/dialog-read-worker/dist
-COPY --from=base --chown=chat3user:nodejs /app/packages/controlo-ui/dist ./packages/controlo-ui/dist
+COPY --from=base --chown=chat3user:nodejs /app/packages-control/controlo-ui/dist ./packages-control/controlo-ui/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-shared/models/dist ./packages-shared/models/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-shared/utils/dist ./packages-shared/utils/dist
 

@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Read package.json for version
-const packageJsonPath = join(__dirname, '../../../package.json');
+const packageJsonPath = join(__dirname, '../../../../package.json');
 const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 
 const app = express();
