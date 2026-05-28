@@ -1,6 +1,6 @@
 {
   "name": "chat3",
-  "version": "0.0.67",
+  "version": "0.0.68",
   "description": "Node.js project",
   "private": true,
   "workspaces": [
