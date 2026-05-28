@@ -749,38 +749,15 @@ export const dialogController = {
       // Add meta data if provided (делаем это до обработки участников, чтобы метаданные были доступны)
       if (metaPayload && typeof metaPayload === 'object') {
         log(`Добавление метаданных: dialogId=${createdDialog.dialogId}, keys=${Object.keys(metaPayload).length}`);
-        for (const [key, value] of Object.entries(metaPayload)) {
-          const metaOptions = {
-            createdBy: actorId,
-          };
-
-          if (typeof value === 'object' && value !== null && Object.prototype.hasOwnProperty.call(value, 'value')) {
-            // If value is an object with dataType/value properties
-            const valueObj = value as any;
-            await metaUtils.setEntityMeta(
-              req.tenantId!,
-              'dialog',
-              createdDialog.dialogId,
-              key,
-              valueObj.value,
-              valueObj.dataType || 'string',
-              metaOptions
-            );
-          } else {
-            // If value is a simple value
-            await metaUtils.setEntityMeta(
-              req.tenantId!,
-              'dialog',
-              createdDialog.dialogId,
-              key,
-              value,
-              typeof value === 'number' ? 'number' :
-              typeof value === 'boolean' ? 'boolean' :
-              Array.isArray(value) ? 'array' : 'string',
-              metaOptions
-            );
-          }
-        }
+        // Важно: пишем meta одним bulk-запросом, иначе composite required (2+ keys) может
+        // отклоняться на промежуточной single-key записи.
+        await metaUtils.setEntityMetaBulk(
+          req.tenantId!,
+          'dialog',
+          createdDialog.dialogId,
+          metaPayload as Record<string, unknown>,
+          { createdBy: actorId }
+        );
       }
 
       // Получаем метаданные диалога один раз для всех событий

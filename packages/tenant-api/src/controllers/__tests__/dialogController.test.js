@@ -13,6 +13,7 @@ import {
 } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { registerDefinition } from '@chat3/utils/metaIndexUtils.js';
 
 function generateDialogId() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -884,6 +885,63 @@ describe('dialogController.create', () => {
     expect(members).toHaveLength(2); // alice и bob, без дубликата alice
     expect(members.map(m => m.userId).filter(id => id === 'alice')).toHaveLength(1);
     expect(members.map(m => m.userId)).toContain('bob');
+  });
+
+  test('creates dialog with composite required meta via bulk set', async () => {
+    await registerDefinition(tenantId, 'dialog', {
+      keys: ['channelId', 'canonKeyValue'],
+      mode: 'required',
+      when: { key: 'serviceType', op: 'eq', value: 'telegram' }
+    });
+
+    const req = createMockReq(
+      tenantId,
+      {},
+      {},
+      {
+        members: [{ userId: 'alice', type: 'user' }],
+        meta: {
+          serviceType: 'telegram',
+          channelId: 'chn_test',
+          canonKeyValue: 'cv_test'
+        }
+      }
+    );
+    const res = createMockRes();
+
+    await dialogController.create(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.meta.channelId).toBe('chn_test');
+    expect(res.body.data.meta.canonKeyValue).toBe('cv_test');
+  });
+
+  test('rejects dialog create when composite required meta is incomplete', async () => {
+    await registerDefinition(tenantId, 'dialog', {
+      keys: ['channelId', 'canonKeyValue'],
+      mode: 'required',
+      when: { key: 'serviceType', op: 'eq', value: 'telegram' }
+    });
+
+    const req = createMockReq(
+      tenantId,
+      {},
+      {},
+      {
+        members: [{ userId: 'alice', type: 'user' }],
+        meta: {
+          serviceType: 'telegram',
+          channelId: 'chn_test'
+        }
+      }
+    );
+    const res = createMockRes();
+
+    await dialogController.create(req, res);
+
+    expect(res.statusCode).toBe(500);
+    expect(res.body.error).toBe('Internal Server Error');
+    expect(res.body.message).toContain('Partial meta bundle is not allowed for required index');
   });
 
   // Тест удален: createdBy больше не является обязательным полем
