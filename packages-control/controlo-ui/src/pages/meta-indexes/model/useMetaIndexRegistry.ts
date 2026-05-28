@@ -19,6 +19,11 @@ export interface MetaIndexDefinitionRow {
   indexId: string;
   keys: string[];
   mode: 'unique' | 'required' | 'allowed';
+  when?: {
+    key: string;
+    op: 'eq' | 'in' | 'ne' | 'exists';
+    value?: unknown;
+  };
   createdAt?: number;
 }
 
@@ -146,6 +151,10 @@ export function useMetaIndexRegistry() {
   const formMode = ref<'unique' | 'required' | 'allowed'>('unique');
   const formKeys = ref('key');
   const formId = ref('');
+  const formWhenEnabled = ref(false);
+  const formWhenKey = ref('type');
+  const formWhenOp = ref<'eq' | 'in' | 'ne' | 'exists'>('eq');
+  const formWhenValue = ref('');
   const formDryRun = ref(false);
   const submitting = ref(false);
   const clearingDuplicates = ref(false);
@@ -289,6 +298,37 @@ export function useMetaIndexRegistry() {
     };
     if (formMode.value !== 'allowed' && formId.value.trim()) {
       payload.id = formId.value.trim();
+    }
+    if (formMode.value !== 'allowed' && formWhenEnabled.value) {
+      const whenKey = formWhenKey.value.trim();
+      if (!whenKey) {
+        throw new Error('Укажите when.key');
+      }
+      const op = formWhenOp.value;
+      let whenValue: unknown;
+      if (op === 'exists') {
+        const normalized = formWhenValue.value.trim().toLowerCase();
+        if (normalized !== 'true' && normalized !== 'false') {
+          throw new Error('Для when.exists укажите value: true или false');
+        }
+        whenValue = normalized === 'true';
+      } else if (op === 'in') {
+        const list = parseKeysInput(formWhenValue.value);
+        if (list.length === 0) {
+          throw new Error('Для when.in укажите список значений через запятую');
+        }
+        whenValue = list;
+      } else {
+        if (!formWhenValue.value.trim()) {
+          throw new Error('Укажите when.value');
+        }
+        whenValue = formWhenValue.value.trim();
+      }
+      payload.when = {
+        key: whenKey,
+        op,
+        value: whenValue
+      };
     }
     return payload;
   }
@@ -523,6 +563,10 @@ export function useMetaIndexRegistry() {
       await loadDefinitions();
       formKeys.value = 'key';
       formId.value = '';
+      formWhenEnabled.value = false;
+      formWhenKey.value = 'type';
+      formWhenOp.value = 'eq';
+      formWhenValue.value = '';
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : String(e);
     } finally {
@@ -582,6 +626,10 @@ export function useMetaIndexRegistry() {
     formMode,
     formKeys,
     formId,
+    formWhenEnabled,
+    formWhenKey,
+    formWhenOp,
+    formWhenValue,
     formDryRun,
     submitting,
     clearingDuplicates,

@@ -207,6 +207,24 @@ export function useDialogs(getApiKey: () => string) {
     return dialogsSort.getSortIndicator(field);
   }
 
+  async function deleteDialog(dialogId: string): Promise<void> {
+    const key = getApiKey();
+    if (!key || !key.trim()) {
+      throw new Error('API Key не указан');
+    }
+    const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+    const response = await fetch(`${baseUrl}/api/dialogs/${encodeURIComponent(dialogId)}`, {
+      method: 'DELETE',
+      headers: credentialsStore.getHeaders(),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        typeof body.message === 'string' ? body.message : `HTTP ${response.status}`
+      );
+    }
+  }
+
   return {
     // State
     dialogs,
@@ -234,6 +252,7 @@ export function useDialogs(getApiKey: () => string) {
     applyCombined,
     toggleSort,
     getDialogSortIndicator,
+    deleteDialog,
     // Utils
     formatTimestamp,
   };

@@ -150,7 +150,9 @@ export async function setEntityMeta(
       );
 
       const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId, session);
-      const uniqueDefs = indexDefs.filter((d) => d.mode === 'unique' && d.keys.includes(key));
+      const uniqueDefs = indexDefs.filter(
+        (d) => d.mode === 'unique' && (d.keys.includes(key) || d.when?.key === key)
+      );
       for (const def of uniqueDefs) {
         await syncUniqueForDefinition(tenantId, entityType, entityId, def, values, dataTypes, session);
       }
@@ -204,12 +206,14 @@ export async function setEntityMetaBulk(
     }
 
     for (const def of indexDefs) {
-      const touches = def.keys.some((k) => entries.some((e) => e.key === k));
+      const touches =
+        def.keys.some((k) => entries.some((e) => e.key === k)) ||
+        (def.when?.key ? entries.some((e) => e.key === def.when!.key) : false);
       if (!touches) {
         continue;
       }
       if (def.mode === 'required' && def.keys.length > 1) {
-        assertNoPartialRequiredBundle(nextValues, def);
+        assertNoPartialRequiredBundle(nextValues, nextDataTypes, def);
         validateRequiredBundle(nextValues, nextDataTypes, def);
       }
     }
@@ -249,7 +253,7 @@ export async function deleteEntityMeta(
       }
 
       const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId, session);
-      for (const def of indexDefs.filter((d) => d.mode === 'unique' && d.keys.includes(key))) {
+      for (const def of indexDefs.filter((d) => d.mode === 'unique' && (d.keys.includes(key) || d.when?.key === key))) {
         await syncUniqueForDefinition(tenantId, entityType, entityId, def, values, dataTypes, session);
       }
 
@@ -406,7 +410,9 @@ export async function buildMetaQuery(
         // exists: true/false по наличию meta-ключа. Для exists:false нужно множество всех сущностей.
         if (typeof valueObj.$exists === 'boolean') {
           const allWithKey = await Meta.find({ tenantId, entityType, key }).select('entityId').lean();
-          const withKeyIds = new Set(allWithKey.map((r) => String((r as any).entityId)));
+          const withKeyIds: Set<string> = new Set(
+            allWithKey.map((r) => String((r as { entityId: string }).entityId))
+          );
 
           const currentEntityIds = new Set<string>();
           if (valueObj.$exists) {
@@ -529,7 +535,9 @@ export async function buildMetaQuery(
       
       console.log(`Found ${metaRecords.length} records for ${key}=${JSON.stringify(value)}`);
       
-      const currentEntityIds = new Set(metaRecords.map(r => String(r.entityId)));
+      const currentEntityIds: Set<string> = new Set(
+        metaRecords.map((r) => String((r as { entityId: string }).entityId))
+      );
       
       if (currentEntityIds.size === 0) {
         // Если нет записей для этого фильтра, возвращаем пустой результат (пересечение с пустым = пусто)

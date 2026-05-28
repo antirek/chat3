@@ -1,5 +1,16 @@
 import { dialogController } from '../dialogController.js';
-import { Tenant, User, Dialog, DialogMember, Meta, Message, Event, UserDialogStats } from '@chat3/models';
+import {
+  Tenant,
+  User,
+  Dialog,
+  DialogMember,
+  Meta,
+  Message,
+  Event,
+  UserDialogStats,
+  UserDialogActivity,
+  UserDialogUnreadBySenderType
+} from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
@@ -899,14 +910,40 @@ describe('dialogController.delete', () => {
       createdAt: generateTimestamp(),
     });
 
-    // Meta is stored using dialogId in production, but controller deletes by _id
+    // Meta for dialog is keyed by dialogId
     await Meta.create({
       tenantId,
       entityType: 'dialog',
-      entityId: dialog._id.toString(),
+      entityId: dialog.dialogId,
       key: 'status',
       value: 'archived',
       dataType: 'string'
+    });
+
+    await DialogMember.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      userId: 'carl',
+      isActive: true
+    });
+    await UserDialogStats.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      userId: 'carl',
+      unreadCount: 5
+    });
+    await UserDialogActivity.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      userId: 'carl',
+      lastSeenAt: generateTimestamp()
+    });
+    await UserDialogUnreadBySenderType.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      userId: 'carl',
+      fromType: 'user',
+      countUnread: 3
     });
   });
 
@@ -914,7 +951,7 @@ describe('dialogController.delete', () => {
     const req = createMockReq(
       tenantId,
       {},
-      { id: dialog._id.toString() },
+      { id: dialog.dialogId },
       {},
       { name: 'api-key' }
     );
@@ -925,11 +962,15 @@ describe('dialogController.delete', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.message).toBe('Dialog deleted successfully');
 
-    const storedDialog = await Dialog.findById(dialog._id);
+    const storedDialog = await Dialog.findOne({ tenantId, dialogId: dialog.dialogId });
     expect(storedDialog).toBeNull();
 
-    const remainingMeta = await Meta.findOne({ entityType: 'dialog', entityId: dialog._id.toString() }).lean();
+    const remainingMeta = await Meta.findOne({ entityType: 'dialog', entityId: dialog.dialogId }).lean();
     expect(remainingMeta).toBeNull();
+    expect(await DialogMember.countDocuments({ tenantId, dialogId: dialog.dialogId })).toBe(0);
+    expect(await UserDialogStats.countDocuments({ tenantId, dialogId: dialog.dialogId })).toBe(0);
+    expect(await UserDialogActivity.countDocuments({ tenantId, dialogId: dialog.dialogId })).toBe(0);
+    expect(await UserDialogUnreadBySenderType.countDocuments({ tenantId, dialogId: dialog.dialogId })).toBe(0);
 
     const event = await Event.findOne({ tenantId, eventType: 'dialog.delete' }).lean();
     expect(event).toBeTruthy();
@@ -937,7 +978,7 @@ describe('dialogController.delete', () => {
   });
 
   test('returns 404 when dialog not found', async () => {
-    const req = createMockReq(tenantId, {}, { id: '64fa1cca6f9b1a2b3c4d5e6f' });
+    const req = createMockReq(tenantId, {}, { id: 'dlg_aaaaaaaaaaaaaaaaaaaa' });
     const res = createMockRes();
 
     await dialogController.delete(req, res);
@@ -946,13 +987,13 @@ describe('dialogController.delete', () => {
     expect(res.body.error).toBe('Not Found');
   });
 
-  test('returns 400 for invalid id', async () => {
+  test('returns 404 for invalid id in controller-only call', async () => {
     const req = createMockReq(tenantId, {}, { id: 'invalid-id' });
     const res = createMockRes();
 
     await dialogController.delete(req, res);
 
-    expect(res.statusCode).toBe(400);
-    expect(res.body.error).toBe('Bad Request');
+    expect(res.statusCode).toBe(404);
+    expect(res.body.error).toBe('Not Found');
   });
 });

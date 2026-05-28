@@ -61,6 +61,16 @@ describe('metaIndexUtils', () => {
       expect(buildIndexId('unique', ['externalId', 'channel'])).toBe('unique:channel+externalId');
     });
 
+    test('buildIndexId includes when fingerprint', () => {
+      const id = buildIndexId(
+        'unique',
+        ['channelId', 'canonKeyValue'],
+        undefined,
+        { key: 'serviceType', op: 'eq', value: 'telegram' }
+      );
+      expect(id).toMatch(/^unique:canonKeyValue\+channelId@w:serviceType:eq:[0-9a-f]{8}$/);
+    });
+
     test('composite unique canonical string', () => {
       const v = buildCompositeValue(
         { channel: 'telegram', externalId: '42' },
@@ -123,6 +133,23 @@ describe('metaIndexUtils', () => {
           id: 'my_index'
         })
       ).rejects.toMatchObject({ code: 'INDEX_DEFINITION_CONFLICT' });
+    });
+
+    test('allows same mode+keys with different when (auto id)', async () => {
+      const d1 = await registerDefinition(tenantId, 'dialog', {
+        keys: ['canonKeyValue', 'channelId'],
+        mode: 'unique',
+        when: { key: 'serviceType', op: 'eq', value: 'telegram' }
+      });
+      const d2 = await registerDefinition(tenantId, 'dialog', {
+        keys: ['canonKeyValue', 'channelId'],
+        mode: 'unique',
+        when: { key: 'serviceType', op: 'eq', value: 'max' }
+      });
+
+      expect(d1.indexId).not.toBe(d2.indexId);
+      const defs = await loadDefinitions(tenantId, 'dialog');
+      expect(defs.filter((d) => d.mode === 'unique')).toHaveLength(2);
     });
 
     test('batch register unique + required on same key', async () => {
@@ -366,6 +393,145 @@ describe('metaIndexUtils', () => {
     });
   });
 
+  describe('conditional when', () => {
+    test('required with when enforces only on matched type', async () => {
+      await registerDefinition(tenantId, 'pack', {
+        keys: ['phone', 'nickname'],
+        mode: 'required',
+        when: { key: 'type', op: 'eq', value: 'telegram' }
+      });
+
+      const p1 = await Pack.create({ tenantId });
+      await setEntityMetaBulk(tenantId, 'pack', p1.packId, { type: 'email' });
+
+      const p2 = await Pack.create({ tenantId });
+      await expect(
+        setEntityMetaBulk(tenantId, 'pack', p2.packId, { type: 'telegram', phone: '111' })
+      ).rejects.toMatchObject({ code: 'INDEX_KEYS_REQUIRED' });
+    });
+
+    test('unique with when checks only matched subset', async () => {
+      await registerDefinition(tenantId, 'pack', {
+        keys: ['phone'],
+        mode: 'unique',
+        when: { key: 'type', op: 'in', value: ['phone', 'telegram'] }
+      });
+
+      const p1 = await Pack.create({ tenantId });
+      await setEntityMetaBulk(tenantId, 'pack', p1.packId, { type: 'phone', phone: '111' });
+
+      const p2 = await Pack.create({ tenantId });
+      await setEntityMetaBulk(tenantId, 'pack', p2.packId, { type: 'email', phone: '111' });
+
+      await expect(
+        setEntityMetaBulk(tenantId, 'pack', p2.packId, { type: 'telegram', phone: '111' })
+      ).rejects.toMatchObject({ code: 'DUPLICATE_INDEX' });
+    });
+
+    test('unique when: switching to non-matching type releases slot', async () => {
+      await registerDefinition(tenantId, 'pack', {
+        keys: ['phone'],
+        mode: 'unique',
+        when: { key: 'type', op: 'in', value: ['phone', 'telegram'] }
+      });
+
+      const p1 = await Pack.create({ tenantId });
+      await setEntityMetaBulk(tenantId, 'pack', p1.packId, { type: 'phone', phone: '111' });
+      expect(await MetaIndex.countDocuments({ tenantId, entityId: p1.packId })).toBe(1);
+
+      await setEntityMetaBulk(tenantId, 'pack', p1.packId, { type: 'email' });
+      expect(await MetaIndex.countDocuments({ tenantId, entityId: p1.packId })).toBe(0);
+
+      const p2 = await Pack.create({ tenantId });
+      await expect(
+        setEntityMetaBulk(tenantId, 'pack', p2.packId, { type: 'telegram', phone: '111' })
+      ).resolves.toBeDefined();
+    });
+
+    test('required with when.ne does not match when key missing', async () => {
+      await registerDefinition(tenantId, 'pack', {
+        keys: ['phone'],
+        mode: 'required',
+        when: { key: 'type', op: 'ne', value: 'telegram' }
+      });
+
+      const p1 = await Pack.create({ tenantId });
+      await expect(
+        setEntityMetaBulk(tenantId, 'pack', p1.packId, {})
+      ).resolves.toBeDefined();
+    });
+
+    test('required with when.exists=true enforces only when key exists', async () => {
+      await registerDefinition(tenantId, 'pack', {
+        keys: ['phone'],
+        mode: 'required',
+        when: { key: 'type', op: 'exists', value: true }
+      });
+
+      const p1 = await Pack.create({ tenantId });
+      await expect(setEntityMetaBulk(tenantId, 'pack', p1.packId, {})).resolves.toBeDefined();
+
+      const p2 = await Pack.create({ tenantId });
+      await expect(
+        setEntityMetaBulk(tenantId, 'pack', p2.packId, { type: 'telegram' })
+      ).rejects.toMatchObject({ code: 'INDEX_KEYS_REQUIRED' });
+    });
+
+    test('required with when.exists=false enforces when key is absent', async () => {
+      await registerDefinition(tenantId, 'pack', {
+        keys: ['phone'],
+        mode: 'required',
+        when: { key: 'type', op: 'exists', value: false }
+      });
+
+      const p1 = await Pack.create({ tenantId });
+      await expect(setEntityMetaBulk(tenantId, 'pack', p1.packId, {})).rejects.toMatchObject({
+        code: 'INDEX_KEYS_REQUIRED'
+      });
+
+      const p2 = await Pack.create({ tenantId });
+      await expect(
+        setEntityMetaBulk(tenantId, 'pack', p2.packId, { type: 'telegram' })
+      ).resolves.toBeDefined();
+    });
+
+    test('required with when.in supports mixed typed canonical match', async () => {
+      await registerDefinition(tenantId, 'pack', {
+        keys: ['phone'],
+        mode: 'required',
+        when: { key: 'typeCode', op: 'in', value: ['1', 2] }
+      });
+
+      const p1 = await Pack.create({ tenantId });
+      await expect(
+        setEntityMetaBulk(tenantId, 'pack', p1.packId, { typeCode: '1' })
+      ).rejects.toMatchObject({ code: 'INDEX_KEYS_REQUIRED' });
+
+      const p2 = await Pack.create({ tenantId });
+      await expect(
+        setEntityMetaBulk(tenantId, 'pack', p2.packId, { typeCode: 3 })
+      ).resolves.toBeDefined();
+    });
+
+    test('when.exists checks key presence, not value emptiness', async () => {
+      await registerDefinition(tenantId, 'pack', {
+        keys: ['phone'],
+        mode: 'required',
+        when: { key: 'type', op: 'exists', value: true }
+      });
+
+      const p1 = await Pack.create({ tenantId });
+      await expect(
+        setEntityMetaBulk(tenantId, 'pack', p1.packId, { type: null })
+      ).rejects.toMatchObject({ code: 'INDEX_KEYS_REQUIRED' });
+
+      const p2 = await Pack.create({ tenantId });
+      await expect(
+        setEntityMetaBulk(tenantId, 'pack', p2.packId, { type: '' })
+      ).rejects.toMatchObject({ code: 'INDEX_KEYS_REQUIRED' });
+    });
+  });
+
   describe('allowlist', () => {
     test('register allowlist and reject unknown meta key', async () => {
       await registerDefinition(tenantId, 'pack', {
@@ -396,6 +562,21 @@ describe('metaIndexUtils', () => {
 
       await expect(
         registerDefinition(tenantId, 'pack', { keys: ['externalId'], mode: 'unique' })
+      ).rejects.toMatchObject({ code: 'INDEX_KEYS_NOT_IN_ALLOWLIST' });
+    });
+
+    test('register conditional rule rejects when.key outside allowlist', async () => {
+      await registerDefinition(tenantId, 'pack', {
+        keys: ['key', 'phone'],
+        mode: 'allowed'
+      });
+
+      await expect(
+        registerDefinition(tenantId, 'pack', {
+          keys: ['phone'],
+          mode: 'required',
+          when: { key: 'type', op: 'eq', value: 'telegram' }
+        })
       ).rejects.toMatchObject({ code: 'INDEX_KEYS_NOT_IN_ALLOWLIST' });
     });
 

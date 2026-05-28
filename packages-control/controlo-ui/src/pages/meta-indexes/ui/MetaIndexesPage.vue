@@ -115,6 +115,7 @@
               <th>indexId</th>
               <th>mode</th>
               <th>keys</th>
+              <th>when</th>
               <th></th>
             </tr>
           </thead>
@@ -131,6 +132,10 @@
               </td>
               <td>{{ row.mode }}</td>
               <td>{{ row.keys.join(', ') }}</td>
+              <td>
+                <code v-if="row.when">{{ row.when.key }} {{ row.when.op }} {{ JSON.stringify(row.when.value) }}</code>
+                <span v-else class="muted">—</span>
+              </td>
               <td>
                 <button
                   type="button"
@@ -176,6 +181,34 @@
             id (опционально)
             <input v-model="formId" type="text" class="input" placeholder="crm_external_ref" />
           </label>
+          <label v-if="formMode !== 'allowed'" class="checkbox-row">
+            <input v-model="formWhenEnabled" type="checkbox" />
+            when (условие)
+          </label>
+          <template v-if="formMode !== 'allowed' && formWhenEnabled">
+            <label>
+              when.key
+              <input v-model="formWhenKey" type="text" class="input" placeholder="type" />
+            </label>
+            <label>
+              when.op
+              <select v-model="formWhenOp" class="select">
+                <option value="eq">eq</option>
+                <option value="in">in</option>
+                <option value="ne">ne</option>
+                <option value="exists">exists</option>
+              </select>
+            </label>
+            <label>
+              when.value
+              <input
+                v-model="formWhenValue"
+                type="text"
+                class="input"
+                :placeholder="formWhenOp === 'exists' ? 'true | false' : formWhenOp === 'in' ? 'phone, telegram' : 'telegram'"
+              />
+            </label>
+          </template>
           <label class="checkbox-row">
             <input v-model="formDryRun" type="checkbox" />
             dryRun (только проверка данных)
@@ -219,6 +252,10 @@ const {
   formMode,
   formKeys,
   formId,
+  formWhenEnabled,
+  formWhenKey,
+  formWhenOp,
+  formWhenValue,
   formDryRun,
   submitting,
   clearingDuplicates,

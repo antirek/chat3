@@ -20,6 +20,14 @@ export interface IndexDefinitionSpec {
   keys: string[];
   mode: MetaIndexMode;
   id?: string;
+  when?: WhenSpec;
+}
+
+export type WhenOp = 'eq' | 'in' | 'ne' | 'exists';
+export interface WhenSpec {
+  key: string;
+  op: WhenOp;
+  value?: unknown;
 }
 
 export interface MetaIndexDefinitionLean {
@@ -28,6 +36,7 @@ export interface MetaIndexDefinitionLean {
   indexId: string;
   keys: string[];
   mode: MetaIndexMode;
+  when?: WhenSpec;
 }
 
 type MetaMap = Record<string, { value: unknown; dataType?: string }>;
@@ -36,12 +45,56 @@ export function sortIndexKeys(keys: string[]): string[] {
   return [...keys].sort();
 }
 
-export function buildIndexId(mode: MetaIndexMode, keys: string[], clientId?: string): string {
+export function buildIndexId(mode: MetaIndexMode, keys: string[], clientId?: string, when?: WhenSpec): string {
   if (clientId) {
     return clientId;
   }
   const sorted = sortIndexKeys(keys);
-  return `${mode}:${sorted.join('+')}`;
+  const base = `${mode}:${sorted.join('+')}`;
+  if (!when) {
+    return base;
+  }
+  const normalizedWhen = JSON.stringify({
+    key: when.key,
+    op: when.op,
+    value: when.value
+  });
+  // Stable compact suffix: readable key/op + short deterministic hash.
+  let hash = 2166136261;
+  for (let i = 0; i < normalizedWhen.length; i++) {
+    hash ^= normalizedWhen.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const hashHex = (hash >>> 0).toString(16).padStart(8, '0');
+  return `${base}@w:${when.key}:${when.op}:${hashHex}`;
+}
+
+function serializeWhen(when?: WhenSpec): string {
+  return JSON.stringify(when ?? null);
+}
+
+export function validateWhenSpec(when?: WhenSpec): WhenSpec | undefined {
+  if (!when) {
+    return undefined;
+  }
+  if (!when.key || typeof when.key !== 'string') {
+    throw new MetaIndexError(400, 'INVALID_INDEX_SPEC', 'when.key must be non-empty string');
+  }
+  if (!['eq', 'in', 'ne', 'exists'].includes(when.op)) {
+    throw new MetaIndexError(400, 'INVALID_INDEX_SPEC', 'when.op must be one of eq|in|ne|exists');
+  }
+  if (when.op === 'in') {
+    if (!Array.isArray(when.value) || when.value.length === 0) {
+      throw new MetaIndexError(400, 'INVALID_INDEX_SPEC', 'when.value must be non-empty array for op=in');
+    }
+  } else if (when.op === 'exists') {
+    if (typeof when.value !== 'boolean') {
+      throw new MetaIndexError(400, 'INVALID_INDEX_SPEC', 'when.value must be boolean for op=exists');
+    }
+  } else if (when.value === undefined) {
+    throw new MetaIndexError(400, 'INVALID_INDEX_SPEC', 'when.value is required for op=eq|ne');
+  }
+  return when;
 }
 
 export function findAllowlistDefinition(
@@ -79,13 +132,17 @@ export function assertMetaKeysAllowed(
 export function assertIndexKeysInAllowlist(
   indexKeys: string[],
   allowlist: MetaIndexDefinitionLean,
-  entityType: MetaEntityType
+  entityType: MetaEntityType,
+  when?: WhenSpec
 ): void {
   const missing = indexKeys.filter((k) => !allowlist.keys.includes(k));
+  if (when?.key && !allowlist.keys.includes(when.key)) {
+    missing.push(when.key);
+  }
   if (missing.length > 0) {
     throw new MetaIndexError(400, 'INDEX_KEYS_NOT_IN_ALLOWLIST', `Index keys must be included in allowlist for ${entityType}`, {
       entityType,
-      keys: missing,
+      keys: [...new Set(missing)],
       allowedKeys: sortIndexKeys([...allowlist.keys])
     });
   }
@@ -99,6 +156,9 @@ function assertRegisteredIndexesFitAllowlist(
   const allowedSet = new Set(allowedKeys);
   const orphanKeys: string[] = [];
   for (const def of indexDefs) {
+    if (def.when?.key && !allowedSet.has(def.when.key)) {
+      orphanKeys.push(def.when.key);
+    }
     for (const key of def.keys) {
       if (!allowedSet.has(key)) {
         orphanKeys.push(key);
@@ -138,6 +198,9 @@ export function validateAllowlistSpec(spec: IndexDefinitionSpec): string[] {
   if (spec.id && spec.id !== ALLOWLIST_INDEX_ID) {
     throw new MetaIndexError(400, 'INVALID_INDEX_SPEC', `allowlist id must be ${ALLOWLIST_INDEX_ID}`);
   }
+  if (spec.when) {
+    throw new MetaIndexError(400, 'INVALID_INDEX_SPEC', 'allowlist does not support when');
+  }
   return sorted;
 }
 
@@ -156,6 +219,7 @@ export function validateIndexSpec(spec: IndexDefinitionSpec): string[] {
   if (spec.id && !CLIENT_ID_PATTERN.test(spec.id)) {
     throw new MetaIndexError(400, 'INVALID_INDEX_SPEC', 'id must match [a-z0-9._-]{1,64}');
   }
+  validateWhenSpec(spec.when);
   return sorted;
 }
 
@@ -241,6 +305,49 @@ export function buildCompositeValue(
   return parts.join(COMPOSITE_SEP);
 }
 
+function normalizeWhenOperand(value: unknown, dataType?: string): string | null {
+  return normalizeIndexValue(value, dataType);
+}
+
+export function matchWhen(
+  values: Record<string, unknown>,
+  dataTypes: Record<string, string>,
+  when?: WhenSpec
+): boolean {
+  if (!when) {
+    return true;
+  }
+  const hasKey = when.key in values;
+  if (when.op === 'exists') {
+    return when.value === true ? hasKey : !hasKey;
+  }
+  if (!hasKey) {
+    // Для op=ne отсутствие ключа не трактуем как match.
+    return false;
+  }
+  const left = normalizeWhenOperand(values[when.key], dataTypes[when.key]);
+  if (left === null) {
+    return false;
+  }
+  if (when.op === 'in') {
+    const list = (when.value as unknown[])
+      .map((v) => normalizeWhenOperand(v, dataTypes[when.key]))
+      .filter((v): v is string => Boolean(v));
+    return list.includes(left);
+  }
+  const right = normalizeWhenOperand(when.value, dataTypes[when.key]);
+  if (!right) {
+    return false;
+  }
+  if (when.op === 'eq') {
+    return left === right;
+  }
+  if (when.op === 'ne') {
+    return left !== right;
+  }
+  return false;
+}
+
 export async function loadDefinitions(
   tenantId: string,
   entityType: MetaEntityType,
@@ -274,7 +381,9 @@ export async function metaMapFromDb(
 }
 
 function definitionsForKey(definitions: MetaIndexDefinitionLean[], key: string): MetaIndexDefinitionLean[] {
-  return definitions.filter((d) => d.mode !== 'allowed' && d.keys.includes(key));
+  return definitions.filter(
+    (d) => d.mode !== 'allowed' && (d.keys.includes(key) || d.when?.key === key)
+  );
 }
 
 export function validateRequiredBundle(
@@ -282,6 +391,9 @@ export function validateRequiredBundle(
   dataTypes: Record<string, string>,
   definition: MetaIndexDefinitionLean
 ): void {
+  if (!matchWhen(metaValues, dataTypes, definition.when)) {
+    return;
+  }
   const missingKeys: string[] = [];
   const emptyKeys: string[] = [];
   for (const key of definition.keys) {
@@ -308,6 +420,8 @@ export function validateRequiredBundle(
     throw new MetaIndexError(400, 'INDEX_KEYS_REQUIRED', `Meta index ${definition.indexId} requires all keys to be present and non-empty`, {
       indexId: definition.indexId,
       keys: definition.keys,
+      when: definition.when,
+      whenMatched: true,
       missingKeys,
       emptyKeys
     });
@@ -317,9 +431,13 @@ export function validateRequiredBundle(
 /** Partial bundle: some but not all keys of a multi-key required definition */
 export function assertNoPartialRequiredBundle(
   metaValues: Record<string, unknown>,
+  dataTypes: Record<string, string>,
   definition: MetaIndexDefinitionLean
 ): void {
   if (definition.mode !== 'required' || definition.keys.length <= 1) {
+    return;
+  }
+  if (!matchWhen(metaValues, dataTypes, definition.when)) {
     return;
   }
   const present = definition.keys.filter((k) => k in metaValues);
@@ -327,6 +445,8 @@ export function assertNoPartialRequiredBundle(
     throw new MetaIndexError(409, 'INDEX_KEYS_REQUIRED', 'Partial meta bundle is not allowed for required index', {
       indexId: definition.indexId,
       keys: definition.keys,
+      when: definition.when,
+      whenMatched: true,
       missingKeys: definition.keys.filter((k) => !present.includes(k))
     });
   }
@@ -488,6 +608,9 @@ export async function syncUniqueForDefinition(
   session?: ClientSession | null
 ): Promise<void> {
   await releaseUniqueSlotsForEntity(tenantId, entityType, entityId, definition.indexId, session);
+  if (!matchWhen(metaValues, dataTypes, definition.when)) {
+    return;
+  }
   const canonical = buildCompositeValue(metaValues, definition.keys, dataTypes);
   if (canonical === null) {
     return;
@@ -510,7 +633,7 @@ export async function enforceMetaState(
     if (def.mode === 'required') {
       validateRequiredBundle(metaValues, dataTypes, def);
     } else {
-      assertNoPartialRequiredBundle(metaValues, def);
+      assertNoPartialRequiredBundle(metaValues, dataTypes, def);
     }
   }
 
@@ -541,22 +664,31 @@ export async function validateBeforeSingleKeyWrite(
   const nextDataTypes = { ...dataTypes, [key]: dataType };
 
   for (const def of affected) {
-    if (def.mode === 'required' && def.keys.length > 1) {
+    const whenMatched = matchWhen(nextValues, nextDataTypes, def.when);
+    if (def.mode === 'required' && def.keys.length > 1 && whenMatched) {
       throw new MetaIndexError(409, 'INDEX_KEYS_REQUIRED', 'Use bulk meta API to write multiple required keys at once', {
         indexId: def.indexId,
-        keys: def.keys
+        keys: def.keys,
+        when: def.when,
+        whenMatched
       });
     }
-    assertNoPartialRequiredBundle(nextValues, def);
+    assertNoPartialRequiredBundle(nextValues, nextDataTypes, def);
   }
 
   try {
     if (normalizeIndexValue(newValue, dataType) === null) {
       for (const def of affected) {
         if (def.mode === 'required') {
+          const whenMatched = matchWhen(nextValues, nextDataTypes, def.when);
+          if (!whenMatched) {
+            continue;
+          }
           throw new MetaIndexError(400, 'INDEX_KEYS_REQUIRED', 'Required meta key cannot be empty', {
             indexId: def.indexId,
             keys: def.keys,
+            when: def.when,
+            whenMatched,
             emptyKeys: [key]
           });
         }
@@ -576,6 +708,10 @@ export async function validateBeforeSingleKeyWrite(
 
   const uniqueDefs = affected.filter((d) => d.mode === 'unique');
   for (const def of uniqueDefs) {
+    if (!matchWhen(nextValues, nextDataTypes, def.when)) {
+      await releaseUniqueSlotsForEntity(tenantId, entityType, entityId, def.indexId, session);
+      continue;
+    }
     const canonical = buildCompositeValue(nextValues, def.keys, nextDataTypes);
     if (canonical === null) {
       await releaseUniqueSlotsForEntity(tenantId, entityType, entityId, def.indexId, session);
@@ -592,11 +728,14 @@ export async function validateBeforeSingleKeyDelete(
   key: string,
   definitions: MetaIndexDefinitionLean[]
 ): Promise<void> {
+  const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId);
   for (const def of definitions) {
-    if (def.mode === 'required' && def.keys.includes(key)) {
+    if (def.mode === 'required' && def.keys.includes(key) && matchWhen(values, dataTypes, def.when)) {
       throw new MetaIndexError(409, 'INDEX_KEYS_REQUIRED', 'Cannot delete required meta key', {
         indexId: def.indexId,
-        keys: def.keys
+        keys: def.keys,
+        when: def.when,
+        whenMatched: true
       });
     }
   }
@@ -609,9 +748,13 @@ export async function validateBeforeBulkDelete(
   keysToDelete: string[],
   definitions: MetaIndexDefinitionLean[]
 ): Promise<void> {
+  const { values, dataTypes } = await metaMapFromDb(tenantId, entityType, entityId);
   const deleteSet = new Set(keysToDelete);
   for (const def of definitions) {
     if (def.mode !== 'required' || def.keys.length <= 1) {
+      continue;
+    }
+    if (!matchWhen(values, dataTypes, def.when)) {
       continue;
     }
     const inBundle = def.keys.filter((k) => deleteSet.has(k));
@@ -660,6 +803,9 @@ export async function scanExistingDataForDefinition(
 
   if (definition.mode === 'required') {
     for (const [entityId, { values, dataTypes }] of byEntity) {
+      if (!matchWhen(values, dataTypes, definition.when)) {
+        continue;
+      }
       const missingKeys: string[] = [];
       const emptyKeys: string[] = [];
       for (const key of definition.keys) {
@@ -708,6 +854,9 @@ export async function scanExistingDataForDefinition(
 
   const valueToEntity = new Map<string, string>();
   for (const [entityId, { values, dataTypes }] of byEntity) {
+    if (!matchWhen(values, dataTypes, definition.when)) {
+      continue;
+    }
     let canonical: string | null;
     try {
       canonical = buildCompositeValue(values, definition.keys, dataTypes);
@@ -871,19 +1020,20 @@ export async function registerDefinition(
   }
 
   const sortedKeys = validateIndexSpec(spec);
-  const indexId = buildIndexId(spec.mode, sortedKeys, spec.id);
+  const indexId = buildIndexId(spec.mode, sortedKeys, spec.id, spec.when);
   const definition: MetaIndexDefinitionLean = {
     tenantId,
     entityType,
     indexId,
     keys: sortedKeys,
-    mode: spec.mode
+    mode: spec.mode,
+    ...(spec.when ? { when: validateWhenSpec(spec.when) } : {})
   };
 
   const allDefs = await loadDefinitions(tenantId, entityType);
   const allowlist = findAllowlistDefinition(allDefs);
   if (allowlist) {
-    assertIndexKeysInAllowlist(sortedKeys, allowlist, entityType);
+    assertIndexKeysInAllowlist(sortedKeys, allowlist, entityType, spec.when);
   }
 
   const { violations, totalViolations } = await scanExistingDataForDefinition(tenantId, entityType, definition);
@@ -892,6 +1042,7 @@ export async function registerDefinition(
       indexId,
       mode: spec.mode,
       keys: sortedKeys,
+      ...(spec.when ? { when: spec.when } : {}),
       violations,
       totalViolations,
       truncated: totalViolations > violations.length
@@ -907,12 +1058,14 @@ export async function registerDefinition(
     const same =
       existing.mode === spec.mode &&
       existing.keys.length === sortedKeys.length &&
-      sortIndexKeys([...existing.keys]).join(',') === sortedKeys.join(',');
+      sortIndexKeys([...existing.keys]).join(',') === sortedKeys.join(',') &&
+      serializeWhen((existing as MetaIndexDefinitionLean).when) === serializeWhen(spec.when);
     if (!same) {
       throw new MetaIndexError(409, 'INDEX_DEFINITION_CONFLICT', `Index ${indexId} already exists with different spec`, {
         indexId,
         existingKeys: existing.keys,
-        existingMode: existing.mode
+        existingMode: existing.mode,
+        existingWhen: (existing as MetaIndexDefinitionLean).when
       });
     }
     return existing as MetaIndexDefinitionLean;
@@ -924,6 +1077,7 @@ export async function registerDefinition(
     indexId,
     keys: sortedKeys,
     mode: spec.mode,
+    ...(spec.when ? { when: spec.when } : {}),
     createdBy: options.createdBy
   });
 
@@ -950,6 +1104,9 @@ async function backfillUniqueSlots(
     entry.dataTypes[r.key] = r.dataType;
   }
   for (const [entityId, { values, dataTypes }] of byEntity) {
+    if (!matchWhen(values, dataTypes, definition.when)) {
+      continue;
+    }
     const canonical = buildCompositeValue(values, definition.keys, dataTypes);
     if (canonical === null) {
       continue;

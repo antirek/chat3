@@ -52,6 +52,7 @@ export function useDialogsMessagesPage() {
     applyCombined,
     toggleSort,
     getDialogSortIndicator,
+    deleteDialog,
     formatTimestamp,
   } = dialogsModule;
 
@@ -195,6 +196,21 @@ export function useDialogsMessagesPage() {
     loadDialogMessages(dialogId, 1);
     clearMembers();
     clearTopics();
+  }
+
+  async function deleteDialogWithRefresh(dialogId: string) {
+    await deleteDialog(dialogId);
+
+    if (currentDialogId.value === dialogId) {
+      currentDialogId.value = null;
+      messages.value = [];
+      clearMembers();
+      clearTopics();
+    }
+
+    const page = dialogsPagination.currentPage.value;
+    const filterVal = filterValue.value.trim();
+    await loadDialogsWithFilter(filterVal || '', page, currentSort.value || null);
   }
 
   function selectMessagesTab() {
@@ -452,6 +468,7 @@ export function useDialogsMessagesPage() {
     changePage,
     formatTimestamp,
     selectDialog,
+    deleteDialog: deleteDialogWithRefresh,
     // Messages Pagination Functions
     goToMessagesFirstPage: messagesPagination.goToFirstPage,
     goToMessagesPreviousPage: messagesPagination.goToPreviousPage,

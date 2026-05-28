@@ -258,9 +258,22 @@ export const addDialogToPackSchema = Joi.object({
     })
 });
 
+const META_INDEX_WHEN_SCHEMA = Joi.object({
+  key: META_KEY_SCHEMA.required(),
+  op: Joi.string().valid('eq', 'in', 'ne', 'exists').required(),
+  value: Joi.alternatives().conditional('op', {
+    switch: [
+      { is: 'in', then: Joi.array().min(1).required() },
+      { is: 'exists', then: Joi.boolean().strict().required() }
+    ],
+    otherwise: Joi.required()
+  })
+}).required();
+
 const META_INDEX_RULE_SCHEMA = Joi.object({
   keys: Joi.array().items(META_KEY_SCHEMA).min(1).max(3).unique().required(),
   mode: Joi.string().valid('unique', 'required').required(),
+  when: META_INDEX_WHEN_SCHEMA.optional(),
   id: Joi.string().pattern(/^[a-z0-9._-]{1,64}$/).optional()
 });
 

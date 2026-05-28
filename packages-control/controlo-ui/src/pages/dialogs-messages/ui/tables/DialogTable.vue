@@ -39,6 +39,14 @@
           <BaseButton variant="primary" size="small" @click.stop="showInfo((item as Dialog).dialogId)">
             ℹ️ Инфо
           </BaseButton>
+          <BaseButton
+            variant="danger"
+            size="small"
+            style="margin-left: 8px;"
+            @click.stop="deleteDialog((item as Dialog).dialogId)"
+          >
+            🗑 Удалить
+          </BaseButton>
         </td>
       </template>
     </BaseTable>
@@ -74,6 +82,7 @@ interface Emits {
   (e: 'toggle-sort', field: string): void;
   (e: 'select-dialog', dialogId: string): void;
   (e: 'show-info', dialogId: string): void;
+  (e: 'delete-dialog', dialogId: string): void;
 }
 
 const props = defineProps<Props>();
@@ -89,6 +98,10 @@ function handleRowClick(dialog: Dialog, _index: number) {
 
 function showInfo(dialogId: string) {
   emit('show-info', dialogId);
+}
+
+function deleteDialog(dialogId: string) {
+  emit('delete-dialog', dialogId);
 }
 </script>
 

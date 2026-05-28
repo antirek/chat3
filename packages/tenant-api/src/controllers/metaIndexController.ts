@@ -17,7 +17,8 @@ function parseSpecs(body: Record<string, unknown>): IndexDefinitionSpec[] {
   return [{
     keys: body.keys as string[],
     mode: body.mode as MetaIndexMode,
-    id: body.id as string | undefined
+    id: body.id as string | undefined,
+    when: body.when as any
   }];
 }
 

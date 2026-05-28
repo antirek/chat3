@@ -1,6 +1,6 @@
  
 import { Dialog, Meta, DialogMember, PackLink, Message,
-  UserDialogStats, UserDialogActivity, DialogStats } from '@chat3/models';
+  UserDialogStats, UserDialogActivity, UserDialogUnreadBySenderType, DialogStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort, buildFilterQuery } from '../utils/queryParser.js';
@@ -991,9 +991,9 @@ export const dialogController = {
       const { id } = req.params;
       log(`Получены параметры: id=${id}, tenantId=${req.tenantId}`);
       
-      log(`Удаление диалога: id=${id}, tenantId=${req.tenantId}`);
+      log(`Удаление диалога: dialogId=${id}, tenantId=${req.tenantId}`);
       const dialog = await Dialog.findOneAndDelete({
-        _id: id,
+        dialogId: id,
         tenantId: req.tenantId!
       });
 
@@ -1039,12 +1039,21 @@ export const dialogController = {
         })
       });
 
-      log(`Удаление метаданных диалога: id=${id}`);
+      log(`Удаление метаданных диалога: dialogId=${dialog.dialogId}`);
       // Удаляем все метаданные диалога
-      await metaUtils.deleteAllMetaForEntity(req.tenantId!, 'dialog', id);
+      await metaUtils.deleteAllMetaForEntity(req.tenantId!, 'dialog', dialog.dialogId);
 
       log(`Удаление связей паков с диалогом: dialogId=${dialog.dialogId}`);
       await PackLink.deleteMany({ dialogId: dialog.dialogId, tenantId: req.tenantId! });
+
+      log(`Каскадная очистка участников и пользовательских счетчиков: dialogId=${dialog.dialogId}`);
+      await Promise.all([
+        DialogMember.deleteMany({ dialogId: dialog.dialogId, tenantId: req.tenantId! }),
+        UserDialogStats.deleteMany({ dialogId: dialog.dialogId, tenantId: req.tenantId! }),
+        UserDialogActivity.deleteMany({ dialogId: dialog.dialogId, tenantId: req.tenantId! }),
+        UserDialogUnreadBySenderType.deleteMany({ dialogId: dialog.dialogId, tenantId: req.tenantId! }),
+        DialogStats.deleteMany({ dialogId: dialog.dialogId, tenantId: req.tenantId! })
+      ]);
 
       log(`Отправка успешного ответа: dialogId=${dialog.dialogId}`);
       res.json({
@@ -1052,13 +1061,6 @@ export const dialogController = {
       });
     } catch (error: any) {
       log(`Ошибка обработки запроса:`, error.message);
-      if (error.name === 'CastError') {
-        res.status(400).json({
-          error: 'Bad Request',
-          message: 'Invalid dialog ID'
-        });
-        return;
-      }
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message

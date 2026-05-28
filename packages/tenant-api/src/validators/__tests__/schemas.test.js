@@ -442,6 +442,35 @@ describe('bodySchemas.registerMetaIndexSchema', () => {
     });
     expect(error).toBeDefined();
   });
+
+  test('accepts conditional when for required', () => {
+    const { error, value } = validate({
+      keys: ['phone', 'nickname'],
+      mode: 'required',
+      when: { key: 'type', op: 'in', value: ['phone', 'telegram'] }
+    });
+    expect(error).toBeUndefined();
+    expect(value.when.op).toBe('in');
+  });
+
+  test('accepts conditional when for unique', () => {
+    const { error, value } = validate({
+      keys: ['phone'],
+      mode: 'unique',
+      when: { key: 'type', op: 'exists', value: true }
+    });
+    expect(error).toBeUndefined();
+    expect(value.when.value).toBe(true);
+  });
+
+  test('rejects when.exists without boolean value', () => {
+    const { error } = validate({
+      keys: ['phone'],
+      mode: 'required',
+      when: { key: 'type', op: 'exists', value: 'true' }
+    });
+    expect(error).toBeDefined();
+  });
 });
 
 

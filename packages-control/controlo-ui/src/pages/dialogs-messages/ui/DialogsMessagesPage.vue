@@ -49,6 +49,7 @@
           @toggle-sort="toggleSort"
           @select-dialog="selectDialog"
           @show-info="showDialogInfo"
+          @delete-dialog="deleteDialogWithConfirm"
         />
       </BasePanel>
 
@@ -330,6 +331,7 @@ const {
     changePage,
     formatTimestamp,
     selectDialog,
+  deleteDialog,
     // Messages Pagination Functions
     goToMessagesFirstPage,
     goToMessagesPreviousPage,
@@ -364,6 +366,17 @@ const {
   closeUrlModal,
   copyUrlToClipboard,
 } = useDialogsMessagesPage();
+
+async function deleteDialogWithConfirm(dialogId: string) {
+  if (!confirm(`Удалить диалог ${dialogId}?`)) {
+    return;
+  }
+  try {
+    await deleteDialog(dialogId);
+  } catch (e) {
+    alert(e instanceof Error ? e.message : String(e));
+  }
+}
 </script>
 
 <style scoped>

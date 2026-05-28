@@ -8,6 +8,11 @@ export interface IMetaIndexDefinition extends mongoose.Document {
   indexId: string;
   keys: string[];
   mode: MetaIndexMode;
+  when?: {
+    key: string;
+    op: 'eq' | 'in' | 'ne' | 'exists';
+    value?: unknown;
+  };
   createdBy?: string;
   createdAt: number;
 }
@@ -36,6 +41,9 @@ const metaIndexDefinitionSchema = new mongoose.Schema<IMetaIndexDefinition>({
     type: String,
     enum: ['unique', 'required', 'allowed'],
     required: true
+  },
+  when: {
+    type: mongoose.Schema.Types.Mixed
   },
   createdBy: {
     type: String
