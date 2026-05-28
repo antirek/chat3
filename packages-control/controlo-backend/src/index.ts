@@ -14,8 +14,8 @@ import swaggerSpec from './config/swagger.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Read package.json for version
-const packageJsonPath = join(__dirname, '../../../../package.json');
+// Read package.json for version (dist -> controlo-backend -> packages-control -> корень)
+const packageJsonPath = join(__dirname, '../../../package.json');
 const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 
 const app = express();
