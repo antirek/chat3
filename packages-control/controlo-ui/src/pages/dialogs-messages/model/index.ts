@@ -163,7 +163,13 @@ export function useDialogsMessagesPage() {
     usersError,
     usersLoaded,
     selectedMembers,
+    createDialogMetaTags,
+    newMetaKeyForCreate,
+    newMetaValueForCreate,
+    addCreateDialogMetaTag,
+    removeCreateDialogMetaTag,
     showAddDialogModal,
+    closeCreateDialogModal,
     loadUsersForDialog,
     createDialog,
     showDialogInfo,
@@ -350,7 +356,7 @@ export function useDialogsMessagesPage() {
           closeModal();
         }
         if (createDialogModal.isOpen.value) {
-          createDialogModal.close();
+          dialogModalsModule.closeCreateDialogModal();
         }
       }
     });
@@ -453,6 +459,11 @@ export function useDialogsMessagesPage() {
     usersError,
     usersLoaded,
     selectedMembers,
+    createDialogMetaTags,
+    newMetaKeyForCreate,
+    newMetaValueForCreate,
+    addCreateDialogMetaTag,
+    removeCreateDialogMetaTag,
     // Функции
     updateFilterInput,
     updateSortInput,
@@ -492,7 +503,7 @@ export function useDialogsMessagesPage() {
     rightPanelTitle,
     showCurrentUrl,
     showAddDialogModal,
-    closeCreateDialogModal: createDialogModal.close,
+    closeCreateDialogModal,
     loadUsersForDialog,
     createDialog,
     showDialogInfo,

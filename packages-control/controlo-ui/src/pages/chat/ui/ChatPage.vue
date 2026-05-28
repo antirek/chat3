@@ -178,10 +178,17 @@
       :users-error="createDialog.usersError.value"
       :users-loaded="createDialog.usersLoaded.value"
       :selected-members="createDialog.selectedMembers.value"
+      :meta-tags="createDialog.createDialogMetaTags.value"
+      :new-meta-key="createDialog.newMetaKeyForCreate.value"
+      :new-meta-value="createDialog.newMetaValueForCreate.value"
       @close="createDialog.close"
       @load-users="createDialog.loadUsers"
       @create="handleCreateDialog"
+      @add-meta-tag="createDialog.addCreateDialogMetaTag"
+      @remove-meta-tag="createDialog.removeCreateDialogMetaTag"
       @update:selectedMembers="createDialog.selectedMembers.value = $event"
+      @update:new-meta-key="createDialog.newMetaKeyForCreate.value = $event"
+      @update:new-meta-value="createDialog.newMetaValueForCreate.value = $event"
     />
 
     <!-- Модальное окно добавления участника -->

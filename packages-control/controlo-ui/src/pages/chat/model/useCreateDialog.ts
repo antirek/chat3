@@ -15,6 +15,15 @@ export function useCreateDialog(
   const usersLoaded = ref(false);
   const selectedMembers = ref<string[]>([]);
   const creating = ref(false);
+  const createDialogMetaTags = ref<Array<{ key: string; value: unknown }>>([]);
+  const newMetaKeyForCreate = ref('');
+  const newMetaValueForCreate = ref('');
+
+  function resetCreateDialogMeta() {
+    createDialogMetaTags.value = [];
+    newMetaKeyForCreate.value = '';
+    newMetaValueForCreate.value = '';
+  }
 
   function open() {
     isOpen.value = true;
@@ -22,6 +31,7 @@ export function useCreateDialog(
     selectedMembers.value = [];
     usersLoaded.value = false;
     usersError.value = null;
+    resetCreateDialogMeta();
     
     // Автоматически добавляем выбранного пользователя в участники
     if (selectedUserId.value) {
@@ -35,6 +45,41 @@ export function useCreateDialog(
     selectedMembers.value = [];
     usersLoaded.value = false;
     usersError.value = null;
+    resetCreateDialogMeta();
+  }
+
+  function addCreateDialogMetaTag() {
+    const key = newMetaKeyForCreate.value.trim();
+    const valueStr = newMetaValueForCreate.value.trim();
+
+    if (!key) {
+      alert('Укажите ключ meta');
+      return;
+    }
+    if (!valueStr) {
+      alert('Укажите значение meta');
+      return;
+    }
+
+    let value: unknown;
+    try {
+      value = JSON.parse(valueStr);
+    } catch {
+      value = valueStr;
+    }
+
+    if (createDialogMetaTags.value.some((tag) => tag.key === key)) {
+      alert('Мета-тег с таким ключом уже добавлен');
+      return;
+    }
+
+    createDialogMetaTags.value.push({ key, value });
+    newMetaKeyForCreate.value = '';
+    newMetaValueForCreate.value = '';
+  }
+
+  function removeCreateDialogMetaTag(key: string) {
+    createDialogMetaTags.value = createDialogMetaTags.value.filter((tag) => tag.key !== key);
   }
 
   async function loadUsers() {
@@ -76,9 +121,19 @@ export function useCreateDialog(
     creating.value = true;
     try {
       const url = getTenantApiUrl('/api/dialogs');
-      const requestBody = {
+      const requestBody: {
+        members: Array<{ userId: string }>;
+        meta?: Record<string, unknown>;
+      } = {
         members: selectedMembers.value.map((userId) => ({ userId })),
       };
+
+      if (createDialogMetaTags.value.length > 0) {
+        requestBody.meta = {};
+        for (const tag of createDialogMetaTags.value) {
+          requestBody.meta[tag.key] = tag.value;
+        }
+      }
 
       const response = await fetch(url, {
         method: 'POST',
@@ -122,6 +177,11 @@ export function useCreateDialog(
     usersLoaded,
     selectedMembers,
     creating,
+    createDialogMetaTags,
+    newMetaKeyForCreate,
+    newMetaValueForCreate,
+    addCreateDialogMetaTag,
+    removeCreateDialogMetaTag,
     open,
     close,
     loadUsers,

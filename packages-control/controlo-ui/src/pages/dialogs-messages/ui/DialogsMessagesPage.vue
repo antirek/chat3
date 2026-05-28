@@ -202,10 +202,17 @@
       :users-error="usersError"
       :users-loaded="usersLoaded"
       :selected-members="selectedMembers"
+      :meta-tags="createDialogMetaTags"
+      :new-meta-key="newMetaKeyForCreate"
+      :new-meta-value="newMetaValueForCreate"
       @close="closeCreateDialogModal"
       @load-users="loadUsersForDialog"
       @create="createDialog"
+      @add-meta-tag="addCreateDialogMetaTag"
+      @remove-meta-tag="removeCreateDialogMetaTag"
       @update:selected-members="selectedMembers = $event"
+      @update:new-meta-key="newMetaKeyForCreate = $event"
+      @update:new-meta-value="newMetaValueForCreate = $event"
     />
     
     <UrlModal
@@ -319,6 +326,11 @@ const {
   usersError,
   usersLoaded,
   selectedMembers,
+  createDialogMetaTags,
+  newMetaKeyForCreate,
+  newMetaValueForCreate,
+  addCreateDialogMetaTag,
+  removeCreateDialogMetaTag,
   // Функции
   applyCombined,
   // Dialogs Pagination Functions

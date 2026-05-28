@@ -35,6 +35,49 @@ export function useDialogModals(
   const usersError = ref<string | null>(null);
   const usersLoaded = ref(false);
   const selectedMembers = ref<string[]>([]);
+  const createDialogMetaTags = ref<Array<{ key: string; value: unknown }>>([]);
+  const newMetaKeyForCreate = ref('');
+  const newMetaValueForCreate = ref('');
+
+  function resetCreateDialogMeta() {
+    createDialogMetaTags.value = [];
+    newMetaKeyForCreate.value = '';
+    newMetaValueForCreate.value = '';
+  }
+
+  function addCreateDialogMetaTag() {
+    const key = newMetaKeyForCreate.value.trim();
+    const valueStr = newMetaValueForCreate.value.trim();
+
+    if (!key) {
+      alert('Укажите ключ meta');
+      return;
+    }
+    if (!valueStr) {
+      alert('Укажите значение meta');
+      return;
+    }
+
+    let value: unknown;
+    try {
+      value = JSON.parse(valueStr);
+    } catch {
+      value = valueStr;
+    }
+
+    if (createDialogMetaTags.value.some((tag) => tag.key === key)) {
+      alert('Мета-тег с таким ключом уже добавлен');
+      return;
+    }
+
+    createDialogMetaTags.value.push({ key, value });
+    newMetaKeyForCreate.value = '';
+    newMetaValueForCreate.value = '';
+  }
+
+  function removeCreateDialogMetaTag(key: string) {
+    createDialogMetaTags.value = createDialogMetaTags.value.filter((tag) => tag.key !== key);
+  }
 
   // Функции создания диалога
   function showAddDialogModal() {
@@ -43,6 +86,12 @@ export function useDialogModals(
     selectedMembers.value = [];
     usersLoaded.value = false;
     usersError.value = null;
+    resetCreateDialogMeta();
+  }
+
+  function closeCreateDialogModal() {
+    createDialogModal.close();
+    resetCreateDialogMeta();
   }
 
   async function loadUsersForDialog() {
@@ -105,9 +154,19 @@ export function useDialogModals(
     try {
       const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
 
-      const requestBody = {
+      const requestBody: {
+        members: Array<{ userId: string }>;
+        meta?: Record<string, unknown>;
+      } = {
         members: selectedMembers.value.map((userId) => ({ userId })),
       };
+
+      if (createDialogMetaTags.value.length > 0) {
+        requestBody.meta = {};
+        for (const tag of createDialogMetaTags.value) {
+          requestBody.meta[tag.key] = tag.value;
+        }
+      }
 
       const response = await fetch(`${baseUrl}/api/dialogs`, {
         method: 'POST',
@@ -129,7 +188,7 @@ export function useDialogModals(
 
       alert(`Диалог успешно создан!\nDialog ID: ${dialog.dialogId || dialog._id}`);
 
-      createDialogModal.close();
+      closeCreateDialogModal();
 
       loadDialogsWithFilter(currentFilter.value || '');
     } catch (error) {
@@ -212,7 +271,14 @@ export function useDialogModals(
     usersError,
     usersLoaded,
     selectedMembers,
+    createDialogMetaTags,
+    newMetaKeyForCreate,
+    newMetaValueForCreate,
+    addCreateDialogMetaTag,
+    removeCreateDialogMetaTag,
+    resetCreateDialogMeta,
     showAddDialogModal,
+    closeCreateDialogModal,
     loadUsersForDialog,
     createDialog,
     // Модалки диалогов
