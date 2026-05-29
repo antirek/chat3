@@ -111,6 +111,73 @@ const options = {
               description: 'Всего страниц'
             }
           }
+        },
+        MetaIndexWhen: {
+          type: 'object',
+          required: ['key', 'op'],
+          properties: {
+            key: { type: 'string', description: 'Meta key to evaluate' },
+            op: { type: 'string', enum: ['eq', 'in', 'ne', 'exists'] },
+            value: { description: 'For eq/in/ne — comparison value; for exists — boolean' }
+          }
+        },
+        MetaIndexRule: {
+          type: 'object',
+          required: ['keys', 'mode'],
+          properties: {
+            keys: {
+              type: 'array',
+              items: { type: 'string' },
+              minItems: 1,
+              maxItems: 50,
+              description: 'Meta key names (1–3 for unique/required, up to 50 for allowed)'
+            },
+            mode: {
+              type: 'string',
+              enum: ['unique', 'required', 'allowed']
+            },
+            id: {
+              type: 'string',
+              pattern: '^[a-z0-9._-]{1,64}$',
+              description: 'Optional custom indexId (for allowed must be allowed:keys if set)'
+            },
+            when: { $ref: '#/components/schemas/MetaIndexWhen' }
+          }
+        },
+        MetaIndexDefinition: {
+          type: 'object',
+          properties: {
+            tenantId: { type: 'string' },
+            entityType: {
+              type: 'string',
+              enum: ['user', 'dialog', 'message', 'tenant', 'system', 'dialogMember', 'topic', 'pack']
+            },
+            indexId: { type: 'string', example: 'unique:contactId' },
+            keys: { type: 'array', items: { type: 'string' } },
+            mode: { type: 'string', enum: ['unique', 'required', 'allowed'] },
+            when: { $ref: '#/components/schemas/MetaIndexWhen' }
+          }
+        },
+        MetaIndexError: {
+          allOf: [{ $ref: '#/components/schemas/Error' }],
+          type: 'object',
+          properties: {
+            code: {
+              type: 'string',
+              enum: [
+                'DUPLICATE_INDEX',
+                'INDEX_KEYS_REQUIRED',
+                'INDEX_VALUE_TYPE_NOT_ALLOWED',
+                'INVALID_INDEX_SPEC',
+                'INDEX_DEFINITION_CONFLICT',
+                'INDEX_CONFLICT_EXISTING_DATA',
+                'SCHEMA_CONFLICT_EXISTING_DATA',
+                'INDEX_KEYS_NOT_IN_ALLOWLIST',
+                'META_KEY_NOT_ALLOWED'
+              ]
+            },
+            details: { type: 'object', additionalProperties: true }
+          }
         }
       }
     },
@@ -146,6 +213,10 @@ const options = {
       {
         name: 'Packs',
         description: 'Управление паками (создание, диалоги в паке, сообщения по паку)'
+      },
+      {
+        name: 'Meta',
+        description: 'Meta-теги сущностей и реестр правил индексации (unique, required, allowed)'
       }
     ]
   },
