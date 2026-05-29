@@ -349,6 +349,61 @@ describe('metaIndexController (registry)', () => {
     });
   });
 
+  describe('conditional when', () => {
+    test('registers required rule with when via API', async () => {
+      const body = {
+        keys: ['phone', 'nickname'],
+        mode: 'required',
+        when: { key: 'type', op: 'eq', value: 'telegram' }
+      };
+      const req = createReq({ body });
+      const res = createMockRes();
+
+      await metaIndexController.registerDefinitions(req, res);
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body.data).toMatchObject({
+        mode: 'required',
+        keys: ['nickname', 'phone'],
+        when: body.when,
+        entityType: 'pack',
+        tenantId
+      });
+      expect(res.body.data.indexId).toContain('@w:type:eq:');
+
+      const getRes = createMockRes();
+      await metaIndexController.getDefinition(
+        createReq({ params: { entityType: 'pack', indexId: res.body.data.indexId } }),
+        getRes
+      );
+      expect(getRes.statusCode).toBe(200);
+      expect(getRes.body.data.when).toEqual(body.when);
+    });
+
+    test('unique with when enforces duplicate only in matched subset', async () => {
+      await metaIndexController.registerDefinitions(
+        createReq({
+          body: {
+            keys: ['phone'],
+            mode: 'unique',
+            when: { key: 'type', op: 'in', value: ['phone', 'telegram'] }
+          }
+        }),
+        createMockRes()
+      );
+
+      const p1 = await Pack.create({ tenantId });
+      await setEntityMetaBulk(tenantId, 'pack', p1.packId, { type: 'phone', phone: '111' });
+
+      const p2 = await Pack.create({ tenantId });
+      await setEntityMetaBulk(tenantId, 'pack', p2.packId, { type: 'email', phone: '111' });
+
+      await expect(
+        setEntityMetaBulk(tenantId, 'pack', p2.packId, { type: 'telegram', phone: '111' })
+      ).rejects.toMatchObject({ code: 'DUPLICATE_INDEX' });
+    });
+  });
+
   describe('allowlist', () => {
     test('registers allowed keys policy', async () => {
       const req = createReq({
@@ -388,6 +443,30 @@ describe('metaIndexController (registry)', () => {
       expect(res.statusCode).toBe(409);
       expect(res.body.code).toBe('SCHEMA_CONFLICT_EXISTING_DATA');
       expect(res.body.details.extraKeys).toContain('legacy');
+    });
+
+    test('POST without dryRun returns 409 SCHEMA_CONFLICT and does not persist', async () => {
+      const pack = await Pack.create({ tenantId });
+      await Meta.create({
+        tenantId,
+        entityType: 'pack',
+        entityId: pack.packId,
+        key: 'legacy',
+        value: 1,
+        dataType: 'number'
+      });
+
+      const req = createReq({
+        body: { keys: ['key'], mode: 'allowed' }
+      });
+      const res = createMockRes();
+
+      await metaIndexController.registerDefinitions(req, res);
+
+      expect(res.statusCode).toBe(409);
+      expect(res.body.code).toBe('SCHEMA_CONFLICT_EXISTING_DATA');
+      expect(res.body.details.extraKeys).toContain('legacy');
+      expect(await MetaIndexDefinition.countDocuments({ tenantId, mode: 'allowed' })).toBe(0);
     });
   });
 
