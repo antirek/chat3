@@ -3,6 +3,7 @@ import { getControlApiUrl, copyApiKey } from './useUtils';
 import { useInit } from './useInit';
 import { useSeed } from './useSeed';
 import { useRecalculate } from './useRecalculate';
+import { useReconcileDrift } from './useReconcileDrift';
 
 export function useInitPage() {
   // Инициализация
@@ -29,6 +30,13 @@ export function useInitPage() {
     fullRecalculateStats,
   } = recalculateModule;
 
+  const driftModule = useReconcileDrift(getControlApiUrl);
+  const {
+    reconcileDriftLoading,
+    reconcileDriftResult,
+    reconcileCounterDrift,
+  } = driftModule;
+
   // Делаем функцию копирования доступной глобально для вызова из v-html
   onMounted(() => {
     (window as any).copyApiKeyFromInit = copyApiKey;
@@ -42,6 +50,9 @@ export function useInitPage() {
     fullRecalculateLoading,
     fullRecalculateResult,
     fullRecalculateStats,
+    reconcileDriftLoading,
+    reconcileDriftResult,
+    reconcileCounterDrift,
     initialize,
     runSeed,
   };

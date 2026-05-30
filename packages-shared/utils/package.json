@@ -26,6 +26,7 @@
     "./packStatsUtils.js": "./dist/packStatsUtils.js",
     "./packUnreadSenderTypes.js": "./dist/packUnreadSenderTypes.js",
     "./counterProcessor/processCounterEvent.js": "./dist/counterProcessor/processCounterEvent.js",
+    "./counterProcessor/reconcileCounterDrift.js": "./dist/counterProcessor/reconcileCounterDrift.js",
     "./outboxUtils.js": "./dist/outboxUtils.js"
   },
   "private": true,

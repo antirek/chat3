@@ -11,7 +11,7 @@ const options = {
     info: {
       title: 'Chat3 Tenant API',
       version: '1.0.0',
-      description: 'REST API для управления чат-системой с поддержкой мультитенантности',
+      description: 'REST API для управления чат-системой с поддержкой мультитенантности. Счётчики unread/stats обновляются асинхронно через counter-worker (см. CounterStatsAsyncNotice).',
       contact: {
         name: 'API Support',
         email: 'support@chat3.com'
@@ -178,6 +178,14 @@ const options = {
             },
             details: { type: 'object', additionalProperties: true }
           }
+        },
+        CounterStatsAsyncNotice: {
+          type: 'string',
+          description: |
+            Счётчики (UserDialogStats.unreadCount, UserStats, MessageStatusStats, паковые unread) обновляются
+            **асинхронно** через outbox → RabbitMQ → counter-worker. Ответ **POST** не гарантирует актуальные
+            значения unread в теле ответа — используйте **GET** или подписку на Updates (`chat3_updates`).
+            См. docs/INTEGRATORS_COUNTERS_MIGRATION.md.
         }
       }
     },

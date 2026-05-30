@@ -6,9 +6,9 @@ import { PACK_UNREAD_SENDER_TYPES, normalizeSenderType } from '../packUnreadSend
 import { messageReadLookupPipeline, unreadMessageMatchExtras } from './isUnreadForUser.js';
 
 /**
- * Пересчёт unread для одной пары (userId, dialogId) из Message + MessageStatus (A12).
+ * Ожидаемый unread для пары (userId, dialogId) без записи в БД (A12).
  */
-export async function recalculateUserDialogUnread(
+export async function countUserDialogUnread(
   tenantId: string,
   userId: string,
   dialogId: string
@@ -28,10 +28,20 @@ export async function recalculateUserDialogUnread(
   ];
   const unreadCountResult = await Message.aggregate(unreadCountPipeline) as Array<{ unreadCount: number }>;
 
-  let unreadCount = unreadCountResult[0]?.unreadCount;
-  if (unreadCount === undefined) {
-    unreadCount = 0;
-  }
+  const unreadCount = unreadCountResult[0]?.unreadCount ?? 0;
+  return unreadCount;
+}
+
+/**
+ * Пересчёт unread для одной пары (userId, dialogId) из Message + MessageStatus (A12).
+ */
+export async function recalculateUserDialogUnread(
+  tenantId: string,
+  userId: string,
+  dialogId: string
+): Promise<number> {
+  const uid = (userId || '').trim().toLowerCase();
+  const unreadCount = await countUserDialogUnread(tenantId, uid, dialogId);
 
   const now = generateTimestamp();
   await UserDialogStats.findOneAndUpdate(

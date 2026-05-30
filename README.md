@@ -22,6 +22,8 @@
    
    # Или запустить по отдельности:
    npm run start:tenant-api         # Tenant API (порт 3000)
+   npm run start:outbox-relay       # Outbox Relay (обязательно для счётчиков)
+   npm run start:counter-worker     # Counter Worker (обязательно для счётчиков)
    npm run start:controlo-gateway  # Controlo Gateway (порт 3001)
    npm run start:update-worker      # Update Worker
    ```
@@ -81,8 +83,30 @@ NODE_ENV=development
 
 ### Workers
 
+Счётчики (`UserDialogStats`, `UserStats`, `MessageStatusStats`, паковые unread) обновляет **только counter-worker**.
+Tenant API пишет domain-события в outbox; **outbox-relay** публикует их в RabbitMQ.
+
+#### Outbox Relay
+Читает неопубликованные записи `OutboxEvent` из MongoDB и публикует в exchange `chat3_events`.
+
+```bash
+npm run start:outbox-relay
+```
+
+#### Counter Worker
+Единственный writer stats: обрабатывает counter-события из `counter_worker_queue`, пересчитывает slice и публикует counter-Updates.
+
+```bash
+npm run start:counter-worker
+```
+
+**Функции:**
+- Подписывается на exchange `chat3_events` (очередь `counter_worker_queue`)
+- Idempotent `processCounterEvent` + `recalculateSlice`
+- Публикует Updates со счётчиками в `chat3_updates`
+
 #### Update Worker
-Обрабатывает события из RabbitMQ и создает персонализированные обновления для пользователей.
+Обрабатывает события из RabbitMQ и создает персонализированные обновления для пользователей (без записи stats).
 
 ```bash
 npm run start:update-worker
@@ -90,10 +114,8 @@ npm run start:update-worker
 
 **Функции:**
 - Подписывается на exchange `chat3_events` (routing key: `#`)
-- Обрабатывает все события из RabbitMQ
 - Создает персонализированные Updates для участников диалогов
 - Публикует Updates в exchange `chat3_updates`
-- Автоматически создает UserStatsUpdate при изменении статистики
 
 #### Dialog Read Worker
 Обрабатывает задачи массового чтения диалогов.
@@ -104,16 +126,24 @@ npm run start:dialog-read-worker
 
 **Функции:**
 - Обрабатывает задачи из коллекции `DialogReadTask`
-- Обновляет `unreadCount` для участников диалогов
+- Пишет `MessageStatus` (bulk) и событие `dialog.messages.bulk_read` — счётчики обновляет counter-worker
 - Работает в фоновом режиме с опросом каждые 2 секунды
 
-**Важно:** Для полноценной работы системы необходимо запустить:
+**Порядок deploy / локального стенда:**
 1. MongoDB
-2. RabbitMQ
-3. Tenant API Server (`npm run start:tenant-api`)
-4. Controlo Gateway Server (`npm run start:controlo-gateway`) - опционально
-5. Update Worker (`npm run start:update-worker`) - обязательно
-6. Dialog Read Worker (`npm run start:dialog-read-worker`) - опционально
+2. RabbitMQ (`./docker/create-rabbitmq-user.sh` после первого запуска)
+3. Tenant API (`npm run start:tenant-api`)
+4. **Outbox Relay** (`npm run start:outbox-relay`) — обязательно
+5. **Counter Worker** (`npm run start:counter-worker`) — обязательно
+6. Update Worker (`npm run start:update-worker`) — обязательно
+7. Dialog Read Worker (`npm run start:dialog-read-worker`) — опционально
+8. Controlo Gateway (`npm run start:controlo-gateway`) — опционально
+
+**После первого deploy / seed:** в админке Init → «Полный пересчёт всех счётчиков» или `POST /api/init/full-recalculate-stats`.
+
+**Мониторинг drift:** `GET /api/init/reconcile-counter-drift` или `npm run reconcile-counter-drift` (exit 1 при расхождении — для CI/nightly).
+
+**CI (счётчики):** `npm run test:ci:counters` — E2E stack, slice benchmark, drift unit-тесты; при `MONGO_URI` — live drift check.
 
 ## Доступ к сервисам
 

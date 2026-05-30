@@ -129,6 +129,9 @@ describe('mark read via API flow', () => {
     const messageId = res4.body?.data?.messageId;
     expect(messageId).toBeDefined();
 
+    const { flushCounterEvents } = await import('../../utils/__tests__/counterTestHelpers.js');
+    await flushCounterEvents();
+
     const res5 = createMockRes();
     await userDialogController.updateMessageStatus(
       createReq({
@@ -142,6 +145,8 @@ describe('mark read via API flow', () => {
       res5
     );
     expect(res5.statusCode).toBe(200);
+
+    await flushCounterEvents();
 
     const res6 = createMockRes();
     await userPackController.getUserPacks(

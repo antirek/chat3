@@ -203,4 +203,53 @@ describe('counterProcessor', () => {
     expect(unreadRow?.count).toBe(1);
     expect(readRow?.count).toBe(1);
   });
+
+  test('logs slice duration on success', async () => {
+    const tenantId = 'tnt_log';
+    const dialogId = 'dlg_ff777777777777777777';
+    const senderId = 'alice';
+    const readerId = 'bob';
+    const messageId = 'msg_gg888888888888888888';
+    const now = generateTimestamp();
+
+    await DialogMember.insertMany([
+      { tenantId, dialogId, userId: senderId, createdAt: now },
+      { tenantId, dialogId, userId: readerId, createdAt: now }
+    ]);
+    await Message.create({
+      tenantId,
+      dialogId,
+      messageId,
+      senderId,
+      type: 'internal.text',
+      content: 'hi',
+      createdAt: now
+    });
+
+    const logs = [];
+    const origLog = console.log;
+    console.log = (...args) => {
+      logs.push(args.join(' '));
+    };
+
+    await processCounterEvent({
+      eventId: 'evt_f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2',
+      tenantId,
+      eventType: 'message.create',
+      entityType: 'message',
+      entityId: messageId,
+      data: {
+        context: { dialogId, messageId },
+        message: { messageId, dialogId, senderId, type: 'internal.text' }
+      }
+    });
+
+    const okLine = logs.find((line) => line.includes('[counterProcessor] slice ok:'));
+    expect(okLine).toBeDefined();
+    expect(okLine).toMatch(/eventId=evt_f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2/);
+    expect(okLine).toMatch(/dialogId=dlg_ff777777777777777777/);
+    expect(okLine).toMatch(/durationMs=\d+(\.\d+)?/);
+
+    console.log = origLog;
+  });
 });

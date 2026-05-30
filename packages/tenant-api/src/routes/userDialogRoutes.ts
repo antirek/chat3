@@ -280,7 +280,10 @@ router.get('/:userId/dialogs/:dialogId/topics', apiAuth, requirePermission('read
  * /api/users/{userId}/dialogs/{dialogId}/markAllRead:
  *   post:
  *     summary: Mark all messages in dialog as read for user
- *     description: Отмечает все входящие сообщения диалога прочитанными для указанного пользователя. Обнуляет счётчики и синхронно проставляет MessageStatus = read. Таймаут 2 мин.
+ *     description: |
+ *       Отмечает все входящие сообщения диалога прочитанными для указанного пользователя.
+ *       Синхронно пишет `MessageStatus` (bulk); счётчики unread обновляет counter-worker асинхронно.
+ *       Таймаут 2 мин. Ответ POST может содержать unreadCount до обработки counter-worker.
  *     tags: [UserDialogs]
  *     security:
  *       - ApiKeyAuth: []
@@ -925,7 +928,7 @@ router.post('/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action',
  *       - Каждое изменение статуса создает новую запись в истории (не обновляет существующую)
  *       - MessageStatus хранит полную историю всех изменений статусов для каждого пользователя
  *       - При создании новой записи автоматически заполняется поле `userType` на основе типа пользователя
- *       - Автоматически обновляются счетчики непрочитанных сообщений (unreadCount)
+ *       - Генерируется событие `message.status.changed`; счётчики unread и MessageStatusStats обновляет counter-worker (не синхронно с ответом POST)
  *       - Генерируется событие изменения статуса для других участников диалога
  *       
  *       Доступен только для участников диалога.

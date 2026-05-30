@@ -7,6 +7,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { recalculateUserStats } from '@chat3/utils/counterUtils.js';
 import { recalculateUserPackUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
+import { reconcileCounterDrift } from '@chat3/utils/counterProcessor/reconcileCounterDrift.js';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { Request, Response } from 'express';
@@ -254,6 +255,43 @@ export const initController = {
           console.error(`${logPrefix} Критическая ошибка в фоновой задаче:`, error);
         }
       })();
+    } catch (error: any) {
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Internal Server Error',
+          message: error.message
+        });
+      } else {
+        console.error('Error after response sent:', error);
+      }
+    }
+  },
+
+  /**
+   * Сверка drift счётчиков (UserDialogStats, MessageStatusStats, UserStats) без исправления.
+   * Синхронный ответ с отчётом — для nightly / smoke после deploy.
+   */
+  async reconcileCounterDrift(req: Request, res: Response): Promise<void> {
+    try {
+      await connectDB();
+
+      const tenantId = typeof req.query.tenantId === 'string' ? req.query.tenantId : undefined;
+      const maxUserDialogs = Number(req.query.maxUserDialogs) || 500;
+      const maxMessages = Number(req.query.maxMessages) || 100;
+      const maxUsers = Number(req.query.maxUsers) || 200;
+
+      const result = await reconcileCounterDrift({
+        ...(tenantId ? { tenantId } : {}),
+        maxUserDialogs,
+        maxMessages,
+        maxUsers
+      });
+
+      const status = result.ok ? 200 : 409;
+      res.status(status).json({
+        message: result.ok ? 'No counter drift detected' : 'Counter drift detected',
+        data: result
+      });
     } catch (error: any) {
       if (!res.headersSent) {
         res.status(500).json({

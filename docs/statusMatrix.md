@@ -84,6 +84,8 @@
 
 **Отличие от счётчиков unread:** `UserDialogStats.unreadCount` и паковые счётчики считают сообщение непрочитанным, пока в истории **нет** статуса `read` (промежуточные `sent` / `delivered` всё ещё «не прочитано»). См. [COUNTERS_WORKER_ARCHITECTURE §4.6](./COUNTERS_WORKER_ARCHITECTURE.md#46-семантика-unread-зафиксировано).
 
+**MessageStatusStats:** количество записей в истории по каждому `status` для сообщения (`count` в коллекции `MessageStatusStats`) пересчитывает **counter-worker** при `message.create`, `message.status.changed`, `dialog.messages.bulk_read`. Поле `count` в `statusMessageMatrix` для UI может опираться на эти агрегаты; матрица «текущих» статусов (последняя запись на пользователя) строится отдельно при GET сообщения.
+
 Если пользователь прошёл `unread` → `delivered` → `read`, в матрице будет одна строка:
 `{ userType: "user", status: "read", count: 1 }`.
 

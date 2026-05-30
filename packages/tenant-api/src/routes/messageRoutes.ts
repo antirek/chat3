@@ -140,6 +140,9 @@ router.get('/:dialogId/messages', apiAuth, requirePermission('read'), validateDi
  * /api/dialogs/{dialogId}/messages:
  *   post:
  *     summary: Create new message in dialog
+ *     description: |
+ *       Создаёт сообщение в диалоге и публикует domain-событие `message.create`.
+ *       **Счётчики:** unread/stats обновляются асинхронно через counter-worker; ответ POST не содержит актуальный unreadCount.
  *     tags: [Messages]
  *     security:
  *       - ApiKeyAuth: []

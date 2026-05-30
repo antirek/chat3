@@ -132,6 +132,8 @@ router.post('/:dialogId/members/:userId/remove', apiAuth, requirePermission('wri
  * /api/dialogs/{dialogId}/members/{userId}/unread:
  *   patch:
  *     summary: Manually set unread count for a dialog member
+ *     description: |
+ *       Задаёт unreadCount вручную (аудит/миграции). Запись stats и counter-Updates — через counter-worker после события; ответ POST не гарантирует финальный unreadCount.
  *     tags: [DialogMember]
  *     security:
  *       - ApiKeyAuth: []

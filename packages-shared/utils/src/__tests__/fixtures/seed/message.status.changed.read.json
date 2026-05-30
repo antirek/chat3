@@ -1,0 +1,7 @@
+{
+  "extends": "message.create",
+  "messageStatuses": [
+    { "userId": "carol", "status": "unread", "offsetMs": 0 },
+    { "userId": "carol", "status": "read", "offsetMs": 1 }
+  ]
+}

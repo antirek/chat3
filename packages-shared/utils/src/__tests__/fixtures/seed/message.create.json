@@ -1,0 +1,8 @@
+{
+  "tenantId": "tnt_fixture",
+  "dialogId": "dlg_aaaaaaaaaaaaaaaaaaaa",
+  "messageId": "msg_bbbbbbbbbbbbbbbbbbbb",
+  "senderId": "alice",
+  "readerId": "carol",
+  "members": ["alice", "carol"]
+}

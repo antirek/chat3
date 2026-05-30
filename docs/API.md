@@ -27,6 +27,17 @@ npm run generate-key
 - `X-Tenant-ID` (опционально) - ID тенанта, по умолчанию `tnt_default`
 - `X-Idempotency-Key` (опционально) - Ключ для идемпотентности запросов
 
+## Счётчики (unread, stats)
+
+Счётчики непрочитанных (`UserDialogStats.unreadCount`, `UserStats.totalUnreadCount`, паковые unread, `MessageStatusStats`) обновляются **асинхронно** через **counter-worker** после domain-событий (outbox → RabbitMQ).
+
+**Для интеграторов:**
+- Ответ **POST** (создание сообщения, смена статуса, mark read и т.д.) **не гарантирует** актуальный `unreadCount` в теле ответа — используйте **GET** или подписку на **Updates** из RabbitMQ (`chat3_updates`).
+- После deploy / seed выполните полный пересчёт: `POST /api/init/full-recalculate-stats` (controlo-backend) или кнопку в Init UI.
+- Мониторинг рассинхронизации: `GET /api/init/reconcile-counter-drift`, `npm run reconcile-counter-drift`.
+
+Подробнее: [INTEGRATORS_COUNTERS_MIGRATION.md](./INTEGRATORS_COUNTERS_MIGRATION.md), [COUNTERS_WORKER_ARCHITECTURE.md](./COUNTERS_WORKER_ARCHITECTURE.md).
+
 ## Формат ответов
 
 ### Успешный ответ
@@ -416,7 +427,7 @@ npm run generate-key
 **Примечания:**
 - Каждое изменение статуса создает новую запись в истории (не обновляет существующую)
 - Автоматически заполняется поле `userType` на основе типа пользователя
-- Автоматически обновляются счетчики непрочитанных сообщений (unreadCount)
+- Генерируется событие `message.status.changed`; счётчики unread и `MessageStatusStats` обновляет **counter-worker** (не синхронно с ответом POST)
 - Генерируется событие изменения статуса для других участников диалога
 - Доступен только для участников диалога
 

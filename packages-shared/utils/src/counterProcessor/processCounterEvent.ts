@@ -36,6 +36,7 @@ export async function processCounterEvent(eventData: unknown): Promise<void> {
     return;
   }
 
+  const sliceStartedAt = performance.now();
   let slice;
   try {
     slice = await resolveSlice(event);
@@ -50,6 +51,12 @@ export async function processCounterEvent(eventData: unknown): Promise<void> {
       ? err
       : new CounterProcessorError(message, true);
   }
+
+  const durationMs = Math.round((performance.now() - sliceStartedAt) * 100) / 100;
+  const dialogId = slice.dialogIds[0] ?? slice.userDialogs[0]?.dialogId ?? '-';
+  console.log(
+    `[counterProcessor] slice ok: tenant=${event.tenantId} eventId=${event.eventId} type=${event.eventType} dialogId=${dialogId} durationMs=${durationMs}`
+  );
 
   try {
     await ProcessedCounterEvent.create({

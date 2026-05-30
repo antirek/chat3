@@ -171,6 +171,7 @@ app.get('/health', (req, res) => {
       init: `${CONTROL_APP_URL}/api/init`,
       seed: `${CONTROL_APP_URL}/api/init/seed`,
       fullRecalculateStats: `${CONTROL_APP_URL}/api/init/full-recalculate-stats`,
+      reconcileCounterDrift: `${CONTROL_APP_URL}/api/init/reconcile-counter-drift`,
       dialogEvents: `${CONTROL_APP_URL}/api/dialogs/{dialogId}/events`,
       dialogUpdates: `${CONTROL_APP_URL}/api/dialogs/{dialogId}/updates`,
       messageEvents: `${CONTROL_APP_URL}/api/messages/{messageId}/events`,
@@ -195,6 +196,7 @@ const startServer = async () => {
       console.log(`   POST /api/init - Initialize system (create tenant and API key)`);
       console.log(`   POST /api/init/seed - Run database seed script`);
       console.log(`   POST /api/init/full-recalculate-stats - Full recalculate all counters (users + packs)`);
+      console.log(`   GET  /api/init/reconcile-counter-drift - Detect counter drift (read-only report)`);
       console.log(`   GET  /api/dialogs/{dialogId}/events - Get events for a dialog`);
       console.log(`   GET  /api/dialogs/{dialogId}/updates - Get updates for a dialog`);
       console.log(`   GET  /api/messages/{messageId}/events - Get events for a message`);

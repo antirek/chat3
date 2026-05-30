@@ -98,6 +98,34 @@
             <div v-html="fullRecalculateResult.content"></div>
           </div>
         </div>
+
+        <!-- Секция 4: Сверка drift счётчиков -->
+        <div class="section">
+          <h2>4. Сверка drift счётчиков</h2>
+          <p>
+            Сравнивает записанные счётчики (<code>UserDialogStats</code>, <code>MessageStatusStats</code>, <code>UserStats</code>)
+            с ожидаемыми значениями из истории сообщений. Не исправляет расхождения — только отчёт.
+            При drift запустите полный пересчёт из секции 3.
+          </p>
+          <div class="button-group">
+            <button
+              id="reconcileDriftBtn"
+              class="btn-secondary"
+              :disabled="reconcileDriftLoading"
+              @click="reconcileCounterDrift"
+            >
+              <span v-if="reconcileDriftLoading" class="loading"></span>
+              <span v-else>🔍</span>
+              <span>{{ reconcileDriftLoading ? 'Проверка...' : 'Проверить drift счётчиков' }}</span>
+            </button>
+          </div>
+          <div
+            v-if="reconcileDriftResult.show"
+            :class="['result', reconcileDriftResult.type]"
+          >
+            <div v-html="reconcileDriftResult.content"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -114,6 +142,9 @@ const {
   fullRecalculateLoading,
   fullRecalculateResult,
   fullRecalculateStats,
+  reconcileDriftLoading,
+  reconcileDriftResult,
+  reconcileCounterDrift,
   initialize,
   runSeed,
 } = useInitPage();
@@ -224,6 +255,17 @@ button {
   background: #38a169;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(72, 187, 120, 0.3);
+}
+
+.btn-secondary {
+  background: #718096;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #4a5568;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(113, 128, 150, 0.3);
 }
 
 button:disabled {

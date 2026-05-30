@@ -1,0 +1,22 @@
+{
+  "message.create": {
+    "dialogMemberUpdates": [
+      {
+        "userId": "carol",
+        "entityId": "dlg_aaaaaaaaaaaaaaaaaaaa",
+        "unreadCount": 1
+      }
+    ],
+    "userStatsUpdateUserIds": ["alice", "carol"]
+  },
+  "message.status.changed.read": {
+    "dialogMemberUpdates": [
+      {
+        "userId": "carol",
+        "entityId": "dlg_aaaaaaaaaaaaaaaaaaaa",
+        "unreadCount": 0
+      }
+    ],
+    "userStatsUpdateUserIds": ["carol"]
+  }
+}

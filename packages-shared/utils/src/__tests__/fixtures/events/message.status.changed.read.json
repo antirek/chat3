@@ -1,0 +1,19 @@
+{
+  "eventId": "evt_b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
+  "tenantId": "tnt_fixture",
+  "eventType": "message.status.changed",
+  "entityType": "messageStatus",
+  "entityId": "msg_bbbbbbbbbbbbbbbbbbbb",
+  "data": {
+    "context": {
+      "dialogId": "dlg_aaaaaaaaaaaaaaaaaaaa",
+      "messageId": "msg_bbbbbbbbbbbbbbbbbbbb",
+      "userId": "carol"
+    },
+    "message": {
+      "messageId": "msg_bbbbbbbbbbbbbbbbbbbb",
+      "dialogId": "dlg_aaaaaaaaaaaaaaaaaaaa",
+      "statusUpdate": { "userId": "carol", "status": "read" }
+    }
+  }
+}

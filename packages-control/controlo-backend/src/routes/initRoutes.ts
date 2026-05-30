@@ -156,4 +156,36 @@ router.post('/seed', initController.seed);
  */
 router.post('/full-recalculate-stats', initController.fullRecalculateStats);
 
+/**
+ * @swagger
+ * /api/init/reconcile-counter-drift:
+ *   get:
+ *     summary: Detect counter drift (read-only report)
+ *     tags: [Initialization]
+ *     description: |
+ *       Сравнивает UserDialogStats.unreadCount, MessageStatusStats и UserStats.totalUnreadCount
+ *       с ожидаемыми значениями из Message + MessageStatus. Не исправляет расхождения.
+ *     parameters:
+ *       - in: query
+ *         name: tenantId
+ *         schema: { type: string }
+ *       - in: query
+ *         name: maxUserDialogs
+ *         schema: { type: integer, default: 500 }
+ *       - in: query
+ *         name: maxMessages
+ *         schema: { type: integer, default: 100 }
+ *       - in: query
+ *         name: maxUsers
+ *         schema: { type: integer, default: 200 }
+ *     responses:
+ *       200:
+ *         description: No drift
+ *       409:
+ *         description: Drift detected
+ *       500:
+ *         description: Internal Server Error
+ */
+router.get('/reconcile-counter-drift', initController.reconcileCounterDrift);
+
 export default router;
