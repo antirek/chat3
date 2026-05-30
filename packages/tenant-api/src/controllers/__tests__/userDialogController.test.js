@@ -1412,7 +1412,7 @@ describe('userDialogController', () => {
       });
     });
 
-    test('message.status.update event should not have member section', async () => {
+    test('message.status.changed event should not have member section', async () => {
       const req = createMockReq(
         { userId, dialogId: dialog.dialogId, messageId: message.messageId, status: 'read' },
         {}
@@ -1425,7 +1425,7 @@ describe('userDialogController', () => {
 
       const event = await Event.findOne({
         tenantId,
-        eventType: 'message.status.update',
+        eventType: 'message.status.changed',
         entityId: message.messageId
       }).lean();
 
@@ -1440,7 +1440,7 @@ describe('userDialogController', () => {
       expect(event.data.context.includedSections).toContain('message');
     });
 
-    test('message.status.update event should have message section with statusUpdate', async () => {
+    test('message.status.changed event should have message section with statusUpdate', async () => {
       const req = createMockReq(
         { userId, dialogId: dialog.dialogId, messageId: message.messageId, status: 'read' },
         {}
@@ -1451,7 +1451,7 @@ describe('userDialogController', () => {
 
       const event = await Event.findOne({
         tenantId,
-        eventType: 'message.status.update',
+        eventType: 'message.status.changed',
         entityId: message.messageId
       }).lean();
 
@@ -1481,7 +1481,7 @@ describe('userDialogController', () => {
       expect(event.data.message.reactionUpdate).toBeUndefined();
     });
 
-    test('updateMessageStatus should create dialog.member.update event with dialog section when counter is updated', async () => {
+    test('updateMessageStatus should create dialog.member.changed event with dialog section when counter is updated', async () => {
       // Обновляем участника диалога, чтобы у него были непрочитанные сообщения
       await DialogMember.findOneAndUpdate(
         { tenantId, dialogId: dialog.dialogId, userId },
@@ -1497,10 +1497,10 @@ describe('userDialogController', () => {
 
       await userDialogController.updateMessageStatus(req, res);
 
-      // Проверяем событие dialog.member.update
+      // Проверяем событие dialog.member.changed
       const memberEvent = await Event.findOne({
         tenantId,
-        eventType: 'dialog.member.update',
+        eventType: 'dialog.member.changed',
         entityId: dialog.dialogId
       }).lean();
 

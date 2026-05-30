@@ -76,12 +76,14 @@ async function getPacksByUser(userId) {
   }, {});
 }
 
-async function simulatePackRecalcForDialog(dialogId, sourceOperation, sourceEntityId) {
+async function simulatePackRecalcForDialog(dialogId, _sourceOperation, _sourceEntityId) {
+  const { flushCounterEvents } = await import('../../utils/__tests__/counterTestHelpers.js');
+  await flushCounterEvents();
   const packIds = await getPackIdsForDialog(tenantId, dialogId);
   for (const packId of packIds) {
     await recalculateUserPackUnreadBySenderType(tenantId, packId, {
-      sourceOperation,
-      sourceEntityId
+      sourceOperation: _sourceOperation,
+      sourceEntityId: _sourceEntityId
     });
   }
 }
@@ -208,7 +210,7 @@ describe('mark read via API — диалог в нескольких паках'
         res
       );
       expect(res.statusCode).toBe(200);
-      await simulatePackRecalcForDialog(dialogIds[0], 'message.status.update', msgId);
+      await simulatePackRecalcForDialog(dialogIds[0], 'message.status.changed', msgId);
     }
     const expectedAfterU1ReadD0 = {
       [USER_IDS[0]]: { [packIds[0]]: 0, [packIds[1]]: 0 },
@@ -232,7 +234,7 @@ describe('mark read via API — диалог в нескольких паках'
         res
       );
       expect(res.statusCode).toBe(200);
-      await simulatePackRecalcForDialog(dialogIds[0], 'message.status.update', msgId);
+      await simulatePackRecalcForDialog(dialogIds[0], 'message.status.changed', msgId);
     }
     const expectedAfterU2ReadD0 = {
       [USER_IDS[0]]: { [packIds[0]]: 0, [packIds[1]]: 0 },
@@ -256,7 +258,7 @@ describe('mark read via API — диалог в нескольких паках'
         res
       );
       expect(res.statusCode).toBe(200);
-      await simulatePackRecalcForDialog(dialogIds[1], 'message.status.update', msgId);
+      await simulatePackRecalcForDialog(dialogIds[1], 'message.status.changed', msgId);
     }
     const expectedAfterU2ReadD1 = {
       [USER_IDS[0]]: { [packIds[0]]: 0, [packIds[1]]: 0 },
@@ -280,7 +282,7 @@ describe('mark read via API — диалог в нескольких паках'
         res
       );
       expect(res.statusCode).toBe(200);
-      await simulatePackRecalcForDialog(dialogIds[1], 'message.status.update', msgId);
+      await simulatePackRecalcForDialog(dialogIds[1], 'message.status.changed', msgId);
     }
     const expectedFinal = {
       [USER_IDS[0]]: { [packIds[0]]: 0, [packIds[1]]: 0 },

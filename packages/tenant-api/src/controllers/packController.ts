@@ -811,7 +811,9 @@ export const packController = {
           });
           try {
             const result = await markDialogMessagesAsReadUntil(tenantId, dialogId, userId, readUntil, {
-              timeoutMs: remainingMs
+              timeoutMs: remainingMs,
+              actorId,
+              actorType
             });
             totalProcessedMessageCount += result.processedCount;
             processedDialogsCount += 1;

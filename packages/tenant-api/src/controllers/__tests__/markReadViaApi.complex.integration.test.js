@@ -83,12 +83,14 @@ function getContactUnread(pack) {
 }
 
 /** Симулирует воркер: пересчёт паковых счётчиков по диалогу */
-async function simulatePackRecalcForDialog(dialogId, sourceOperation, sourceEntityId) {
+async function simulatePackRecalcForDialog(dialogId, _sourceOperation, _sourceEntityId) {
+  const { flushCounterEvents } = await import('../../utils/__tests__/counterTestHelpers.js');
+  await flushCounterEvents();
   const packIds = await getPackIdsForDialog(tenantId, dialogId);
   for (const packId of packIds) {
     await recalculateUserPackUnreadBySenderType(tenantId, packId, {
-      sourceOperation,
-      sourceEntityId
+      sourceOperation: _sourceOperation,
+      sourceEntityId: _sourceEntityId
     });
   }
 }
@@ -208,7 +210,7 @@ describe('mark read via API — сложный сценарий', () => {
         res
       );
       expect(res.statusCode).toBe(200);
-      await simulatePackRecalcForDialog(dialogIds[i], 'message.status.update', messageIds[i]);
+      await simulatePackRecalcForDialog(dialogIds[i], 'message.status.changed', messageIds[i]);
     }
 
     // 5. Проверка: для каждой пары (userId, packId) из expected — getUserPacks и сверка contact count

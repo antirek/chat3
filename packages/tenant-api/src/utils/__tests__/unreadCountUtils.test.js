@@ -359,7 +359,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
 
       // updateCountersOnStatusChange deprecated - логика теперь в middleware MessageStatus
       // Симулируем обновление через updateUnreadCount
-      await updateUnreadCount(tenantId, userId, dialogId, -1, 'message.status.update', null, messageId, userId, 'user');
+      await updateUnreadCount(tenantId, userId, dialogId, -1, 'message.status.changed', null, messageId, userId, 'user');
 
       // Проверяем unreadCount в UserDialogStats
       const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId });

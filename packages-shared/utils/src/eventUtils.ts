@@ -1,6 +1,6 @@
 import { Event } from '@chat3/models';
 import type { EventType, EntityType, ActorType, IEvent } from '@chat3/models';
-import * as rabbitmqUtils from './rabbitmqUtils.js';
+import { createEventWithOutbox } from './outboxUtils.js';
 
 const EVENT_PAYLOAD_VERSION = 2;
 
@@ -584,41 +584,20 @@ export async function createEvent({
   actorType = 'user',
   data = {}
 }: CreateEventParams): Promise<IEvent | null> {
-  try {
-    // Глубокое копирование данных для гарантии сохранения всех полей
-    const dataCopy = JSON.parse(JSON.stringify(data)) as Record<string, unknown>;
-    
-    // Убеждаемся, что meta присутствует в dialog секции
-    const dialogObj = dataCopy.dialog as { meta?: unknown } | undefined;
-    if (dialogObj && (!dialogObj.meta || typeof dialogObj.meta !== 'object' || Array.isArray(dialogObj.meta))) {
-      dialogObj.meta = {};
-    }
-    
-    const event = await Event.create({
-      tenantId,
-      eventType,
-      entityType,
-      entityId,
-      actorId,
-      actorType,
-      data: dataCopy
-    });
-
-    // Отправляем событие в RabbitMQ (асинхронно, не ждем результата)
-    // Если RabbitMQ недоступен, событие все равно сохранится в MongoDB
-    // Update Worker подпишется на события и создаст updates
-    const eventObject = event.toObject();
-    rabbitmqUtils.publishEvent(eventObject).catch(err => {
-      console.error(`❌ Failed to publish event ${event.eventType} to RabbitMQ:`, err instanceof Error ? err.message : String(err));
-      console.error('Error stack:', err instanceof Error ? err.stack : String(err));
-    });
-
-    return event;
-  } catch (error) {
-    console.error('Error creating event:', error);
-    // Не бросаем ошибку, чтобы не ломать основной функционал
-    return null;
+  const dataCopy = JSON.parse(JSON.stringify(data)) as Record<string, unknown>;
+  const dialogObj = dataCopy.dialog as { meta?: unknown } | undefined;
+  if (dialogObj && (!dialogObj.meta || typeof dialogObj.meta !== 'object' || Array.isArray(dialogObj.meta))) {
+    dialogObj.meta = {};
   }
+  return createEventWithOutbox({
+    tenantId,
+    eventType,
+    entityType,
+    entityId,
+    actorId,
+    actorType,
+    data: dataCopy
+  });
 }
 
 interface GetEntityEventsOptions {

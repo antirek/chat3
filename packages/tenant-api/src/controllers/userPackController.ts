@@ -8,7 +8,6 @@ import { buildStatusMessageMatrix } from '@chat3/utils/userDialogUtils.js';
 import { buildUserPackStatsFromBySenderRows, getPackDialogIds } from '@chat3/utils/packStatsUtils.js';
 import { markDialogMessagesAsReadUntil } from '@chat3/utils/dialogReadTaskUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
-import { updateUserStatsDialogCount, finalizeCounterUpdateContext } from '@chat3/utils/counterUtils.js';
 import { Response } from 'express';
 import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
@@ -208,7 +207,9 @@ export async function markPackAllRead(req: AuthenticatedRequest, res: Response):
       await applyMarkDialogAllRead(tenantId, userId, dialogId, actorId, actorType, { lastSeenAt: readUntil });
       try {
         const result = await markDialogMessagesAsReadUntil(tenantId, dialogId, userId, readUntil, {
-          timeoutMs: remainingMs
+          timeoutMs: remainingMs,
+          actorId,
+          actorType
         });
         totalProcessedMessageCount += result.processedCount;
         processedDialogsCount += 1;
@@ -350,24 +351,6 @@ export async function joinPack(req: AuthenticatedRequest, res: Response): Promis
       });
       const sourceEventId = memberEvent?.eventId ?? null;
 
-      try {
-        if (sourceEventId) {
-          await updateUserStatsDialogCount(
-            tenantId,
-            userId,
-            1,
-            'dialog.member.add',
-            sourceEventId,
-            actorId,
-            actorType
-          );
-        }
-      } finally {
-        if (sourceEventId) {
-          await finalizeCounterUpdateContext(tenantId, userId, sourceEventId).catch(() => {});
-        }
-      }
-
       joinedDialogsCount += 1;
     }
 
@@ -491,32 +474,15 @@ export async function leavePack(req: AuthenticatedRequest, res: Response): Promi
         sourceEventId = memberEvent?.eventId ?? null;
       }
 
-      try {
-        await removeDialogMember(
-          tenantId,
-          userId,
-          dialogId,
-          sourceEventId,
-          'dialog.member.remove',
-          actorId,
-          actorType
-        );
-        if (member && sourceEventId) {
-          await updateUserStatsDialogCount(
-            tenantId,
-            userId,
-            -1,
-            'dialog.member.remove',
-            sourceEventId,
-            actorId,
-            actorType
-          );
-        }
-      } finally {
-        if (sourceEventId) {
-          await finalizeCounterUpdateContext(tenantId, userId, sourceEventId).catch(() => {});
-        }
-      }
+      await removeDialogMember(
+        tenantId,
+        userId,
+        dialogId,
+        sourceEventId,
+        'dialog.member.remove',
+        actorId,
+        actorType
+      );
       leftDialogsCount += 1;
     }
 

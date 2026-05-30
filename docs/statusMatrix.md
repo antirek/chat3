@@ -82,6 +82,8 @@
 
 **ВАЖНО**: в матрице учитывается только **последний** статус каждого получателя.
 
+**Отличие от счётчиков unread:** `UserDialogStats.unreadCount` и паковые счётчики считают сообщение непрочитанным, пока в истории **нет** статуса `read` (промежуточные `sent` / `delivered` всё ещё «не прочитано»). См. [COUNTERS_WORKER_ARCHITECTURE §4.6](./COUNTERS_WORKER_ARCHITECTURE.md#46-семантика-unread-зафиксировано).
+
 Если пользователь прошёл `unread` → `delivered` → `read`, в матрице будет одна строка:
 `{ userType: "user", status: "read", count: 1 }`.
 

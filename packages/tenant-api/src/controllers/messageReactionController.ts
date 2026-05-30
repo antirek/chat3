@@ -206,7 +206,7 @@ const messageReactionController = {
         });
 
         const reactionContext = eventUtils.buildEventContext({
-          eventType: 'message.reaction.update',
+          eventType: 'message.reaction.changed',
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
@@ -214,10 +214,10 @@ const messageReactionController = {
           updatedFields: ['message.reaction']
         });
 
-        log(`Создание события message.reaction.update: messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
+        log(`Создание события message.reaction.changed: messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
         await eventUtils.createEvent({
           tenantId: req.tenantId!,
-          eventType: 'message.reaction.update',
+          eventType: 'message.reaction.changed',
           entityType: 'messageReaction',
           entityId: messageId,
           actorId: userId,
@@ -287,7 +287,7 @@ const messageReactionController = {
         const reactionSet = await buildReactionSet(req.tenantId!, messageId, userId);
 
         const removeContext = eventUtils.buildEventContext({
-          eventType: 'message.reaction.update',
+          eventType: 'message.reaction.changed',
           dialogId: message.dialogId,
           entityId: messageId,
           messageId,
@@ -309,10 +309,10 @@ const messageReactionController = {
           }
         });
 
-        log(`Создание события message.reaction.update (unset): messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
+        log(`Создание события message.reaction.changed (unset): messageId=${messageId}, userId=${userId}, reaction=${reaction}`);
         await eventUtils.createEvent({
           tenantId: req.tenantId!,
-          eventType: 'message.reaction.update',
+          eventType: 'message.reaction.changed',
           entityType: 'messageReaction',
           entityId: messageId,
           actorId: userId,

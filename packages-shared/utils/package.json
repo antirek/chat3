@@ -24,7 +24,9 @@
     "./userDialogUtils.js": "./dist/userDialogUtils.js",
     "./userTypeUtils.js": "./dist/userTypeUtils.js",
     "./packStatsUtils.js": "./dist/packStatsUtils.js",
-    "./packUnreadSenderTypes.js": "./dist/packUnreadSenderTypes.js"
+    "./packUnreadSenderTypes.js": "./dist/packUnreadSenderTypes.js",
+    "./counterProcessor/processCounterEvent.js": "./dist/counterProcessor/processCounterEvent.js",
+    "./outboxUtils.js": "./dist/outboxUtils.js"
   },
   "private": true,
   "scripts": {

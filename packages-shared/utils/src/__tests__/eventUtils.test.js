@@ -151,7 +151,7 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
     test('should create event with empty data if not provided', async () => {
       const event = await createEvent({
         tenantId,
-        eventType: 'dialog.update',
+        eventType: 'dialog.changed',
         entityType: 'dialog',
         entityId: 'dlg_test1234567890123456',
         actorId: 'user1'
@@ -205,7 +205,7 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
         },
         {
           tenantId,
-          eventType: 'dialog.update',
+          eventType: 'dialog.changed',
           entityType: 'dialog',
           entityId,
           actorId: 'user1',
@@ -242,7 +242,7 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
         },
         {
           tenantId,
-          eventType: 'dialog.update',
+          eventType: 'dialog.changed',
           entityType: 'dialog',
           entityId,
           actorId: 'user1',
@@ -264,7 +264,7 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
       await Event.create([
         {
           tenantId,
-          eventType: 'dialog.update',
+          eventType: 'dialog.changed',
           entityType: 'dialog',
           entityId,
           actorId: 'user1',
@@ -273,7 +273,7 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
         },
         {
           tenantId,
-          eventType: 'dialog.update',
+          eventType: 'dialog.changed',
           entityType: 'dialog',
           entityId,
           actorId: 'user1',

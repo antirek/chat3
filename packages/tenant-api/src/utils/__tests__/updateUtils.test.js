@@ -359,10 +359,10 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         unreadCount: 5,
       });
 
-      const { eventId, eventData } = await createEventWithDialog('dialog.member.update', dialogId, {
+      const { eventId, eventData } = await createEventWithDialog('dialog.member.changed', dialogId, {
         context: {
           version: 2,
-          eventType: 'dialog.member.update',
+          eventType: 'dialog.member.changed',
           dialogId,
           entityId: dialogId,
           messageId: null,
@@ -384,7 +384,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId,
         eventId,
-        'dialog.member.update',
+        'dialog.member.changed',
         eventData
       );
 
@@ -403,7 +403,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
     test('should not create update if member does not exist', async () => {
       const dialogId = generateDialogId();
       const userId = 'user1';
-      const eventId = await createEventAndGetId('dialog.member.update');
+      const eventId = await createEventAndGetId('dialog.member.changed');
 
       await Dialog.create({
         tenantId,
@@ -417,7 +417,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         userId,
         eventId,
-        'dialog.member.update'
+        'dialog.member.changed'
       );
 
       const updates = await Update.find({ tenantId, entityId: dialogId, userId });
@@ -666,10 +666,10 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         unreadCount: 0,
       });
 
-      const { eventId, eventData } = await createEventWithDialog('message.status.update', dialogId, {
+      const { eventId, eventData } = await createEventWithDialog('message.status.changed', dialogId, {
         context: {
           version: 2,
-          eventType: 'message.status.update',
+          eventType: 'message.status.changed',
           dialogId,
           entityId: messageId,
           messageId,
@@ -697,7 +697,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         messageId,
         eventId,
-        'message.status.update',
+        'message.status.changed',
         eventData
       );
 
@@ -714,7 +714,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       
       // Проверяем структуру данных
       // В update.data должны быть поля сообщения + statusUpdate
-      // Для message.status.update member секция не включается
+      // Для message.status.changed member секция не включается
       expect(update.data).toBeDefined();
       expect(update.data.message).toBeDefined();
       expect(update.data.message.messageId || update.data.message._id).toBeDefined();
@@ -724,11 +724,11 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       // Проверяем наличие statusMessageMatrix в update
       expect(update.data.message.statusMessageMatrix).toBeDefined();
       expect(Array.isArray(update.data.message.statusMessageMatrix)).toBe(true);
-      // member секция убрана для message.status.update
+      // member секция убрана для message.status.changed
       expect(update.data.member).toBeUndefined();
     });
 
-    test('message.status.update should rebuild statusMessageMatrix from DB (not stale event payload)', async () => {
+    test('message.status.changed should rebuild statusMessageMatrix from DB (not stale event payload)', async () => {
       const dialogId = generateDialogId();
       const messageId = generateMessageId();
       const contactId = 'cnt_test_contact';
@@ -755,10 +755,10 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         createdAt: generateTimestamp()
       });
 
-      const { eventId, eventData } = await createEventWithDialog('message.status.update', dialogId, {
+      const { eventId, eventData } = await createEventWithDialog('message.status.changed', dialogId, {
         context: {
           version: 2,
-          eventType: 'message.status.update',
+          eventType: 'message.status.changed',
           dialogId,
           entityId: messageId,
           messageId,
@@ -786,7 +786,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         messageId,
         eventId,
-        'message.status.update',
+        'message.status.changed',
         eventData
       );
 
@@ -826,10 +826,10 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         unreadCount: 0,
       });
 
-      const { eventId, eventData } = await createEventWithDialog('message.reaction.update', dialogId, {
+      const { eventId, eventData } = await createEventWithDialog('message.reaction.changed', dialogId, {
         context: {
           version: 2,
-          eventType: 'message.reaction.update',
+          eventType: 'message.reaction.changed',
           dialogId,
           entityId: messageId,
           messageId,
@@ -857,7 +857,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
         dialogId,
         messageId,
         eventId,
-        'message.reaction.update',
+        'message.reaction.changed',
         eventData
       );
 
@@ -873,14 +873,14 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(update).not.toBeNull();
       
       // Проверяем структуру данных
-      // Для message.reaction.update member секция не включается
+      // Для message.reaction.changed member секция не включается
       expect(update.data).toBeDefined();
       expect(update.data.message).toBeDefined();
       expect(update.data.message.reactionUpdate).toBeDefined();
       expect(update.data.message.reactionUpdate.userId).toBe('user2');
       expect(update.data.message.reactionUpdate.reaction).toBe('👍');
       expect(update.data.message.reactionUpdate.oldReaction).toBeNull();
-      // member секция убрана для message.reaction.update
+      // member секция убрана для message.reaction.changed
       expect(update.data.member).toBeUndefined();
     });
   });

@@ -44,23 +44,23 @@ async function getEventIdString(eventId: string | mongoose.Types.ObjectId, tenan
 
 const DIALOG_UPDATE_EVENTS = [
   'dialog.create',
-  'dialog.update',
+  'dialog.changed',
   'dialog.delete',
   'dialog.member.add',
   'dialog.member.remove',
   'dialog.topic.create',
-  'dialog.topic.update'
+  'dialog.topic.changed'
 ] as const;
 
 const DIALOG_MEMBER_UPDATE_EVENTS = [
-  'dialog.member.update'
+  'dialog.member.changed'
 ] as const;
 
 const MESSAGE_UPDATE_EVENTS = [
   'message.create',
-  'message.update',
-  'message.reaction.update',
-  'message.status.update'
+  'message.changed',
+  'message.reaction.changed',
+  'message.status.changed'
 ] as const;
 
 const TYPING_EVENTS = [
@@ -69,7 +69,7 @@ const TYPING_EVENTS = [
 
 const USER_UPDATE_EVENTS = [
   'user.add',
-  'user.update',
+  'user.changed',
   'user.remove'
 ] as const;
 
@@ -368,7 +368,7 @@ export async function createDialogMemberUpdate(
       return;
     }
 
-    // Секция member должна присутствовать в event.data для dialog.member.update
+    // Секция member должна присутствовать в event.data для dialog.member.changed
     if (!eventMember) {
       console.error(`Member section missing in event.data for event ${eventId} (${eventType}). This should not happen.`);
       return;
@@ -488,7 +488,7 @@ export async function createMessageUpdate(
         return;
       }
       // Для message.create/update нужно полное сообщение
-      if (['message.create', 'message.update'].includes(eventType)) {
+      if (['message.create', 'message.changed'].includes(eventType)) {
         const senderCache = new Map<string, SenderInfo | null>();
         const fullMessage = await buildFullMessagePayload(tenantId, message, senderCache);
         if (!fullMessage) {
@@ -547,7 +547,7 @@ export async function createMessageUpdate(
             status: eventData.newStatus,
             oldStatus: eventData.oldStatus ?? null
           };
-          // Для message.status.update нужно добавить statusMessageMatrix
+          // Для message.status.changed нужно добавить statusMessageMatrix
           const statusMessageMatrix = await buildStatusMessageMatrix(tenantId, messageId, messageObj.senderId);
           eventMessage.statusMessageMatrix = statusMessageMatrix;
         }
@@ -570,7 +570,7 @@ export async function createMessageUpdate(
 
     // statusMessageMatrix в событии формируется ДО MessageStatus.create() в API — пересчитываем из БД,
     // чтобы матрица в update совпадала с statusUpdate (воркер вызывается после сохранения статуса).
-    if (eventType === 'message.status.update' && eventMessage?.messageId) {
+    if (eventType === 'message.status.changed' && eventMessage?.messageId) {
       let senderId = eventMessage.senderId as string | undefined;
       if (!senderId) {
         const msg = await Message.findOne({ messageId, tenantId }).select('senderId').lean();
@@ -582,7 +582,7 @@ export async function createMessageUpdate(
     }
 
     // Для message.create/update всегда добавляем senderInfo в сообщение, если его ещё нет
-    if (['message.create', 'message.update'].includes(eventType) && eventMessage?.senderId != null) {
+    if (['message.create', 'message.changed'].includes(eventType) && eventMessage?.senderId != null) {
       const hasSenderInfo = eventMessage.senderInfo != null && typeof eventMessage.senderInfo === 'object';
       if (!hasSenderInfo) {
         const senderCache = new Map<string, SenderInfo | null>();
@@ -894,9 +894,9 @@ export async function createUserStatsUpdate(
     });
 
     // Создаем context для UserStatsUpdate
-    // Используем 'user.update' как базовый тип, т.к. 'user.stats.update' не входит в EventType
+    // Используем 'user.changed' как базовый тип, т.к. 'user.stats.update' не входит в EventType
     const context = eventUtils.buildEventContext({
-      eventType: 'user.update' as typeof eventUtils.buildEventContext extends (params: { eventType: infer T }) => unknown ? T : never,
+      eventType: 'user.changed' as typeof eventUtils.buildEventContext extends (params: { eventType: infer T }) => unknown ? T : never,
       entityId: userId,
       includedSections: ['user'],
       updatedFields: updatedFields.length > 0 ? updatedFields : [

@@ -14,12 +14,7 @@ import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 
 import * as userUtils from '../utils/userUtils.js';
 import * as dialogMemberUtils from '../utils/dialogMemberUtils.js';
-import {
-  updateUserStatsDialogCount,
-  finalizeCounterUpdateContext,
-  updateDialogStats,
-  recalculateDialogStats
-} from '@chat3/utils/counterUtils.js';
+import { readDialogStatsSnapshot } from '@chat3/utils/counterUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
@@ -541,27 +536,15 @@ export const dialogController = {
 
           const memberCount = dialogIdForCount ? memberCounts[dialogIdForCount] || 0 : 0;
 
-          // Получаем статистику диалога из DialogStats
           let stats = null;
           try {
-            let dialogStats = await DialogStats.findOne({
-              tenantId: req.tenantId!,
-              dialogId: dialogIdForCount
-            }).lean();
-
-            // Если DialogStats не найдена, создаем лениво с пересчитанными значениями
-            if (!dialogStats) {
-              stats = await recalculateDialogStats(req.tenantId!, dialogIdForCount);
-            } else {
-              stats = {
-                topicCount: dialogStats.topicCount || 0,
-                memberCount: dialogStats.memberCount || 0,
-                messageCount: dialogStats.messageCount || 0
-              };
-            }
+            stats = await readDialogStatsSnapshot(
+              req.tenantId!,
+              dialogIdForCount ?? '',
+              memberCount
+            );
           } catch (error: any) {
             console.error('Error getting dialog stats:', error);
-            // Возвращаем дефолтные значения при ошибке
             stats = {
               topicCount: 0,
               memberCount: memberCount,
@@ -647,27 +630,11 @@ export const dialogController = {
       });
       log(`Найдено участников: ${memberCount}`);
 
-      // Получаем статистику диалога из DialogStats
       let stats = null;
       try {
-        let dialogStats = await DialogStats.findOne({
-          tenantId: req.tenantId!,
-          dialogId: dialog.dialogId
-        }).lean();
-
-        // Если DialogStats не найдена, создаем лениво с пересчитанными значениями
-        if (!dialogStats) {
-          stats = await recalculateDialogStats(req.tenantId!, dialog.dialogId);
-        } else {
-          stats = {
-            topicCount: dialogStats.topicCount || 0,
-            memberCount: dialogStats.memberCount || 0,
-            messageCount: dialogStats.messageCount || 0
-          };
-        }
+        stats = await readDialogStatsSnapshot(req.tenantId!, dialog.dialogId, memberCount);
       } catch (error: any) {
         console.error('Error getting dialog stats:', error);
-        // Возвращаем дефолтные значения при ошибке
         stats = {
           topicCount: 0,
           memberCount: memberCount,
@@ -732,19 +699,7 @@ export const dialogController = {
       const createdDialog = dialog[0];
       log(`Диалог создан: dialogId=${createdDialog.dialogId}`);
 
-      // Создаем DialogStats сразу после создания диалога
-      // ВАЖНО: memberCount не устанавливаем здесь, так как он будет обновлен автоматически
-      // при обработке событий dialog.member.add в update-worker
-      log(`Создание DialogStats: dialogId=${createdDialog.dialogId}`);
-      await updateDialogStats(
-        req.tenantId!,
-        createdDialog.dialogId,
-        {
-          topicCount: 0,
-          messageCount: 0
-        },
-        null
-      );
+      // DialogStats создаёт counter-worker при dialog.member.add / message.create (без записи из API)
 
       // Add meta data if provided (делаем это до обработки участников, чтобы метаданные были доступны)
       if (metaPayload && typeof metaPayload === 'object') {
@@ -855,26 +810,6 @@ export const dialogController = {
 
           const memberEventId = memberEvent?.eventId || null;
 
-          // КРИТИЧНО: Обновляем dialogCount для пользователя, используя dialog.member.add eventId
-          // Это создаст user.stats.update с правильным sourceEventId от dialog.member.add
-          try {
-            await updateUserStatsDialogCount(
-              req.tenantId!,
-              member.userId,
-              1, // delta
-              'dialog.member.add',
-              memberEventId,
-              actorId,
-              'user'
-            );
-          } finally {
-            // Создаем user.stats.update после обновления счетчика
-            try {
-              await finalizeCounterUpdateContext(req.tenantId!, member.userId, memberEventId);
-            } catch (error: any) {
-              console.error(`Failed to finalize context for ${member.userId}:`, error);
-            }
-          }
         }
       }
 

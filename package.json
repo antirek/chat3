@@ -14,6 +14,8 @@
     "start:controlo-backend": "npm run start --workspace=@chat3/controlo-backend",
     "start:controlo-ui": "npm run start --workspace=@chat3/controlo-ui",
     "start:update-worker": "npm run start --workspace=@chat3/update-worker",
+    "start:counter-worker": "npm run start --workspace=@chat3/counter-worker",
+    "start:outbox-relay": "npm run start --workspace=@chat3/outbox-relay",
     "start:dialog-read-worker": "npm run start --workspace=@chat3/dialog-read-worker",
     "start:all": "npm run start:tenant-api & npm run start:controlo-backend & npm run start:update-worker",
     "dev": "npm run dev --workspace=@chat3/tenant-api",

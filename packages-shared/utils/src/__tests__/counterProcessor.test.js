@@ -1,0 +1,206 @@
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import mongoose from 'mongoose';
+import {
+  Message,
+  MessageStatus,
+  MessageStatusStats,
+  DialogMember,
+  ProcessedCounterEvent,
+  UserDialogStats,
+  UserDialogUnreadBySenderType
+} from '@chat3/models';
+import { processCounterEvent } from '../counterProcessor/processCounterEvent.js';
+import { generateTimestamp } from '../timestampUtils.js';
+
+describe('counterProcessor', () => {
+  let mongoServer;
+
+  beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    await mongoose.connect(mongoServer.getUri());
+  });
+
+  afterAll(async () => {
+    await mongoose.disconnect();
+    await mongoServer.stop();
+  });
+
+  beforeEach(async () => {
+    await mongoose.connection.dropDatabase();
+  });
+
+  test('message.create + read updates unread via recalculateSlice', async () => {
+    const tenantId = 'tnt_test';
+    const dialogId = 'dlg_aa111111111111111111';
+    const senderId = 'alice';
+    const readerId = 'bob';
+    const messageId = 'msg_bb222222222222222222';
+    const now = generateTimestamp();
+
+    await DialogMember.insertMany([
+      { tenantId, dialogId, userId: senderId, createdAt: now },
+      { tenantId, dialogId, userId: readerId, createdAt: now }
+    ]);
+
+    await Message.create({
+      tenantId,
+      dialogId,
+      messageId,
+      senderId,
+      type: 'internal.text',
+      content: 'hi',
+      createdAt: now
+    });
+
+    const createEvent = {
+      eventId: 'evt_a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0',
+      tenantId,
+      eventType: 'message.create',
+      entityType: 'message',
+      entityId: messageId,
+      data: {
+        context: { dialogId, messageId },
+        message: { messageId, dialogId, senderId, type: 'internal.text' }
+      }
+    };
+
+    await processCounterEvent(createEvent);
+
+    const { UserDialogStats } = await import('@chat3/models');
+    let stats = await UserDialogStats.findOne({ tenantId, userId: readerId, dialogId }).lean();
+    expect(stats?.unreadCount).toBe(1);
+
+    await MessageStatus.create({
+      tenantId,
+      dialogId,
+      messageId,
+      userId: readerId,
+      status: 'unread',
+      createdAt: now
+    });
+    await MessageStatus.create({
+      tenantId,
+      dialogId,
+      messageId,
+      userId: readerId,
+      status: 'read',
+      createdAt: now + 1
+    });
+
+    await processCounterEvent({
+      eventId: 'evt_b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1',
+      tenantId,
+      eventType: 'message.status.changed',
+      entityType: 'messageStatus',
+      entityId: messageId,
+      data: {
+        context: { dialogId, messageId, userId: readerId },
+        message: { messageId, dialogId, statusUpdate: { userId: readerId, status: 'read' } }
+      }
+    });
+
+    stats = await UserDialogStats.findOne({ tenantId, userId: readerId, dialogId }).lean();
+    expect(stats?.unreadCount).toBe(0);
+
+    await processCounterEvent({
+      eventId: 'evt_c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2',
+      tenantId,
+      eventType: 'dialog.messages.bulk_read',
+      entityType: 'dialogMember',
+      entityId: `${dialogId}:${readerId}`,
+      data: {
+        context: { dialogId, userId: readerId },
+        dialog: { dialogId }
+      }
+    });
+
+    stats = await UserDialogStats.findOne({ tenantId, userId: readerId, dialogId }).lean();
+    expect(stats?.unreadCount).toBe(0);
+
+    const dup = await ProcessedCounterEvent.countDocuments({ tenantId, eventId: 'evt_b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1' });
+    expect(dup).toBe(1);
+
+    await processCounterEvent({
+      eventId: 'evt_b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1',
+      tenantId,
+      eventType: 'message.status.changed',
+      entityType: 'messageStatus',
+      entityId: messageId,
+      data: {
+        context: { dialogId, messageId, userId: readerId },
+        message: { messageId, dialogId }
+      }
+    });
+
+    stats = await UserDialogStats.findOne({ tenantId, userId: readerId, dialogId }).lean();
+    expect(stats?.unreadCount).toBe(0);
+  });
+
+  test('dialog.member.remove deletes per-dialog stats for user', async () => {
+    const tenantId = 'tnt_test';
+    const dialogId = 'dlg_cc333333333333333333';
+    const userId = 'leaver';
+    const now = generateTimestamp();
+
+    await UserDialogStats.create({
+      tenantId,
+      dialogId,
+      userId,
+      unreadCount: 3,
+      createdAt: now
+    });
+    await UserDialogUnreadBySenderType.create({
+      tenantId,
+      dialogId,
+      userId,
+      fromType: 'user',
+      countUnread: 3,
+      createdAt: now
+    });
+
+    await processCounterEvent({
+      eventId: 'evt_d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3',
+      tenantId,
+      eventType: 'dialog.member.remove',
+      entityType: 'dialogMember',
+      entityId: `${dialogId}:${userId}`,
+      data: {
+        context: { dialogId, userId },
+        dialog: { dialogId }
+      }
+    });
+
+    expect(await UserDialogStats.findOne({ tenantId, userId, dialogId }).lean()).toBeNull();
+    expect(await UserDialogUnreadBySenderType.countDocuments({ tenantId, userId, dialogId })).toBe(0);
+  });
+
+  test('message.status.changed recalculates MessageStatusStats from history', async () => {
+    const tenantId = 'tnt_test';
+    const dialogId = 'dlg_dd444444444444444444';
+    const messageId = 'msg_ee555555555555555555';
+    const readerId = 'bob';
+    const now = generateTimestamp();
+
+    await MessageStatus.insertMany([
+      { tenantId, dialogId, messageId, userId: readerId, status: 'unread', createdAt: now },
+      { tenantId, dialogId, messageId, userId: readerId, status: 'read', createdAt: now + 1 }
+    ]);
+
+    await processCounterEvent({
+      eventId: 'evt_e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4',
+      tenantId,
+      eventType: 'message.status.changed',
+      entityType: 'messageStatus',
+      entityId: messageId,
+      data: {
+        context: { dialogId, messageId, userId: readerId },
+        message: { messageId, dialogId }
+      }
+    });
+
+    const unreadRow = await MessageStatusStats.findOne({ tenantId, messageId, status: 'unread' }).lean();
+    const readRow = await MessageStatusStats.findOne({ tenantId, messageId, status: 'read' }).lean();
+    expect(unreadRow?.count).toBe(1);
+    expect(readRow?.count).toBe(1);
+  });
+});

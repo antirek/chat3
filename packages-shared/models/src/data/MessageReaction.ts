@@ -78,7 +78,7 @@ messageReactionSchema.post('save', async function(doc) {
         doc.messageId,
         doc.reaction,
         1, // delta
-        'message.reaction.update',
+        'message.reaction.changed',
         doc.userId,
         'user'
       );
@@ -98,7 +98,7 @@ messageReactionSchema.post('deleteOne', async function(doc) {
       doc.messageId,
       doc.reaction,
       -1, // delta
-      'message.reaction.update',
+      'message.reaction.changed',
       doc.userId,
       'user'
     );

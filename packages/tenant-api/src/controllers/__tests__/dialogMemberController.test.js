@@ -3,6 +3,7 @@ import dialogMemberController from '../dialogMemberController.js';
 import { Tenant, Dialog, DialogMember, Meta, User, DialogReadTask, Event, UserDialogStats, UserDialogActivity } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { flushCounterEvents } from '../../utils/__tests__/counterTestHelpers.js';
 
 const tenantId = 'tnt_test';
 
@@ -506,6 +507,7 @@ describe('dialogMemberController', () => {
       const res = createMockRes();
 
       await dialogMemberController.setUnreadCount(req, res);
+      await flushCounterEvents();
 
       expect(res.statusCode).toBeUndefined();
       expect(res.body.data.unreadCount).toBe(0);
@@ -514,7 +516,7 @@ describe('dialogMemberController', () => {
       const stats = await UserDialogStats.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'alice' }).lean();
       expect(stats?.unreadCount || 0).toBe(0);
 
-      const event = await Event.findOne({ tenantId, eventType: 'dialog.member.update' }).lean();
+      const event = await Event.findOne({ tenantId, eventType: 'dialog.member.changed' }).lean();
       expect(event).toBeTruthy();
       expect(event.actorId).toBe('sync-service');
       
@@ -919,9 +921,17 @@ describe('dialogMemberController', () => {
       await dialogMemberController.setUnreadCount(req, res);
 
       expect(res.statusCode).toBeUndefined();
-      expect(res.body.data.unreadCount).toBe(3);
-      // lastSeenAt может быть строкой или числом в зависимости от sanitizeResponse
+      // Ответ отражает UserDialogStats до counter-worker; после flush пересчёт по сообщениям → 0
+      expect(res.body.data.unreadCount).toBe(5);
       expect(Number(res.body.data.lastSeenAt)).toBe(customLastSeenAt);
+
+      await flushCounterEvents();
+      const statsAfter = await UserDialogStats.findOne({
+        tenantId,
+        dialogId: dialog.dialogId,
+        userId: 'alice'
+      }).lean();
+      expect(statsAfter?.unreadCount || 0).toBe(0);
     });
   });
 });

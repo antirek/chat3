@@ -30,6 +30,8 @@ RUN npm run build --workspace=@chat3/utils && npm run build --workspace=@chat3/m
 RUN npm run build --workspace=@chat3/tenant-api && \
     npm run build --workspace=@chat3/controlo-backend && \
     npm run build --workspace=@chat3/update-worker && \
+    npm run build --workspace=@chat3/counter-worker && \
+    npm run build --workspace=@chat3/outbox-relay && \
     npm run build --workspace=@chat3/dialog-read-worker
 
 # Собираем controlo-ui (Vite build для Vue приложения)
@@ -65,6 +67,8 @@ COPY --chown=chat3user:nodejs packages-shared/ ./packages-shared/
 COPY --from=base --chown=chat3user:nodejs /app/packages/tenant-api/dist ./packages/tenant-api/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-control/controlo-backend/dist ./packages-control/controlo-backend/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/update-worker/dist ./packages/update-worker/dist
+COPY --from=base --chown=chat3user:nodejs /app/packages/counter-worker/dist ./packages/counter-worker/dist
+COPY --from=base --chown=chat3user:nodejs /app/packages/outbox-relay/dist ./packages/outbox-relay/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/dialog-read-worker/dist ./packages/dialog-read-worker/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-control/controlo-ui/dist ./packages-control/controlo-ui/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-shared/models/dist ./packages-shared/models/dist

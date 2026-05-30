@@ -259,7 +259,7 @@ describe('metaController', () => {
       });
     });
 
-    test('creates dialog.member.update event with dialog section when updating dialogMember meta', async () => {
+    test('creates dialog.member.changed event with dialog section when updating dialogMember meta', async () => {
       // Участник диалога уже создан в beforeEach
       const req = createMockReq({
         params: {
@@ -278,10 +278,10 @@ describe('metaController', () => {
 
       expect(res.statusCode).toBeUndefined();
 
-      // Проверяем событие dialog.member.update
+      // Проверяем событие dialog.member.changed
       const event = await Event.findOne({
         tenantId,
-        eventType: 'dialog.member.update',
+        eventType: 'dialog.member.changed',
         entityId: dialogId
       }).lean();
 

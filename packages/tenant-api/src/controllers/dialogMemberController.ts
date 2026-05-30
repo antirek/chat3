@@ -8,7 +8,6 @@ import { parseFilters, extractMetaFilters, buildFilterQuery } from '../utils/que
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { scheduleDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import * as userUtils from '../utils/userUtils.js';
-import { updateUserStatsDialogCount, finalizeCounterUpdateContext, updateUnreadCount } from '@chat3/utils/counterUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
@@ -150,31 +149,6 @@ const dialogMemberController = {
 
       const sourceEventId = memberEvent?.eventId || null;
       log(`Событие создано: eventId=${sourceEventId}`);
-
-      // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
-      try {
-        // Обновление dialogCount
-        log(`Обновление счетчика dialogCount: userId=${userId}, delta=1`);
-        await updateUserStatsDialogCount(
-          req.tenantId,
-          userId,
-          1, // delta
-          'dialog.member.add',
-          sourceEventId,
-          req.apiKey?.name || 'unknown',
-          'api'
-        );
-        log(`Счетчик dialogCount обновлен`);
-      } finally {
-        // Создаем user.stats.update после всех изменений счетчиков
-        try {
-          log(`Финализация контекста обновления счетчиков: userId=${userId}, eventId=${sourceEventId}`);
-          await finalizeCounterUpdateContext(req.tenantId, userId, sourceEventId);
-          log(`Контекст финализирован`);
-        } catch (error) {
-          log(`Ошибка финализации контекста для ${userId}:`, error);
-        }
-      }
 
       log(`Отправка успешного ответа: userId=${userId}, dialogId=${dialogId}`);
       res.status(201).json({
@@ -580,48 +554,17 @@ const dialogMemberController = {
         log(`Участник не найден, удаление будет идемпотентным: userId=${userId}`);
       }
 
-      // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
-      try {
-        // Удаляем участника через утилиту (она удалит UserDialogStats, UserDialogActivity и обновит счетчики)
-        // КРИТИЧНО: Удаляем даже если member не найден (idempotent операция)
-        log(`Удаление участника через утилиту: userId=${userId}, dialogId=${dialog.dialogId}`);
-        await dialogMemberUtils.removeDialogMember(
-          req.tenantId!,
-          userId,
-          dialog.dialogId,
-          sourceEventId,
-          'dialog.member.remove',
-          req.apiKey?.name || 'unknown',
-          'api'
-        );
-        log(`Участник удален через утилиту`);
-
-        // Обновление dialogCount (уменьшаем на 1) только если member существовал
-        if (member && sourceEventId) {
-          log(`Обновление счетчика dialogCount: userId=${userId}, delta=-1`);
-          await updateUserStatsDialogCount(
-            req.tenantId!,
-            userId,
-            -1, // delta
-            'dialog.member.remove',
-            sourceEventId,
-            req.apiKey?.name || 'unknown',
-            'api'
-          );
-          log(`Счетчик dialogCount обновлен`);
-        }
-      } finally {
-        // Создаем user.stats.update после всех изменений счетчиков
-        if (sourceEventId) {
-          try {
-            log(`Финализация контекста обновления счетчиков: userId=${userId}, eventId=${sourceEventId}`);
-            await finalizeCounterUpdateContext(req.tenantId!, userId, sourceEventId);
-            log(`Контекст финализирован`);
-          } catch (error: any) {
-            log(`Ошибка финализации контекста для ${userId}:`, error);
-          }
-        }
-      }
+      log(`Удаление участника через утилиту: userId=${userId}, dialogId=${dialog.dialogId}`);
+      await dialogMemberUtils.removeDialogMember(
+        req.tenantId!,
+        userId,
+        dialog.dialogId,
+        sourceEventId,
+        'dialog.member.remove',
+        req.apiKey?.name || 'unknown',
+        'api'
+      );
+      log(`Участник удален через утилиту`);
 
       log(`Отправка успешного ответа: userId=${userId}, dialogId=${dialogId}`);
       res.json({
@@ -755,36 +698,16 @@ const dialogMemberController = {
           updatedActivity = activityDoc;
         }
 
-        const delta = unreadCount - currentUnreadCount;
-        log(`Вычислен delta для unreadCount: ${delta}`);
-        if (delta !== 0) {
-          log(`Обновление unreadCount: delta=${delta}`);
-          const eventId = await eventUtils.createEvent({
+        if (unreadCount !== currentUnreadCount) {
+          await eventUtils.createEvent({
             tenantId: req.tenantId!,
-            eventType: 'dialog.member.update',
+            eventType: 'dialog.member.changed',
             entityType: 'dialogMember',
             entityId: `${dialog.dialogId}:${userId}`,
             actorId: req.apiKey?.name || 'unknown',
             actorType: 'api',
             data: {}
           });
-          const sourceEventId = eventId?.eventId || null;
-          try {
-            await updateUnreadCount(
-              req.tenantId!,
-              userId,
-              dialog.dialogId,
-              delta,
-              'dialog.member.update',
-              sourceEventId,
-              dialog.dialogId,
-              req.apiKey?.name || 'unknown',
-              'api'
-            );
-            await finalizeCounterUpdateContext(req.tenantId!, userId, sourceEventId);
-          } catch (error) {
-            log(`Ошибка обновления unreadCount:`, error);
-          }
         }
 
         const updatedStats = await UserDialogStats.findOne({
@@ -817,17 +740,17 @@ const dialogMemberController = {
       });
 
       const eventContext = eventUtils.buildEventContext({
-        eventType: 'dialog.member.update',
+        eventType: 'dialog.member.changed',
         dialogId: dialog.dialogId,
         entityId: `${dialog.dialogId}:${userId}`,
         includedSections: ['dialog', 'member'],
         updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
       });
 
-      log(`Создание финального события: eventType=dialog.member.update, entityId=${dialog.dialogId}:${userId}`);
+      log(`Создание финального события: eventType=dialog.member.changed, entityId=${dialog.dialogId}:${userId}`);
       await eventUtils.createEvent({
         tenantId: req.tenantId!,
-        eventType: 'dialog.member.update',
+        eventType: 'dialog.member.changed',
         entityType: 'dialogMember',
         entityId: `${dialog.dialogId}:${userId}`,
         actorId: req.apiKey?.name || 'unknown',

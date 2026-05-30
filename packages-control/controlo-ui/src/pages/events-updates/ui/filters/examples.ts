@@ -5,10 +5,10 @@ export const eventFilterExamples: FilterExample[] = [
     label: 'По типу события',
     options: [
       { value: 'eventType=message.create', label: 'message.create' },
-      { value: 'eventType=message.update', label: 'message.update' },
+      { value: 'eventType=message.changed', label: 'message.changed' },
       { value: 'eventType=message.delete', label: 'message.delete' },
       { value: 'eventType=dialog.create', label: 'dialog.create' },
-      { value: 'eventType=dialog.update', label: 'dialog.update' },
+      { value: 'eventType=dialog.changed', label: 'dialog.changed' },
       { value: 'eventType=dialog.delete', label: 'dialog.delete' },
     ],
   },
@@ -20,7 +20,7 @@ export const updateFilterExamples: FilterExample[] = [
     label: 'По типу события',
     options: [
       { value: 'eventType=message.create', label: 'eventType: message.create' },
-      { value: 'eventType=message.update', label: 'eventType: message.update' },
+      { value: 'eventType=message.changed', label: 'eventType: message.changed' },
       { value: 'eventType=dialog.create', label: 'eventType: dialog.create' },
     ],
   },

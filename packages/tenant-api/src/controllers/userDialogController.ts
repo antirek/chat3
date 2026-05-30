@@ -8,7 +8,6 @@ import {
   DialogStats,
   UserTopicStats
 } from '@chat3/models';
-import { decrementUserDialogUnreadBySenderTypeForRead } from '@chat3/utils/packStatsUtils.js';
 import { markDialogMessagesAsReadUntil } from '@chat3/utils/dialogReadTaskUtils.js';
 import { applyMarkDialogAllRead } from '../utils/dialogMemberUtils.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
@@ -2101,15 +2100,6 @@ const userDialogController = {
       const oldStatus = lastStatus?.status || null;
       log(`Последний статус: oldStatus=${oldStatus || 'null'}, новый статус: ${status}`);
 
-      // Получаем старое значение unreadCount ПЕРЕД созданием MessageStatus
-      // (post-save hook обновит счетчик при создании)
-      const oldUserDialogStats = await UserDialogStats.findOne({
-        tenantId: req.tenantId,
-        userId: userId,
-        dialogId: dialogId
-      }).lean();
-      const oldUnreadCount = oldUserDialogStats?.unreadCount ?? 0;
-
       // Получаем диалог и его метаданные для события
       const dialog = await Dialog.findOne({
         dialogId: dialogId,
@@ -2161,24 +2151,33 @@ const userDialogController = {
           status,
           oldStatus: oldStatus
         }
-        // statusMessageMatrix не включаем: событие создаётся до MessageStatus.create(),
-        // матрица пересчитывается в update-worker (createMessageUpdate) после сохранения статуса.
       });
 
-      // КРИТИЧНО: Декремент UserDialogUnreadBySenderType — ДО createEvent и до MessageStatus.create(),
-      // иначе событие уйдёт в RabbitMQ и воркер пересчитает паки по старым данным.
-      if (status === 'read' && oldStatus !== 'read') {
-        log(`Декремент unreadBySenderType: message.senderId=${message?.senderId ?? 'null'}, readerUserId=${userId}, dialogId=${dialogId}`);
-        await decrementUserDialogUnreadBySenderTypeForRead(
-          req.tenantId,
-          dialogId,
-          normalizedUserId,
-          message?.senderId ?? null
-        );
-      }
+      log(`Создание новой записи статуса: messageId=${messageId}, userId=${userId}, status=${status}`);
+      const newStatusData: {
+        messageId: string;
+        userId: string;
+        tenantId: string;
+        dialogId: string;
+        status: string;
+        userType: string | null;
+        createdAt: number;
+      } = {
+        messageId: messageId,
+        userId: normalizedUserId,
+        tenantId: req.tenantId!,
+        dialogId: dialogId,
+        status: status,
+        userType: userType,
+        createdAt: generateTimestamp()
+      };
+
+      const messageStatus = await MessageStatus.create([newStatusData]);
+      const createdStatus = messageStatus[0];
+      log(`Запись статуса создана: statusId=${createdStatus._id}`);
 
       const statusContext = eventUtils.buildEventContext({
-        eventType: 'message.status.update',
+        eventType: 'message.status.changed',
         dialogId: dialogId,
         entityId: messageId,
         messageId,
@@ -2186,10 +2185,9 @@ const userDialogController = {
         updatedFields: ['message.status']
       });
 
-      // КРИТИЧНО: Создаем событие ДО создания MessageStatus, чтобы получить eventId
-      const statusEvent = await eventUtils.createEvent({
+      await eventUtils.createEvent({
         tenantId: req.tenantId,
-        eventType: 'message.status.update',
+        eventType: 'message.status.changed',
         entityType: 'messageStatus',
         entityId: messageId,
         actorId: userId,
@@ -2200,86 +2198,6 @@ const userDialogController = {
           message: messageSection
         })
       });
-
-      const sourceEventId = statusEvent?.eventId || null;
-
-      // Всегда создаем новую запись в истории статусов (не обновляем существующую)
-      // КРИТИЧНО: Передаем sourceEventId через временное поле _sourceEventId
-      log(`Создание новой записи статуса: messageId=${messageId}, userId=${userId}, status=${status}`);
-      const newStatusData: any = {
-        messageId: messageId,
-        userId: normalizedUserId,
-        tenantId: req.tenantId,
-        dialogId: dialogId, // КРИТИЧНО: Передаем dialogId для избежания поиска Message
-        status: status,
-        userType: userType, // Заполняем тип пользователя
-        createdAt: generateTimestamp(),
-        _sourceEventId: sourceEventId // Временное поле для передачи eventId в middleware
-      };
-
-      // Создаем новую запись в истории
-      // post-save hook автоматически обновит счетчики непрочитанных сообщений
-      const messageStatus = await MessageStatus.create([newStatusData]);
-      const createdStatus = messageStatus[0];
-      log(`Запись статуса создана: statusId=${createdStatus._id}`);
-
-      // Получаем обновленный UserDialogStats после создания MessageStatus
-      // (post-save hook уже обновил счетчик)
-      const updatedUserDialogStats = await UserDialogStats.findOne({
-        tenantId: req.tenantId,
-        userId: userId,
-        dialogId: dialogId
-      }).lean();
-
-      // Получаем активность из UserDialogActivity для lastSeenAt и lastMessageAt
-      const dialogActivity = await UserDialogActivity.findOne({
-        tenantId: req.tenantId,
-        userId: userId,
-        dialogId: dialogId
-      }).lean();
-
-      // Проверяем, изменился ли счетчик (сравниваем oldUnreadCount с новым)
-      const _newUnreadCount = updatedUserDialogStats?.unreadCount ?? 0; // Используется в сравнении ниже
-      const unreadCountChanged = oldUnreadCount !== _newUnreadCount;
-
-      // Если счетчик был обновлен (изменился), создаем событие dialog.member.update
-      if (updatedUserDialogStats && unreadCountChanged) {
-        // Используем уже полученную секцию dialog из события message.status.update
-        const memberSection = eventUtils.buildMemberSection({
-          userId,
-          state: {
-            unreadCount: updatedUserDialogStats.unreadCount, // Используем из UserDialogStats
-            lastSeenAt: dialogActivity?.lastSeenAt || null,
-            lastMessageAt: dialogActivity?.lastMessageAt || null,
-            isActive: true
-          } as any
-        });
-
-        const memberContext = eventUtils.buildEventContext({
-          eventType: 'dialog.member.update',
-          dialogId: dialogId,
-          entityId: dialogId,
-          includedSections: ['dialog', 'member'],
-          updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']
-        });
-
-        await eventUtils.createEvent({
-          tenantId: req.tenantId,
-          eventType: 'dialog.member.update',
-          entityType: 'dialogMember',
-          entityId: dialogId,
-          actorId: userId,
-          actorType: 'user',
-          data: eventUtils.composeEventData({
-            context: memberContext,
-            dialog: dialogSection,
-            member: memberSection
-          })
-        });
-
-        // Логика создания user.stats.update перенесена в update-worker
-        // update-worker будет создавать UserUpdate на основе dialog.member.update событий
-      }
 
       log(`Отправка успешного ответа: messageId=${messageId}, userId=${userId}, status=${status}`);
       res.json({
@@ -2358,7 +2276,7 @@ const userDialogController = {
         }
       });
       const eventContext = eventUtils.buildEventContext({
-        eventType: 'dialog.member.update',
+        eventType: 'dialog.member.changed',
         dialogId: dialog.dialogId,
         entityId: `${dialog.dialogId}:${userId}`,
         includedSections: ['dialog', 'member'],
@@ -2366,7 +2284,7 @@ const userDialogController = {
       });
       await eventUtils.createEvent({
         tenantId,
-        eventType: 'dialog.member.update',
+        eventType: 'dialog.member.changed',
         entityType: 'dialogMember',
         entityId: `${dialog.dialogId}:${userId}`,
         actorId,
@@ -2381,7 +2299,11 @@ const userDialogController = {
 
       let processedCount = 0;
       try {
-        const result = await markDialogMessagesAsReadUntil(tenantId, dialogId, userId, readUntil, { timeoutMs: 120_000 });
+        const result = await markDialogMessagesAsReadUntil(tenantId, dialogId, userId, readUntil, {
+          timeoutMs: 120_000,
+          actorId,
+          actorType
+        });
         processedCount = result.processedCount;
       } catch (err: any) {
         if (err?.message === 'markDialogMessagesAsReadUntil timeout') {

@@ -116,7 +116,7 @@ const counterHistorySchema = new mongoose.Schema<ICounterHistory>({
   sourceOperation: {
     type: String,
     required: true,
-    description: 'Исходная операция: message.create, message.status.update, dialog.member.add, etc.'
+    description: 'Исходная операция: message.create, message.status.changed, dialog.member.add, etc.'
   },
   sourceEntityId: {
     type: String,

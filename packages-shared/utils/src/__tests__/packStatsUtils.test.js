@@ -19,9 +19,9 @@ import {
   recalculatePackStats,
   recalculateUserPackUnreadBySenderType,
   recalculateUserUnreadBySenderType,
-  buildUserPackStatsFromBySenderRows,
-  decrementUserDialogUnreadBySenderTypeForRead
+  buildUserPackStatsFromBySenderRows
 } from '../packStatsUtils.js';
+import { recalculateUserDialogUnread } from '../counterProcessor/recalculateUserDialogUnread.js';
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
@@ -232,13 +232,13 @@ describe('packStatsUtils', () => {
       dialogId,
       status: 'read'
     });
-    await decrementUserDialogUnreadBySenderTypeForRead(tenantId, dialogId, userId, 'user_sender');
+    await recalculateUserDialogUnread(tenantId, userId, dialogId);
 
     const dialogStatsAfter = await UserDialogStats.findOne({ tenantId, userId, dialogId }).lean();
     expect(dialogStatsAfter?.unreadCount).toBe(0);
 
     await recalculateUserPackUnreadBySenderType(tenantId, packId, {
-      sourceOperation: 'message.status.update',
+      sourceOperation: 'message.status.changed',
       sourceEntityId: messageId,
       actorId: userId
     });
@@ -331,7 +331,7 @@ describe('packStatsUtils', () => {
       dialogId: dialog1,
       status: 'read'
     });
-    await decrementUserDialogUnreadBySenderTypeForRead(tenantId, dialog1, user1, contact1);
+    await recalculateUserDialogUnread(tenantId, user1, dialog1);
 
     // У user1 в диалоге счётчик по contact = 0, у user2 по-прежнему 1
     const dialogUser1Contact = await UserDialogUnreadBySenderType.findOne({
@@ -351,7 +351,7 @@ describe('packStatsUtils', () => {
 
     // Пересчёт пака после "mark read": у user1 в паке contact = 0, у user2 = 1
     await recalculateUserPackUnreadBySenderType(tenantId, packId, {
-      sourceOperation: 'message.status.update',
+      sourceOperation: 'message.status.changed',
       sourceEntityId: messageId,
       actorId: user1
     });
@@ -424,7 +424,7 @@ describe('packStatsUtils', () => {
       dialogId,
       status: 'read'
     });
-    await decrementUserDialogUnreadBySenderTypeForRead(tenantId, dialogId, 'Usr_Reader', contactId);
+    await recalculateUserDialogUnread(tenantId, 'usr_reader', dialogId);
 
     const after = await UserDialogUnreadBySenderType.findOne({
       tenantId,

@@ -21,6 +21,7 @@ import {
   clearDatabase
 } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { flushCounterEvents } from '../../utils/__tests__/counterTestHelpers.js';
 
 const tenantId = 'tnt_default';
 const USER_ID = 'usr_pack_mark_read';
@@ -137,6 +138,8 @@ describe('markPackAllRead integration', () => {
       messageIds.push(resM.body?.data?.messageId);
     }
 
+    await flushCounterEvents();
+
     const statsBefore = await UserDialogStats.find({
       tenantId,
       userId: USER_ID,
@@ -151,6 +154,7 @@ describe('markPackAllRead integration', () => {
       resMark
     );
     expect(resMark.statusCode).toBe(200);
+    await flushCounterEvents();
     expect(resMark.body?.data?.packId).toBe(packId);
     expect(resMark.body?.data?.unreadCount).toBe(0);
     expect(resMark.body?.data?.processedDialogsCount).toBe(2);

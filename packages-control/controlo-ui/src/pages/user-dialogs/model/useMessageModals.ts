@@ -394,15 +394,15 @@ export function useMessageModals(
   function getEventDescription(eventType: string, data: any): string {
     const descriptions: Record<string, string> = {
       'dialog.create': 'Создан диалог',
-      'dialog.update': 'Обновлен диалог',
+      'dialog.changed': 'Обновлен диалог',
       'dialog.delete': 'Удален диалог',
       'message.create': 'Создано сообщение',
-      'message.update': 'Обновлено сообщение',
+      'message.changed': 'Обновлено сообщение',
       'dialog.member.add': 'Добавлен участник диалога',
       'dialog.member.remove': 'Удален участник диалога',
-      'dialog.member.update': 'Обновлен участник диалога',
-      'message.status.update': 'Обновлен статус сообщения',
-      'message.reaction.update': 'Обновлена реакция на сообщение',
+      'dialog.member.changed': 'Обновлен участник диалога',
+      'message.status.changed': 'Обновлен статус сообщения',
+      'message.reaction.changed': 'Обновлена реакция на сообщение',
       'dialog.typing': 'Пользователь печатает в диалоге',
     };
     

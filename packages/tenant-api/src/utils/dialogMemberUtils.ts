@@ -1,8 +1,5 @@
-import { DialogMember, UserDialogActivity, UserDialogStats, UserDialogUnreadBySenderType } from '@chat3/models';
+import { DialogMember, UserDialogActivity, UserDialogStats } from '@chat3/models';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
-import { updateUnreadCount, finalizeCounterUpdateContext } from '@chat3/utils/counterUtils.js';
-import { getPackIdsForDialog, recalculateUserPackUnreadBySenderType, recalculateUserUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
-import * as updateUtils from '@chat3/utils/updateUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import type { ActorType } from '@chat3/models';
 
@@ -71,73 +68,27 @@ export async function removeDialogMember(
   actorType: string | null = null
 ): Promise<void> {
   try {
-    // 1. Получаем UserDialogStats перед удалением для обновления счетчиков
-    const userDialogStats = await UserDialogStats.findOne({
-      tenantId,
-      userId,
-      dialogId
-    }).lean();
-    
-    const unreadCount = userDialogStats?.unreadCount || 0;
-    
-    // 2. Если unreadCount > 0, обновляем счетчики в UserStats перед удалением
-    // КРИТИЧНО: Обновляем счетчики ДО удаления UserDialogStats, чтобы они были актуальными
-    if (unreadCount > 0 && sourceEventId) {
-      try {
-        // Обновляем unreadCount с отрицательным delta (уменьшаем до 0)
-        // Это обновит unreadDialogsCount и totalUnreadCount в UserStats
-        await updateUnreadCount(
-          tenantId,
-          userId,
-          dialogId,
-          -unreadCount, // delta (уменьшаем до 0)
-          sourceEventType || 'dialog.member.remove',
-          sourceEventId,
-          dialogId,
-          actorId || 'system',
-          actorType || 'system'
-        );
-      } catch (error: any) {
-        console.error(`Error updating counters before removing member ${userId}:`, error);
-        // Продолжаем удаление даже если обновление счетчиков не удалось
-      }
-    }
-    
-    // 3. Удаляем UserDialogStats (hard delete)
     await UserDialogStats.deleteOne({
       tenantId,
       userId,
       dialogId
     });
     
-    // 4. Удаляем UserDialogActivity (hard delete)
+    // 2. Удаляем UserDialogActivity (hard delete)
     await UserDialogActivity.deleteOne({
       tenantId,
       userId,
       dialogId
     });
 
-    // 5. Удаляем UserDialogUnreadBySenderType, чтобы пересчёт паков и UserUnreadBySenderType не учитывал этот диалог
-    await UserDialogUnreadBySenderType.deleteMany({
-      tenantId,
-      userId,
-      dialogId
-    });
-
-    // 6. Удаляем DialogMember
+    // 3. Удаляем DialogMember
     await DialogMember.findOneAndDelete({
       userId,
       tenantId,
       dialogId
     });
 
-    // 7. Пересчёт UserUnreadBySenderType и UserStats по оставшимся диалогам пользователя
-    await recalculateUserUnreadBySenderType(tenantId, userId);
-
-    // КРИТИЧНО: Финализация контекста НЕ выполняется здесь,
-    // она должна быть выполнена в контроллере после всех обновлений счетчиков
-
-    console.log(`✅ Removed member ${userId} from dialog ${dialogId} (cleaned up UserDialogStats, UserDialogActivity, UserDialogUnreadBySenderType)`);
+    console.log(`✅ Removed member ${userId} from dialog ${dialogId}`);
   } catch (error: any) {
     console.error('Error removing dialog member:', error);
     throw error;
@@ -234,7 +185,7 @@ export interface ApplyMarkDialogAllReadResult {
 /**
  * Обнулить счётчики непрочитанных по диалогу для пользователя (все сообщения считаем прочитанными).
  * Используется из setUnreadCount(0) и markAllRead. Создаёт событие для контекста счётчиков;
- * финальное событие dialog.member.update с полными данными создаёт вызывающий код.
+ * финальное событие dialog.member.changed с полными данными создаёт вызывающий код.
  */
 export async function applyMarkDialogAllRead(
   tenantId: string,
@@ -274,61 +225,6 @@ export async function applyMarkDialogAllRead(
     };
   }
 
-  const eventResult = await eventUtils.createEvent({
-    tenantId,
-    eventType: 'dialog.member.update',
-    entityType: 'dialogMember',
-    entityId: `${dialogId}:${userId}`,
-    actorId,
-    actorType,
-    data: {}
-  });
-  const sourceEventId = eventResult?.eventId ?? null;
-
-  await updateUnreadCount(
-    tenantId,
-    userId,
-    dialogId,
-    -currentUnreadCount,
-    'dialog.member.update',
-    sourceEventId,
-    dialogId,
-    actorId,
-    actorType
-  );
-
-  await UserDialogUnreadBySenderType.updateMany(
-    { tenantId, userId, dialogId },
-    { $set: { countUnread: 0, lastUpdatedAt: timestamp } }
-  );
-  await recalculateUserUnreadBySenderType(tenantId, userId);
-
-  const packIds = await getPackIdsForDialog(tenantId, dialogId);
-  for (const packId of packIds) {
-    const userPackMap = await recalculateUserPackUnreadBySenderType(tenantId, packId, {
-      sourceOperation: 'dialog.member.update',
-      sourceEntityId: `${dialogId}:${userId}`,
-      actorId,
-      actorType
-    });
-    for (const [uid, userStats] of Object.entries(userPackMap)) {
-      await updateUtils.createUserPackStatsUpdate(
-        tenantId,
-        uid,
-        packId,
-        sourceEventId ?? dialogId,
-        'dialog.member.update',
-        {
-          unreadCount: userStats.unreadCount,
-          lastUpdatedAt: userStats.lastUpdatedAt,
-          unreadBySenderType: userStats.unreadBySenderType
-        }
-      );
-    }
-  }
-
-  await finalizeCounterUpdateContext(tenantId, userId, sourceEventId);
-
   const activity = await UserDialogActivity.findOne({
     tenantId,
     userId,
@@ -340,6 +236,6 @@ export async function applyMarkDialogAllRead(
     previousUnreadCount: currentUnreadCount,
     lastSeenAt: activity?.lastSeenAt ?? timestamp,
     lastMessageAt: activity?.lastMessageAt ?? timestamp,
-    sourceEventId
+    sourceEventId: null
   };
 }

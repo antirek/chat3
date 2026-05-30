@@ -374,16 +374,16 @@ export function useEntityModals(
   function getDialogEventDescription(eventType: string, data: any): string {
     const descriptions: Record<string, string> = {
       'dialog.create': 'Создан диалог',
-      'dialog.update': 'Обновлен диалог',
+      'dialog.changed': 'Обновлен диалог',
       'dialog.delete': 'Удален диалог',
       'dialog.member.add': 'Добавлен участник диалога',
       'dialog.member.remove': 'Удален участник диалога',
-      'dialog.member.update': 'Обновлен участник диалога',
+      'dialog.member.changed': 'Обновлен участник диалога',
       'message.create': 'Создано сообщение',
-      'message.update': 'Обновлено сообщение',
+      'message.changed': 'Обновлено сообщение',
       'message.delete': 'Удалено сообщение',
-      'message.status.update': 'Обновлен статус сообщения',
-      'message.reaction.update': 'Обновлена реакция на сообщение',
+      'message.status.changed': 'Обновлен статус сообщения',
+      'message.reaction.changed': 'Обновлена реакция на сообщение',
       'dialog.typing': 'Пользователь печатает в диалоге',
     };
     

@@ -1,6 +1,7 @@
 import { DialogReadTask, Message, MessageStatus } from '@chat3/models';
-import type { IDialogReadTask } from '@chat3/models';
+import type { IDialogReadTask, ActorType } from '@chat3/models';
 import { generateTimestamp } from './timestampUtils.js';
+import * as eventUtils from './eventUtils.js';
 
 const DEFAULT_BATCH_SIZE = parseInt(process.env.DIALOG_READ_BATCH_SIZE || '200', 10);
 const BATCH_SLEEP_MS = parseInt(process.env.DIALOG_READ_BATCH_SLEEP_MS || '0', 10);
@@ -69,6 +70,54 @@ interface RunDialogReadTaskOptions {
   batchSize?: number;
 }
 
+export interface PublishBulkReadParams {
+  tenantId: string;
+  dialogId: string;
+  userId: string;
+  readUntil: number;
+  actorId?: string;
+  actorType?: ActorType;
+  processedCount?: number;
+}
+
+/**
+ * Публикует dialog.messages.bulk_read после записи MessageStatus (counter-worker пересчитает stats).
+ */
+export async function publishDialogMessagesBulkRead({
+  tenantId,
+  dialogId,
+  userId,
+  readUntil,
+  actorId = 'system',
+  actorType = 'system',
+  processedCount = 0
+}: PublishBulkReadParams): Promise<string | null> {
+  const event = await eventUtils.createEvent({
+    tenantId,
+    eventType: 'dialog.messages.bulk_read',
+    entityType: 'dialogMember',
+    entityId: `${dialogId}:${userId}`,
+    actorId,
+    actorType,
+    data: eventUtils.composeEventData({
+      context: eventUtils.buildEventContext({
+        eventType: 'dialog.messages.bulk_read',
+        dialogId,
+        userId,
+        entityId: `${dialogId}:${userId}`,
+        includedSections: ['dialog', 'member']
+      }),
+      dialog: eventUtils.buildDialogSection({ dialogId, tenantId })!,
+      member: eventUtils.buildMemberSection({
+        userId,
+        state: { unreadCount: 0, lastSeenAt: readUntil, lastMessageAt: null }
+      })!,
+      extra: { readUntil, processedCount }
+    })
+  });
+  return event?.eventId ?? null;
+}
+
 export async function runDialogReadTask(
   task: IDialogReadTask, 
   options: RunDialogReadTaskOptions = {}
@@ -135,6 +184,18 @@ export async function runDialogReadTask(
   task.error = null;
   await task.save();
 
+  if ((task.processedCount || 0) > 0) {
+    await publishDialogMessagesBulkRead({
+      tenantId: task.tenantId,
+      dialogId: task.dialogId,
+      userId: task.userId,
+      readUntil: task.readUntil || readTimestamp,
+      actorId: 'dialog-read-worker',
+      actorType: 'system',
+      processedCount: task.processedCount || 0
+    });
+  }
+
   return task;
 }
 
@@ -183,8 +244,12 @@ export async function markDialogMessagesAsReadUntil(
   dialogId: string,
   userId: string,
   readUntil: number,
-  options: MarkDialogMessagesAsReadUntilOptions = {}
-): Promise<{ processedCount: number }> {
+  options: MarkDialogMessagesAsReadUntilOptions & {
+    actorId?: string;
+    actorType?: ActorType;
+    emitBulkReadEvent?: boolean;
+  } = {}
+): Promise<{ processedCount: number; bulkReadEventId: string | null }> {
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
   const readTimestamp = readUntil || generateTimestamp();
   const timeoutMs = options.timeoutMs ?? MARK_ALL_READ_TIMEOUT_MS;
@@ -198,7 +263,11 @@ export async function markDialogMessagesAsReadUntil(
     lastProcessedMessageId: undefined
   };
 
-  const run = async (): Promise<{ processedCount: number }> => {
+  const emitBulkRead = options.emitBulkReadEvent !== false;
+  const actorId = options.actorId ?? 'api';
+  const actorType = options.actorType ?? 'api';
+
+  const run = async (): Promise<{ processedCount: number; bulkReadEventId: string | null }> => {
     let processedCount = 0;
     let hasMore = true;
 
@@ -234,13 +303,26 @@ export async function markDialogMessagesAsReadUntil(
       await sleep(BATCH_SLEEP_MS);
     }
 
-    return { processedCount };
+    let bulkReadEventId: string | null = null;
+    if (emitBulkRead && processedCount > 0) {
+      bulkReadEventId = await publishDialogMessagesBulkRead({
+        tenantId,
+        dialogId,
+        userId,
+        readUntil: readTimestamp,
+        actorId,
+        actorType,
+        processedCount
+      });
+    }
+
+    return { processedCount, bulkReadEventId };
   };
 
   if (timeoutMs > 0) {
     return Promise.race([
       run(),
-      new Promise<{ processedCount: number }>((_, rej) =>
+      new Promise<{ processedCount: number; bulkReadEventId: string | null }>((_, rej) =>
         setTimeout(() => rej(new Error('markDialogMessagesAsReadUntil timeout')), timeoutMs)
       )
     ]);
@@ -252,5 +334,6 @@ export async function markDialogMessagesAsReadUntil(
 export default {
   scheduleDialogReadTask,
   runDialogReadTask,
-  markDialogMessagesAsReadUntil
+  markDialogMessagesAsReadUntil,
+  publishDialogMessagesBulkRead
 };

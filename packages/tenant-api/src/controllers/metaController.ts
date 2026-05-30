@@ -326,7 +326,7 @@ const metaController = {
   }
 };
 
-// Helper function to create dialog.update event
+// Helper function to create dialog.changed event
 async function createDialogUpdateEvent(tenantId: string, dialogId: string, actorId: string): Promise<void> {
   try {
     const dialog = await Dialog.findOne({ dialogId, tenantId });
@@ -346,7 +346,7 @@ async function createDialogUpdateEvent(tenantId: string, dialogId: string, actor
     });
 
     const dialogContext = eventUtils.buildEventContext({
-      eventType: 'dialog.update',
+      eventType: 'dialog.changed',
       dialogId: dialog.dialogId,
       entityId: dialog.dialogId,
       includedSections: ['dialog'],
@@ -355,7 +355,7 @@ async function createDialogUpdateEvent(tenantId: string, dialogId: string, actor
 
     await eventUtils.createEvent({
       tenantId,
-      eventType: 'dialog.update',
+      eventType: 'dialog.changed',
       entityType: 'dialog',
       entityId: dialog.dialogId,
       actorId: actorId,
@@ -366,12 +366,12 @@ async function createDialogUpdateEvent(tenantId: string, dialogId: string, actor
       })
     });
   } catch (error: any) {
-    console.error('Error creating dialog.update event:', error);
+    console.error('Error creating dialog.changed event:', error);
     // Не прерываем выполнение, если не удалось создать событие
   }
 }
 
-// Helper function to create message.update event
+// Helper function to create message.changed event
 async function createMessageUpdateEvent(tenantId: string, messageId: string, actorId: string): Promise<void> {
   try {
     const message = await Message.findOne({ messageId, tenantId });
@@ -409,7 +409,7 @@ async function createMessageUpdateEvent(tenantId: string, messageId: string, act
     });
 
     const messageContext = eventUtils.buildEventContext({
-      eventType: 'message.update',
+      eventType: 'message.changed',
       dialogId: message.dialogId,
       entityId: message.messageId,
       messageId: message.messageId,
@@ -419,7 +419,7 @@ async function createMessageUpdateEvent(tenantId: string, messageId: string, act
 
     await eventUtils.createEvent({
       tenantId,
-      eventType: 'message.update',
+      eventType: 'message.changed',
       entityType: 'message',
       entityId: message.messageId,
       actorId: actorId,
@@ -431,7 +431,7 @@ async function createMessageUpdateEvent(tenantId: string, messageId: string, act
       })
     });
   } catch (error: any) {
-    console.error('Error creating message.update event:', error);
+    console.error('Error creating message.changed event:', error);
     // Не прерываем выполнение, если не удалось создать событие
   }
 }
@@ -455,7 +455,7 @@ async function createUserUpdateEvent(tenantId: string, userId: string, actorId: 
     });
 
     const userContext = eventUtils.buildEventContext({
-      eventType: 'user.update',
+      eventType: 'user.changed',
       entityId: userId,
       includedSections: ['user'],
       updatedFields: ['user.meta']
@@ -463,7 +463,7 @@ async function createUserUpdateEvent(tenantId: string, userId: string, actorId: 
 
     await eventUtils.createEvent({
       tenantId: tenantId,
-      eventType: 'user.update',
+      eventType: 'user.changed',
       entityType: 'user',
       entityId: userId,
       actorId: actorId,
@@ -479,7 +479,7 @@ async function createUserUpdateEvent(tenantId: string, userId: string, actorId: 
   }
 }
 
-// Helper function to create dialog.member.update event
+// Helper function to create dialog.member.changed event
 async function createDialogMemberUpdateEvent(tenantId: string, entityId: string, actorId: string): Promise<void> {
   try {
     // entityId для DialogMember - это составной ключ dialogId:userId
@@ -529,7 +529,7 @@ async function createDialogMemberUpdateEvent(tenantId: string, entityId: string,
     });
 
     const memberContext = eventUtils.buildEventContext({
-      eventType: 'dialog.member.update',
+      eventType: 'dialog.member.changed',
       dialogId: dialog.dialogId,
       entityId: dialog.dialogId,
       includedSections: ['dialog', 'member'],
@@ -538,7 +538,7 @@ async function createDialogMemberUpdateEvent(tenantId: string, entityId: string,
 
     await eventUtils.createEvent({
       tenantId,
-      eventType: 'dialog.member.update',
+      eventType: 'dialog.member.changed',
       entityType: 'dialogMember',
       entityId: dialog.dialogId,
       actorId: actorId,
@@ -550,7 +550,7 @@ async function createDialogMemberUpdateEvent(tenantId: string, entityId: string,
       })
     });
   } catch (error: any) {
-    console.error('Error creating dialog.member.update event:', error);
+    console.error('Error creating dialog.member.changed event:', error);
     // Не прерываем выполнение, если не удалось создать событие
   }
 }
@@ -590,7 +590,7 @@ async function createTopicUpdateEvent(tenantId: string, topicId: string, actorId
     });
 
     const topicContext = eventUtils.buildEventContext({
-      eventType: 'dialog.topic.update',
+      eventType: 'dialog.topic.changed',
       dialogId: topic.dialogId,
       entityId: topic.topicId,
       includedSections: dialogSection ? ['dialog', 'topic'] : ['topic'],
@@ -599,7 +599,7 @@ async function createTopicUpdateEvent(tenantId: string, topicId: string, actorId
 
     await eventUtils.createEvent({
       tenantId,
-      eventType: 'dialog.topic.update',
+      eventType: 'dialog.topic.changed',
       entityType: 'topic',
       entityId: topic.topicId,
       actorId: actorId,
@@ -611,7 +611,7 @@ async function createTopicUpdateEvent(tenantId: string, topicId: string, actorId
       })
     });
   } catch (error: any) {
-    console.error('Error creating dialog.topic.update event:', error);
+    console.error('Error creating dialog.topic.changed event:', error);
     // Не прерываем выполнение, если не удалось создать событие
   }
 }

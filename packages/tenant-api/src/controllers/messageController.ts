@@ -1,5 +1,5 @@
  
-import { Message, Dialog, MessageStatus, User, DialogMember, UserDialogUnreadBySenderType, UserUnreadBySenderType, UserStats } from '@chat3/models';
+import { Message, Dialog, MessageStatus, User, DialogMember } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
@@ -7,17 +7,10 @@ import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { buildStatusMessageMatrix, buildReactionSet } from '@chat3/utils/userDialogUtils.js';
-import { 
-  updateUnreadCount, 
-  updateUserStatsTotalMessagesCount,
-  finalizeCounterUpdateContext 
-} from '@chat3/utils/counterUtils.js';
 import { updateLastMessageAt } from '../utils/dialogMemberUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 import { getSenderInfo, enrichMessagesWithMetaAndStatuses } from '../utils/messageEnrichment.js';
-import { getUserType } from '@chat3/utils/userTypeUtils.js';
-import { normalizeSenderType } from '@chat3/utils/packUnreadSenderTypes.js';
 
 const messageController = {
   // Get all messages with filtering and pagination
@@ -431,185 +424,48 @@ const messageController = {
         })
       });
 
-      const sourceEventId = messageEvent?.eventId || null;
-      const sourceEventType = 'message.create';
-
-      // Create MessageStatus records and update counters for all dialog participants
+      // MessageStatus для получателей; счётчики — counter-worker по message.create
       if (!isSystemMessage) {
         const dialogMembers = await DialogMember.find({
           tenantId: req.tenantId!,
           dialogId: dialog.dialogId
         }).select('userId').lean();
-        
-        // Фильтруем получателей (исключаем отправителя)
-        const recipients = dialogMembers.filter(m => m.userId !== senderId);
-        
-        // КРИТИЧНО: Используем try-finally для гарантированной финализации контекстов
-        try {
-          if (recipients.length > 0) {
-            // 1. Загружаем типы пользователей одним запросом
-            const userIds = recipients.map(m => m.userId);
-            const users = await User.find({
-              tenantId: req.tenantId!,
-              userId: { $in: userIds }
-            }).select('userId type').lean();
-            
-            // Создаем Map для быстрого доступа к типам пользователей
-            const userTypeMap = new Map();
-            users.forEach(user => {
-              userTypeMap.set(user.userId, user.type || null);
-            });
-            
-            // 2. Создаем MessageStatus записи батчем через insertMany
-            const messageStatuses = recipients.map(member => ({
-              messageId: createdMessage.messageId,
-              userId: (member.userId || '').trim().toLowerCase(),
-              dialogId: dialog.dialogId, // КРИТИЧНО: Передаем dialogId для избежания поиска Message
-              userType: userTypeMap.get(member.userId) || null,
-              tenantId: req.tenantId!,
-              status: 'unread',
-              createdAt: generateTimestamp()
-            }));
-            
-            if (messageStatuses.length > 0) {
-              await MessageStatus.insertMany(messageStatuses, { ordered: false });
-            }
-            
-            // 2b. Инкремент UserDialogUnreadBySenderType по типу отправителя (user/contact/bot)
-            const fromType = normalizeSenderType(await getUserType(req.tenantId!, senderId));
-            const now = generateTimestamp();
-            const bySenderOps = recipients.map(member => ({
-              updateOne: {
-                filter: {
-                  tenantId: req.tenantId!,
-                  userId: (member.userId || '').trim().toLowerCase(),
-                  dialogId: dialog.dialogId,
-                  fromType
-                },
-                update: {
-                  $inc: { countUnread: 1 },
-                  $set: { lastUpdatedAt: now },
-                  $setOnInsert: { createdAt: now }
-                },
-                upsert: true
-              }
-            }));
-            if (bySenderOps.length > 0) {
-              await UserDialogUnreadBySenderType.bulkWrite(bySenderOps, { ordered: false });
-            }
 
-            // 2c. Инкремент UserUnreadBySenderType и UserStats.totalUnreadCount по каждому получателю
-            const userLevelOps = recipients.map(member => ({
-              updateOne: {
-                filter: {
-                  tenantId: req.tenantId!,
-                  userId: (member.userId || '').trim().toLowerCase(),
-                  fromType
-                },
-                update: {
-                  $inc: { countUnread: 1 },
-                  $set: { lastUpdatedAt: now },
-                  $setOnInsert: { createdAt: now }
-                },
-                upsert: true
-              }
-            }));
-            if (userLevelOps.length > 0) {
-              await UserUnreadBySenderType.bulkWrite(userLevelOps, { ordered: false });
-            }
-            const statsOps = recipients.map(member => ({
-              updateOne: {
-                filter: { tenantId: req.tenantId!, userId: (member.userId || '').trim().toLowerCase() },
-                update: {
-                  $inc: { totalUnreadCount: 1 },
-                  $set: { lastUpdatedAt: now },
-                  $setOnInsert: { dialogCount: 0, unreadDialogsCount: 0, totalMessagesCount: 0, createdAt: now }
-                },
-                upsert: true
-              }
-            }));
-            if (statsOps.length > 0) {
-              await UserStats.bulkWrite(statsOps, { ordered: false });
-            }
-            
-            // 3. Обновляем unreadCount батчами по 10 через Promise.allSettled
-            const BATCH_SIZE = 10;
-            const updatePromises = [];
-            
-            for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
-              const batch = recipients.slice(i, i + BATCH_SIZE);
-              const batchPromises = batch.map(member =>
-                updateUnreadCount(
-                  req.tenantId,
-                  member.userId,
-                  dialog.dialogId,
-                  1, // delta
-                  sourceEventType,
-                  sourceEventId,
-                  createdMessage.messageId,
-                  senderId,
-                  'user',
-                  normalizedTopicId // topicId для обновления счетчиков топика
-                ).catch(error => {
-                  console.error(`Error updating unreadCount for user ${member.userId}:`, error);
-                  return { error, userId: member.userId };
-                })
-              );
-              
-              updatePromises.push(Promise.allSettled(batchPromises));
-            }
-            
-            // Ждем завершения всех батчей
-            await Promise.all(updatePromises);
-          }
-          
-          // 4. Обновление totalMessagesCount для отправителя
-          await updateUserStatsTotalMessagesCount(
-            req.tenantId,
-            senderId,
-            1, // delta
-            sourceEventType,
-            sourceEventId,
-            createdMessage.messageId,
-            senderId,
-            'user'
-          );
-          
-          // 5. Обновление lastMessageAt для всех участников диалога параллельно
-          const messageTimestamp = createdMessage.createdAt;
-          const lastMessageAtPromises = dialogMembers.map(member =>
-            updateLastMessageAt(
-              req.tenantId,
-              member.userId,
-              dialog.dialogId,
-              messageTimestamp
-            ).catch(error => {
-              console.error(`Error updating lastMessageAt for user ${member.userId}:`, error);
-              return { error, userId: member.userId };
-            })
-          );
-          
-          await Promise.allSettled(lastMessageAtPromises);
-        } finally {
-          // КРИТИЧНО: Гарантированная финализация контекстов даже при ошибках
-          // Создаем user.stats.update для всех пользователей, у которых изменились счетчики
-          // Для получателей (изменился unreadCount)
-          const finalizePromises = recipients.map(member =>
-            finalizeCounterUpdateContext(req.tenantId, member.userId, sourceEventId).catch(error => {
-              console.error(`Failed to finalize context for ${member.userId}:`, error);
-              return { error, userId: member.userId };
-            })
-          );
-          
-          await Promise.allSettled(finalizePromises);
-          
-          // Для отправителя (изменился totalMessagesCount)
-          try {
-            await finalizeCounterUpdateContext(req.tenantId, senderId, sourceEventId);
-          } catch (error) {
-            console.error(`Failed to finalize context for ${senderId}:`, error);
+        const recipients = dialogMembers.filter(m => m.userId !== senderId);
+
+        if (recipients.length > 0) {
+          const userIds = recipients.map(m => m.userId);
+          const users = await User.find({
+            tenantId: req.tenantId!,
+            userId: { $in: userIds }
+          }).select('userId type').lean();
+
+          const userTypeMap = new Map<string, string | null>();
+          users.forEach(user => {
+            userTypeMap.set(user.userId, user.type || null);
+          });
+
+          const messageStatuses = recipients.map(member => ({
+            messageId: createdMessage.messageId,
+            userId: (member.userId || '').trim().toLowerCase(),
+            dialogId: dialog.dialogId,
+            userType: userTypeMap.get(member.userId) || null,
+            tenantId: req.tenantId!,
+            status: 'unread',
+            createdAt: generateTimestamp()
+          }));
+
+          if (messageStatuses.length > 0) {
+            await MessageStatus.insertMany(messageStatuses, { ordered: false });
           }
         }
+
+        const messageTimestamp = createdMessage.createdAt;
+        await Promise.allSettled(
+          dialogMembers.map(member =>
+            updateLastMessageAt(req.tenantId!, member.userId, dialog.dialogId, messageTimestamp)
+          )
+        );
       }
 
       // Add meta data if provided
@@ -973,7 +829,7 @@ const messageController = {
       });
 
       const eventContext = eventUtils.buildEventContext({
-        eventType: 'message.update',
+        eventType: 'message.changed',
         dialogId: message.dialogId,
         entityId: message.messageId,
         messageId: message.messageId,
@@ -981,10 +837,10 @@ const messageController = {
         updatedFields: ['message.content']
       });
 
-      log(`Создание события message.update: messageId=${message.messageId}`);
+      log(`Создание события message.changed: messageId=${message.messageId}`);
       await eventUtils.createEvent({
         tenantId: req.tenantId!,
-        eventType: 'message.update',
+        eventType: 'message.changed',
         entityType: 'message',
         entityId: message.messageId,
         actorId: req.apiKey?.name || 'unknown',
@@ -1150,7 +1006,7 @@ const messageController = {
       });
 
       const eventContext = eventUtils.buildEventContext({
-        eventType: 'message.update',
+        eventType: 'message.changed',
         dialogId: message.dialogId,
         entityId: message.messageId,
         messageId: message.messageId,
@@ -1160,7 +1016,7 @@ const messageController = {
 
       await eventUtils.createEvent({
         tenantId: req.tenantId!,
-        eventType: 'message.update',
+        eventType: 'message.changed',
         entityType: 'message',
         entityId: message.messageId,
         actorId: req.apiKey?.name || 'unknown',

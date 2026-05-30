@@ -28,6 +28,7 @@ import {
   clearDatabase
 } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { flushCounterEvents } from '../../utils/__tests__/counterTestHelpers.js';
 
 const tenantId = 'tnt_default';
 const USER_ID = 'usr_leave_recalc';
@@ -139,6 +140,7 @@ describe('leavePack and full recalculate', () => {
     );
     expect(resM.statusCode).toBe(201);
 
+    await flushCounterEvents();
     await recalculateUserPackUnreadBySenderType(tenantId, packId, {
       sourceOperation: 'test-setup',
       sourceEntityId: packId
@@ -162,6 +164,7 @@ describe('leavePack and full recalculate', () => {
     expect(resLeave.statusCode).toBe(200);
     expect(resLeave.body?.data?.leftDialogsCount).toBe(1);
 
+    await flushCounterEvents();
     const statsAfterLeave = await UserStats.findOne({ tenantId, userId: USER_ID }).lean();
     expect(statsAfterLeave?.totalUnreadCount).toBe(0);
     expect(statsAfterLeave?.unreadDialogsCount).toBe(0);

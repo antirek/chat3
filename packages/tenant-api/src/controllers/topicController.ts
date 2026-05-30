@@ -429,19 +429,19 @@ export const topicController = {
         meta: topicMeta || {}
       });
 
-      // Создаем событие dialog.topic.update
+      // Создаем событие dialog.topic.changed
       const eventContext = eventUtils.buildEventContext({
-        eventType: 'dialog.topic.update',
+        eventType: 'dialog.topic.changed',
         dialogId: dialogId,
         entityId: topicId,
         includedSections: ['dialog', 'topic'],
         updatedFields: ['topic']
       });
 
-      log(`Создание события dialog.topic.update: topicId=${topicId}`);
+      log(`Создание события dialog.topic.changed: topicId=${topicId}`);
       await eventUtils.createEvent({
         tenantId: req.tenantId!,
-        eventType: 'dialog.topic.update',
+        eventType: 'dialog.topic.changed',
         entityType: 'topic',
         entityId: topicId,
         actorId: actorId,

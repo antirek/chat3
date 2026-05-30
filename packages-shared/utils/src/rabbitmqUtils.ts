@@ -390,7 +390,7 @@ export async function publishEvent(event: Event): Promise<boolean> {
  * Формат: {entityType}.{action}.{tenantId}
  * Примеры:
  *   - dialog.create.tenant123
- *   - message.update.tenant456
+ *   - message.changed.tenant456
  *   - dialog.member.add.tenant123
  */
 function generateRoutingKey(event: Event): string {

@@ -94,6 +94,42 @@ services:
       retries: 3
       start_period: 40s
 
+  # Outbox Relay
+  outbox-relay:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat3-outbox-relay
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: npm run start:outbox-relay
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - chat3-network
+
+  # Counter Worker
+  counter-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat3-counter-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: npm run start:counter-worker
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - chat3-network
+
   # Update Worker
   update-worker:
     build:

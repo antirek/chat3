@@ -726,7 +726,7 @@ export async function updateUser(req: AuthenticatedRequest, res: Response): Prom
     }
 
     const userContext = eventUtils.buildEventContext({
-      eventType: 'user.update',
+      eventType: 'user.changed',
       entityId: userId,
       includedSections: ['user'],
       updatedFields: updatedFields.length > 0 ? updatedFields : ['user']
@@ -735,7 +735,7 @@ export async function updateUser(req: AuthenticatedRequest, res: Response): Prom
     log(`Создание события user.update: userId=${userId}`);
     await eventUtils.createEvent({
       tenantId: req.tenantId!,
-      eventType: 'user.update',
+      eventType: 'user.changed',
       entityType: 'user',
       entityId: userId,
       actorId: userId,

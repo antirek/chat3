@@ -5,6 +5,7 @@ import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember, Event
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { generateTopicId } from '@chat3/utils/topicUtils.js';
+import { flushCounterEvents } from '../../utils/__tests__/counterTestHelpers.js';
 
 const tenantId = 'tnt_test';
 
@@ -290,6 +291,7 @@ describe('messageController.createMessage - unread handling', () => {
     const message = await Message.findOne({ tenantId, senderId: 'alice', type: 'internal.text' }).lean();
     expect(message).toBeTruthy();
 
+    await flushCounterEvents();
     const bobStats = await UserDialogStats.findOne({ tenantId, dialogId: dialog.dialogId, userId: 'bob' }).lean();
     expect(bobStats?.unreadCount).toBe(1);
 
@@ -320,7 +322,7 @@ describe('messageController.createMessage - unread handling', () => {
     expect(statuses).toHaveLength(0);
   });
 
-  test('message with topicId should increment unreadCount in UserTopicStats for recipients', async () => {
+  test('message with topicId increments dialog unread via counter-worker', async () => {
     // Создаем топик
     const topicId = generateTopicId();
     await Topic.create({
@@ -345,33 +347,30 @@ describe('messageController.createMessage - unread handling', () => {
     expect(message).toBeTruthy();
     expect(message.topicId).toBe(topicId);
 
-    // Проверяем, что счетчик топика увеличился для получателя (bob)
-    const bobTopicStats = await UserTopicStats.findOne({ 
-      tenantId, 
-      dialogId: dialog.dialogId, 
-      userId: 'bob',
-      topicId: topicId 
-    }).lean();
-    
-    expect(bobTopicStats).toBeTruthy();
-    expect(bobTopicStats.unreadCount).toBe(1);
+    await flushCounterEvents();
 
-    // Проверяем, что общий счетчик диалога тоже увеличился
-    const bobDialogStats = await UserDialogStats.findOne({ 
-      tenantId, 
-      dialogId: dialog.dialogId, 
-      userId: 'bob' 
+    const bobDialogStats = await UserDialogStats.findOne({
+      tenantId,
+      dialogId: dialog.dialogId,
+      userId: 'bob'
     }).lean();
     expect(bobDialogStats?.unreadCount).toBe(1);
 
-    // Проверяем, что для отправителя (alice) счетчик топика не увеличился
-    const aliceTopicStats = await UserTopicStats.findOne({ 
-      tenantId, 
-      dialogId: dialog.dialogId, 
-      userId: 'alice',
-      topicId: topicId 
+    // UserTopicStats — отдельный projector в counter-worker (позже v1.1)
+    const bobTopicStats = await UserTopicStats.findOne({
+      tenantId,
+      dialogId: dialog.dialogId,
+      userId: 'bob',
+      topicId
     }).lean();
-    // Отправитель не должен иметь непрочитанных сообщений в топике
+    expect(bobTopicStats).toBeNull();
+
+    const aliceTopicStats = await UserTopicStats.findOne({
+      tenantId,
+      dialogId: dialog.dialogId,
+      userId: 'alice',
+      topicId
+    }).lean();
     expect(aliceTopicStats).toBeNull();
   });
 
@@ -474,7 +473,7 @@ describe('messageController.updateMessageContent', () => {
     expect(res.body.error).toBe('Not Found');
   });
 
-  test('message.update event should include meta data', async () => {
+  test('message.changed event should include meta data', async () => {
     // Создаем сообщение с метаданными
     await Meta.create({
       tenantId,
@@ -494,7 +493,7 @@ describe('messageController.updateMessageContent', () => {
 
     const event = await Event.findOne({
       tenantId,
-      eventType: 'message.update',
+      eventType: 'message.changed',
       entityId: message.messageId
     }).lean();
 
@@ -505,7 +504,7 @@ describe('messageController.updateMessageContent', () => {
     expect(event.data.message.meta.category).toBe('support');
   });
 
-  test('message.update event should include topicId and topic when message has topicId', async () => {
+  test('message.changed event should include topicId and topic when message has topicId', async () => {
     // Создаем топик
     const topicId = generateTopicId();
     const topic = await Topic.create({
@@ -535,7 +534,7 @@ describe('messageController.updateMessageContent', () => {
 
     const event = await Event.findOne({
       tenantId,
-      eventType: 'message.update',
+      eventType: 'message.changed',
       entityId: message.messageId
     }).lean();
 
@@ -548,7 +547,7 @@ describe('messageController.updateMessageContent', () => {
     expect(event.data.message.topic.meta.category).toBe('support');
   });
 
-  test('message.update event should have null topicId and topic when message has no topicId', async () => {
+  test('message.changed event should have null topicId and topic when message has no topicId', async () => {
     // Убеждаемся, что сообщение не имеет topicId
     await Message.findOneAndUpdate(
       { tenantId, messageId: message.messageId },
@@ -564,7 +563,7 @@ describe('messageController.updateMessageContent', () => {
 
     const event = await Event.findOne({
       tenantId,
-      eventType: 'message.update',
+      eventType: 'message.changed',
       entityId: message.messageId
     }).lean();
 
@@ -745,7 +744,7 @@ describe('messageController.updateMessageTopic', () => {
     expect(res.body.message).toContain('Message not found');
   });
 
-  test('creates message.update event with updatedFields message.topicId when setting topic', async () => {
+  test('creates message.changed event with updatedFields message.topicId when setting topic', async () => {
     const req = createRequest({ topicId: topic.topicId });
     const res = createResponse();
 
@@ -753,7 +752,7 @@ describe('messageController.updateMessageTopic', () => {
 
     const event = await Event.findOne({
       tenantId,
-      eventType: 'message.update',
+      eventType: 'message.changed',
       entityId: messageWithoutTopic.messageId
     }).lean();
 
@@ -765,7 +764,7 @@ describe('messageController.updateMessageTopic', () => {
     expect(event.data.message.topic).toBeDefined();
   });
 
-  test('creates message.update event when clearing topic', async () => {
+  test('creates message.changed event when clearing topic', async () => {
     const req = createRequest({ topicId: null }, messageWithTopic);
     const res = createResponse();
 
@@ -773,7 +772,7 @@ describe('messageController.updateMessageTopic', () => {
 
     const event = await Event.findOne({
       tenantId,
-      eventType: 'message.update',
+      eventType: 'message.changed',
       entityId: messageWithTopic.messageId
     }).lean();
 

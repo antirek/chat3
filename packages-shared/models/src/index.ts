@@ -19,6 +19,8 @@ import Event from './operational/Event.js';
 import Update from './operational/Update.js';
 import DialogReadTask from './operational/DialogReadTask.js';
 import CounterHistory from './operational/CounterHistory.js';
+import ProcessedCounterEvent from './operational/ProcessedCounterEvent.js';
+import OutboxEvent from './operational/OutboxEvent.js';
 
 // Journals
 import ApiJournal from './journals/ApiJournal.js';
@@ -54,6 +56,8 @@ export {
   ApiJournal,
   DialogReadTask,
   CounterHistory,
+  ProcessedCounterEvent,
+  OutboxEvent,
   Topic,
   Pack,
   PackLink,
@@ -92,11 +96,15 @@ import type { IEvent, EventType, EntityType, ActorType } from './operational/Eve
 import type { IUpdate } from './operational/Update';
 import type { IDialogReadTask, DialogReadTaskStatus } from './operational/DialogReadTask';
 import type { ICounterHistory, CounterType, CounterEntityType, CounterOperation, CounterActorType } from './operational/CounterHistory';
+import type { IProcessedCounterEvent } from './operational/ProcessedCounterEvent';
+import type { IOutboxEvent } from './operational/OutboxEvent';
 
 export type { IEvent, EventType, EntityType, ActorType };
 export type { IUpdate };
 export type { IDialogReadTask, DialogReadTaskStatus };
 export type { ICounterHistory, CounterType, CounterEntityType, CounterOperation, CounterActorType };
+export type { IProcessedCounterEvent };
+export type { IOutboxEvent };
 
 // Export TypeScript interfaces - Stats models
 export type { IUserStats } from './stats/UserStats';

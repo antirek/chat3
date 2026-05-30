@@ -20,6 +20,7 @@ import {
   clearDatabase
 } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { flushCounterEvents } from '../../utils/__tests__/counterTestHelpers.js';
 
 const tenantId = 'tnt_default';
 const USER_A = 'usr_pack_all_a';
@@ -170,6 +171,8 @@ describe('markAllReadForAllUsers integration', () => {
     expect(resM2.statusCode).toBe(201);
     const messageId2 = resM2.body?.data?.messageId;
 
+    await flushCounterEvents();
+
     const statsBeforeA = await UserDialogStats.find({
       tenantId,
       userId: USER_A,
@@ -199,6 +202,8 @@ describe('markAllReadForAllUsers integration', () => {
     expect(resMark.body?.data?.processedDialogsCount).toBe(5);
     // Сообщения помечаются только получателям (не отправителю): USER_A 2, USER_B 1; у CONTACT сообщения свои — 0
     expect(resMark.body?.data?.totalProcessedMessageCount).toBe(3);
+
+    await flushCounterEvents();
 
     const statsAfterA = await UserDialogStats.find({
       tenantId,
@@ -357,6 +362,8 @@ describe('markAllReadForAllUsers integration', () => {
     expect(resMFromUser.statusCode).toBe(201);
     const messageIdFromUser = resMFromUser.body?.data?.messageId;
 
+    await flushCounterEvents();
+
     const resMark = createMockRes();
     await packController.markAllReadForAllUsers(
       createReq({ params: { packId }, query: { memberType: 'user' } }),
@@ -366,6 +373,8 @@ describe('markAllReadForAllUsers integration', () => {
     expect(resMark.body?.data?.processedUsersCount).toBe(2);
     expect(resMark.body?.data?.processedDialogsCount).toBe(3);
     expect(resMark.body?.data?.totalProcessedMessageCount).toBe(3);
+
+    await flushCounterEvents();
 
     const statsA = await UserDialogStats.find({
       tenantId,

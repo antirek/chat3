@@ -12,3 +12,8 @@ export * from './userDialogUtils.js';
 export * from './userTypeUtils.js';
 export * from './packStatsUtils.js';
 export * from './packUnreadSenderTypes.js';
+export * from './outboxUtils.js';
+export * from './counterProcessor/processCounterEvent.js';
+export * from './counterProcessor/counterEvents.js';
+export * from './counterProcessor/isUnreadForUser.js';
+export * from './counterProcessor/recalculateMessageStatusStats.js';

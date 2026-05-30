@@ -116,7 +116,7 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
         userId,
         dialogId,
         -1,
-        'message.status.update',
+        'message.status.changed',
         eventId,
         messageId,
         userId,
@@ -155,7 +155,7 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
         userId,
         dialogId,
         -1,
-        'message.status.update',
+        'message.status.changed',
         eventId,
         messageId,
         userId,
@@ -287,7 +287,7 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
         messageId,
         '👍',
         1,
-        'message.reaction.update',
+        'message.reaction.changed',
         'user1',
         'user'
       );
@@ -304,7 +304,7 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
       const messageId = generateMessageId();
 
       // Сначала увеличиваем
-      await updateReactionCount(tenantId, messageId, '👍', 1, 'message.reaction.update', 'user1', 'user');
+      await updateReactionCount(tenantId, messageId, '👍', 1, 'message.reaction.changed', 'user1', 'user');
 
       // Затем уменьшаем до 0
       const result = await updateReactionCount(
@@ -312,7 +312,7 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
         messageId,
         '👍',
         -1,
-        'message.reaction.update',
+        'message.reaction.changed',
         'user1',
         'user'
       );
@@ -333,7 +333,7 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
         messageId,
         'read',
         1,
-        'message.status.update',
+        'message.status.changed',
         'user1',
         'user'
       );
@@ -352,8 +352,8 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
       const messageId = generateMessageId();
       const eventId = generateEventId();
 
-      await updateReactionCount(tenantId, messageId, '👍', 2, 'message.reaction.update', 'user1', 'user');
-      await updateReactionCount(tenantId, messageId, '❤️', 1, 'message.reaction.update', 'user2', 'user');
+      await updateReactionCount(tenantId, messageId, '👍', 2, 'message.reaction.changed', 'user1', 'user');
+      await updateReactionCount(tenantId, messageId, '❤️', 1, 'message.reaction.changed', 'user2', 'user');
 
       const counts = await getMessageReactionCounts(tenantId, messageId);
 
@@ -368,8 +368,8 @@ describe('counterUtils - Integration Tests with MongoDB', () => {
       const messageId = generateMessageId();
       const eventId = generateEventId();
 
-      await updateStatusCount(tenantId, messageId, 'read', 3, 'message.status.update', 'user1', 'user');
-      await updateStatusCount(tenantId, messageId, 'delivered', 2, 'message.status.update', 'user2', 'user');
+      await updateStatusCount(tenantId, messageId, 'read', 3, 'message.status.changed', 'user1', 'user');
+      await updateStatusCount(tenantId, messageId, 'delivered', 2, 'message.status.changed', 'user2', 'user');
 
       const counts = await getMessageStatusCounts(tenantId, messageId);
 
