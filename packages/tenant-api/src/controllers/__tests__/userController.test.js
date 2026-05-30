@@ -5,7 +5,7 @@ import {
   updateUser,
   deleteUser
 } from '../userController.js';
-import { Tenant, User, Meta, DialogMember, UserStats, UserDialogStats, UserUnreadBySenderType } from '@chat3/models';
+import { Tenant, User, Meta, DialogMember, UserStats, UserDialogStats, UserUnreadBySenderType, Pack, PackLink, UserPackedMessagesUnreadBySenderType } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 
@@ -506,6 +506,46 @@ describe('userController.getUserById', () => {
     expect(res.body.data.stats.unreadDialogsCount).toBe(2); // два диалога с unreadCount > 0
     expect(res.body.data.stats.totalUnreadCount).toBe(8);
     expect(res.body.data.stats.totalMessagesCount).toBeDefined();
+  });
+
+  test('includes packs.messages stats from UserPackedMessagesUnreadBySenderType', async () => {
+    const dialogInPack = 'dlg_dd444444444444444444';
+    const dialogOrphan = 'dlg_ee555555555555555555';
+    const packId = 'pck_ff666666666666666666';
+
+    await DialogMember.insertMany([
+      { tenantId, dialogId: dialogInPack, userId: 'agent_carl' },
+      { tenantId, dialogId: dialogOrphan, userId: 'agent_carl' }
+    ]);
+    await Pack.create({ tenantId, packId });
+    await PackLink.create({ tenantId, packId, dialogId: dialogInPack });
+    await UserStats.create({
+      tenantId,
+      userId: 'agent_carl',
+      dialogCount: 2,
+      unreadDialogsCount: 2,
+      totalUnreadCount: 13
+    });
+    await UserUnreadBySenderType.insertMany([
+      { tenantId, userId: 'agent_carl', fromType: 'user', countUnread: 13 }
+    ]);
+    await UserPackedMessagesUnreadBySenderType.insertMany([
+      { tenantId, userId: 'agent_carl', fromType: 'user', countUnread: 3 },
+      { tenantId, userId: 'agent_carl', fromType: 'contact', countUnread: 1 },
+      { tenantId, userId: 'agent_carl', fromType: 'bot', countUnread: 0 }
+    ]);
+
+    const req = { tenantId, params: { userId: 'agent_carl' } };
+    const res = createMockRes();
+
+    await getUserById(req, res);
+
+    expect(res.body.data.stats['packs.messages.totalUnreadCount']).toBe(4);
+    expect(res.body.data.stats['packs.messages.unreadBySenderType']).toEqual([
+      { fromType: 'user', countUnread: 3 },
+      { fromType: 'contact', countUnread: 1 },
+      { fromType: 'bot', countUnread: 0 }
+    ]);
   });
 
   test('returns 404 when neither user nor meta found', async () => {

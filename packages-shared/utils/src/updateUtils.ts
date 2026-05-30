@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { Message, DialogMember,
-  MessageStatus, Update, User, UserStats, UserUnreadBySenderType, Event, UserDialogStats, UserPackUnreadBySenderType } from '@chat3/models';
+  MessageStatus, Update, User, UserStats, UserUnreadBySenderType, UserPackedMessagesUnreadBySenderType, Event, UserDialogStats, UserPackUnreadBySenderType } from '@chat3/models';
 import type { IUpdate } from '@chat3/models';
 import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
@@ -10,6 +10,7 @@ import { getUserType } from './userTypeUtils.js';
 import { buildStatusMessageMatrix } from './userDialogUtils.js';
 import * as eventUtils from './eventUtils.js';
 import * as topicUtils from './topicUtils.js';
+import { buildUnreadBySenderTypeMatrix } from './packStatsUtils.js';
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 
@@ -853,22 +854,21 @@ export async function createUserStatsUpdate(
       return;
     }
     
-    // Получаем статистику из UserStats и UserUnreadBySenderType
-    const [stats, unreadRows] = await Promise.all([
+    // Получаем статистику из UserStats, UserUnreadBySenderType и packed messages unread
+    const [stats, unreadRows, packedUnreadRows] = await Promise.all([
       UserStats.findOne({ tenantId, userId }).lean(),
-      UserUnreadBySenderType.find({ tenantId, userId }).select('fromType countUnread').lean()
+      UserUnreadBySenderType.find({ tenantId, userId }).select('fromType countUnread').lean(),
+      UserPackedMessagesUnreadBySenderType.find({ tenantId, userId }).select('fromType countUnread').lean()
     ]);
     const statsObj = stats as { dialogCount?: number; unreadDialogsCount?: number; totalUnreadCount?: number; totalMessagesCount?: number } | null;
-    const unreadBySenderType = (unreadRows as Array<{ fromType: string; countUnread: number }>).length
-      ? (() => {
-          const byType: Record<string, number> = { user: 0, contact: 0, bot: 0 };
-          for (const r of unreadRows as Array<{ fromType: string; countUnread: number }>) {
-            byType[r.fromType] = (byType[r.fromType] ?? 0) + r.countUnread;
-          }
-          return ['user', 'contact', 'bot'].map((ft) => ({ fromType: ft, countUnread: byType[ft] ?? 0 }));
-        })()
-      : [{ fromType: 'user', countUnread: 0 }, { fromType: 'contact', countUnread: 0 }, { fromType: 'bot', countUnread: 0 }];
+    const unreadBySenderType = buildUnreadBySenderTypeMatrix(
+      unreadRows as Array<{ fromType: string; countUnread: number }>
+    );
+    const packsMessagesUnreadBySenderType = buildUnreadBySenderTypeMatrix(
+      packedUnreadRows as Array<{ fromType: string; countUnread: number }>
+    );
     const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
+    const packsMessagesTotalUnreadCount = packsMessagesUnreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
 
     const user = await User.findOne({ userId, tenantId }).lean();
     if (!user) {
@@ -889,7 +889,9 @@ export async function createUserStatsUpdate(
         unreadDialogsCount: finalStats.unreadDialogsCount || 0,
         totalUnreadCount,
         totalMessagesCount: finalStats.totalMessagesCount || 0,
-        unreadBySenderType
+        unreadBySenderType,
+        'packs.messages.totalUnreadCount': packsMessagesTotalUnreadCount,
+        'packs.messages.unreadBySenderType': packsMessagesUnreadBySenderType
       }
     });
 
@@ -900,7 +902,11 @@ export async function createUserStatsUpdate(
       entityId: userId,
       includedSections: ['user'],
       updatedFields: updatedFields.length > 0 ? updatedFields : [
-        'user.stats.dialogCount', 'user.stats.unreadDialogsCount']
+        'user.stats.dialogCount',
+        'user.stats.unreadDialogsCount',
+        'user.stats.packs.messages.totalUnreadCount',
+        'user.stats.packs.messages.unreadBySenderType'
+      ]
     });
 
     // Создаем update

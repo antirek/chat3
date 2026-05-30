@@ -7,7 +7,8 @@ import {
   getPackIdsForDialog,
   recalculatePackStats,
   recalculateUserPackUnreadBySenderType,
-  recalculateUserUnreadBySenderType
+  recalculateUserUnreadBySenderType,
+  recalculateUserPackedMessagesUnreadBySenderType
 } from '../packStatsUtils.js';
 import { generateTimestamp } from '../timestampUtils.js';
 import { recalculateUserDialogUnread } from './recalculateUserDialogUnread.js';
@@ -67,6 +68,7 @@ export async function recalculateSlice(slice: CounterSlice): Promise<void> {
     if (seenUsers.has(userId)) continue;
     seenUsers.add(userId);
     await recalculateUserUnreadBySenderType(tenantId, userId);
+    await recalculateUserPackedMessagesUnreadBySenderType(tenantId, userId);
   }
 
   if (sourceEventType === 'dialog.member.add' || sourceEventType === 'dialog.member.remove') {

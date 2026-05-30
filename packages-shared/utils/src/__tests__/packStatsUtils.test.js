@@ -8,6 +8,7 @@ import {
   UserDialogStats,
   UserDialogUnreadBySenderType,
   UserPackUnreadBySenderType,
+  UserPackedMessagesUnreadBySenderType,
   UserStats,
   PackStats,
   CounterHistory,
@@ -19,7 +20,10 @@ import {
   recalculatePackStats,
   recalculateUserPackUnreadBySenderType,
   recalculateUserUnreadBySenderType,
-  buildUserPackStatsFromBySenderRows
+  recalculateUserPackedMessagesUnreadBySenderType,
+  buildUserPackStatsFromBySenderRows,
+  composeUserStatsUnreadResponse,
+  getPackedDialogIdsForUser
 } from '../packStatsUtils.js';
 import { recalculateUserDialogUnread } from '../counterProcessor/recalculateUserDialogUnread.js';
 import {
@@ -484,5 +488,83 @@ describe('packStatsUtils', () => {
     const userStats = await UserStats.findOne({ tenantId, userId }).lean();
     expect(userStats?.totalUnreadCount).toBe(4);
     expect(userStats?.unreadDialogsCount).toBe(2);
+  });
+
+  it('recalculateUserPackedMessagesUnreadBySenderType counts only dialogs in packs', async () => {
+    const userId = 'user_packed_msgs';
+    const packId = createPackId('msg1');
+    const dialogInPack = createDialogId('inpack');
+    const dialogOrphan = createDialogId('orphan');
+
+    await Pack.create({ tenantId, packId });
+    await DialogMember.insertMany([
+      { tenantId, dialogId: dialogInPack, userId },
+      { tenantId, dialogId: dialogOrphan, userId }
+    ]);
+    await UserDialogUnreadBySenderType.insertMany([
+      { tenantId, userId, dialogId: dialogInPack, fromType: 'user', countUnread: 2 },
+      { tenantId, userId, dialogId: dialogInPack, fromType: 'bot', countUnread: 1 },
+      { tenantId, userId, dialogId: dialogOrphan, fromType: 'user', countUnread: 10 }
+    ]);
+    await PackLink.create({ tenantId, packId, dialogId: dialogInPack });
+
+    const result = await recalculateUserPackedMessagesUnreadBySenderType(tenantId, userId);
+
+    expect(result.totalUnreadCount).toBe(3);
+    expect(result.unreadBySenderType).toEqual([
+      { fromType: 'user', countUnread: 2 },
+      { fromType: 'contact', countUnread: 0 },
+      { fromType: 'bot', countUnread: 1 }
+    ]);
+
+    const rows = await UserPackedMessagesUnreadBySenderType.find({ tenantId, userId }).lean();
+    const userRow = rows.find((r) => r.fromType === 'user');
+    expect(userRow?.countUnread).toBe(2);
+  });
+
+  it('recalculateUserPackedMessagesUnreadBySenderType deduplicates multi-pack dialog', async () => {
+    const userId = 'user_multi_pack';
+    const dialogId = createDialogId('multi');
+    const packA = createPackId('pa');
+    const packB = createPackId('pb');
+
+    await Pack.insertMany([{ tenantId, packId: packA }, { tenantId, packId: packB }]);
+    await DialogMember.create({ tenantId, dialogId, userId });
+    await UserDialogUnreadBySenderType.create({
+      tenantId, userId, dialogId, fromType: 'user', countUnread: 5
+    });
+    await PackLink.insertMany([
+      { tenantId, packId: packA, dialogId },
+      { tenantId, packId: packB, dialogId }
+    ]);
+
+    const result = await recalculateUserPackedMessagesUnreadBySenderType(tenantId, userId);
+
+    expect(result.totalUnreadCount).toBe(5);
+    expect(await getPackedDialogIdsForUser(tenantId, userId)).toEqual([dialogId]);
+  });
+
+  it('composeUserStatsUnreadResponse merges packed messages stats', () => {
+    const stats = composeUserStatsUnreadResponse(
+      { unreadDialogsCount: 5 },
+      [
+        { fromType: 'user', countUnread: 0 },
+        { fromType: 'contact', countUnread: 17 },
+        { fromType: 'bot', countUnread: 0 }
+      ],
+      [
+        { fromType: 'user', countUnread: 0 },
+        { fromType: 'contact', countUnread: 4 },
+        { fromType: 'bot', countUnread: 0 }
+      ]
+    );
+
+    expect(stats.totalUnreadCount).toBe(17);
+    expect(stats['packs.messages.totalUnreadCount']).toBe(4);
+    expect(stats['packs.messages.unreadBySenderType']).toEqual([
+      { fromType: 'user', countUnread: 0 },
+      { fromType: 'contact', countUnread: 4 },
+      { fromType: 'bot', countUnread: 0 }
+    ]);
   });
 });

@@ -1,5 +1,9 @@
-import { User, Meta, UserStats, UserUnreadBySenderType } from '@chat3/models';
-import { PACK_UNREAD_SENDER_TYPES } from '@chat3/utils/packUnreadSenderTypes.js';
+import { User, Meta, UserStats, UserUnreadBySenderType, UserPackedMessagesUnreadBySenderType } from '@chat3/models';
+import {
+  buildUnreadBySenderTypeMatrix,
+  composeUserStatsUnreadResponse,
+  mergeUnreadRowsByUser
+} from '@chat3/utils/packStatsUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
@@ -151,36 +155,25 @@ async function runGetUsersAggregation(
   }
 
   const userIds = data.map((d: any) => d.userId);
-  const unreadBySenderRows = await UserUnreadBySenderType.find({
-    tenantId,
-    userId: { $in: userIds }
-  })
-    .select('userId fromType countUnread')
-    .lean();
+  const [unreadBySenderRows, packedUnreadRows] = await Promise.all([
+    UserUnreadBySenderType.find({ tenantId, userId: { $in: userIds } }).select('userId fromType countUnread').lean(),
+    UserPackedMessagesUnreadBySenderType.find({ tenantId, userId: { $in: userIds } }).select('userId fromType countUnread').lean()
+  ]);
 
-  const unreadByUser = new Map<string, Array<{ fromType: string; countUnread: number }>>();
-  for (const uid of userIds) {
-    unreadByUser.set(uid, PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 })));
-  }
-  for (const row of unreadBySenderRows as Array<{ userId: string; fromType: string; countUnread: number }>) {
-    const arr = unreadByUser.get(row.userId);
-    if (arr) {
-      const entry = arr.find((e) => e.fromType === row.fromType);
-      if (entry) entry.countUnread = row.countUnread;
-    }
-  }
+  const unreadByUser = mergeUnreadRowsByUser(userIds, unreadBySenderRows as Array<{ userId: string; fromType: string; countUnread: number }>);
+  const packedUnreadByUser = mergeUnreadRowsByUser(userIds, packedUnreadRows as Array<{ userId: string; fromType: string; countUnread: number }>);
 
   const list = data.map((doc: any) => {
     const { statsDoc, dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount, ...user } = doc;
-    const unreadBySenderType = unreadByUser.get(user.userId) ?? PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 }));
-    const totalUnread = unreadBySenderType.reduce((s: number, x: any) => s + x.countUnread, 0);
-    user.stats = {
-      dialogCount: dialogCount ?? 0,
-      unreadDialogsCount: unreadDialogsCount ?? 0,
-      totalUnreadCount: totalUnread,
-      totalMessagesCount: totalMessagesCount ?? 0,
-      unreadBySenderType
-    };
+    user.stats = composeUserStatsUnreadResponse(
+      {
+        dialogCount: dialogCount ?? 0,
+        unreadDialogsCount: unreadDialogsCount ?? 0,
+        totalMessagesCount: totalMessagesCount ?? 0
+      },
+      unreadByUser.get(user.userId) ?? buildUnreadBySenderTypeMatrix([]),
+      packedUnreadByUser.get(user.userId) ?? buildUnreadBySenderTypeMatrix([])
+    );
     return user;
   });
 
@@ -331,62 +324,42 @@ export async function getUsers(req: AuthenticatedRequest, res: Response): Promis
       const userIds = users.map((user: any) => user.userId);
       log(`Получение статистики для ${userIds.length} пользователей`);
 
-      const [userStatsList, unreadBySenderRows] = await Promise.all([
+      const [userStatsList, unreadBySenderRows, packedUnreadRows] = await Promise.all([
         UserStats.find({ tenantId: req.tenantId!, userId: { $in: userIds } }).lean(),
         UserUnreadBySenderType.find({ tenantId: req.tenantId!, userId: { $in: userIds } })
+          .select('userId fromType countUnread')
+          .lean(),
+        UserPackedMessagesUnreadBySenderType.find({ tenantId: req.tenantId!, userId: { $in: userIds } })
           .select('userId fromType countUnread')
           .lean()
       ]);
       log(`Статистика получена для ${userStatsList.length} пользователей`);
 
-      const unreadByUser = new Map<string, Array<{ fromType: string; countUnread: number }>>();
-      for (const uid of userIds) {
-        unreadByUser.set(uid, PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 })));
-      }
-      for (const row of unreadBySenderRows as Array<{ userId: string; fromType: string; countUnread: number }>) {
-        const arr = unreadByUser.get(row.userId);
-        if (arr) {
-          const entry = arr.find((e) => e.fromType === row.fromType);
-          if (entry) entry.countUnread = row.countUnread;
-        }
-      }
+      const unreadByUser = mergeUnreadRowsByUser(userIds, unreadBySenderRows as Array<{ userId: string; fromType: string; countUnread: number }>);
+      const packedUnreadByUser = mergeUnreadRowsByUser(userIds, packedUnreadRows as Array<{ userId: string; fromType: string; countUnread: number }>);
 
       const statsByUser = new Map(
-        userStatsList.map((stats: any) => {
-          const unreadBySenderType = unreadByUser.get(stats.userId) ?? PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 }));
-          const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
-          return [
-            stats.userId,
-            {
-              dialogCount: stats.dialogCount || 0,
-              unreadDialogsCount: stats.unreadDialogsCount || 0,
-              totalUnreadCount,
-              totalMessagesCount: stats.totalMessagesCount || 0,
-              unreadBySenderType
-            }
-          ];
-        })
+        userStatsList.map((stats: any) => [
+          stats.userId,
+          composeUserStatsUnreadResponse(
+            stats,
+            unreadByUser.get(stats.userId) ?? buildUnreadBySenderTypeMatrix([]),
+            packedUnreadByUser.get(stats.userId) ?? buildUnreadBySenderTypeMatrix([])
+          )
+        ])
       );
 
       users.forEach((user: any) => {
-        const stats = statsByUser.get(user.userId) || {
-          dialogCount: 0,
-          unreadDialogsCount: 0,
-          totalUnreadCount: 0,
-          totalMessagesCount: 0,
-          unreadBySenderType: PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 }))
-        };
+        const stats = statsByUser.get(user.userId) || composeUserStatsUnreadResponse(
+          {},
+          buildUnreadBySenderTypeMatrix([]),
+          buildUnreadBySenderTypeMatrix([])
+        );
         user.stats = stats;
       });
     } else {
       users.forEach((user: any) => {
-        user.stats = {
-          dialogCount: 0,
-          unreadDialogsCount: 0,
-          totalUnreadCount: 0,
-          totalMessagesCount: 0,
-          unreadBySenderType: PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 }))
-        };
+        user.stats = composeUserStatsUnreadResponse({}, buildUnreadBySenderTypeMatrix([]), buildUnreadBySenderTypeMatrix([]));
       });
     }
 
@@ -442,30 +415,16 @@ export async function getUserById(req: AuthenticatedRequest, res: Response): Pro
       // Fallback: если пользователя нет в User модели, но есть meta теги, возвращаем их
       if (userMeta && Object.keys(userMeta).length > 0) {
         log(`Найдены мета-теги для пользователя: userId=${userId}`);
-        const [userStats, unreadRows] = await Promise.all([
+        const [userStats, unreadRows, packedUnreadRows] = await Promise.all([
           UserStats.findOne({ tenantId: req.tenantId!, userId }).lean(),
-          UserUnreadBySenderType.find({ tenantId: req.tenantId!, userId }).select('fromType countUnread').lean()
+          UserUnreadBySenderType.find({ tenantId: req.tenantId!, userId }).select('fromType countUnread').lean(),
+          UserPackedMessagesUnreadBySenderType.find({ tenantId: req.tenantId!, userId }).select('fromType countUnread').lean()
         ]);
-        const unreadBySenderType = PACK_UNREAD_SENDER_TYPES.map((ft) => ({
-          fromType: ft,
-          countUnread: (unreadRows as Array<{ fromType: string; countUnread: number }>).find((r) => r.fromType === ft)?.countUnread ?? 0
-        }));
-        const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
-        const stats = userStats
-          ? {
-              dialogCount: userStats.dialogCount || 0,
-              unreadDialogsCount: userStats.unreadDialogsCount || 0,
-              totalUnreadCount,
-              totalMessagesCount: userStats.totalMessagesCount || 0,
-              unreadBySenderType
-            }
-          : {
-              dialogCount: 0,
-              unreadDialogsCount: 0,
-              totalUnreadCount,
-              totalMessagesCount: 0,
-              unreadBySenderType
-            };
+        const stats = composeUserStatsUnreadResponse(
+          userStats ?? {},
+          buildUnreadBySenderTypeMatrix(unreadRows as Array<{ fromType: string; countUnread: number }>),
+          buildUnreadBySenderTypeMatrix(packedUnreadRows as Array<{ fromType: string; countUnread: number }>)
+        );
 
         log(`Отправка ответа с мета-тегами: userId=${userId}`);
         res.json({
@@ -492,30 +451,16 @@ export async function getUserById(req: AuthenticatedRequest, res: Response): Pro
 
     // Получаем статистику из UserStats и UserUnreadBySenderType
     log(`Получение статистики пользователя: userId=${userId}`);
-    const [userStats, unreadRows] = await Promise.all([
+    const [userStats, unreadRows, packedUnreadRows] = await Promise.all([
       UserStats.findOne({ tenantId: req.tenantId!, userId }).lean(),
-      UserUnreadBySenderType.find({ tenantId: req.tenantId!, userId }).select('fromType countUnread').lean()
+      UserUnreadBySenderType.find({ tenantId: req.tenantId!, userId }).select('fromType countUnread').lean(),
+      UserPackedMessagesUnreadBySenderType.find({ tenantId: req.tenantId!, userId }).select('fromType countUnread').lean()
     ]);
-    const unreadBySenderType = PACK_UNREAD_SENDER_TYPES.map((ft) => ({
-      fromType: ft,
-      countUnread: (unreadRows as Array<{ fromType: string; countUnread: number }>).find((r) => r.fromType === ft)?.countUnread ?? 0
-    }));
-    const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
-    const stats = userStats
-      ? {
-          dialogCount: userStats.dialogCount || 0,
-          unreadDialogsCount: userStats.unreadDialogsCount || 0,
-          totalUnreadCount,
-          totalMessagesCount: userStats.totalMessagesCount || 0,
-          unreadBySenderType
-        }
-      : {
-          dialogCount: 0,
-          unreadDialogsCount: 0,
-          totalUnreadCount,
-          totalMessagesCount: 0,
-          unreadBySenderType
-        };
+    const stats = composeUserStatsUnreadResponse(
+      userStats ?? {},
+      buildUnreadBySenderTypeMatrix(unreadRows as Array<{ fromType: string; countUnread: number }>),
+      buildUnreadBySenderTypeMatrix(packedUnreadRows as Array<{ fromType: string; countUnread: number }>)
+    );
 
     // Пользователь существует, обогащаем мета-тегами и данными о диалогах
     const enrichedUser = {

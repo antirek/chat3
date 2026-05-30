@@ -8,7 +8,11 @@ import {
   Message,
   MessageStatus,
   MessageStatusStats,
+  Pack,
+  PackLink,
   UserDialogStats,
+  UserDialogUnreadBySenderType,
+  UserPackedMessagesUnreadBySenderType,
   UserStats
 } from '@chat3/models';
 import { processCounterEvent } from '../counterProcessor/processCounterEvent.js';
@@ -130,6 +134,37 @@ describe('reconcileCounterDrift', () => {
     const result = await reconcileCounterDrift({ tenantId, maxMessages: 10 });
     expect(result.ok).toBe(false);
     expect(result.drifts.some((d) => d.kind === 'messageStatusStats')).toBe(true);
+  });
+
+  test('detects UserPackedMessagesUnreadBySenderType drift', async () => {
+    const tenantId = 'tnt_packed_drift';
+    const userId = 'bob';
+    const dialogId = 'dlg_kkbbbbbbbbbbbbbbbbbb';
+    const packId = 'pck_llcccccccccccccccccc';
+    const now = generateTimestamp();
+
+    await DialogMember.create({ tenantId, dialogId, userId, createdAt: now });
+    await Pack.create({ tenantId, packId, createdAt: now });
+    await PackLink.create({ tenantId, packId, dialogId, addedAt: now });
+    await UserDialogUnreadBySenderType.create({
+      tenantId, userId, dialogId, fromType: 'user', countUnread: 3, createdAt: now
+    });
+    await UserStats.create({
+      tenantId,
+      userId,
+      dialogCount: 1,
+      unreadDialogsCount: 1,
+      totalUnreadCount: 3,
+      totalMessagesCount: 0,
+      createdAt: now
+    });
+    await UserPackedMessagesUnreadBySenderType.create({
+      tenantId, userId, fromType: 'user', countUnread: 99, createdAt: now
+    });
+
+    const result = await reconcileCounterDrift({ tenantId, maxUsers: 10 });
+    expect(result.ok).toBe(false);
+    expect(result.drifts.some((d) => d.kind === 'userStatsPackedTotalUnread')).toBe(true);
   });
 
   test('golden fixture message.create yields expected unread', async () => {

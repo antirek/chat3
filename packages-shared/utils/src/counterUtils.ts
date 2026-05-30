@@ -14,7 +14,7 @@ import {
 } from '@chat3/models';
 import { generateTimestamp } from './timestampUtils.js';
 import { createUserStatsUpdate } from './updateUtils.js';
-import { recalculateUserUnreadBySenderType } from './packStatsUtils.js';
+import { recalculateUserUnreadBySenderType, recalculateUserPackedMessagesUnreadBySenderType } from './packStatsUtils.js';
 import { recalculateUserDialogUnread } from './counterProcessor/recalculateUserDialogUnread.js';
 
 /**
@@ -780,6 +780,7 @@ export async function recalculateUserStats(
   }
 
   const { totalUnreadCount, unreadDialogsCount } = await recalculateUserUnreadBySenderType(tenantId, uid);
+  await recalculateUserPackedMessagesUnreadBySenderType(tenantId, uid);
 
   const totalMessagesCount = await Message.countDocuments({ tenantId, senderId: uid });
 

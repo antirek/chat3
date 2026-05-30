@@ -31,7 +31,7 @@ export async function publishCounterUpdates(slice: CounterSlice): Promise<void> 
       userId,
       sourceEventId,
       sourceEventType,
-      ['user.stats.totalUnreadCount', 'user.stats.unreadDialogsCount', 'user.stats.unreadBySenderType']
+      ['user.stats.totalUnreadCount', 'user.stats.unreadDialogsCount', 'user.stats.unreadBySenderType', 'user.stats.packs.messages.totalUnreadCount', 'user.stats.packs.messages.unreadBySenderType']
     );
   }
 

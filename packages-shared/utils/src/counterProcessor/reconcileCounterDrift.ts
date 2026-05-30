@@ -1,9 +1,10 @@
-import { MessageStatus, MessageStatusStats, UserDialogStats, UserStats } from '@chat3/models';
+import { MessageStatus, MessageStatusStats, UserDialogStats, UserDialogUnreadBySenderType, UserPackedMessagesUnreadBySenderType, UserStats } from '@chat3/models';
 import { countUserDialogUnread } from './recalculateUserDialogUnread.js';
+import { getPackedDialogIdsForUser } from '../packStatsUtils.js';
 
 export interface CounterDriftRecord {
   tenantId: string;
-  kind: 'userDialogUnread' | 'messageStatusStats' | 'userStatsTotalUnread';
+  kind: 'userDialogUnread' | 'messageStatusStats' | 'userStatsTotalUnread' | 'userStatsPackedTotalUnread';
   userId?: string;
   dialogId?: string;
   messageId?: string;
@@ -170,6 +171,31 @@ export async function reconcileCounterDrift(
         field: 'totalUnreadCount',
         stored,
         expected
+      });
+    }
+
+    const packedDialogIds = await getPackedDialogIdsForUser(userRow.tenantId, userRow.userId);
+    let expectedPackedTotal = 0;
+    if (packedDialogIds.length) {
+      const packedAgg = await UserDialogUnreadBySenderType.aggregate<{ total: number }>([
+        { $match: { tenantId: userRow.tenantId, userId: userRow.userId, dialogId: { $in: packedDialogIds } } },
+        { $group: { _id: null, total: { $sum: '$countUnread' } } }
+      ]);
+      expectedPackedTotal = packedAgg[0]?.total ?? 0;
+    }
+    const packedRows = await UserPackedMessagesUnreadBySenderType.find({
+      tenantId: userRow.tenantId,
+      userId: userRow.userId
+    }).select('countUnread').lean();
+    const storedPackedTotal = packedRows.reduce((s, r) => s + (r.countUnread ?? 0), 0);
+    if (storedPackedTotal !== expectedPackedTotal) {
+      drifts.push({
+        tenantId: userRow.tenantId,
+        kind: 'userStatsPackedTotalUnread',
+        userId: userRow.userId,
+        field: 'packs.messages.totalUnreadCount',
+        stored: storedPackedTotal,
+        expected: expectedPackedTotal
       });
     }
   }

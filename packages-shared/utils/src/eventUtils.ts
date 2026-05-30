@@ -416,6 +416,8 @@ interface BuildUserSectionParams {
     totalUnreadCount?: number;
     totalMessagesCount?: number;
     unreadBySenderType?: Array<{ fromType: string; countUnread: number }>;
+    'packs.messages.totalUnreadCount'?: number;
+    'packs.messages.unreadBySenderType'?: Array<{ fromType: string; countUnread: number }>;
   };
 }
 
@@ -452,6 +454,8 @@ export function buildUserSection({
       totalUnreadCount: number;
       totalMessagesCount: number;
       unreadBySenderType?: Array<{ fromType: string; countUnread: number }>;
+      'packs.messages.totalUnreadCount'?: number;
+      'packs.messages.unreadBySenderType'?: Array<{ fromType: string; countUnread: number }>;
     };
   } = {
     userId,
@@ -459,7 +463,7 @@ export function buildUserSection({
     meta: metaObject
   };
 
-  if (stats && (stats.dialogCount !== undefined || stats.unreadDialogsCount !== undefined || stats.totalUnreadCount !== undefined || stats.totalMessagesCount !== undefined || stats.unreadBySenderType !== undefined)) {
+  if (stats && (stats.dialogCount !== undefined || stats.unreadDialogsCount !== undefined || stats.totalUnreadCount !== undefined || stats.totalMessagesCount !== undefined || stats.unreadBySenderType !== undefined || stats['packs.messages.totalUnreadCount'] !== undefined || stats['packs.messages.unreadBySenderType'] !== undefined)) {
     userSection.stats = {
       dialogCount: stats.dialogCount ?? 0,
       unreadDialogsCount: stats.unreadDialogsCount ?? 0,
@@ -468,6 +472,12 @@ export function buildUserSection({
     };
     if (stats.unreadBySenderType && Array.isArray(stats.unreadBySenderType)) {
       userSection.stats.unreadBySenderType = stats.unreadBySenderType;
+    }
+    if (stats['packs.messages.totalUnreadCount'] !== undefined) {
+      userSection.stats['packs.messages.totalUnreadCount'] = stats['packs.messages.totalUnreadCount'];
+    }
+    if (stats['packs.messages.unreadBySenderType'] && Array.isArray(stats['packs.messages.unreadBySenderType'])) {
+      userSection.stats['packs.messages.unreadBySenderType'] = stats['packs.messages.unreadBySenderType'];
     }
   }
 

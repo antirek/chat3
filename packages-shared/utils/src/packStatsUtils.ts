@@ -5,6 +5,7 @@ import {
   UserDialogUnreadBySenderType,
   UserPackUnreadBySenderType,
   UserUnreadBySenderType,
+  UserPackedMessagesUnreadBySenderType,
   UserStats,
   PackStats,
   DialogStats,
@@ -443,4 +444,144 @@ export async function recalculateUserUnreadBySenderType(
     countUnread: byType[ft] ?? 0
   }));
   return { totalUnreadCount, unreadDialogsCount, unreadBySenderType };
+}
+
+function normalizeUserId(userId: string): string {
+  return (userId || '').trim().toLowerCase();
+}
+
+export function buildUnreadBySenderTypeMatrix(
+  rows: Array<{ fromType: string; countUnread: number }>
+): UnreadBySenderTypeItem[] {
+  const byType: Record<string, number> = {};
+  for (const t of PACK_UNREAD_SENDER_TYPES) {
+    byType[t] = 0;
+  }
+  for (const row of rows) {
+    if (PACK_UNREAD_SENDER_TYPES.includes(row.fromType as (typeof PACK_UNREAD_SENDER_TYPES)[number])) {
+      byType[row.fromType] = row.countUnread;
+    } else {
+      byType.user = (byType.user ?? 0) + row.countUnread;
+    }
+  }
+  return PACK_UNREAD_SENDER_TYPES.map((ft) => ({
+    fromType: ft,
+    countUnread: byType[ft] ?? 0
+  }));
+}
+
+export function mergeUnreadRowsByUser(
+  userIds: string[],
+  rows: Array<{ userId: string; fromType: string; countUnread: number }>
+): Map<string, UnreadBySenderTypeItem[]> {
+  const rawByUser = new Map<string, Array<{ fromType: string; countUnread: number }>>();
+  for (const uid of userIds) {
+    rawByUser.set(uid, []);
+  }
+  for (const row of rows) {
+    const list = rawByUser.get(row.userId);
+    if (list) list.push(row);
+  }
+  const result = new Map<string, UnreadBySenderTypeItem[]>();
+  for (const uid of userIds) {
+    result.set(uid, buildUnreadBySenderTypeMatrix(rawByUser.get(uid) ?? []));
+  }
+  return result;
+}
+
+export type UserStatsUnreadResponse = {
+  dialogCount: number;
+  unreadDialogsCount: number;
+  totalMessagesCount: number;
+  totalUnreadCount: number;
+  unreadBySenderType: UnreadBySenderTypeItem[];
+  'packs.messages.totalUnreadCount': number;
+  'packs.messages.unreadBySenderType': UnreadBySenderTypeItem[];
+};
+
+export function composeUserStatsUnreadResponse(
+  base: {
+    dialogCount?: number;
+    unreadDialogsCount?: number;
+    totalMessagesCount?: number;
+  },
+  unreadBySenderType: UnreadBySenderTypeItem[],
+  packsMessagesUnreadBySenderType: UnreadBySenderTypeItem[]
+): UserStatsUnreadResponse {
+  const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
+  const packsMessagesTotalUnreadCount = packsMessagesUnreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
+  return {
+    dialogCount: base.dialogCount ?? 0,
+    unreadDialogsCount: base.unreadDialogsCount ?? 0,
+    totalMessagesCount: base.totalMessagesCount ?? 0,
+    totalUnreadCount,
+    unreadBySenderType,
+    'packs.messages.totalUnreadCount': packsMessagesTotalUnreadCount,
+    'packs.messages.unreadBySenderType': packsMessagesUnreadBySenderType
+  };
+}
+
+export async function getPackedDialogIdsForUser(tenantId: string, userId: string): Promise<string[]> {
+  const uid = normalizeUserId(userId);
+  const memberDialogIds = await DialogMember.find({ tenantId, userId: uid }).distinct('dialogId');
+  if (!memberDialogIds.length) {
+    return [];
+  }
+  return PackLink.distinct('dialogId', { tenantId, dialogId: { $in: memberDialogIds } });
+}
+
+/**
+ * Пересчёт unread пользователя только по диалогам с PackLink (без double-count multi-pack).
+ */
+export async function recalculateUserPackedMessagesUnreadBySenderType(
+  tenantId: string,
+  userId: string
+): Promise<{ totalUnreadCount: number; unreadBySenderType: UnreadBySenderTypeItem[] }> {
+  const uid = normalizeUserId(userId);
+  const packedDialogIds = await getPackedDialogIdsForUser(tenantId, uid);
+  const now = generateTimestamp();
+
+  if (!packedDialogIds.length) {
+    for (const fromType of PACK_UNREAD_SENDER_TYPES) {
+      await UserPackedMessagesUnreadBySenderType.findOneAndUpdate(
+        { tenantId, userId: uid, fromType },
+        { $set: { countUnread: 0, lastUpdatedAt: now }, $setOnInsert: { createdAt: now } },
+        { upsert: true, new: true }
+      );
+    }
+    const unreadBySenderType = PACK_UNREAD_SENDER_TYPES.map((ft) => ({ fromType: ft, countUnread: 0 }));
+    return { totalUnreadCount: 0, unreadBySenderType };
+  }
+
+  const agg = await UserDialogUnreadBySenderType.aggregate<{ _id: string; countUnread: number }>([
+    { $match: { tenantId, userId: uid, dialogId: { $in: packedDialogIds } } },
+    { $group: { _id: '$fromType', countUnread: { $sum: '$countUnread' } } }
+  ]);
+
+  const byType: Record<string, number> = {};
+  for (const t of PACK_UNREAD_SENDER_TYPES) {
+    byType[t] = 0;
+  }
+  for (const r of agg) {
+    if (PACK_UNREAD_SENDER_TYPES.includes(r._id as (typeof PACK_UNREAD_SENDER_TYPES)[number])) {
+      byType[r._id] = r.countUnread;
+    } else {
+      byType.user = (byType.user ?? 0) + r.countUnread;
+    }
+  }
+
+  for (const fromType of PACK_UNREAD_SENDER_TYPES) {
+    await UserPackedMessagesUnreadBySenderType.findOneAndUpdate(
+      { tenantId, userId: uid, fromType },
+      { $set: { countUnread: byType[fromType] ?? 0, lastUpdatedAt: now }, $setOnInsert: { createdAt: now } },
+      { upsert: true, new: true }
+    );
+  }
+
+  const unreadBySenderType = PACK_UNREAD_SENDER_TYPES.map((ft) => ({
+    fromType: ft,
+    countUnread: byType[ft] ?? 0
+  }));
+  const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
+  return { totalUnreadCount, unreadBySenderType };
 }
