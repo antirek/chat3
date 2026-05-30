@@ -4,7 +4,7 @@
 version: '2.4'
 services:
   tenant-api:
-    image: antirek/mms3:0.0.72
+    image: antirek/mms3:0.0.73
     ports:
       - "3002:3000"
     command: "npm run start:tenant-api"
@@ -19,7 +19,7 @@ services:
         tag: "{{.Name}}"
 
   outbox-relay:
-    image: antirek/mms3:0.0.72
+    image: antirek/mms3:0.0.73
     command: "npm run start:outbox-relay"
     env_file:
       - .env
@@ -32,7 +32,7 @@ services:
         tag: "{{.Name}}"
 
   counter-worker:
-    image: antirek/mms3:0.0.72
+    image: antirek/mms3:0.0.73
     command: "npm run start:counter-worker"
     env_file:
       - .env
@@ -45,7 +45,7 @@ services:
         tag: "{{.Name}}"
 
   update-worker:
-    image: antirek/mms3:0.0.72
+    image: antirek/mms3:0.0.73
     command: "npm run start:update-worker"
     env_file:
       - .env
@@ -58,7 +58,7 @@ services:
         tag: "{{.Name}}"
 
   dialog-read-worker:
-    image: antirek/mms3:0.0.72
+    image: antirek/mms3:0.0.73
     command: "npm run start:dialog-read-worker"
     env_file:
       - .env
@@ -71,7 +71,7 @@ services:
         tag: "{{.Name}}"
 
   api-test:
-    image: antirek/mms3:0.0.72
+    image: antirek/mms3:0.0.73
     ports:
       - "3003:3001"
     command: "npm run start:controlo-backend"

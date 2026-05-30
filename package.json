@@ -1,6 +1,6 @@
 {
   "name": "chat3",
-  "version": "0.0.72",
+  "version": "0.0.73",
   "description": "Node.js project",
   "private": true,
   "workspaces": [
@@ -33,6 +33,7 @@
     "test:mark-read-api:complex": "node scripts/test-mark-read-complex-via-api.mjs",
     "reconcile-counter-drift": "node scripts/reconcile-counter-drift.mjs",
     "test:counter-stack": "node --experimental-vm-modules node_modules/jest/bin/jest.js packages/tenant-api/src/controllers/__tests__/counterStack.integration.test.js",
+    "test:update-stack": "node --experimental-vm-modules node_modules/jest/bin/jest.js packages/tenant-api/src/controllers/__tests__/updateStack.integration.test.js",
     "test:counter-benchmark": "node --experimental-vm-modules node_modules/jest/bin/jest.js packages-shared/utils/src/__tests__/counterSliceBenchmark.test.js",
     "test:ci:counters": "sh scripts/ci-counters-check.sh",
     "build": "npm run build -w @chat3/models && npm run build -w @chat3/utils && npm run build --workspaces --if-present",

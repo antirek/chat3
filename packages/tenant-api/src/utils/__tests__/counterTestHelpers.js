@@ -5,6 +5,8 @@
 import { OutboxEvent, ProcessedCounterEvent } from '@chat3/models';
 import { isCounterEventType } from '@chat3/utils/counterProcessor/counterEvents.js';
 import { processCounterEvent } from '@chat3/utils/counterProcessor/processCounterEvent.js';
+import { toOutboxPublishPayload } from '@chat3/utils/domainEventPayload.js';
+import { processUpdateEvent } from '@chat3/utils/updateProcessor/processUpdateEvent.js';
 
 export async function flushCounterEvents() {
   const rows = await OutboxEvent.find({}).sort({ createdAt: 1 }).lean();
@@ -24,6 +26,48 @@ export async function flushCounterEvents() {
       createdAt: row.createdAt
     });
   }
+}
+
+/**
+ * Эмуляция update-worker: payload как после outbox-relay (eventId, без _id).
+ */
+export async function flushUpdateEvents() {
+  const rows = await OutboxEvent.find({}).sort({ createdAt: 1 }).lean();
+  for (const row of rows) {
+    await processUpdateEvent(toOutboxPublishPayload(row));
+  }
+}
+
+/**
+ * E2E-пайплайн: outbox-relay → update-worker (domain MessageUpdate / DialogUpdate / …).
+ */
+export async function runUpdateStackPipeline(options = {}) {
+  const maxRounds = options.maxRounds ?? 10;
+  const { publishOutboxBatch } = await import('@chat3/utils/outboxUtils.js');
+  const rabbitmqUtils = await import('@chat3/utils/rabbitmqUtils.js');
+
+  const info = rabbitmqUtils.getRabbitMQInfo();
+  if (!info.connected) {
+    await rabbitmqUtils.initRabbitMQ();
+  }
+
+  const unpublishedBefore = await OutboxEvent.countDocuments({ published: false });
+  let totalPublished = 0;
+  for (let round = 0; round < maxRounds; round++) {
+    const n = await publishOutboxBatch();
+    totalPublished += n;
+    if (n === 0) {
+      break;
+    }
+  }
+
+  await flushUpdateEvents();
+
+  return {
+    published: totalPublished,
+    unpublishedBefore,
+    unpublishedLeft: await OutboxEvent.countDocuments({ published: false })
+  };
 }
 
 /**

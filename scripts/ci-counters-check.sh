@@ -10,6 +10,15 @@ npm run build -w @chat3/models -w @chat3/utils
 echo "== counter stack E2E =="
 npm run test:counter-stack
 
+echo "== update stack E2E =="
+npm run test:update-stack
+
+echo "== outbox + update-worker contract =="
+node --experimental-vm-modules node_modules/jest/bin/jest.js \
+  packages-shared/utils/src/__tests__/domainEventPayload.test.js \
+  packages-shared/utils/src/__tests__/processUpdateEvent.test.js \
+  packages-shared/utils/src/__tests__/outboxUtils.test.js
+
 echo "== slice benchmark =="
 npm run test:counter-benchmark
 

@@ -1,6 +1,6 @@
 {
   "name": "@chat3/utils",
-  "version": "0.0.72",
+  "version": "0.0.73",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -27,6 +27,8 @@
     "./packUnreadSenderTypes.js": "./dist/packUnreadSenderTypes.js",
     "./counterProcessor/processCounterEvent.js": "./dist/counterProcessor/processCounterEvent.js",
     "./counterProcessor/reconcileCounterDrift.js": "./dist/counterProcessor/reconcileCounterDrift.js",
+    "./updateProcessor/processUpdateEvent.js": "./dist/updateProcessor/processUpdateEvent.js",
+    "./domainEventPayload.js": "./dist/domainEventPayload.js",
     "./outboxUtils.js": "./dist/outboxUtils.js"
   },
   "private": true,

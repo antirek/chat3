@@ -3,6 +3,7 @@ import { OutboxEvent, Event } from '@chat3/models';
 import type { EventType, EntityType, ActorType, IEvent } from '@chat3/models';
 import { generateTimestamp } from './timestampUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
+import { toOutboxPublishPayload } from './domainEventPayload.js';
 
 const DEFAULT_BATCH_SIZE = Number(process.env.OUTBOX_BATCH_SIZE || 100);
 
@@ -153,17 +154,7 @@ export async function publishOutboxBatch(batchSize = DEFAULT_BATCH_SIZE): Promis
 
   let published = 0;
   for (const row of pending) {
-    const payload = {
-      eventId: row.eventId,
-      tenantId: row.tenantId,
-      eventType: row.eventType,
-      entityType: row.entityType,
-      entityId: row.entityId,
-      actorId: row.actorId,
-      actorType: row.actorType,
-      data: row.data,
-      createdAt: row.createdAt
-    };
+    const payload = toOutboxPublishPayload(row);
 
     try {
       const ok = await rabbitmqUtils.publishEvent(payload);
