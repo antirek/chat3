@@ -181,11 +181,11 @@ const options = {
         },
         CounterStatsAsyncNotice: {
           type: 'string',
-          description: |
-            Счётчики (UserDialogStats.unreadCount, UserStats, MessageStatusStats, паковые unread) обновляются
-            **асинхронно** через outbox → RabbitMQ → counter-worker. Ответ **POST** не гарантирует актуальные
-            значения unread в теле ответа — используйте **GET** или подписку на Updates (`chat3_updates`).
-            См. docs/INTEGRATORS_COUNTERS_MIGRATION.md.
+          description:
+            'Счётчики (UserDialogStats.unreadCount, UserStats, MessageStatusStats, паковые unread) обновляются ' +
+            'асинхронно через outbox → RabbitMQ → counter-worker. Ответ POST не гарантирует актуальные ' +
+            'значения unread в теле ответа — используйте GET или подписку на Updates (chat3_updates). ' +
+            'См. docs/INTEGRATORS_COUNTERS_MIGRATION.md.'
         }
       }
     },

@@ -1,0 +1,86 @@
+# TUBO / MMS3 production stack (внешние MongoDB + RabbitMQ).
+# Обязательный порядок после деплоя: tenant-api → outbox-relay → counter-worker → update-worker
+# (+ dialog-read-worker для mark all read). Затем POST /api/init/full-recalculate-stats (controlo).
+version: '2.4'
+services:
+  tenant-api:
+    image: antirek/mms3:0.0.72
+    ports:
+      - "3002:3000"
+    command: "npm run start:tenant-api"
+    env_file:
+      - .env
+    restart: always
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://logger"
+        syslog-facility: "local2"
+        tag: "{{.Name}}"
+
+  outbox-relay:
+    image: antirek/mms3:0.0.72
+    command: "npm run start:outbox-relay"
+    env_file:
+      - .env
+    restart: always
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://logger"
+        syslog-facility: "local2"
+        tag: "{{.Name}}"
+
+  counter-worker:
+    image: antirek/mms3:0.0.72
+    command: "npm run start:counter-worker"
+    env_file:
+      - .env
+    restart: always
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://logger"
+        syslog-facility: "local2"
+        tag: "{{.Name}}"
+
+  update-worker:
+    image: antirek/mms3:0.0.72
+    command: "npm run start:update-worker"
+    env_file:
+      - .env
+    restart: always
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://logger"
+        syslog-facility: "local2"
+        tag: "{{.Name}}"
+
+  dialog-read-worker:
+    image: antirek/mms3:0.0.72
+    command: "npm run start:dialog-read-worker"
+    env_file:
+      - .env
+    restart: always
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://logger"
+        syslog-facility: "local2"
+        tag: "{{.Name}}"
+
+  api-test:
+    image: antirek/mms3:0.0.72
+    ports:
+      - "3003:3001"
+    command: "npm run start:controlo-backend"
+    env_file:
+      - .env
+    restart: always
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://logger"
+        syslog-facility: "local2"
+        tag: "{{.Name}}"
