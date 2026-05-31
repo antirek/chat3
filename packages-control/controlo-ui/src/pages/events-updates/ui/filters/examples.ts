@@ -17,11 +17,19 @@ export const eventFilterExamples: FilterExample[] = [
 
 export const updateFilterExamples: FilterExample[] = [
   {
-    label: 'По типу события',
+    label: 'По updateType',
     options: [
-      { value: 'eventType=message.create', label: 'eventType: message.create' },
-      { value: 'eventType=message.changed', label: 'eventType: message.changed' },
-      { value: 'eventType=dialog.create', label: 'eventType: dialog.create' },
+      { value: 'updateType=update.message', label: 'update.message' },
+      { value: 'updateType=update.dialog', label: 'update.dialog' },
+      { value: 'updateType=update.user', label: 'update.user' },
+    ],
+  },
+  {
+    label: 'По sourceEventType',
+    options: [
+      { value: 'sourceEventType=message.create', label: 'message.create' },
+      { value: 'sourceEventType=message.changed', label: 'message.changed' },
+      { value: 'sourceEventType=dialog.create', label: 'dialog.create' },
     ],
   },
   {

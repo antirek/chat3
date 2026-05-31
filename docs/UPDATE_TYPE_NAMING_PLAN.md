@@ -644,6 +644,7 @@ R6f  docs + controlo + bump 0.0.77
 
 ## 12. Связанные документы
 
+- [MIGRATION_UPDATES_0.0.77.md](./MIGRATION_UPDATES_0.0.77.md) — **миграция для внешних проектов**
 - [UPDATES_UI_TARGETS.md](./UPDATES_UI_TARGETS.md)
 - [UPDATES.md](./UPDATES.md)
 - [INTEGRATION.md](./INTEGRATION.md)

@@ -17,8 +17,8 @@
           <th @click="sortUpdates('entityId')" style="cursor: pointer;">
             entityId <span class="sort-indicator">{{ getSortIndicator('entityId') }}</span>
           </th>
-          <th @click="sortUpdates('eventType')" style="cursor: pointer;">
-            eventType <span class="sort-indicator">{{ getSortIndicator('eventType') }}</span>
+          <th @click="sortUpdates('updateType')" style="cursor: pointer;">
+            updateType <span class="sort-indicator">{{ getSortIndicator('updateType') }}</span>
           </th>
           <th @click="sortUpdates('createdAt')" style="cursor: pointer;">
             createdAt <span class="sort-indicator">{{ getSortIndicator('createdAt') }}</span>
@@ -33,7 +33,9 @@
       <template #row="{ item }">
         <td>{{ (item as Update).userId || '-' }}</td>
         <td>{{ (item as Update).entityId || '-' }}</td>
-        <td>{{ (item as Update).eventType || '-' }}</td>
+        <td>
+          {{ (item as Update).updateType || '-' }}<span v-if="(item as Update).sourceEventType"> ({{ (item as Update).sourceEventType }})</span>
+        </td>
         <td :title="(item as Update).createdAt != null ? String((item as Update).createdAt) : undefined">{{ formatTimestamp((item as Update).createdAt) }}</td>
         <td>{{ (item as Update).published ? 'Да' : 'Нет' }}</td>
         <td class="actions-column">
@@ -58,7 +60,8 @@ interface Update {
   id?: string;
   userId?: string;
   entityId?: string;
-  eventType?: string;
+  updateType?: string;
+  sourceEventType?: string;
   createdAt?: string | number;
   published?: boolean;
 }

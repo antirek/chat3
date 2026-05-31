@@ -632,7 +632,8 @@ Update-worker: `sourceEventType` = доменный `eventType` (`message.create
 | UI-маршрутизация | `eventType` / updateType | **`context.uiTarget`** + `updatedFields` |
 | RabbitMQ slug | `messageupdate`, `userstatsupdate`, … | **`message`**, `dialog`, `user` (§2.4, [UPDATE_TYPE_NAMING_PLAN.md](./UPDATE_TYPE_NAMING_PLAN.md) §4) |
 
-Полный план и таблица routing: [UPDATE_TYPE_NAMING_PLAN.md](./UPDATE_TYPE_NAMING_PLAN.md).
+Полный план и таблица routing: [UPDATE_TYPE_NAMING_PLAN.md](./UPDATE_TYPE_NAMING_PLAN.md).  
+Миграция integrator: [MIGRATION_UPDATES_0.0.77.md](./MIGRATION_UPDATES_0.0.77.md).
 
 ---
 

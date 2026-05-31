@@ -6,7 +6,7 @@
     :filter-value="filterInput"
     :selected-example="selectedExample"
     :examples="examples"
-    placeholder="Фильтр (например: eventType=message.create)"
+    placeholder="Фильтр (например: updateType=update.message)"
     @update:filter-value="(v) => emit('update:filterInput', v)"
     @update:selected-example="(v) => { selectedExample = v }"
     @clear="clear"

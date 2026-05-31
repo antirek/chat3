@@ -76,7 +76,9 @@ update.{category}.{userType}.{userId}.{routingSegment}
 
 Wildcard: `update.*.user.carl.*` — все Updates для пользователя.
 
-**Breaking (0.0.77):** slug `messageupdate`, `userstatsupdate`, … заменены на `message`, `dialog`, `user`. Поле **`Update.eventType`** удалено → **`sourceEventType`** + **`updateType`**. Маршрутизация в UI — по **`data.context.uiTarget`** (см. [UPDATE_TYPE_NAMING_PLAN.md](UPDATE_TYPE_NAMING_PLAN.md)).
+**Breaking (0.0.77):** slug `messageupdate`, `userstatsupdate`, … заменены на `message`, `dialog`, `user`. Поле **`Update.eventType`** удалено → **`sourceEventType`** + **`updateType`**. Маршрутизация в UI — по **`data.context.uiTarget`**.
+
+**Миграция для внешних проектов:** [MIGRATION_UPDATES_0.0.77.md](./MIGRATION_UPDATES_0.0.77.md)
 
 ### Устаревший формат (до 0.0.77)
 

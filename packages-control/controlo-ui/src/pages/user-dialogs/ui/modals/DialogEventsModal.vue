@@ -42,7 +42,7 @@
             <thead>
               <tr>
                 <th style="width: 20%;">Время</th>
-                <th style="width: 40%;">Тип события</th>
+                <th style="width: 40%;">updateType</th>
                 <th style="width: 40%;">Пользователь</th>
               </tr>
             </thead>
@@ -67,7 +67,14 @@ interface DialogEvent {
   _id?: string; id?: string; eventType?: string; createdAt?: string;
   actorId?: string; actorType?: string; updatesCount?: number; data?: Record<string, unknown>;
 }
-interface Update { _id?: string; id?: string; eventType?: string; createdAt?: string; userId?: string; }
+interface Update {
+  _id?: string;
+  id?: string;
+  updateType?: string;
+  sourceEventType?: string;
+  createdAt?: string;
+  userId?: string;
+}
 
 interface Props {
   isOpen: boolean;
