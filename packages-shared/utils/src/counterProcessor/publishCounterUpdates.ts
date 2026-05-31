@@ -1,11 +1,9 @@
 import {
-  PackStats,
   UserDialogStats,
   UserPackUnreadBySenderType
 } from '@chat3/models';
 import {
   createDialogMemberUpdate,
-  createPackStatsUpdate,
   createUserPackStatsUpdate,
   createUserStatsUpdate
 } from '../updateUtils.js';
@@ -56,7 +54,8 @@ export async function publishCounterUpdates(slice: CounterSlice): Promise<void> 
           state: { unreadCount, lastSeenAt: null, lastMessageAt: null }
         },
         context: {
-          eventType: sourceEventType,
+          eventType: 'dialog.member.changed',
+          sourceEventType,
           dialogId,
           userId,
           includedSections: ['dialog', 'member'],
@@ -66,37 +65,19 @@ export async function publishCounterUpdates(slice: CounterSlice): Promise<void> 
     );
   }
 
+  const seenUserPack = new Set<string>();
   for (const packId of packIds) {
-    const packDoc = await PackStats.findOne({ tenantId, packId }).lean();
-    if (packDoc) {
-      const p = packDoc as {
-        messageCount?: number;
-        uniqueMemberCount?: number;
-        sumMemberCount?: number;
-        uniqueTopicCount?: number;
-        sumTopicCount?: number;
-        lastUpdatedAt?: number | null;
-      };
-      await createPackStatsUpdate(tenantId, packId, sourceEventId, sourceEventType, {
-        messageCount: p.messageCount ?? 0,
-        uniqueMemberCount: p.uniqueMemberCount ?? 0,
-        sumMemberCount: p.sumMemberCount ?? 0,
-        uniqueTopicCount: p.uniqueTopicCount ?? 0,
-        sumTopicCount: p.sumTopicCount ?? 0,
-        lastUpdatedAt: p.lastUpdatedAt ?? null
-      });
-    }
+    for (const userId of userIds) {
+      const key = `${userId}:${packId}`;
+      if (seenUserPack.has(key)) continue;
+      seenUserPack.add(key);
 
-    const userPackRows = await UserPackUnreadBySenderType.find({ tenantId, packId }).lean();
-    const byUser = new Map<string, Array<{ fromType: string; countUnread: number }>>();
-    for (const row of userPackRows as Array<{ userId: string; fromType: string; countUnread: number }>) {
-      const list = byUser.get(row.userId) ?? [];
-      list.push({ fromType: row.fromType, countUnread: row.countUnread });
-      byUser.set(row.userId, list);
-    }
-
-    for (const [userId, rows] of byUser) {
-      const built = buildUserPackStatsFromBySenderRows(rows);
+      const rows = await UserPackUnreadBySenderType.find({ tenantId, packId, userId })
+        .select('fromType countUnread lastUpdatedAt createdAt')
+        .lean();
+      const built = buildUserPackStatsFromBySenderRows(
+        rows as Array<{ fromType: string; countUnread: number; lastUpdatedAt?: number | null; createdAt?: number | null }>
+      );
       await createUserPackStatsUpdate(
         tenantId,
         userId,

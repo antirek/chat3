@@ -9,7 +9,9 @@ import {
   buildPackSection,
   buildPackStatsSection,
   buildUserPackStatsSection,
-  buildEventContext
+  buildEventContext,
+  resolveUiTarget,
+  finalizeUpdateContext
 } from '../eventUtils.js';
 import { Event } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '@chat3/tenant-api/src/utils/__tests__/setup.js';
@@ -107,6 +109,29 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
       expect(context.packId).toBe('pck_sample1234567890');
       expect(context.userId).toBe('usr_1');
       expect(context.includedSections).toContain('packStats');
+      expect(context.version).toBe(3);
+    });
+
+    test('resolveUiTarget maps update event types to three UI targets', () => {
+      expect(resolveUiTarget('message.create')).toBe('messages.list');
+      expect(resolveUiTarget('dialog.member.changed')).toBe('dialogs.list');
+      expect(resolveUiTarget('user.stats.update')).toBe('users.list');
+      expect(resolveUiTarget('user.pack.stats.updated')).toBe('users.list');
+      expect(resolveUiTarget('unknown.event')).toBeNull();
+    });
+
+    test('finalizeUpdateContext adds uiTarget and source fields', () => {
+      const context = finalizeUpdateContext(
+        { eventType: 'user.changed', entityId: 'usr_1' },
+        'user.stats.update',
+        'evt_test123456789012345678901234',
+        'message.create'
+      );
+
+      expect(context.version).toBe(3);
+      expect(context.uiTarget).toBe('users.list');
+      expect(context.sourceEventType).toBe('message.create');
+      expect(context.sourceEventId).toBe('evt_test123456789012345678901234');
     });
   });
 

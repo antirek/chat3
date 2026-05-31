@@ -2,7 +2,53 @@ import { Event } from '@chat3/models';
 import type { EventType, EntityType, ActorType, IEvent } from '@chat3/models';
 import { createEventWithOutbox } from './outboxUtils.js';
 
-const EVENT_PAYLOAD_VERSION = 2;
+const EVENT_PAYLOAD_VERSION = 3;
+
+export type UiTarget = 'messages.list' | 'dialogs.list' | 'users.list';
+
+const UI_TARGET_BY_UPDATE_EVENT_TYPE: Record<string, UiTarget> = {
+  'message.create': 'messages.list',
+  'message.changed': 'messages.list',
+  'message.status.changed': 'messages.list',
+  'message.reaction.changed': 'messages.list',
+  'dialog.typing': 'messages.list',
+  'dialog.create': 'dialogs.list',
+  'dialog.changed': 'dialogs.list',
+  'dialog.delete': 'dialogs.list',
+  'dialog.member.add': 'dialogs.list',
+  'dialog.member.remove': 'dialogs.list',
+  'dialog.member.changed': 'dialogs.list',
+  'dialog.topic.create': 'dialogs.list',
+  'dialog.topic.changed': 'dialogs.list',
+  'user.add': 'users.list',
+  'user.changed': 'users.list',
+  'user.remove': 'users.list',
+  'user.stats.update': 'users.list',
+  'user.pack.stats.updated': 'users.list'
+};
+
+export function resolveUiTarget(updateEventType: string): UiTarget | null {
+  return UI_TARGET_BY_UPDATE_EVENT_TYPE[updateEventType] ?? null;
+}
+
+/**
+ * Добавляет uiTarget, sourceEventType, sourceEventId и version для Update payload.
+ */
+export function finalizeUpdateContext(
+  context: Record<string, unknown>,
+  updateEventType: string,
+  sourceEventId: string,
+  sourceEventType?: string
+): Record<string, unknown> {
+  const uiTarget = resolveUiTarget(updateEventType);
+  return {
+    ...context,
+    version: EVENT_PAYLOAD_VERSION,
+    ...(uiTarget ? { uiTarget } : {}),
+    sourceEventType: sourceEventType ?? (context.eventType as string) ?? updateEventType,
+    sourceEventId
+  };
+}
 
 function uniqueList<T>(values: T[] = []): T[] {
   return Array.from(new Set((values || []).filter(Boolean)));
@@ -17,6 +63,9 @@ interface BuildEventContextParams {
   userId?: string | null;
   includedSections?: string[];
   updatedFields?: string[];
+  uiTarget?: UiTarget | null;
+  sourceEventType?: string | null;
+  sourceEventId?: string | null;
 }
 
 export function buildEventContext({
@@ -27,7 +76,10 @@ export function buildEventContext({
   packId = null,
   userId = null,
   includedSections = [],
-  updatedFields = []
+  updatedFields = [],
+  uiTarget = null,
+  sourceEventType = null,
+  sourceEventId = null
 }: BuildEventContextParams): {
   version: number;
   eventType: EventType;
@@ -38,7 +90,11 @@ export function buildEventContext({
   userId: string | null;
   includedSections: string[];
   updatedFields: string[];
+  uiTarget?: UiTarget;
+  sourceEventType?: string;
+  sourceEventId?: string;
 } {
+  const resolvedUiTarget = uiTarget ?? resolveUiTarget(eventType) ?? undefined;
   return {
     version: EVENT_PAYLOAD_VERSION,
     eventType,
@@ -48,7 +104,10 @@ export function buildEventContext({
     packId: packId ?? null,
     userId: userId ?? null,
     includedSections: uniqueList(includedSections),
-    updatedFields: uniqueList(updatedFields)
+    updatedFields: uniqueList(updatedFields),
+    ...(resolvedUiTarget ? { uiTarget: resolvedUiTarget } : {}),
+    ...(sourceEventType ? { sourceEventType } : {}),
+    ...(sourceEventId ? { sourceEventId } : {})
   };
 }
 

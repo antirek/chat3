@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { Message, DialogMember,
-  MessageStatus, Update, User, UserStats, UserUnreadBySenderType, UserPackedMessagesUnreadBySenderType, Event, UserDialogStats, UserPackUnreadBySenderType } from '@chat3/models';
+  MessageStatus, Update, User, UserStats, UserUnreadBySenderType, UserPackedMessagesUnreadBySenderType, Event, UserDialogStats } from '@chat3/models';
 import type { IUpdate } from '@chat3/models';
 import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
@@ -11,6 +11,15 @@ import { buildStatusMessageMatrix } from './userDialogUtils.js';
 import * as eventUtils from './eventUtils.js';
 import * as topicUtils from './topicUtils.js';
 import { buildUnreadBySenderTypeMatrix } from './packStatsUtils.js';
+
+function withUpdateContext(
+  context: Record<string, unknown>,
+  updateEventType: string,
+  sourceEventId: string,
+  sourceEventType?: string
+): Record<string, unknown> {
+  return eventUtils.finalizeUpdateContext(context, updateEventType, sourceEventId, sourceEventType);
+}
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
 
@@ -266,13 +275,13 @@ export async function createDialogUpdate(
       allMemberUserIds.push(removedMemberUserId);
     }
 
-    // Используем context из event.data, если есть, иначе создаем минимальный
-    const context = eventContext.eventType ? cloneSection(eventContext) : {
+    const contextBase = (eventContext.eventType ? eventContext : {
       eventType,
       dialogId: eventDialog.dialogId,
       entityId: eventDialog.dialogId,
       includedSections: eventData.member ? ['dialog', 'member'] : ['dialog']
-    };
+    }) as Record<string, unknown>;
+    const finalizedContext = withUpdateContext(contextBase, eventType, eventIdString);
 
     // Получаем UserDialogStats для всех пользователей одним запросом
     const userDialogStatsList = await UserDialogStats.find({
@@ -302,7 +311,7 @@ export async function createDialogUpdate(
       
       const data: Record<string, unknown> = {
         dialog: dialogWithStats,
-        context: cloneSection(context)
+        context: cloneSection(finalizedContext)
       };
 
       // Если в event.data есть member секция, добавляем её в update
@@ -375,14 +384,16 @@ export async function createDialogMemberUpdate(
       return;
     }
 
-    // Используем context из event.data, если есть, иначе создаем минимальный
-    const context = eventContext.eventType ? cloneSection(eventContext) : {
+    const contextBase = (eventContext.eventType ? eventContext : {
       eventType,
       dialogId: eventDialog.dialogId,
       entityId: eventDialog.dialogId,
       includedSections: ['dialog', 'member'],
       updatedFields: (eventContext.updatedFields as string[]) || []
-    };
+    }) as Record<string, unknown>;
+    const sourceEvtType = (eventContext.sourceEventType as string)
+      ?? (eventContext.eventType !== eventType ? (eventContext.eventType as string) : undefined);
+    const finalizedContext = withUpdateContext(contextBase, eventType, eventIdString, sourceEvtType);
 
     // Получаем UserDialogStats для целевого пользователя
     const userDialogStats = await UserDialogStats.findOne({
@@ -406,7 +417,7 @@ export async function createDialogMemberUpdate(
     const data = {
       dialog: dialogWithStats,
       member: cloneSection(eventMember),
-      context
+      context: finalizedContext
     };
 
     const updateData = {
@@ -614,15 +625,15 @@ export async function createMessageUpdate(
       return;
     }
 
-    // Используем context из event.data, если есть, иначе создаем минимальный
-    const context = eventContext.eventType ? cloneSection(eventContext) : {
+    const contextBase = (eventContext.eventType ? eventContext : {
       eventType,
       dialogId: eventDialog.dialogId,
       entityId: eventMessage.messageId as string,
       messageId: eventMessage.messageId as string,
       includedSections: (eventContext.includedSections as string[]) || [],
       updatedFields: (eventContext.updatedFields as string[]) || []
-    };
+    }) as Record<string, unknown>;
+    const finalizedContext = withUpdateContext(contextBase, eventType, eventIdString);
 
     // Получаем UserDialogStats для всех участников одним запросом
     const memberUserIds = dialogMembers.map(m => (m as { userId: string }).userId);
@@ -655,7 +666,7 @@ export async function createMessageUpdate(
       const data: Record<string, unknown> = {
         dialog: dialogWithStats,
         message: cloneSection(eventMessage),
-        context: cloneSection(context)
+        context: cloneSection(finalizedContext)
       };
       
       // Если в event.data есть member секция, добавляем её в update
@@ -777,13 +788,13 @@ export async function createTypingUpdate(
       userInfo: eventTyping.userInfo ?? legacyTyping.userInfo ?? null
     };
 
-    // Используем context из event.data, если есть, иначе создаем минимальный
-    const context = eventContext.eventType ? cloneSection(eventContext) : {
+    const contextBase = (eventContext.eventType ? eventContext : {
       eventType,
       dialogId: eventDialog.dialogId,
       entityId: eventDialog.dialogId,
       includedSections: eventData.member ? ['dialog', 'member', 'typing'] : ['dialog', 'typing']
-    };
+    }) as Record<string, unknown>;
+    const finalizedContext = withUpdateContext(contextBase, eventType, eventIdString);
 
     const updatesPayload = recipientMembers.map(member => {
       const memberObj = member as { userId: string };
@@ -799,7 +810,7 @@ export async function createTypingUpdate(
       const data: Record<string, unknown> = {
         dialog: dialogWithStats,
         typing: typingSection,
-        context: cloneSection(context)
+        context: cloneSection(finalizedContext)
       };
 
       // Если в event.data есть member секция, добавляем её в update
@@ -895,19 +906,22 @@ export async function createUserStatsUpdate(
       }
     });
 
-    // Создаем context для UserStatsUpdate
-    // Используем 'user.changed' как базовый тип, т.к. 'user.stats.update' не входит в EventType
-    const context = eventUtils.buildEventContext({
-      eventType: 'user.changed' as typeof eventUtils.buildEventContext extends (params: { eventType: infer T }) => unknown ? T : never,
-      entityId: userId,
-      includedSections: ['user'],
-      updatedFields: updatedFields.length > 0 ? updatedFields : [
-        'user.stats.dialogCount',
-        'user.stats.unreadDialogsCount',
-        'user.stats.packs.messages.totalUnreadCount',
-        'user.stats.packs.messages.unreadBySenderType'
-      ]
-    });
+    const finalizedContext = withUpdateContext(
+      eventUtils.buildEventContext({
+        eventType: 'user.changed' as typeof eventUtils.buildEventContext extends (params: { eventType: infer T }) => unknown ? T : never,
+        entityId: userId,
+        includedSections: ['user'],
+        updatedFields: updatedFields.length > 0 ? updatedFields : [
+          'user.stats.dialogCount',
+          'user.stats.unreadDialogsCount',
+          'user.stats.packs.messages.totalUnreadCount',
+          'user.stats.packs.messages.unreadBySenderType'
+        ]
+      }) as Record<string, unknown>,
+      'user.stats.update',
+      eventIdString,
+      sourceEventType
+    );
 
     // Создаем update
     const update = {
@@ -918,7 +932,7 @@ export async function createUserStatsUpdate(
       eventType: 'user.stats.update',
       data: {
         user: cloneSection(userSection),
-        context: cloneSection(context)
+        context: cloneSection(finalizedContext)
       },
       published: false
     };
@@ -934,81 +948,6 @@ export async function createUserStatsUpdate(
     console.log(`Created UserStatsUpdate for user ${userId} from event ${sourceEventId}`);
   } catch (error) {
     console.error('Error creating UserStatsUpdate:', error);
-  }
-}
-
-/**
- * Создает PackStatsUpdate для всех пользователей, у которых есть этот пак.
- * Вызывается при изменении агрегатов пака (следствие базового события), без создания Event.
- */
-export async function createPackStatsUpdate(
-  tenantId: string,
-  packId: string,
-  sourceEventId: string | mongoose.Types.ObjectId,
-  sourceEventType: string,
-  packStatsData: {
-    messageCount: number;
-    uniqueMemberCount: number;
-    sumMemberCount: number;
-    uniqueTopicCount: number;
-    sumTopicCount: number;
-    lastUpdatedAt: number | null;
-  }
-): Promise<void> {
-  try {
-    const eventIdString = await getEventIdString(sourceEventId, tenantId);
-    if (!eventIdString) {
-      return;
-    }
-
-    const packStatsSection = eventUtils.buildPackStatsSection({
-      packId,
-      messageCount: packStatsData.messageCount,
-      uniqueMemberCount: packStatsData.uniqueMemberCount,
-      sumMemberCount: packStatsData.sumMemberCount,
-      uniqueTopicCount: packStatsData.uniqueTopicCount,
-      sumTopicCount: packStatsData.sumTopicCount,
-      lastUpdatedAt: packStatsData.lastUpdatedAt
-    });
-    if (!packStatsSection) {
-      return;
-    }
-
-    const context = eventUtils.buildEventContext({
-      eventType: 'pack.stats.updated' as Parameters<typeof eventUtils.buildEventContext>[0]['eventType'],
-      entityId: packId,
-      packId,
-      includedSections: ['packStats'],
-      updatedFields: ['packStats']
-    });
-
-    const userIds = await UserPackUnreadBySenderType.distinct('userId', { tenantId, packId });
-    if (userIds.length === 0) {
-      return;
-    }
-
-    const updates = userIds.map((userId) => ({
-      tenantId,
-      userId,
-      entityId: packId,
-      eventId: eventIdString,
-      eventType: 'pack.stats.updated',
-      data: {
-        packStats: cloneSection(packStatsSection),
-        context: cloneSection(context)
-      },
-      published: false
-    }));
-
-    const savedUpdates = await Update.insertMany(updates);
-    savedUpdates.forEach((update) => {
-      publishUpdate(update).catch((err) => {
-        console.error(`Error publishing pack stats update ${update._id}:`, err);
-      });
-    });
-    console.log(`Created ${savedUpdates.length} PackStatsUpdate for pack ${packId}`);
-  } catch (error) {
-    console.error('Error creating PackStatsUpdate:', error);
   }
 }
 
@@ -1052,14 +991,19 @@ export async function createUserPackStatsUpdate(
     if (userPackStatsData.unreadBySenderType?.length) {
       updatedFields.push('userPackStats.unreadBySenderType');
     }
-    const context = eventUtils.buildEventContext({
-      eventType: 'user.pack.stats.updated' as Parameters<typeof eventUtils.buildEventContext>[0]['eventType'],
-      entityId: userId,
-      packId,
-      userId,
-      includedSections: ['userPackStats'],
-      updatedFields
-    });
+    const finalizedContext = withUpdateContext(
+      eventUtils.buildEventContext({
+        eventType: 'user.pack.stats.updated' as Parameters<typeof eventUtils.buildEventContext>[0]['eventType'],
+        entityId: userId,
+        packId,
+        userId,
+        includedSections: ['userPackStats'],
+        updatedFields
+      }) as Record<string, unknown>,
+      'user.pack.stats.updated',
+      eventIdString,
+      sourceEventType
+    );
 
     const updateData = {
       tenantId,
@@ -1069,7 +1013,7 @@ export async function createUserPackStatsUpdate(
       eventType: 'user.pack.stats.updated',
       data: {
         userPackStats: cloneSection(userPackStatsSection),
-        context: cloneSection(context)
+        context: cloneSection(finalizedContext)
       },
       published: false
     };
@@ -1110,12 +1054,12 @@ export async function createUserUpdate(
       return;
     }
 
-    // Используем context из event.data, если есть, иначе создаем минимальный
-    const context = eventContext.eventType ? cloneSection(eventContext) : {
+    const contextBase = (eventContext.eventType ? eventContext : {
       eventType,
       entityId: userId,
       includedSections: ['user']
-    };
+    }) as Record<string, unknown>;
+    const finalizedContext = withUpdateContext(contextBase, eventType, eventIdString);
 
     const update = {
       tenantId: tenantId,
@@ -1125,7 +1069,7 @@ export async function createUserUpdate(
       eventType: eventType,
       data: {
         user: cloneSection(eventUser),
-        context: cloneSection(context)
+        context: cloneSection(finalizedContext)
       },
       published: false
     };
@@ -1171,7 +1115,7 @@ async function publishUpdate(update: IUpdate | mongoose.Document): Promise<void>
     
     // Определяем категорию update (dialog, user или pack)
     const dialogUpdates = ['DialogUpdate', 'DialogMemberUpdate', 'MessageUpdate', 'TypingUpdate'];
-    const packUpdates = ['PackStatsUpdate', 'UserPackStatsUpdate'];
+    const packUpdates = ['UserPackStatsUpdate'];
     let category: string;
     if (dialogUpdates.includes(updateType)) {
       category = 'dialog';
@@ -1236,9 +1180,6 @@ export function getUpdateTypeFromEventType(eventType: string): string | null {
   }
   if (eventType === 'user.stats.update') {
     return 'UserStatsUpdate';
-  }
-  if (eventType === 'pack.stats.updated') {
-    return 'PackStatsUpdate';
   }
   if (eventType === 'user.pack.stats.updated') {
     return 'UserPackStatsUpdate';

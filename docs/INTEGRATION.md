@@ -68,7 +68,7 @@ update.{category}.{userType}.{userId}.{updateType}
 - `category` - категория обновления:
   - `dialog` - для DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate
   - `user` - для UserUpdate, UserStatsUpdate
-  - `pack` - для PackStatsUpdate, UserPackStatsUpdate (обновления по пакам, где состоит пользователь)
+  - `pack` - для UserPackStatsUpdate (unread по пакам пользователя)
 - `userType` - тип пользователя из модели User (user, bot, contact и т.д.)
 - `userId` - ID пользователя-получателя
 - `updateType` - тип обновления в нижнем регистре:
@@ -83,7 +83,7 @@ update.{category}.{userType}.{userId}.{updateType}
 Для подписки используйте wildcards:
 - `update.*.{userType}.{userId}.*` - все обновления для пользователя (dialog, user, pack)
 - `update.dialog.{userType}.{userId}.*` - все обновления диалогов для пользователя
-- `update.pack.{userType}.{userId}.*` - все pack updates для пользователя (по пакам, где он состоит): PackStatsUpdate, UserPackStatsUpdate
+- `update.pack.{userType}.{userId}.*` - UserPackStatsUpdate для пользователя (unread по пакам)
 
 ## Подписка на обновления пользователя
 
@@ -155,7 +155,7 @@ async function consumeUserUpdates(channel, queueName, userId) {
 
 ### Подписка только на pack updates пользователя
 
-Чтобы получать **все updates по пакам, где состоит конкретный пользователь** (PackStatsUpdate, UserPackStatsUpdate), привяжите очередь к exchange `chat3_updates` с routing key `update.pack.{userType}.{userId}.*`:
+Чтобы получать **UserPackStatsUpdate** по пакам для конкретного пользователя, привяжите очередь к exchange `chat3_updates` с routing key `update.pack.{userType}.{userId}.*`:
 
 ```javascript
 async function subscribeToUserPackUpdates(channel, userId, userType = 'user') {
@@ -168,7 +168,7 @@ async function subscribeToUserPackUpdates(channel, userId, userType = 'user') {
 }
 ```
 
-В такую очередь будут приходить только PackStatsUpdate и UserPackStatsUpdate для этого пользователя (по всем пакам, где он состоит). Подробнее см. [UPDATES.md](UPDATES.md) — раздел «Pack Updates».
+**Примечание:** агрегаты пака (`messageCount`, `uniqueMemberCount`, …) доступны через GET API; push **`pack.stats.updated` не используется**. В очередь `update.pack.*` приходит только **`UserPackStatsUpdate`**. Подробнее см. [UPDATES_UI_TARGETS.md](UPDATES_UI_TARGETS.md) и [UPDATES.md](UPDATES.md).
 
 ## Обработка различных типов обновлений
 
@@ -663,17 +663,69 @@ async function handleUserUpdate(update) {
 
 Создаются автоматически для событий: `user.stats.update`
 
-**Примечание:** Этот тип update создается автоматически при изменении статистики пользователя (количество диалогов, непрочитанных диалогов).
+**Примечание:** Этот тип update создается автоматически при изменении статистики пользователя (количество диалогов, непрочитанных диалогов, `packs.messages.*` и т.д.).
+
+**Snapshot (replace):** `data.user.stats` — **полный снимок**. На клиенте заменяйте объект целиком, не merge по полям:
 
 ```javascript
 async function handleUserStatsUpdate(update) {
-  const { eventType, data } = update;
+  const { userId, data } = update;
   const { user, context } = data;
-  
-  // Обновлена статистика пользователя
-  // user.stats.dialogCount - количество диалогов
-  // user.stats.unreadDialogsCount - количество непрочитанных диалогов
-  await updateUserStats(user.userId, user.stats);
+
+  // store.users[userId].stats = user.stats  — replace целиком
+  await replaceUserStats(userId, user.stats);
+
+  // context.updatedFields — подсказка для UI (анимации, логи), не patch
+  console.log('Updated fields hint:', context?.updatedFields);
+}
+```
+
+### UI targets (`context` v3)
+
+В `data.context` каждого Update (версия `3`) есть поле **`uiTarget`** — куда применить update в клиенте. Routing key RabbitMQ может остаться прежним; **маршрутизация внутри приложения** — по `uiTarget`.
+
+| updateType | `context.uiTarget` |
+|------------|-------------------|
+| `MessageUpdate`, `TypingUpdate` | `messages.list` |
+| `DialogUpdate`, `DialogMemberUpdate` | `dialogs.list` |
+| `UserStatsUpdate`, `UserUpdate`, `UserPackStatsUpdate` | `users.list` |
+
+Дополнительные поля контекста:
+
+| Поле | Значение |
+|------|----------|
+| `sourceEventType` | доменное событие-источник (`message.create`, …) |
+| `sourceEventId` | id события-источника (`evt_...`) |
+| `updatedFields` | подсказка, какие поля изменились (не patch) |
+
+Пример фильтрации по target:
+
+```javascript
+async function handleUpdate(update) {
+  const uiTarget = update.data?.context?.uiTarget;
+  if (uiTarget === 'messages.list') {
+    await applyMessagesListUpdate(update);
+  } else if (uiTarget === 'dialogs.list') {
+    await applyDialogsListUpdate(update);
+  } else if (uiTarget === 'users.list') {
+    await applyUsersListUpdate(update);
+  }
+}
+```
+
+Подробная спецификация: [UPDATES_UI_TARGETS.md](UPDATES_UI_TARGETS.md).
+
+### User Pack Stats Updates
+
+Создаются автоматически для `user.pack.stats.updated` (counter-worker). **Snapshot (replace):** `data.userPackStats` — полный снимок unread по паку для пользователя:
+
+```javascript
+async function handleUserPackStatsUpdate(update) {
+  const { userPackStats, context } = update.data;
+  const { packId, userId } = userPackStats;
+
+  // store.userPacks[userId][packId] = userPackStats  — replace целиком
+  await replaceUserPackStats(userId, packId, userPackStats);
 }
 ```
 
@@ -820,10 +872,7 @@ class Chat3Integration {
         await this.handleUserStatsUpdate(update);
         break;
         
-      // Pack Updates (по пакам, где состоит пользователь)
-      case 'pack.stats.updated':
-        await this.handlePackStatsUpdate(update);
-        break;
+      // User Pack Stats Updates
       case 'user.pack.stats.updated':
         await this.handleUserPackStatsUpdate(update);
         break;
@@ -871,14 +920,8 @@ class Chat3Integration {
     console.log('User stats update:', update.data.user.stats);
   }
   
-  async handlePackStatsUpdate(update) {
-    // pack.stats.updated — обновлены агрегаты пака (messageCount, dialogCount и т.д.)
-    const { packStats } = update.data;
-    console.log('Pack stats update:', packStats?.packId, packStats);
-  }
-  
   async handleUserPackStatsUpdate(update) {
-    // user.pack.stats.updated — изменился unreadCount по паку для этого пользователя
+    // user.pack.stats.updated — replace snapshot unread по паку для этого пользователя
     const { userPackStats } = update.data;
     console.log('User pack stats update:', userPackStats?.packId, 'unreadCount:', userPackStats?.unreadCount);
   }
