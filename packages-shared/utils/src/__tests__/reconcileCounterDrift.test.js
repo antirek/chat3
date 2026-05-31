@@ -74,16 +74,6 @@ describe('reconcileCounterDrift', () => {
       }
     });
 
-    await UserStats.create({
-      tenantId,
-      userId: readerId,
-      dialogCount: 1,
-      unreadDialogsCount: 1,
-      totalUnreadCount: 1,
-      totalMessagesCount: 0,
-      createdAt: now
-    });
-
     const result = await reconcileCounterDrift({ tenantId, maxUserDialogs: 50 });
     expect(result.ok).toBe(true);
     expect(result.driftCount).toBe(0);
