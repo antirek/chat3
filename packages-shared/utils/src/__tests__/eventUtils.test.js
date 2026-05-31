@@ -11,6 +11,7 @@ import {
   buildUserPackStatsSection,
   buildEventContext,
   resolveUiTarget,
+  resolveUiTargetForUpdate,
   finalizeUpdateContext
 } from '../eventUtils.js';
 import { Event } from '@chat3/models';
@@ -112,25 +113,38 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
       expect(context.version).toBe(3);
     });
 
-    test('resolveUiTarget maps update event types to three UI targets', () => {
+    test('resolveUiTarget maps domain event types to UI targets', () => {
       expect(resolveUiTarget('message.create')).toBe('messages.list');
       expect(resolveUiTarget('dialog.member.changed')).toBe('dialogs.list');
-      expect(resolveUiTarget('user.stats.update')).toBe('users.list');
+      expect(resolveUiTarget('user.changed')).toBe('users.list');
       expect(resolveUiTarget('unknown.event')).toBeNull();
     });
 
-    test('finalizeUpdateContext adds uiTarget and source fields', () => {
+    test('resolveUiTargetForUpdate maps updateType + sourceEventType', () => {
+      expect(resolveUiTargetForUpdate('update.message', 'message.create')).toBe('messages.list');
+      expect(resolveUiTargetForUpdate('update.dialog', 'dialog.typing')).toBe('messages.list');
+      expect(resolveUiTargetForUpdate('update.dialog', 'message.create')).toBe('dialogs.list');
+      expect(resolveUiTargetForUpdate('update.user', 'message.create')).toBe('users.list');
+    });
+
+    test('finalizeUpdateContext v4 strips lineage and sets uiTarget', () => {
       const context = finalizeUpdateContext(
-        { eventType: 'user.changed', entityId: 'usr_1' },
-        'user.stats.update',
-        'evt_test123456789012345678901234',
+        {
+          eventType: 'user.changed',
+          sourceEventType: 'message.create',
+          sourceEventId: 'evt_test123456789012345678901234',
+          entityId: 'usr_1'
+        },
+        'update.user',
         'message.create'
       );
 
-      expect(context.version).toBe(3);
+      expect(context.version).toBe(4);
       expect(context.uiTarget).toBe('users.list');
-      expect(context.sourceEventType).toBe('message.create');
-      expect(context.sourceEventId).toBe('evt_test123456789012345678901234');
+      expect(context.entityId).toBe('usr_1');
+      expect(context.eventType).toBeUndefined();
+      expect(context.sourceEventType).toBeUndefined();
+      expect(context.sourceEventId).toBeUndefined();
     });
   });
 

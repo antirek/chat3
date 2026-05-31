@@ -95,14 +95,15 @@ export type { IPackLink } from './data/PackLink';
 
 // Export TypeScript interfaces - Operational models
 import type { IEvent, EventType, EntityType, ActorType } from './operational/Event';
-import type { IUpdate } from './operational/Update';
+import type { IUpdate, UpdateType } from './operational/Update';
 import type { IDialogReadTask, DialogReadTaskStatus } from './operational/DialogReadTask';
 import type { ICounterHistory, CounterType, CounterEntityType, CounterOperation, CounterActorType } from './operational/CounterHistory';
 import type { IProcessedCounterEvent } from './operational/ProcessedCounterEvent';
 import type { IOutboxEvent } from './operational/OutboxEvent';
 
 export type { IEvent, EventType, EntityType, ActorType };
-export type { IUpdate };
+export type { IUpdate, UpdateType };
+export { UPDATE_TYPE_MESSAGE, UPDATE_TYPE_DIALOG, UPDATE_TYPE_USER, UPDATE_TYPE_ENUM } from './operational/Update.js';
 export type { IDialogReadTask, DialogReadTaskStatus };
 export type { ICounterHistory, CounterType, CounterEntityType, CounterOperation, CounterActorType };
 export type { IProcessedCounterEvent };

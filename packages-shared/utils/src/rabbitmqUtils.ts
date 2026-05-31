@@ -530,7 +530,8 @@ export async function ensureUserUpdatesQueue(userId: string, tenantId: string | 
 interface Update {
   userId?: string;
   entityId?: unknown;
-  eventType?: string;
+  updateType?: string;
+  sourceEventType?: string;
 }
 
 /**
@@ -568,7 +569,8 @@ export async function publishUpdate(update: Update, routingKey: string): Promise
         headers: {
           userId: update.userId,
           entityId: entityIdStr,
-          eventType: update.eventType
+          updateType: update.updateType,
+          sourceEventType: update.sourceEventType
         }
       }
     );

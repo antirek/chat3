@@ -1060,7 +1060,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       const updates = await Update.find({
         tenantId,
         userId,
-        eventType: 'user.stats.update'
+        updateType: 'update.user'
       }).lean();
 
       expect(updates.length).toBe(1);
@@ -1116,7 +1116,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       const updates = await Update.find({
         tenantId,
         userId,
-        eventType: 'user.stats.update'
+        updateType: 'update.user'
       }).lean();
 
       expect(updates.length).toBe(1);
@@ -1156,7 +1156,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       const updates = await Update.find({
         tenantId,
         userId,
-        eventType: 'user.stats.update'
+        updateType: 'update.user'
       }).lean();
 
       expect(updates.length).toBe(1);
@@ -1286,7 +1286,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       const updates = await Update.find({
         tenantId,
         userId: recipientId,
-        eventType: 'user.stats.update'
+        updateType: 'update.user'
       }).lean();
 
       expect(updates.length).toBe(1);
@@ -1453,17 +1453,17 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       const updates1 = await Update.find({
         tenantId,
         userId: recipient1Id,
-        eventType: 'user.stats.update'
+        updateType: 'update.user'
       }).lean();
       const updates2 = await Update.find({
         tenantId,
         userId: recipient2Id,
-        eventType: 'user.stats.update'
+        updateType: 'update.user'
       }).lean();
       const updates3 = await Update.find({
         tenantId,
         userId: recipient3Id,
-        eventType: 'user.stats.update'
+        updateType: 'update.user'
       }).lean();
 
       expect(updates1.length).toBe(1);
@@ -1541,7 +1541,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       const updates = await Update.find({
         tenantId,
         userId,
-        eventType: 'user.stats.update'
+        updateType: 'update.user'
       }).lean();
 
       expect(updates.length).toBe(1);
@@ -1632,7 +1632,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       const updates = await Update.find({
         tenantId,
         userId,
-        eventType: 'user.stats.update'
+        updateType: 'update.user'
       }).lean();
 
       expect(updates.length).toBe(1);
@@ -1696,7 +1696,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       const updates = await Update.find({
         tenantId,
         userId: nonExistentUserId,
-        eventType: 'user.stats.update'
+        updateType: 'update.user'
       }).lean();
 
       expect(updates.length).toBe(0); // Update не должен быть создан
@@ -1727,7 +1727,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       const updates = await Update.find({
         tenantId,
         userId: nonExistentUserId,
-        eventType: 'user.stats.update'
+        updateType: 'update.user'
       }).lean();
 
       expect(updates.length).toBe(0); // Update не должен быть создан
@@ -1864,7 +1864,7 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
 
       await updateUtils.createUserStatsUpdate(tenantId, userId, event.eventId, 'dialog.member.add', ['user.stats.dialogCount']);
 
-      const update = await Update.findOne({ tenantId, userId, eventType: 'user.stats.update' }).lean();
+      const update = await Update.findOne({ tenantId, userId, updateType: 'update.user' }).lean();
       expect(update).toBeDefined();
       expect(typeof update.eventId).toBe('string');
       expect(update.eventId).toMatch(/^evt_/);

@@ -39,7 +39,7 @@ export async function publishCounterUpdates(slice: CounterSlice): Promise<void> 
       dialogId,
       userId,
       sourceEventId,
-      'dialog.member.changed',
+      sourceEventType,
       {
         dialog: { dialogId },
         member: {
@@ -48,12 +48,10 @@ export async function publishCounterUpdates(slice: CounterSlice): Promise<void> 
           state: { unreadCount, lastSeenAt: null, lastMessageAt: null }
         },
         context: {
-          eventType: 'dialog.member.changed',
-          sourceEventType,
           dialogId,
           userId,
           includedSections: ['dialog', 'member'],
-          updatedFields: ['dialog.stats.unreadCount']
+          updatedFields: ['member.state.unreadCount', 'dialog.stats.unreadCount']
         }
       }
     );

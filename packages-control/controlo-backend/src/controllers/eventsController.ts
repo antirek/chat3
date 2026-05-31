@@ -118,7 +118,8 @@ export const eventsController = {
       if (updates.length > 0) {
         console.log(`[getDialogUpdates] Первое обновление (до преобразования):`, {
           userId: updates[0].userId,
-          eventType: updates[0].eventType,
+          updateType: updates[0].updateType,
+          sourceEventType: updates[0].sourceEventType,
           eventId: updates[0].eventId,
           eventIdType: typeof updates[0].eventId,
           hasEventId: !!updates[0].eventId
@@ -147,7 +148,8 @@ export const eventsController = {
         
         return {
           userId: update.userId,
-          eventType: update.eventType,
+          updateType: update.updateType,
+          sourceEventType: update.sourceEventType,
           createdAt: update.createdAt,
           eventId: eventIdStr
         };
@@ -264,7 +266,7 @@ export const eventsController = {
       })
         .sort({ createdAt: -1 })
         .limit(limit)
-        .select('userId eventType createdAt eventId')
+        .select('userId updateType sourceEventType createdAt eventId')
         .lean();
 
       // Преобразуем eventId в строку для корректной сериализации JSON
@@ -410,8 +412,17 @@ export const eventsController = {
       if (req.query.entityId) {
         filter.entityId = req.query.entityId;
       }
-      if (req.query.eventType) {
-        filter.eventType = req.query.eventType;
+      if (req.query.updateType) {
+        filter.updateType = req.query.updateType;
+      }
+      if (req.query.sourceEventType) {
+        filter.sourceEventType = req.query.sourceEventType;
+      }
+      if (req.query.eventType && !req.query.updateType && !req.query.sourceEventType) {
+        filter.$or = [
+          { updateType: req.query.eventType },
+          { sourceEventType: req.query.eventType }
+        ];
       }
       if (req.query.eventId) {
         // eventId теперь всегда строка (evt_...) в Update документах

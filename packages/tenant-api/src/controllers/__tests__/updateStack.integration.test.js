@@ -117,13 +117,15 @@ describe('update stack E2E', () => {
       tenantId,
       entityId: messageId,
       eventId: outboxRow.eventId,
-      eventType: 'message.create'
+      updateType: 'update.message'
     }).lean();
 
     expect(messageUpdates.length).toBe(2);
     messageUpdates.forEach((row) => {
       expect(row.eventId).toBe(outboxRow.eventId);
+      expect(row.sourceEventType).toBe('message.create');
       expect(row.data?.message?.messageId).toBe(messageId);
+      expect(row.data?.context?.version).toBe(4);
     });
   });
 });

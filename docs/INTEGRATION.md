@@ -56,34 +56,35 @@ async function connectToChat3() {
 }
 ```
 
-### Формат Routing Keys для Updates
+## Формат Routing Keys для Updates (PR3 / 0.0.77)
 
-Updates публикуются в exchange `chat3_updates` с routing key в формате:
+Updates публикуются в exchange `chat3_updates` с routing key:
 
 ```
-update.{category}.{userType}.{userId}.{updateType}
+update.{category}.{userType}.{userId}.{routingSegment}
 ```
 
-Где:
-- `category` - категория обновления:
-  - `dialog` - для DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate
-  - `user` - для UserUpdate, UserStatsUpdate
-- `userType` - тип пользователя из модели User (user, bot, contact и т.д.)
-- `userId` - ID пользователя-получателя
-- `updateType` - тип обновления в нижнем регистре:
-  - `dialogupdate`, `dialogmemberupdate`, `messageupdate`, `typingupdate`, `userupdate`, `userstatsupdate`
+| Сегмент | Значения |
+|---------|----------|
+| `category` | `dialog` (для `update.message` и `update.dialog`) или `user` (для `update.user`) |
+| `routingSegment` | `message`, `dialog`, `user` — хвост поля **`updateType`** |
 
-**Примеры routing keys:**
-- `update.dialog.user.carl.dialogupdate` - обновление диалога для пользователя carl
-- `update.dialog.user.carl.messageupdate` - обновление сообщения для пользователя carl
-- `update.user.user.carl.userstatsupdate` - обновление статистики для пользователя carl (включая `packs.messages.*`)
+**Примеры:**
+- `update.dialog.user.carl.message` — `updateType: update.message`
+- `update.dialog.user.carl.dialog` — `updateType: update.dialog` (sidebar, typing, member)
+- `update.user.user.carl.user` — `updateType: update.user` (profile и stats)
 
-Для подписки используйте wildcards:
-- `update.*.{userType}.{userId}.*` - все обновления для пользователя (dialog, user)
-- `update.dialog.{userType}.{userId}.*` - все обновления диалогов для пользователя
-- `update.user.{userType}.{userId}.*` - UserUpdate и UserStatsUpdate
+Wildcard: `update.*.user.carl.*` — все Updates для пользователя.
 
-**Per-pack unread:** push `user.pack.stats.updated` **не используется** (PR2/R5). Unread по каждому паку — `GET /api/users/:userId/packs`; агрегат packed — в `user.stats.update` (`packs.messages.*`). Binding `update.pack.*` **устарел**.
+**Breaking (0.0.77):** slug `messageupdate`, `userstatsupdate`, … заменены на `message`, `dialog`, `user`. Поле **`Update.eventType`** удалено → **`sourceEventType`** + **`updateType`**. Маршрутизация в UI — по **`data.context.uiTarget`** (см. [UPDATE_TYPE_NAMING_PLAN.md](UPDATE_TYPE_NAMING_PLAN.md)).
+
+### Устаревший формат (до 0.0.77)
+
+<details>
+<summary>routing slug до PR3</summary>
+
+`messageupdate`, `dialogmemberupdate`, `typingupdate`, `userupdate`, `userstatsupdate`
+</details>
 
 ## Подписка на обновления пользователя
 

@@ -127,7 +127,7 @@ async function assertExpectedUpdates(tenantId, fixtureKey, sourceEventId) {
       tenantId,
       userId,
       eventId: sourceEventId,
-      eventType: 'user.stats.update'
+      updateType: 'update.user'
     }).lean();
     expect(update).toBeTruthy();
   }

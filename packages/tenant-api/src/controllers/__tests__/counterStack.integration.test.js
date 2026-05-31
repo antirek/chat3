@@ -160,14 +160,19 @@ describe('counter stack E2E', () => {
       .sort({ createdAt: -1 })
       .lean();
     expect(update).toBeTruthy();
+    expect(update?.updateType).toBe('update.dialog');
+    expect(update?.sourceEventType).toBe('message.create');
     expect(update?.data?.member?.state?.unreadCount).toBe(1);
 
     const userStatsUpdate = await Update.findOne({
       tenantId,
       userId: 'bob',
-      eventType: 'user.stats.update'
+      updateType: 'update.user',
+      eventId: counterOutbox.eventId
     }).lean();
     expect(userStatsUpdate).toBeTruthy();
+    expect(userStatsUpdate?.sourceEventType).toBe('message.create');
+    expect(userStatsUpdate?.data?.context?.version).toBe(4);
     expect(userStatsUpdate?.data?.user?.stats?.totalUnreadCount).toBe(1);
 
     const userPackUpdates = await Update.countDocuments({

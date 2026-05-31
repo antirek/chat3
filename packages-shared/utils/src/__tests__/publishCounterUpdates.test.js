@@ -44,7 +44,7 @@ describe('publishCounterUpdates', () => {
     expect(createUserStatsUpdate).toHaveBeenCalledTimes(2);
   });
 
-  test('DialogMemberUpdate passes sourceEventType in context', async () => {
+  test('DialogMemberUpdate passes sourceEventType to createDialogMemberUpdate', async () => {
     const tenantId = 'tnt_test';
     const dialogId = 'dlg_cc333333333333333333';
     const userId = 'usr_alice';
@@ -72,11 +72,12 @@ describe('publishCounterUpdates', () => {
       dialogId,
       userId,
       'evt_c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2',
-      'dialog.member.changed',
+      'message.status.changed',
       expect.objectContaining({
         context: expect.objectContaining({
-          eventType: 'dialog.member.changed',
-          sourceEventType: 'message.status.changed'
+          dialogId,
+          userId,
+          updatedFields: expect.arrayContaining(['member.state.unreadCount'])
         })
       })
     );

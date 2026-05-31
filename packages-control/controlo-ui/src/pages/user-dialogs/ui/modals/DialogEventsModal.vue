@@ -49,7 +49,7 @@
             <tbody>
               <tr v-for="update in dialogEventUpdates" :key="getUpdateId(update)">
                 <td class="time-cell">{{ formatEventTime(update.createdAt) }}</td>
-                <td>{{ update.eventType || '-' }}</td>
+                <td>{{ update.updateType || '-' }}<span v-if="update.sourceEventType"> ({{ update.sourceEventType }})</span></td>
                 <td>{{ update.userId || '-' }}</td>
               </tr>
             </tbody>

@@ -1,5 +1,18 @@
 import mongoose from 'mongoose';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import type { EventType } from './Event.js';
+
+export type UpdateType = 'update.message' | 'update.dialog' | 'update.user';
+
+export const UPDATE_TYPE_MESSAGE: UpdateType = 'update.message';
+export const UPDATE_TYPE_DIALOG: UpdateType = 'update.dialog';
+export const UPDATE_TYPE_USER: UpdateType = 'update.user';
+
+export const UPDATE_TYPE_ENUM: UpdateType[] = [
+  UPDATE_TYPE_MESSAGE,
+  UPDATE_TYPE_DIALOG,
+  UPDATE_TYPE_USER
+];
 
 // TypeScript интерфейс для документа Update
 export interface IUpdate extends mongoose.Document {
@@ -7,7 +20,8 @@ export interface IUpdate extends mongoose.Document {
   userId: string;
   entityId: string;
   eventId: string;
-  eventType: string;
+  sourceEventType: EventType | string;
+  updateType: UpdateType;
   data: unknown;
   published: boolean;
   publishedAt?: number;
@@ -29,7 +43,7 @@ const updateSchema = new mongoose.Schema<IUpdate>({
   entityId: {
     type: String,
     required: true,
-    description: 'ID сущности (dlg_* для dialog, msg_* для message)',
+    description: 'ID сущности (dlg_* для dialog, msg_* для message, userId для user)',
     index: true
   },
   eventId: {
@@ -38,15 +52,21 @@ const updateSchema = new mongoose.Schema<IUpdate>({
     description: 'ID исходного события (строка evt_...)',
     index: true
   },
-  eventType: {
+  sourceEventType: {
     type: String,
     required: true,
-    description: 'Тип исходного события'
+    description: 'Тип доменного Event (Event.eventType для eventId)'
+  },
+  updateType: {
+    type: String,
+    required: true,
+    enum: UPDATE_TYPE_ENUM,
+    description: 'Тип Update (update.message | update.dialog | update.user)'
   },
   data: {
     type: mongoose.Schema.Types.Mixed,
     required: true,
-    description: 'Полные данные объекта (Dialog или Message) для пользователя'
+    description: 'Payload для клиента (sections + context v4)'
   },
   published: {
     type: Boolean,
@@ -65,14 +85,17 @@ const updateSchema = new mongoose.Schema<IUpdate>({
     description: 'Timestamp создания (микросекунды)'
   }
 }, {
-  timestamps: false // Отключаем автоматические timestamps, используем только createdAt
+  timestamps: false
 });
 
-// Составные индексы для частых запросов
 updateSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
-updateSchema.index({ tenantId: 1, userId: 1, eventType: 1, createdAt: -1 });
+updateSchema.index({ tenantId: 1, userId: 1, updateType: 1, createdAt: -1 });
 updateSchema.index({ tenantId: 1, eventId: 1 });
 updateSchema.index({ tenantId: 1, published: 1, createdAt: -1 });
+updateSchema.index(
+  { tenantId: 1, eventId: 1, userId: 1, updateType: 1, entityId: 1 },
+  { unique: true }
+);
 
 const Update = mongoose.model<IUpdate>('Update', updateSchema);
 

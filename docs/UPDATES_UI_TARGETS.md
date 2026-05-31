@@ -343,6 +343,7 @@ Counter-worker публикует Updates со счётчиками (`UserStatsU
 | P10 | **`context.eventType`** в UserStatsUpdate = `user.changed` | — | низкий | P3 | выровнять с `user.stats.update` |
 | P11 | **Counter `DialogMemberUpdate`** с eventType `dialog.member.changed` | `dialogs.list` | низкий | P2 | `context.sourceEventType` = реальный Event |
 | P12 | **Нет dedup** Update по `(eventId, userId, updateType)` | — | средний | P2 | идемпотентность retry outbox |
+| P13 | **`Update.eventType` смешивает Event и Update** | все | высокий | **R6** | `sourceEventType` + `updateType` (`update.message` \| `update.dialog` \| `update.user`); см. [UPDATE_TYPE_NAMING_PLAN.md](./UPDATE_TYPE_NAMING_PLAN.md) |
 
 ### 8.2. Сколько Updates на одно `message.create`
 
@@ -397,6 +398,7 @@ flowchart LR
 | **R-ui** | `context.uiTarget`, `sourceEventType`, `sourceEventId`; INTEGRATION.md | **PR1** |
 | ~~R2 partial stats~~ | *отложено* — полный snapshot канон (§10.1) | — |
 | **R5** | убрать push `UserPackStatsUpdate`; per-pack — GET | **PR2** ✅ |
+| **R6** | `sourceEventType` + `updateType` (`update.*`, 3 значения); routing slug §2.4; context v4 | **PR3** |
 | **R3** | unread sidebar только через `DialogMemberUpdate` | PR3+ |
 | **R4** | dedup Update; diff userPack (v1.1) | PR3+ / *частично не нужен после R5* |
 
@@ -615,6 +617,22 @@ Update-worker: `sourceEventType` = доменный `eventType` (`message.create
 | Per-pack unread для UI | push или GET | **GET** (+ invalidate по `user.stats.update`) |
 
 Полный план: [USER_PACK_STATS_UPDATE_PUSH_REMOVAL_PLAN.md](./USER_PACK_STATS_UPDATE_PUSH_REMOVAL_PLAN.md).
+
+---
+
+## 12. Спецификация PR3 — R6 (согласовано)
+
+**Цель:** **`sourceEventType`** (Event) + **`updateType`** (Update, префикс **`update.`**); убрать смешение в `eventType`.
+
+| | Сейчас | PR3 (R6) |
+|--|--------|----------|
+| Lineage | `eventId` | `eventId` |
+| Доменный тип | иногда `Update.eventType` | **`sourceEventType`** |
+| Тип Update | 6+ convention в `Update.eventType` | **`updateType`**: `update.message`, `update.dialog`, `update.user` |
+| UI-маршрутизация | `eventType` / updateType | **`context.uiTarget`** + `updatedFields` |
+| RabbitMQ slug | `messageupdate`, `userstatsupdate`, … | **`message`**, `dialog`, `user` (§2.4, [UPDATE_TYPE_NAMING_PLAN.md](./UPDATE_TYPE_NAMING_PLAN.md) §4) |
+
+Полный план и таблица routing: [UPDATE_TYPE_NAMING_PLAN.md](./UPDATE_TYPE_NAMING_PLAN.md).
 
 ---
 

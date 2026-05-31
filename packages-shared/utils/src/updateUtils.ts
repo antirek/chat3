@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 import { Message, DialogMember,
-  MessageStatus, Update, User, UserStats, UserUnreadBySenderType, UserPackedMessagesUnreadBySenderType, Event, UserDialogStats } from '@chat3/models';
-import type { IUpdate } from '@chat3/models';
+  MessageStatus, Update, User, UserStats, UserUnreadBySenderType, UserPackedMessagesUnreadBySenderType, Event, UserDialogStats,
+  UPDATE_TYPE_DIALOG, UPDATE_TYPE_MESSAGE, UPDATE_TYPE_USER } from '@chat3/models';
+import type { IUpdate, UpdateType } from '@chat3/models';
 import * as metaUtils from './metaUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { sanitizeResponse } from './responseUtils.js';
@@ -14,11 +15,62 @@ import { buildUnreadBySenderTypeMatrix } from './packStatsUtils.js';
 
 function withUpdateContext(
   context: Record<string, unknown>,
-  updateEventType: string,
-  sourceEventId: string,
-  sourceEventType?: string
+  updateType: UpdateType,
+  sourceEventType: string
 ): Record<string, unknown> {
-  return eventUtils.finalizeUpdateContext(context, updateEventType, sourceEventId, sourceEventType);
+  return eventUtils.finalizeUpdateContext(context, updateType, sourceEventType);
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return Boolean(
+    error
+    && typeof error === 'object'
+    && ('code' in error && (error as { code?: number }).code === 11000)
+  );
+}
+
+async function persistUpdate(updateData: Record<string, unknown>): Promise<IUpdate | null> {
+  try {
+    const savedUpdate = await Update.create(updateData);
+    await publishUpdate(savedUpdate).catch(err => {
+      console.error(`Error publishing update ${savedUpdate._id}:`, err);
+    });
+    return savedUpdate;
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      console.log(
+        `Duplicate update skipped: eventId=${updateData.eventId} userId=${updateData.userId} updateType=${updateData.updateType} entityId=${updateData.entityId}`
+      );
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function persistUpdates(updateDocs: Array<Record<string, unknown>>): Promise<IUpdate[]> {
+  const saved: IUpdate[] = [];
+  for (const doc of updateDocs) {
+    const created = await persistUpdate(doc);
+    if (created) {
+      saved.push(created);
+    }
+  }
+  return saved;
+}
+
+export function resolveUpdateRoutingSegment(updateType: UpdateType): string {
+  return updateType.slice('update.'.length);
+}
+
+export function resolveUpdateCategory(updateType: UpdateType): 'dialog' | 'user' {
+  return updateType === UPDATE_TYPE_USER ? 'user' : 'dialog';
+}
+
+function buildUpdateDocumentFields(
+  sourceEventType: string,
+  updateType: UpdateType
+): Pick<IUpdate, 'sourceEventType' | 'updateType'> {
+  return { sourceEventType, updateType };
 }
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
@@ -243,9 +295,8 @@ export async function createDialogUpdate(
       return;
     }
 
-    if (!eventContext.eventType) {
+    if (!eventContext.eventType && !eventContext.dialogId) {
       eventContext = {
-        eventType,
         dialogId: eventDialog.dialogId,
         entityId: eventDialog.dialogId,
         includedSections: eventData.member ? ['dialog', 'member'] : ['dialog']
@@ -275,13 +326,12 @@ export async function createDialogUpdate(
       allMemberUserIds.push(removedMemberUserId);
     }
 
-    const contextBase = (eventContext.eventType ? eventContext : {
-      eventType,
+    const contextBase = ((eventContext.dialogId || eventContext.entityId) ? eventContext : {
       dialogId: eventDialog.dialogId,
       entityId: eventDialog.dialogId,
       includedSections: eventData.member ? ['dialog', 'member'] : ['dialog']
     }) as Record<string, unknown>;
-    const finalizedContext = withUpdateContext(contextBase, eventType, eventIdString);
+    const finalizedContext = withUpdateContext(contextBase, UPDATE_TYPE_DIALOG, eventType);
 
     // Получаем UserDialogStats для всех пользователей одним запросом
     const userDialogStatsList = await UserDialogStats.find({
@@ -325,21 +375,13 @@ export async function createDialogUpdate(
         userId: userId,
         entityId: eventDialog.dialogId,
         eventId: eventIdString,
-        eventType: eventType,
+        ...buildUpdateDocumentFields(eventType, UPDATE_TYPE_DIALOG),
         data,
         published: false
       };
     });
 
-    // Сохраняем updates в БД
-    const savedUpdates = await Update.insertMany(updates);
-
-    // Публикуем updates в RabbitMQ асинхронно
-    savedUpdates.forEach(update => {
-      publishUpdate(update).catch(err => {
-        console.error(`Error publishing update ${update._id}:`, err);
-      });
-    });
+    const savedUpdates = await persistUpdates(updates);
 
     console.log(`Created ${savedUpdates.length} DialogUpdate for dialog ${dialogId}`);
   } catch (error) {
@@ -356,44 +398,37 @@ export async function createDialogMemberUpdate(
   dialogId: string, 
   userId: string, 
   eventId: string | mongoose.Types.ObjectId, 
-  eventType: string, 
+  sourceEventType: string, 
   eventData: EventData = {}
 ): Promise<void> {
   try {
-    // Преобразуем eventId в строковый формат (evt_...) для модели Update
     const eventIdString = await getEventIdString(eventId, tenantId);
     if (!eventIdString) {
       console.warn(`Cannot create DialogMemberUpdate: eventId "${eventId}" not found for tenant ${tenantId}`);
       return;
     }
     
-    // Используем данные из event.data напрямую
     const eventDialog = eventData.dialog;
     const eventMember = eventData.member;
-    let eventContext = eventData.context || {};
+    const eventContext = eventData.context || {};
 
-    // Секция dialog должна всегда присутствовать в event.data
     if (!eventDialog || !eventDialog.dialogId) {
-      console.error(`Dialog section missing in event.data for event ${eventId} (${eventType}). This should not happen.`);
+      console.error(`Dialog section missing in event.data for event ${eventId} (${sourceEventType}). This should not happen.`);
       return;
     }
 
-    // Секция member должна присутствовать в event.data для dialog.member.changed
     if (!eventMember) {
-      console.error(`Member section missing in event.data for event ${eventId} (${eventType}). This should not happen.`);
+      console.error(`Member section missing in event.data for event ${eventId} (${sourceEventType}). This should not happen.`);
       return;
     }
 
-    const contextBase = (eventContext.eventType ? eventContext : {
-      eventType,
+    const contextBase = ((eventContext.dialogId || eventContext.entityId) ? eventContext : {
       dialogId: eventDialog.dialogId,
       entityId: eventDialog.dialogId,
       includedSections: ['dialog', 'member'],
       updatedFields: (eventContext.updatedFields as string[]) || []
     }) as Record<string, unknown>;
-    const sourceEvtType = (eventContext.sourceEventType as string)
-      ?? (eventContext.eventType !== eventType ? (eventContext.eventType as string) : undefined);
-    const finalizedContext = withUpdateContext(contextBase, eventType, eventIdString, sourceEvtType);
+    const finalizedContext = withUpdateContext(contextBase, UPDATE_TYPE_DIALOG, sourceEventType);
 
     // Получаем UserDialogStats для целевого пользователя
     const userDialogStats = await UserDialogStats.findOne({
@@ -425,18 +460,12 @@ export async function createDialogMemberUpdate(
       userId: userId,
       entityId: eventDialog.dialogId,
       eventId: eventIdString,
-      eventType: eventType,
+      ...buildUpdateDocumentFields(sourceEventType, UPDATE_TYPE_DIALOG),
       data,
       published: false
     };
 
-    // Сохраняем update в БД
-    const savedUpdate = await Update.create(updateData);
-
-    // Публикуем update в RabbitMQ
-    await publishUpdate(savedUpdate).catch(err => {
-      console.error(`Error publishing update ${savedUpdate._id}:`, err);
-    });
+    await persistUpdate(updateData);
 
     console.log(`Created DialogMemberUpdate for user ${userId} in dialog ${dialogId}`);
   } catch (error) {
@@ -603,9 +632,8 @@ export async function createMessageUpdate(
       }
     }
 
-    if (!eventContext.eventType) {
+    if (!eventContext.eventType && !eventContext.messageId) {
       eventContext = {
-        eventType,
         dialogId: eventDialog.dialogId,
         entityId: eventMessage.messageId as string,
         messageId: eventMessage.messageId as string,
@@ -625,15 +653,14 @@ export async function createMessageUpdate(
       return;
     }
 
-    const contextBase = (eventContext.eventType ? eventContext : {
-      eventType,
+    const contextBase = ((eventContext.messageId || eventContext.entityId) ? eventContext : {
       dialogId: eventDialog.dialogId,
       entityId: eventMessage.messageId as string,
       messageId: eventMessage.messageId as string,
       includedSections: (eventContext.includedSections as string[]) || [],
       updatedFields: (eventContext.updatedFields as string[]) || []
     }) as Record<string, unknown>;
-    const finalizedContext = withUpdateContext(contextBase, eventType, eventIdString);
+    const finalizedContext = withUpdateContext(contextBase, UPDATE_TYPE_MESSAGE, eventType);
 
     // Получаем UserDialogStats для всех участников одним запросом
     const memberUserIds = dialogMembers.map(m => (m as { userId: string }).userId);
@@ -680,21 +707,13 @@ export async function createMessageUpdate(
         userId: memberObj.userId,
         entityId: eventMessage.messageId as string,
         eventId: eventIdString,
-        eventType: eventType,
+        ...buildUpdateDocumentFields(eventType, UPDATE_TYPE_MESSAGE),
         data,
         published: false
       };
     });
 
-    // Сохраняем updates в БД
-    const savedUpdates = await Update.insertMany(updates);
-
-    // Публикуем updates в RabbitMQ асинхронно
-    savedUpdates.forEach(update => {
-      publishUpdate(update).catch(err => {
-        console.error(`Error publishing update ${update._id}:`, err);
-      });
-    });
+    const savedUpdates = await persistUpdates(updates);
 
     console.log(`Created ${savedUpdates.length} MessageUpdate for message ${messageId}`);
   } catch (error) {
@@ -733,9 +752,8 @@ export async function createTypingUpdate(
       return;
     }
 
-    if (!eventContext.eventType) {
+    if (!eventContext.eventType && !eventContext.dialogId) {
       eventContext = {
-        eventType,
         dialogId: eventDialog.dialogId,
         entityId: eventDialog.dialogId,
         includedSections: eventData.member ? ['dialog', 'member', 'typing'] : ['dialog', 'typing']
@@ -788,13 +806,12 @@ export async function createTypingUpdate(
       userInfo: eventTyping.userInfo ?? legacyTyping.userInfo ?? null
     };
 
-    const contextBase = (eventContext.eventType ? eventContext : {
-      eventType,
+    const contextBase = ((eventContext.dialogId || eventContext.entityId) ? eventContext : {
       dialogId: eventDialog.dialogId,
       entityId: eventDialog.dialogId,
       includedSections: eventData.member ? ['dialog', 'member', 'typing'] : ['dialog', 'typing']
     }) as Record<string, unknown>;
-    const finalizedContext = withUpdateContext(contextBase, eventType, eventIdString);
+    const finalizedContext = withUpdateContext(contextBase, UPDATE_TYPE_DIALOG, eventType);
 
     const updatesPayload = recipientMembers.map(member => {
       const memberObj = member as { userId: string };
@@ -823,7 +840,7 @@ export async function createTypingUpdate(
         userId: memberObj.userId,
         entityId: eventDialog.dialogId,
         eventId: eventIdString,
-        eventType,
+        ...buildUpdateDocumentFields(eventType, UPDATE_TYPE_DIALOG),
         data,
         published: false
       };
@@ -834,13 +851,7 @@ export async function createTypingUpdate(
       return;
     }
 
-    const savedUpdates = await Update.insertMany(updatesPayload);
-
-    savedUpdates.forEach(update => {
-      publishUpdate(update).catch(err => {
-        console.error(`Error publishing typing update ${update._id}:`, err);
-      });
-    });
+    const savedUpdates = await persistUpdates(updatesPayload);
 
     console.log(`Created ${savedUpdates.length} TypingUpdate for dialog ${dialogId}`);
   } catch (error) {
@@ -906,30 +917,27 @@ export async function createUserStatsUpdate(
       }
     });
 
-    const finalizedContext = withUpdateContext(
-      eventUtils.buildEventContext({
-        eventType: 'user.changed' as typeof eventUtils.buildEventContext extends (params: { eventType: infer T }) => unknown ? T : never,
-        entityId: userId,
-        includedSections: ['user'],
-        updatedFields: updatedFields.length > 0 ? updatedFields : [
-          'user.stats.dialogCount',
-          'user.stats.unreadDialogsCount',
-          'user.stats.packs.messages.totalUnreadCount',
-          'user.stats.packs.messages.unreadBySenderType'
-        ]
-      }) as Record<string, unknown>,
-      'user.stats.update',
-      eventIdString,
-      sourceEventType
-    );
+    const defaultUpdatedFields = [
+      'user.stats.dialogCount',
+      'user.stats.unreadDialogsCount',
+      'user.stats.totalUnreadCount',
+      'user.stats.unreadBySenderType',
+      'user.stats.packs.messages.totalUnreadCount',
+      'user.stats.packs.messages.unreadBySenderType'
+    ];
+    const contextBase = {
+      entityId: userId,
+      includedSections: ['user'],
+      updatedFields: updatedFields.length > 0 ? updatedFields : defaultUpdatedFields
+    };
+    const finalizedContext = withUpdateContext(contextBase, UPDATE_TYPE_USER, sourceEventType);
 
-    // Создаем update
     const update = {
       tenantId: tenantId,
       userId: userId,
       entityId: userId,
       eventId: eventIdString,
-      eventType: 'user.stats.update',
+      ...buildUpdateDocumentFields(sourceEventType, UPDATE_TYPE_USER),
       data: {
         user: cloneSection(userSection),
         context: cloneSection(finalizedContext)
@@ -937,13 +945,7 @@ export async function createUserStatsUpdate(
       published: false
     };
 
-    // Сохраняем update в БД
-    const savedUpdate = await Update.create(update);
-
-    // Публикуем update в RabbitMQ асинхронно
-    await publishUpdate(savedUpdate).catch(err => {
-      console.error(`Error publishing user stats update ${savedUpdate._id}:`, err);
-    });
+    await persistUpdate(update);
 
     console.log(`Created UserStatsUpdate for user ${userId} from event ${sourceEventId}`);
   } catch (error) {
@@ -977,19 +979,18 @@ export async function createUserUpdate(
       return;
     }
 
-    const contextBase = (eventContext.eventType ? eventContext : {
-      eventType,
+    const contextBase = ((eventContext.entityId || eventContext.includedSections) ? eventContext : {
       entityId: userId,
       includedSections: ['user']
     }) as Record<string, unknown>;
-    const finalizedContext = withUpdateContext(contextBase, eventType, eventIdString);
+    const finalizedContext = withUpdateContext(contextBase, UPDATE_TYPE_USER, eventType);
 
     const update = {
       tenantId: tenantId,
       userId: userId,
       entityId: userId,
       eventId: eventIdString,
-      eventType: eventType,
+      ...buildUpdateDocumentFields(eventType, UPDATE_TYPE_USER),
       data: {
         user: cloneSection(eventUser),
         context: cloneSection(finalizedContext)
@@ -997,13 +998,7 @@ export async function createUserUpdate(
       published: false
     };
 
-    // Сохраняем update в БД
-    const savedUpdate = await Update.create(update);
-
-    // Публикуем update в RabbitMQ асинхронно
-    await publishUpdate(savedUpdate).catch(err => {
-      console.error(`Error publishing user update ${savedUpdate._id}:`, err);
-    });
+    await persistUpdate(update);
 
     console.log(`Created UserUpdate for user ${userId} from event ${eventId}`);
   } catch (error) {
@@ -1026,23 +1021,16 @@ async function publishUpdate(update: IUpdate | mongoose.Document): Promise<void>
     // Очищаем update от _id, id и __v, включая вложенные объекты в data
     const sanitizedUpdate = sanitizeResponse(updateObj) as Record<string, unknown>;
     
-    // Определяем тип update из eventType
-    const updateType = getUpdateTypeFromEventType(sanitizedUpdate.eventType as string);
-    if (!updateType) {
-      console.error(`Cannot determine update type for eventType: ${sanitizedUpdate.eventType}`);
+    const updateType = sanitizedUpdate.updateType as UpdateType | undefined;
+    if (!updateType || !updateType.startsWith('update.')) {
+      console.error(`Cannot determine update type for update: ${updateId}`);
       return;
     }
-    
-    // Получаем тип пользователя из модели User или используем fallback
+
     const userType = await getUserType(sanitizedUpdate.tenantId as string, sanitizedUpdate.userId as string);
-    
-    // Определяем категорию update (dialog или user)
-    const dialogUpdates = ['DialogUpdate', 'DialogMemberUpdate', 'MessageUpdate', 'TypingUpdate'];
-    const category = dialogUpdates.includes(updateType) ? 'dialog' : 'user';
-    
-    // Публикуем в exchange (из конфига RABBITMQ_UPDATES_EXCHANGE или по умолчанию chat3_updates)
-    // с routing key update.{category}.{type}.{userId}.{updateType}
-    const routingKey = `update.${category}.${userType}.${sanitizedUpdate.userId}.${updateType.toLowerCase()}`;
+    const category = resolveUpdateCategory(updateType);
+    const routingSegment = resolveUpdateRoutingSegment(updateType);
+    const routingKey = `update.${category}.${userType}.${sanitizedUpdate.userId}.${routingSegment}`;
     
     // Получаем имя exchange из rabbitmqUtils (читает из process.env.RABBITMQ_UPDATES_EXCHANGE)
     const rabbitMQInfo = rabbitmqUtils.getRabbitMQInfo();
@@ -1075,7 +1063,7 @@ async function publishUpdate(update: IUpdate | mongoose.Document): Promise<void>
 }
 
 /**
- * Определяет тип update из типа события
+ * @deprecated PR3: use updateType on document and resolveUpdateRoutingSegment
  */
 export function getUpdateTypeFromEventType(eventType: string): string | null {
   if (DIALOG_UPDATE_EVENTS.includes(eventType as typeof DIALOG_UPDATE_EVENTS[number])) {

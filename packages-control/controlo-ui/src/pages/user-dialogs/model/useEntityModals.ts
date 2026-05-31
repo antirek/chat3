@@ -368,7 +368,7 @@ export function useEntityModals(
     } else if (update.id) {
       return String(update.id);
     }
-    return `${update.createdAt}-${update.eventType}-${update.userId}`;
+    return `${update.createdAt}-${update.updateType}-${update.sourceEventType}-${update.userId}`;
   }
 
   function getDialogEventDescription(eventType: string, data: any): string {

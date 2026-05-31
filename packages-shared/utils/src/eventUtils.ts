@@ -1,12 +1,13 @@
 import { Event } from '@chat3/models';
-import type { EventType, EntityType, ActorType, IEvent } from '@chat3/models';
+import type { EventType, EntityType, ActorType, IEvent, UpdateType } from '@chat3/models';
 import { createEventWithOutbox } from './outboxUtils.js';
 
-const EVENT_PAYLOAD_VERSION = 3;
+const EVENT_CONTEXT_VERSION = 3;
+const UPDATE_CONTEXT_VERSION = 4;
 
 export type UiTarget = 'messages.list' | 'dialogs.list' | 'users.list';
 
-const UI_TARGET_BY_UPDATE_EVENT_TYPE: Record<string, UiTarget> = {
+const UI_TARGET_BY_EVENT_TYPE: Partial<Record<EventType, UiTarget>> = {
   'message.create': 'messages.list',
   'message.changed': 'messages.list',
   'message.status.changed': 'messages.list',
@@ -22,30 +23,60 @@ const UI_TARGET_BY_UPDATE_EVENT_TYPE: Record<string, UiTarget> = {
   'dialog.topic.changed': 'dialogs.list',
   'user.add': 'users.list',
   'user.changed': 'users.list',
-  'user.remove': 'users.list',
-  'user.stats.update': 'users.list'
+  'user.remove': 'users.list'
 };
 
-export function resolveUiTarget(updateEventType: string): UiTarget | null {
-  return UI_TARGET_BY_UPDATE_EVENT_TYPE[updateEventType] ?? null;
+/** UI target для Event.data.context (v3) */
+export function resolveUiTargetForEvent(eventType: EventType | string): UiTarget | null {
+  return UI_TARGET_BY_EVENT_TYPE[eventType as EventType] ?? null;
+}
+
+/** @deprecated use resolveUiTargetForEvent */
+export function resolveUiTarget(eventType: string): UiTarget | null {
+  return resolveUiTargetForEvent(eventType);
+}
+
+/** UI target для Update.data.context (v4) */
+export function resolveUiTargetForUpdate(
+  updateType: UpdateType,
+  sourceEventType: EventType | string
+): UiTarget {
+  switch (updateType) {
+    case 'update.message':
+      return 'messages.list';
+    case 'update.user':
+      return 'users.list';
+    case 'update.dialog':
+      return sourceEventType === 'dialog.typing' ? 'messages.list' : 'dialogs.list';
+    default:
+      return 'dialogs.list';
+  }
 }
 
 /**
- * Добавляет uiTarget, sourceEventType, sourceEventId и version для Update payload.
+ * Финализация Update.data.context (v4): uiTarget + version, без lineage в context.
  */
 export function finalizeUpdateContext(
   context: Record<string, unknown>,
-  updateEventType: string,
-  sourceEventId: string,
-  sourceEventType?: string
+  updateType: UpdateType,
+  sourceEventType: EventType | string
 ): Record<string, unknown> {
-  const uiTarget = resolveUiTarget(updateEventType);
+  const {
+    eventType: _dropEventType,
+    sourceEventType: _dropSource,
+    sourceEventId: _dropEventId,
+    uiTarget: explicitUiTarget,
+    ...rest
+  } = context;
+
+  const uiTarget =
+    (explicitUiTarget as UiTarget | undefined)
+    ?? resolveUiTargetForUpdate(updateType, sourceEventType);
+
   return {
-    ...context,
-    version: EVENT_PAYLOAD_VERSION,
-    ...(uiTarget ? { uiTarget } : {}),
-    sourceEventType: sourceEventType ?? (context.eventType as string) ?? updateEventType,
-    sourceEventId
+    ...rest,
+    version: UPDATE_CONTEXT_VERSION,
+    uiTarget
   };
 }
 
@@ -93,9 +124,9 @@ export function buildEventContext({
   sourceEventType?: string;
   sourceEventId?: string;
 } {
-  const resolvedUiTarget = uiTarget ?? resolveUiTarget(eventType) ?? undefined;
+  const resolvedUiTarget = uiTarget ?? resolveUiTargetForEvent(eventType) ?? undefined;
   return {
-    version: EVENT_PAYLOAD_VERSION,
+    version: EVENT_CONTEXT_VERSION,
     eventType,
     dialogId: dialogId ?? null,
     entityId: entityId ?? null,
