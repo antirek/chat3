@@ -162,6 +162,21 @@ describe('counter stack E2E', () => {
     expect(update).toBeTruthy();
     expect(update?.data?.member?.state?.unreadCount).toBe(1);
 
+    const userStatsUpdate = await Update.findOne({
+      tenantId,
+      userId: 'bob',
+      eventType: 'user.stats.update'
+    }).lean();
+    expect(userStatsUpdate).toBeTruthy();
+    expect(userStatsUpdate?.data?.user?.stats?.totalUnreadCount).toBe(1);
+
+    const userPackUpdates = await Update.countDocuments({
+      tenantId,
+      userId: 'bob',
+      eventType: 'user.pack.stats.updated'
+    });
+    expect(userPackUpdates).toBe(0);
+
     const dupProcessed = await ProcessedCounterEvent.countDocuments({
       tenantId,
       eventId: counterOutbox.eventId

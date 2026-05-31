@@ -68,22 +68,22 @@ update.{category}.{userType}.{userId}.{updateType}
 - `category` - категория обновления:
   - `dialog` - для DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate
   - `user` - для UserUpdate, UserStatsUpdate
-  - `pack` - для UserPackStatsUpdate (unread по пакам пользователя)
 - `userType` - тип пользователя из модели User (user, bot, contact и т.д.)
 - `userId` - ID пользователя-получателя
 - `updateType` - тип обновления в нижнем регистре:
-  - `dialogupdate`, `dialogmemberupdate`, `messageupdate`, `typingupdate`, `userupdate`, `userstatsupdate`, `packstatsupdate`, `userpackstatsupdate`
+  - `dialogupdate`, `dialogmemberupdate`, `messageupdate`, `typingupdate`, `userupdate`, `userstatsupdate`
 
 **Примеры routing keys:**
 - `update.dialog.user.carl.dialogupdate` - обновление диалога для пользователя carl
 - `update.dialog.user.carl.messageupdate` - обновление сообщения для пользователя carl
-- `update.user.user.carl.userstatsupdate` - обновление статистики для пользователя carl
-- `update.pack.user.carl.userpackstatsupdate` - обновление unreadCount по паку для пользователя carl
+- `update.user.user.carl.userstatsupdate` - обновление статистики для пользователя carl (включая `packs.messages.*`)
 
 Для подписки используйте wildcards:
-- `update.*.{userType}.{userId}.*` - все обновления для пользователя (dialog, user, pack)
+- `update.*.{userType}.{userId}.*` - все обновления для пользователя (dialog, user)
 - `update.dialog.{userType}.{userId}.*` - все обновления диалогов для пользователя
-- `update.pack.{userType}.{userId}.*` - UserPackStatsUpdate для пользователя (unread по пакам)
+- `update.user.{userType}.{userId}.*` - UserUpdate и UserStatsUpdate
+
+**Per-pack unread:** push `user.pack.stats.updated` **не используется** (PR2/R5). Unread по каждому паку — `GET /api/users/:userId/packs`; агрегат packed — в `user.stats.update` (`packs.messages.*`). Binding `update.pack.*` **устарел**.
 
 ## Подписка на обновления пользователя
 
@@ -153,22 +153,16 @@ async function consumeUserUpdates(channel, queueName, userId) {
 }
 ```
 
-### Подписка только на pack updates пользователя
+### Per-pack unread (GET, без push)
 
-Чтобы получать **UserPackStatsUpdate** по пакам для конкретного пользователя, привяжите очередь к exchange `chat3_updates` с routing key `update.pack.{userType}.{userId}.*`:
+Push **`user.pack.stats.updated`** отключён (PR2). Unread по каждому паку — через API:
 
-```javascript
-async function subscribeToUserPackUpdates(channel, userId, userType = 'user') {
-  const queueName = `user_${userId}_pack_updates`;
-  await channel.assertQueue(queueName, { durable: true, arguments: { 'x-message-ttl': 3600000 } });
-  const routingKey = `update.pack.${userType}.${userId}.*`;
-  await channel.bindQueue(queueName, 'chat3_updates', routingKey);
-  console.log(`✅ Subscribed to pack updates for user ${userId}: ${routingKey}`);
-  return queueName;
-}
+```bash
+GET /api/users/:userId/packs
+GET /api/users/:userId/packs/:packId
 ```
 
-**Примечание:** агрегаты пака (`messageCount`, `uniqueMemberCount`, …) доступны через GET API; push **`pack.stats.updated` не используется**. В очередь `update.pack.*` приходит только **`UserPackStatsUpdate`**. Подробнее см. [UPDATES_UI_TARGETS.md](UPDATES_UI_TARGETS.md) и [UPDATES.md](UPDATES.md).
+После `user.stats.update` (поле `packs.messages.*`) обновите кэш списка паков refetch'ем GET, если UI показывает per-pack бейджи.
 
 ## Обработка различных типов обновлений
 
@@ -688,7 +682,7 @@ async function handleUserStatsUpdate(update) {
 |------------|-------------------|
 | `MessageUpdate`, `TypingUpdate` | `messages.list` |
 | `DialogUpdate`, `DialogMemberUpdate` | `dialogs.list` |
-| `UserStatsUpdate`, `UserUpdate`, `UserPackStatsUpdate` | `users.list` |
+| `UserStatsUpdate`, `UserUpdate` | `users.list` |
 
 Дополнительные поля контекста:
 
@@ -714,20 +708,6 @@ async function handleUpdate(update) {
 ```
 
 Подробная спецификация: [UPDATES_UI_TARGETS.md](UPDATES_UI_TARGETS.md).
-
-### User Pack Stats Updates
-
-Создаются автоматически для `user.pack.stats.updated` (counter-worker). **Snapshot (replace):** `data.userPackStats` — полный снимок unread по паку для пользователя:
-
-```javascript
-async function handleUserPackStatsUpdate(update) {
-  const { userPackStats, context } = update.data;
-  const { packId, userId } = userPackStats;
-
-  // store.userPacks[userId][packId] = userPackStats  — replace целиком
-  await replaceUserPackStats(userId, packId, userPackStats);
-}
-```
 
 ## Подписка на события (опционально)
 
@@ -871,11 +851,6 @@ class Chat3Integration {
       case 'user.stats.update':
         await this.handleUserStatsUpdate(update);
         break;
-        
-      // User Pack Stats Updates
-      case 'user.pack.stats.updated':
-        await this.handleUserPackStatsUpdate(update);
-        break;
     }
   }
   
@@ -918,12 +893,6 @@ class Chat3Integration {
   async handleUserStatsUpdate(update) {
     // Ваша реализация
     console.log('User stats update:', update.data.user.stats);
-  }
-  
-  async handleUserPackStatsUpdate(update) {
-    // user.pack.stats.updated — replace snapshot unread по паку для этого пользователя
-    const { userPackStats } = update.data;
-    console.log('User pack stats update:', userPackStats?.packId, 'unreadCount:', userPackStats?.unreadCount);
   }
   
   async disconnect() {

@@ -1,16 +1,14 @@
 import { jest } from '@jest/globals';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
-import { UserDialogStats, UserPackUnreadBySenderType } from '@chat3/models';
+import { UserDialogStats } from '@chat3/models';
 
 const createUserStatsUpdate = jest.fn().mockResolvedValue(undefined);
 const createDialogMemberUpdate = jest.fn().mockResolvedValue(undefined);
-const createUserPackStatsUpdate = jest.fn().mockResolvedValue(undefined);
 
 await jest.unstable_mockModule('../updateUtils.js', () => ({
   createUserStatsUpdate,
-  createDialogMemberUpdate,
-  createUserPackStatsUpdate
+  createDialogMemberUpdate
 }));
 
 const { publishCounterUpdates } = await import('../counterProcessor/publishCounterUpdates.js');
@@ -29,57 +27,21 @@ describe('publishCounterUpdates', () => {
   });
 
   beforeEach(async () => {
-    await mongoose.connection.dropDatabase();
     createUserStatsUpdate.mockClear();
     createDialogMemberUpdate.mockClear();
-    createUserPackStatsUpdate.mockClear();
   });
 
-  test('UserPackStatsUpdate only for packIds × userIds from slice (R1)', async () => {
-    const tenantId = 'tnt_test';
-    const packId = 'pck_aa111111111111111111';
-    const now = Date.now();
-
-    await UserPackUnreadBySenderType.insertMany([
-      { tenantId, packId, userId: 'usr_alice', fromType: 'user', countUnread: 2, createdAt: now },
-      { tenantId, packId, userId: 'usr_bob', fromType: 'user', countUnread: 1, createdAt: now },
-      { tenantId, packId, userId: 'usr_carol', fromType: 'user', countUnread: 5, createdAt: now }
-    ]);
-
+  test('does not push UserPackStatsUpdate (R5)', async () => {
     await publishCounterUpdates({
-      tenantId,
+      tenantId: 'tnt_test',
       userIds: ['usr_alice', 'usr_bob'],
       userDialogs: [],
-      packIds: [packId],
+      packIds: ['pck_aa111111111111111111'],
       sourceEventId: 'evt_b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1',
       sourceEventType: 'message.create'
     });
 
-    expect(createUserPackStatsUpdate).toHaveBeenCalledTimes(2);
-    expect(createUserPackStatsUpdate).toHaveBeenCalledWith(
-      tenantId,
-      'usr_alice',
-      packId,
-      'evt_b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1',
-      'message.create',
-      expect.objectContaining({ unreadCount: expect.any(Number) })
-    );
-    expect(createUserPackStatsUpdate).toHaveBeenCalledWith(
-      tenantId,
-      'usr_bob',
-      packId,
-      'evt_b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1',
-      'message.create',
-      expect.objectContaining({ unreadCount: expect.any(Number) })
-    );
-    expect(createUserPackStatsUpdate).not.toHaveBeenCalledWith(
-      tenantId,
-      'usr_carol',
-      packId,
-      expect.anything(),
-      expect.anything(),
-      expect.anything()
-    );
+    expect(createUserStatsUpdate).toHaveBeenCalledTimes(2);
   });
 
   test('DialogMemberUpdate passes sourceEventType in context', async () => {

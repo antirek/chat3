@@ -1,6 +1,6 @@
 /**
  * Фиксированный список типов отправителей для разбивки непрочитанных по пакам/диалогам.
- * Используется в API и в UserPackStatsUpdate: всегда отдаём по одному элементу на каждый тип (countUnread, в т.ч. 0).
+ * Используется в API и в GET user packs: всегда отдаём по одному элементу на каждый тип (countUnread, в т.ч. 0).
  */
 export const PACK_UNREAD_SENDER_TYPES = ['user', 'contact', 'bot'] as const;
 

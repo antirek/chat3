@@ -116,7 +116,6 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
       expect(resolveUiTarget('message.create')).toBe('messages.list');
       expect(resolveUiTarget('dialog.member.changed')).toBe('dialogs.list');
       expect(resolveUiTarget('user.stats.update')).toBe('users.list');
-      expect(resolveUiTarget('user.pack.stats.updated')).toBe('users.list');
       expect(resolveUiTarget('unknown.event')).toBeNull();
     });
 

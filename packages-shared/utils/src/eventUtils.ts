@@ -23,8 +23,7 @@ const UI_TARGET_BY_UPDATE_EVENT_TYPE: Record<string, UiTarget> = {
   'user.add': 'users.list',
   'user.changed': 'users.list',
   'user.remove': 'users.list',
-  'user.stats.update': 'users.list',
-  'user.pack.stats.updated': 'users.list'
+  'user.stats.update': 'users.list'
 };
 
 export function resolveUiTarget(updateEventType: string): UiTarget | null {

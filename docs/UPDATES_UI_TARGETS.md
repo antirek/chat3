@@ -396,8 +396,9 @@ flowchart LR
 | **R1** | `UserPackStatsUpdate` только пары из CounterSlice (§8.6) | **PR1** |
 | **R-ui** | `context.uiTarget`, `sourceEventType`, `sourceEventId`; INTEGRATION.md | **PR1** |
 | ~~R2 partial stats~~ | *отложено* — полный snapshot канон (§10.1) | — |
-| **R3** | unread sidebar только через `DialogMemberUpdate` | PR2+ |
-| **R4** | dedup Update; diff userPack (v1.1) | PR2+ |
+| **R5** | убрать push `UserPackStatsUpdate`; per-pack — GET | **PR2** ✅ |
+| **R3** | unread sidebar только через `DialogMemberUpdate` | PR3+ |
+| **R4** | dedup Update; diff userPack (v1.1) | PR3+ / *частично не нужен после R5* |
 
 ### 8.5. Что не считаем проблемой
 
@@ -597,6 +598,23 @@ Update-worker: `sourceEventType` = доменный `eventType` (`message.create
 
 - R3: `DialogUpdate` без unread в sidebar.
 - R4: dedup `(eventId, userId, updateType)`; optional diff перед UserPack push.
+- **R5 (PR2):** убрать push `UserPackStatsUpdate` — см. [USER_PACK_STATS_UPDATE_PUSH_REMOVAL_PLAN.md](./USER_PACK_STATS_UPDATE_PUSH_REMOVAL_PLAN.md).
+
+---
+
+## 11. Спецификация PR2 — R5 (draft)
+
+**Цель:** убрать push `user.pack.stats.updated`; per-pack unread — GET; агрегат packed — `user.stats.update` (`packs.messages.*`).
+
+| | PR1 (сделано) | PR2 (R5) |
+|--|---------------|----------|
+| `PackStatsUpdate` push | off | off |
+| `UserPackStatsUpdate` push | slice × userIds | **off** ✅ |
+| `UserStatsUpdate` | on, full snapshot | on (канон для `users.list`) |
+| Per-pack unread в БД | recalc | recalc |
+| Per-pack unread для UI | push или GET | **GET** (+ invalidate по `user.stats.update`) |
+
+Полный план: [USER_PACK_STATS_UPDATE_PUSH_REMOVAL_PLAN.md](./USER_PACK_STATS_UPDATE_PUSH_REMOVAL_PLAN.md).
 
 ---
 

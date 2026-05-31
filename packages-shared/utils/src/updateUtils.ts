@@ -951,83 +951,6 @@ export async function createUserStatsUpdate(
   }
 }
 
-export type UserPackStatsUpdateData = {
-  unreadCount: number;
-  lastUpdatedAt: number | null;
-  unreadBySenderType?: Array<{ fromType: string; countUnread: number }> | null;
-};
-
-/**
- * Создает UserPackStatsUpdate для одного пользователя.
- * Вызывается при изменении счётчиков пака для пользователя (следствие базового события), без создания Event.
- */
-export async function createUserPackStatsUpdate(
-  tenantId: string,
-  userId: string,
-  packId: string,
-  sourceEventId: string | mongoose.Types.ObjectId,
-  sourceEventType: string,
-  userPackStatsData: UserPackStatsUpdateData
-): Promise<void> {
-  try {
-    const eventIdString = await getEventIdString(sourceEventId, tenantId);
-    if (!eventIdString) {
-      return;
-    }
-
-    const userPackStatsSection = eventUtils.buildUserPackStatsSection({
-      tenantId,
-      packId,
-      userId,
-      unreadCount: userPackStatsData.unreadCount,
-      lastUpdatedAt: userPackStatsData.lastUpdatedAt,
-      unreadBySenderType: userPackStatsData.unreadBySenderType ?? null
-    });
-    if (!userPackStatsSection) {
-      return;
-    }
-
-    const updatedFields = ['userPackStats.unreadCount'];
-    if (userPackStatsData.unreadBySenderType?.length) {
-      updatedFields.push('userPackStats.unreadBySenderType');
-    }
-    const finalizedContext = withUpdateContext(
-      eventUtils.buildEventContext({
-        eventType: 'user.pack.stats.updated' as Parameters<typeof eventUtils.buildEventContext>[0]['eventType'],
-        entityId: userId,
-        packId,
-        userId,
-        includedSections: ['userPackStats'],
-        updatedFields
-      }) as Record<string, unknown>,
-      'user.pack.stats.updated',
-      eventIdString,
-      sourceEventType
-    );
-
-    const updateData = {
-      tenantId,
-      userId,
-      entityId: userId,
-      eventId: eventIdString,
-      eventType: 'user.pack.stats.updated',
-      data: {
-        userPackStats: cloneSection(userPackStatsSection),
-        context: cloneSection(finalizedContext)
-      },
-      published: false
-    };
-
-    const savedUpdate = await Update.create(updateData);
-    await publishUpdate(savedUpdate).catch((err) => {
-      console.error(`Error publishing user pack stats update ${savedUpdate._id}:`, err);
-    });
-    console.log(`Created UserPackStatsUpdate for user ${userId} pack ${packId}`);
-  } catch (error) {
-    console.error('Error creating UserPackStatsUpdate:', error);
-  }
-}
-
 /**
  * Создает UserUpdate для события user.*
  */
@@ -1113,17 +1036,9 @@ async function publishUpdate(update: IUpdate | mongoose.Document): Promise<void>
     // Получаем тип пользователя из модели User или используем fallback
     const userType = await getUserType(sanitizedUpdate.tenantId as string, sanitizedUpdate.userId as string);
     
-    // Определяем категорию update (dialog, user или pack)
+    // Определяем категорию update (dialog или user)
     const dialogUpdates = ['DialogUpdate', 'DialogMemberUpdate', 'MessageUpdate', 'TypingUpdate'];
-    const packUpdates = ['UserPackStatsUpdate'];
-    let category: string;
-    if (dialogUpdates.includes(updateType)) {
-      category = 'dialog';
-    } else if (packUpdates.includes(updateType)) {
-      category = 'pack';
-    } else {
-      category = 'user';
-    }
+    const category = dialogUpdates.includes(updateType) ? 'dialog' : 'user';
     
     // Публикуем в exchange (из конфига RABBITMQ_UPDATES_EXCHANGE или по умолчанию chat3_updates)
     // с routing key update.{category}.{type}.{userId}.{updateType}
@@ -1180,9 +1095,6 @@ export function getUpdateTypeFromEventType(eventType: string): string | null {
   }
   if (eventType === 'user.stats.update') {
     return 'UserStatsUpdate';
-  }
-  if (eventType === 'user.pack.stats.updated') {
-    return 'UserPackStatsUpdate';
   }
   return null;
 }

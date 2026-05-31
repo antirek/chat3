@@ -1,13 +1,8 @@
-import {
-  UserDialogStats,
-  UserPackUnreadBySenderType
-} from '@chat3/models';
+import { UserDialogStats } from '@chat3/models';
 import {
   createDialogMemberUpdate,
-  createUserPackStatsUpdate,
   createUserStatsUpdate
 } from '../updateUtils.js';
-import { buildUserPackStatsFromBySenderRows } from '../packStatsUtils.js';
 import type { CounterSlice } from './types.js';
 
 export async function publishCounterUpdates(slice: CounterSlice): Promise<void> {
@@ -15,7 +10,6 @@ export async function publishCounterUpdates(slice: CounterSlice): Promise<void> 
     tenantId,
     userIds,
     userDialogs,
-    packIds,
     sourceEventId,
     sourceEventType
   } = slice;
@@ -63,33 +57,5 @@ export async function publishCounterUpdates(slice: CounterSlice): Promise<void> 
         }
       }
     );
-  }
-
-  const seenUserPack = new Set<string>();
-  for (const packId of packIds) {
-    for (const userId of userIds) {
-      const key = `${userId}:${packId}`;
-      if (seenUserPack.has(key)) continue;
-      seenUserPack.add(key);
-
-      const rows = await UserPackUnreadBySenderType.find({ tenantId, packId, userId })
-        .select('fromType countUnread lastUpdatedAt createdAt')
-        .lean();
-      const built = buildUserPackStatsFromBySenderRows(
-        rows as Array<{ fromType: string; countUnread: number; lastUpdatedAt?: number | null; createdAt?: number | null }>
-      );
-      await createUserPackStatsUpdate(
-        tenantId,
-        userId,
-        packId,
-        sourceEventId,
-        sourceEventType,
-        {
-          unreadCount: built.unreadCount,
-          lastUpdatedAt: built.lastUpdatedAt,
-          unreadBySenderType: built.unreadBySenderType
-        }
-      );
-    }
   }
 }
