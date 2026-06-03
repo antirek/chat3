@@ -23,7 +23,8 @@ const UI_TARGET_BY_EVENT_TYPE: Partial<Record<EventType, UiTarget>> = {
   'dialog.topic.changed': 'dialogs.list',
   'user.add': 'users.list',
   'user.changed': 'users.list',
-  'user.remove': 'users.list'
+  'user.remove': 'users.list',
+  'pack.changed': 'dialogs.list'
 };
 
 /** UI target для Event.data.context (v3) */

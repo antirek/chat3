@@ -1,5 +1,5 @@
 import * as metaUtils from '@chat3/utils/metaUtils.js';
-import { Dialog, Message, DialogMember, User, Topic, Pack } from '@chat3/models';
+import { Dialog, Message, DialogMember, User, Topic, Pack, PackLink } from '@chat3/models';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { Response } from 'express';
@@ -134,6 +134,8 @@ const metaController = {
         await createDialogMemberUpdateEvent(req.tenantId!, entityId, actorId);
       } else if (entityType === 'user') {
         await createUserUpdateEvent(req.tenantId!, entityId, actorId);
+      } else if (entityType === 'pack') {
+        await createPackChangedEvent(req.tenantId!, entityId, actorId);
       }
 
       log(`Отправка успешного ответа: entityType=${entityType}, entityId=${entityId}, key=${key}`);
@@ -236,6 +238,8 @@ const metaController = {
         await createDialogMemberUpdateEvent(req.tenantId!, entityId, actorId);
       } else if (entityType === 'topic') {
         await createTopicUpdateEvent(req.tenantId!, entityId, actorId);
+      } else if (entityType === 'pack') {
+        await createPackChangedEvent(req.tenantId!, entityId, actorId);
       }
 
       log(`Отправка успешного ответа: entityType=${entityType}, entityId=${entityId}, key=${key}`);
@@ -279,6 +283,11 @@ const metaController = {
         { createdBy: req.apiKey?.name || 'api' }
       );
 
+      if (entityType === 'pack') {
+        const actorId = req.userId || req.apiKey?.name || 'api';
+        await createPackChangedEvent(req.tenantId!, entityId, actorId);
+      }
+
       res.json({
         data: sanitizeResponse(metaResult),
         message: 'Meta updated successfully'
@@ -309,6 +318,11 @@ const metaController = {
         keys
       );
 
+      if (entityType === 'pack') {
+        const actorId = req.userId || req.apiKey?.name || 'api';
+        await createPackChangedEvent(req.tenantId!, entityId, actorId);
+      }
+
       res.json({
         data: sanitizeResponse(metaResult),
         message: 'Meta keys deleted successfully'
@@ -325,6 +339,52 @@ const metaController = {
     }
   }
 };
+
+async function createPackChangedEvent(tenantId: string, packId: string, actorId: string): Promise<void> {
+  try {
+    const pack = await Pack.findOne({ packId, tenantId });
+    if (!pack) {
+      console.warn(`Pack ${packId} not found for pack.changed event`);
+      return;
+    }
+
+    const [packMeta, dialogCount] = await Promise.all([
+      metaUtils.getEntityMeta(tenantId, 'pack', packId),
+      PackLink.countDocuments({ packId, tenantId })
+    ]);
+
+    const packSection = eventUtils.buildPackSection({
+      packId,
+      tenantId: pack.tenantId,
+      createdAt: pack.createdAt,
+      meta: packMeta || {},
+      stats: { dialogCount }
+    });
+
+    const packContext = eventUtils.buildEventContext({
+      eventType: 'pack.changed',
+      entityId: packId,
+      packId,
+      includedSections: ['pack'],
+      updatedFields: ['pack.meta']
+    });
+
+    await eventUtils.createEvent({
+      tenantId,
+      eventType: 'pack.changed',
+      entityType: 'pack',
+      entityId: packId,
+      actorId,
+      actorType: 'api',
+      data: eventUtils.composeEventData({
+        context: packContext,
+        pack: packSection || undefined
+      })
+    });
+  } catch (error: any) {
+    console.error('Error creating pack.changed event:', error);
+  }
+}
 
 // Helper function to create dialog.changed event
 async function createDialogUpdateEvent(tenantId: string, dialogId: string, actorId: string): Promise<void> {

@@ -116,6 +116,7 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
     test('resolveUiTarget maps domain event types to UI targets', () => {
       expect(resolveUiTarget('message.create')).toBe('messages.list');
       expect(resolveUiTarget('dialog.member.changed')).toBe('dialogs.list');
+      expect(resolveUiTarget('pack.changed')).toBe('dialogs.list');
       expect(resolveUiTarget('user.changed')).toBe('users.list');
       expect(resolveUiTarget('unknown.event')).toBeNull();
     });

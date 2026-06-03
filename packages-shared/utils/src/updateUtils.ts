@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Message, DialogMember,
+import { Message, Dialog, DialogMember,
   MessageStatus, Update, User, UserStats, UserUnreadBySenderType, UserPackedMessagesUnreadBySenderType, Event, UserDialogStats,
   UPDATE_TYPE_DIALOG, UPDATE_TYPE_MESSAGE, UPDATE_TYPE_USER } from '@chat3/models';
 import type { IUpdate, UpdateType } from '@chat3/models';
@@ -11,7 +11,7 @@ import { getUserType } from './userTypeUtils.js';
 import { buildStatusMessageMatrix } from './userDialogUtils.js';
 import * as eventUtils from './eventUtils.js';
 import * as topicUtils from './topicUtils.js';
-import { buildUnreadBySenderTypeMatrix } from './packStatsUtils.js';
+import { buildUnreadBySenderTypeMatrix, getPackDialogIds } from './packStatsUtils.js';
 
 function withUpdateContext(
   context: Record<string, unknown>,
@@ -192,6 +192,10 @@ async function getSenderInfo(
 }
 
 interface EventData {
+  pack?: {
+    packId: string;
+    [key: string]: unknown;
+  };
   dialog?: {
     dialogId: string;
     [key: string]: unknown;
@@ -386,6 +390,115 @@ export async function createDialogUpdate(
     console.log(`Created ${savedUpdates.length} DialogUpdate for dialog ${dialogId}`);
   } catch (error) {
     console.error('Error creating DialogUpdate:', error);
+  }
+}
+
+const PACK_CHANGED_SOURCE = 'pack.changed';
+
+/**
+ * DialogUpdate для всех участников всех диалогов пака после pack.changed (meta).
+ */
+export async function createDialogUpdatesForPackChanged(
+  tenantId: string,
+  packId: string,
+  eventId: string | mongoose.Types.ObjectId,
+  eventData: EventData = {}
+): Promise<void> {
+  try {
+    const eventIdString = await getEventIdString(eventId, tenantId);
+    if (!eventIdString) {
+      console.warn(`Cannot create pack.changed DialogUpdates: eventId "${eventId}" not found`);
+      return;
+    }
+
+    const eventPack = eventData.pack;
+    if (!eventPack?.packId) {
+      console.error(`Pack section missing in event.data for pack.changed ${eventIdString}`);
+      return;
+    }
+
+    const dialogIds = await getPackDialogIds(tenantId, packId);
+    if (!dialogIds.length) {
+      console.log(`pack.changed ${eventIdString}: pack ${packId} has no dialogs, skipping DialogUpdates`);
+      return;
+    }
+
+    const [dialogs, members, userDialogStatsList] = await Promise.all([
+      Dialog.find({ tenantId, dialogId: { $in: dialogIds } }).lean(),
+      DialogMember.find({ tenantId, dialogId: { $in: dialogIds } }).select('dialogId userId').lean(),
+      UserDialogStats.find({ tenantId, dialogId: { $in: dialogIds } }).lean()
+    ]);
+
+    const membersByDialog = new Map<string, string[]>();
+    for (const m of members as Array<{ dialogId: string; userId: string }>) {
+      const list = membersByDialog.get(m.dialogId) || [];
+      list.push(m.userId);
+      membersByDialog.set(m.dialogId, list);
+    }
+
+    const statsMap = new Map<string, { unreadCount: number }>();
+    for (const stats of userDialogStatsList as Array<{ userId: string; dialogId: string; unreadCount?: number }>) {
+      statsMap.set(`${stats.dialogId}:${stats.userId}`, {
+        unreadCount: stats.unreadCount || 0
+      });
+    }
+
+    const packSection = cloneSection(eventPack);
+    const updates: Array<Record<string, unknown>> = [];
+
+    for (const dialog of dialogs as Array<{ dialogId: string; tenantId?: string; createdAt?: number; createdBy?: unknown }>) {
+      const dialogId = dialog.dialogId;
+      const memberUserIds = membersByDialog.get(dialogId) || [];
+      if (!memberUserIds.length) {
+        continue;
+      }
+
+      const dialogMeta = await metaUtils.getEntityMeta(tenantId, 'dialog', dialogId);
+      const dialogSection = eventUtils.buildDialogSection({
+        dialogId,
+        tenantId: dialog.tenantId ?? tenantId,
+        createdAt: dialog.createdAt,
+        createdBy: (dialog as { createdBy?: string | null }).createdBy ?? null,
+        meta: dialogMeta || {}
+      });
+
+      if (!dialogSection) {
+        continue;
+      }
+
+      for (const userId of memberUserIds) {
+        const userStats = statsMap.get(`${dialogId}:${userId}`) || { unreadCount: 0 };
+        const contextBase: Record<string, unknown> = {
+          dialogId,
+          packId,
+          entityId: dialogId,
+          includedSections: ['dialog', 'pack'],
+          updatedFields: ['pack.meta']
+        };
+        const finalizedContext = withUpdateContext(contextBase, UPDATE_TYPE_DIALOG, PACK_CHANGED_SOURCE);
+
+        updates.push({
+          tenantId,
+          userId,
+          entityId: dialogId,
+          eventId: eventIdString,
+          ...buildUpdateDocumentFields(PACK_CHANGED_SOURCE, UPDATE_TYPE_DIALOG),
+          data: {
+            dialog: { ...cloneSection(dialogSection), stats: userStats },
+            pack: packSection,
+            context: cloneSection(finalizedContext)
+          },
+          published: false
+        });
+      }
+    }
+
+    const savedUpdates = await persistUpdates(updates);
+    console.log(
+      `Created ${savedUpdates.length} DialogUpdate(s) for pack.changed pack=${packId} (${dialogIds.length} dialogs)`
+    );
+  } catch (error) {
+    console.error('Error creating DialogUpdates for pack.changed:', error);
   }
 }
 

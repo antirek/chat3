@@ -22,6 +22,7 @@ export type EventType =
   | 'user.changed'
   | 'user.remove'
   | 'pack.create'
+  | 'pack.changed'
   | 'pack.delete'
   | 'pack.dialog.add'
   | 'pack.dialog.remove';
@@ -77,6 +78,7 @@ const EVENT_TYPE_ENUM: EventType[] = [
   'user.changed',
   'user.remove',
   'pack.create',
+  'pack.changed',
   'pack.delete',
   'pack.dialog.add',
   'pack.dialog.remove'
@@ -164,6 +166,7 @@ eventSchema.virtual('description').get(function() {
     'user.changed': 'Обновлен пользователь',
     'user.remove': 'Удален пользователь',
     'pack.create': 'Создан пак',
+    'pack.changed': 'Обновлен пак (meta)',
     'pack.delete': 'Удален пак',
     'pack.dialog.add': 'Диалог добавлен в пак',
     'pack.dialog.remove': 'Диалог удален из пака'

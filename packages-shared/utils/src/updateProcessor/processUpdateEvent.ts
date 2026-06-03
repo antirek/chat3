@@ -39,6 +39,22 @@ export async function processUpdateEvent(eventData: UpdateEventPayload): Promise
 
   console.log(`📩 Processing event: ${eventType} (${entityId})`);
 
+  if (eventType === 'pack.changed') {
+    const packPayload = (data.pack || {}) as Record<string, unknown>;
+    const ctx = data.context as Record<string, unknown> | undefined;
+    const packId: string | null =
+      (typeof packPayload.packId === 'string' ? packPayload.packId : null) ||
+      (typeof ctx?.packId === 'string' ? ctx.packId : null) ||
+      (entityType === 'pack' && typeof entityId === 'string' ? entityId : null);
+    if (packId) {
+      await updateUtils.createDialogUpdatesForPackChanged(tenantId, packId, eventId, data);
+      console.log(`✅ Created DialogUpdates for pack.changed ${packId}`);
+    } else {
+      console.warn(`⚠️ No packId for pack.changed event ${eventId}`);
+    }
+    return;
+  }
+
   const shouldUpdate = updateUtils.shouldCreateUpdate(eventType);
 
   if (shouldUpdate.dialog) {

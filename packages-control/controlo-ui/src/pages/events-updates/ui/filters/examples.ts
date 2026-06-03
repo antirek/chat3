@@ -4,6 +4,7 @@ export const eventFilterExamples: FilterExample[] = [
   {
     label: 'По типу события',
     options: [
+      { value: 'eventType=pack.changed', label: 'pack.changed' },
       { value: 'eventType=message.create', label: 'message.create' },
       { value: 'eventType=message.changed', label: 'message.changed' },
       { value: 'eventType=message.delete', label: 'message.delete' },
