@@ -1,4 +1,4 @@
-import { parseFilter, parseFilters, extractMetaFilters, parseMemberSort, parseSort, FilterValidationError } from '../queryParser.js';
+import { parseFilter, parseFilters, extractMetaFilters, parseMemberSort, parseSort, buildFilterQuery, FilterValidationError } from '../queryParser.js';
 
 describe('queryParser', () => {
   describe('parseFilter', () => {
@@ -230,6 +230,14 @@ describe('queryParser', () => {
       expect(result.$and).toBeDefined();
       expect(result.$and).toHaveLength(1);
       expect(result.$and[0].status).toEqual({ $ne: 'deleted' });
+    });
+
+    test('merges comparison operators on same field when joined with &', () => {
+      const gte = new Date('2025-10-22').getTime();
+      const lt = new Date('2026-06-01').getTime();
+      const result = parseFilters(`(createdAt,gte,2025-10-22)&(createdAt,lt,2026-06-01)`);
+      expect(result.createdAt).toEqual({ $gte: gte, $lt: lt });
+      expect(result.$and).toBeUndefined();
     });
 
     test('should parse complex filters with nested fields', () => {
@@ -672,6 +680,13 @@ describe('queryParser', () => {
       });
     });
 
+    test('should preserve regular filters from parseFilters $and conflicts', () => {
+      const filter = parseFilters('(status,eq,active)&(status,ne,deleted)');
+      const result = extractMetaFilters(filter);
+      expect(result.regularFilters.status).toBe('active');
+      expect(result.regularFilters.$and).toEqual([{ status: { $ne: 'deleted' } }]);
+    });
+
     test('should handle nested $and conditions', () => {
       const filter = {
         $and: [
@@ -691,7 +706,9 @@ describe('queryParser', () => {
       expect(result.memberFilters).toEqual({
         member: 'alice'
       });
-      expect(result.regularFilters).toEqual({});
+      expect(result.regularFilters).toEqual({
+        $and: [{ status: 'active' }]
+      });
     });
 
     test('should handle empty filter', () => {
@@ -751,6 +768,15 @@ describe('queryParser', () => {
       expect(result.branches[0].regularFilters).toEqual({});
       expect(result.branches[1].regularFilters).toEqual({ type: 'b' });
       expect(result.branches[1].metaFilters).toEqual({});
+    });
+  });
+
+  describe('buildFilterQuery', () => {
+    test('applies createdAt date range for messages', async () => {
+      const parsed = parseFilters('(createdAt,gte,2025-10-22)&(createdAt,lt,2026-06-01)');
+      const query = await buildFilterQuery('tenant1', 'message', parsed);
+      expect(query.createdAt.$gte).toBe(new Date('2025-10-22').getTime());
+      expect(query.createdAt.$lt).toBe(new Date('2026-06-01').getTime());
     });
   });
 

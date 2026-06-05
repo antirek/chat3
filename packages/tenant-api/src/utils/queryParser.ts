@@ -411,14 +411,55 @@ function normalizeFilterString(str: string): string {
   return stripRedundantOuterParens(trimmed);
 }
 
+/** Оба значения — объекты только с Mongo-операторами ($gte, $lt, …), их можно слить в одно поле. */
+function canMergeFieldConditions(existing: unknown, incoming: unknown): boolean {
+  if (existing === null || incoming === null) return false;
+  if (typeof existing !== 'object' || typeof incoming !== 'object') return false;
+  if (Array.isArray(existing) || Array.isArray(incoming)) return false;
+  const existingKeys = Object.keys(existing as object);
+  const incomingKeys = Object.keys(incoming as object);
+  if (existingKeys.length === 0 || incomingKeys.length === 0) return false;
+  return existingKeys.every((k) => k.startsWith('$')) && incomingKeys.every((k) => k.startsWith('$'));
+}
+
+/** Собирает regular-условия из результата extractMetaFilters для сохранения в $and. */
+function collectPreservedAndConditions(nestedRegular: MongoQuery): MongoQuery[] {
+  const preserved: MongoQuery[] = [];
+  const { $and: nestedAnd, topic, ...rest } = nestedRegular;
+  const cleaned: MongoQuery = { ...rest };
+  if (topic && typeof topic === 'object') {
+    const topicObj = topic as MongoQuery;
+    const { meta, ...topicWithoutMeta } = topicObj;
+    if (Object.keys(topicWithoutMeta).length > 0) {
+      cleaned.topic = topicWithoutMeta;
+    }
+  }
+  if (Object.keys(cleaned).length > 0) {
+    preserved.push(cleaned);
+  }
+  if (Array.isArray(nestedAnd)) {
+    preserved.push(...(nestedAnd as MongoQuery[]));
+  }
+  return preserved;
+}
+
 /** Объединяет несколько MongoQuery в один (при конфликте ключей — в $and). */
 function mergeAndOperands(queries: MongoQuery[]): MongoQuery {
   const result: MongoQuery = {};
   for (const q of queries) {
     for (const [key, value] of Object.entries(q)) {
-      if (result[key]) {
+      if (key === '$and' && Array.isArray(value)) {
         if (!result.$and) result.$and = [];
-        (result.$and as any[]).push({ [key]: value });
+        (result.$and as MongoQuery[]).push(...(value as MongoQuery[]));
+        continue;
+      }
+      if (result[key]) {
+        if (canMergeFieldConditions(result[key], value)) {
+          Object.assign(result[key] as object, value);
+        } else {
+          if (!result.$and) result.$and = [];
+          (result.$and as MongoQuery[]).push({ [key]: value });
+        }
       } else {
         result[key] = value;
       }
@@ -561,8 +602,12 @@ export function extractMetaFilters(filter: MongoQuery): ExtractedFiltersResult {
             metaFilters[`topic.meta.${metaKey}`] = metaValue;
           }
         }
+        const preserved = collectPreservedAndConditions(nestedRegular);
+        if (preserved.length > 0) {
+          if (!regularFilters.$and) regularFilters.$and = [];
+          (regularFilters.$and as MongoQuery[]).push(...preserved);
+        }
       }
-      // $and не добавляем в regularFilters
     } else {
       regularFilters[key] = value;
     }
