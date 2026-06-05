@@ -6,6 +6,7 @@ import * as fakeAmqp from '@onify/fake-amqplib';
 import { dialogController } from '../dialogController.js';
 import dialogMemberController from '../dialogMemberController.js';
 import messageController from '../messageController.js';
+import { packController } from '../packController.js';
 import {
   DialogMember,
   DialogStats,
@@ -15,8 +16,10 @@ import {
   User,
   UserDialogStats,
   UserDialogUnreadBySenderType,
+  UserPackUnreadBySenderType,
   UserStats
 } from '@chat3/models';
+import { recalculateUserPackUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
@@ -278,6 +281,87 @@ describe('dialog.member.remove counter recalc', () => {
 
     const dialogStats = await DialogStats.findOne({ tenantId, dialogId }).lean();
     expect(dialogStats?.memberCount).toBe(2);
+  });
+
+  test('после remove участника диалога в паке counter-worker обнуляет UserPackUnreadBySenderType', async () => {
+    const resPack = createMockRes();
+    await packController.create(createReq(), resPack);
+    expect(resPack.statusCode).toBe(201);
+    const packId = resPack.body?.data?.packId;
+
+    const resDialog = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: VIEWER_ID, type: 'user' },
+            { userId: SENDER_ID, type: 'contact' }
+          ]
+        }
+      }),
+      resDialog
+    );
+    expect(resDialog.statusCode).toBe(201);
+    const dialogId = resDialog.body?.data?.dialogId;
+
+    const resLink = createMockRes();
+    await packController.addDialog(
+      createReq({ params: { packId }, body: { dialogId } }),
+      resLink
+    );
+    expect(resLink.statusCode).toBe(201);
+
+    await messageController.createMessage(
+      createReq({
+        params: { dialogId },
+        body: {
+          senderId: SENDER_ID,
+          content: 'unread in pack dialog',
+          type: 'internal.text'
+        }
+      }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+    await recalculateUserPackUnreadBySenderType(tenantId, packId, {
+      sourceOperation: 'test-setup',
+      sourceEntityId: packId
+    });
+
+    const statsBefore = await UserStats.findOne({ tenantId, userId: VIEWER_ID }).lean();
+    expect(statsBefore?.totalUnreadCount).toBeGreaterThanOrEqual(1);
+
+    const packUnreadBefore = await UserPackUnreadBySenderType.find({
+      tenantId,
+      userId: VIEWER_ID,
+      packId
+    }).lean();
+    const totalPackUnreadBefore = packUnreadBefore.reduce(
+      (sum, row) => sum + (row.countUnread || 0),
+      0
+    );
+    expect(totalPackUnreadBefore).toBeGreaterThanOrEqual(1);
+
+    await dialogMemberController.removeDialogMember(
+      createReq({ params: { dialogId, userId: VIEWER_ID } }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    const statsAfter = await UserStats.findOne({ tenantId, userId: VIEWER_ID }).lean();
+    expect(statsAfter?.totalUnreadCount).toBe(0);
+    expect(statsAfter?.unreadDialogsCount).toBe(0);
+
+    const packUnreadAfter = await UserPackUnreadBySenderType.find({
+      tenantId,
+      userId: VIEWER_ID,
+      packId
+    }).lean();
+    const totalPackUnreadAfter = packUnreadAfter.reduce(
+      (sum, row) => sum + (row.countUnread || 0),
+      0
+    );
+    expect(totalPackUnreadAfter).toBe(0);
   });
 
   test('runCounterStackPipeline обрабатывает dialog.member.remove из outbox', async () => {

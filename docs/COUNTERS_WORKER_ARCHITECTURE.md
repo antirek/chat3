@@ -275,11 +275,14 @@ sequenceDiagram
 **Не путать с `statusMessageMatrix`:** матрица в UI показывает **последний** статус каждого получателя; **счётчики unread** смотрят на **факт `read` в истории**, а не на «последний = unread».
 
 ```text
-isUnreadForUser(message, viewerUserId) :=
+isUnreadForUser(message, viewerUserId, dialogId) :=
   message.type NOT /^system\./
   AND normalize(message.senderId) !== normalize(viewerUserId)
+  AND message.createdAt >= DialogMember(viewerUserId, dialogId).createdAt
   AND NOT exists MessageStatus(messageId, viewerUserId, status = 'read')
 ```
+
+**Граница join (2026-05-28):** для пары `(userId, dialogId)` в пересчёт попадают только сообщения с `Message.createdAt >= DialogMember.createdAt` (включительно). История до вступления не увеличивает unread; `GET /api/messages` по-прежнему может отдавать старые сообщения. См. [DIALOG_MEMBER_ADD_JOIN_BOUNDARY_PLAN.md](./DIALOG_MEMBER_ADD_JOIN_BOUNDARY_PLAN.md).
 
 | История (по времени) | `unreadCount` |
 |----------------------|---------------|

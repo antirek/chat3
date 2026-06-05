@@ -157,6 +157,55 @@ describe('reconcileCounterDrift', () => {
     expect(result.drifts.some((d) => d.kind === 'userStatsPackedTotalUnread')).toBe(true);
   });
 
+  test('ok when late joiner has inflated UserDialogStats but expected unread is 0', async () => {
+    const tenantId = 'tnt_drift_late_join';
+    const dialogId = 'dlg_hh888888888888888888';
+    const senderId = 'contact';
+    const lateJoiner = 'bob';
+    const historyAt = generateTimestamp();
+    const joinAt = historyAt + 2000;
+    const now = generateTimestamp();
+
+    await DialogMember.insertMany([
+      { tenantId, dialogId, userId: senderId, createdAt: historyAt },
+      { tenantId, dialogId, userId: lateJoiner, createdAt: joinAt }
+    ]);
+    await Message.insertMany([
+      {
+        tenantId,
+        dialogId,
+        messageId: 'msg_jjaaaaaaaaaaaaaaaaaa',
+        senderId,
+        type: 'internal.text',
+        content: '1',
+        createdAt: historyAt
+      },
+      {
+        tenantId,
+        dialogId,
+        messageId: 'msg_kkbbbbbbbbbbbbbbbbbb',
+        senderId,
+        type: 'internal.text',
+        content: '2',
+        createdAt: historyAt + 1
+      }
+    ]);
+    await UserDialogStats.create({
+      tenantId,
+      dialogId,
+      userId: lateJoiner,
+      unreadCount: 99,
+      createdAt: now
+    });
+
+    const result = await reconcileCounterDrift({ tenantId, maxUserDialogs: 50 });
+    expect(result.ok).toBe(false);
+    expect(result.drifts.some((d) => d.kind === 'userDialogUnread')).toBe(true);
+    expect(
+      result.drifts.find((d) => d.kind === 'userDialogUnread' && d.userId === lateJoiner)?.expected
+    ).toBe(0);
+  });
+
   test('golden fixture message.create yields expected unread', async () => {
     const fixture = JSON.parse(
       readFileSync(join(__dirname, 'fixtures/events/message.create.json'), 'utf8')

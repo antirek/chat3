@@ -241,13 +241,15 @@ describe('dialogMemberUtils - Integration Tests with MongoDB', () => {
       const messageId1 = generateMessageId();
       const messageId2 = generateMessageId();
 
-      // Создаем диалог и сообщения
+      // Создаем диалог и участника до сообщений (граница join: Message.createdAt >= DialogMember.createdAt)
       await Dialog.create({
         tenantId,
         dialogId,
         
         createdBy: userId
       });
+
+      await addDialogMember(tenantId, userId, dialogId);
 
       await Message.create([
         {
@@ -291,9 +293,6 @@ describe('dialogMemberUtils - Integration Tests with MongoDB', () => {
           status: 'read'
         }
       ]);
-
-      // Создаем участника
-      await addDialogMember(tenantId, userId, dialogId);
 
       await UserDialogStats.findOneAndUpdate(
         { tenantId, userId, dialogId },

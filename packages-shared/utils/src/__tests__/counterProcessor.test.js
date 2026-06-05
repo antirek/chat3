@@ -6,12 +6,16 @@ import {
   MessageStatusStats,
   DialogMember,
   DialogStats,
+  Pack,
+  PackLink,
   ProcessedCounterEvent,
   UserDialogStats,
   UserDialogUnreadBySenderType,
+  UserPackUnreadBySenderType,
   UserStats
 } from '@chat3/models';
 import { processCounterEvent, CounterProcessorError } from '../counterProcessor/processCounterEvent.js';
+import { recalculateUserDialogUnread } from '../counterProcessor/recalculateUserDialogUnread.js';
 import { generateTimestamp } from '../timestampUtils.js';
 
 describe('counterProcessor', () => {
@@ -136,6 +140,92 @@ describe('counterProcessor', () => {
 
     stats = await UserDialogStats.findOne({ tenantId, userId: readerId, dialogId }).lean();
     expect(stats?.unreadCount).toBe(0);
+  });
+
+  test('dialog.member.add after historical messages yields unread 0 for new member', async () => {
+    const tenantId = 'tnt_test';
+    const dialogId = 'dlg_dd444444444444444444';
+    const packId = 'pck_ee555555555555555555';
+    const senderId = 'contact';
+    const stayerId = 'alice';
+    const newMemberId = 'bob';
+    const historyAt = generateTimestamp();
+    const joinAt = historyAt + 5000;
+    const now = joinAt;
+
+    await DialogMember.insertMany([
+      { tenantId, dialogId, userId: senderId, createdAt: historyAt },
+      { tenantId, dialogId, userId: stayerId, createdAt: historyAt }
+    ]);
+    await Pack.create({ tenantId, packId, createdAt: historyAt });
+    await PackLink.create({ tenantId, packId, dialogId, addedAt: historyAt });
+
+    await Message.insertMany(
+      Array.from({ length: 5 }, (_, i) => ({
+        tenantId,
+        dialogId,
+        messageId: `msg_ii9999999999999999${String(i).padStart(2, '0')}`,
+        senderId,
+        type: 'internal.text',
+        content: `h${i}`,
+        createdAt: historyAt + i
+      }))
+    );
+
+    await recalculateUserDialogUnread(tenantId, stayerId, dialogId);
+
+    await DialogMember.create({
+      tenantId,
+      dialogId,
+      userId: newMemberId,
+      createdAt: joinAt
+    });
+
+    await processCounterEvent({
+      eventId: 'evt_c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0',
+      tenantId,
+      eventType: 'dialog.member.add',
+      entityType: 'dialogMember',
+      entityId: `${dialogId}:${newMemberId}`,
+      data: {
+        context: { dialogId, userId: newMemberId },
+        dialog: { dialogId },
+        member: { userId: newMemberId }
+      }
+    });
+
+    const newStats = await UserDialogStats.findOne({
+      tenantId,
+      userId: newMemberId,
+      dialogId
+    }).lean();
+    expect(newStats?.unreadCount).toBe(0);
+
+    const newBySender = await UserDialogUnreadBySenderType.find({
+      tenantId,
+      userId: newMemberId,
+      dialogId
+    }).lean();
+    expect(newBySender.every((r) => (r.countUnread ?? 0) === 0)).toBe(true);
+
+    const packRows = await UserPackUnreadBySenderType.find({
+      tenantId,
+      userId: newMemberId,
+      packId
+    }).lean();
+    const packTotal = packRows.reduce((s, r) => s + (r.countUnread || 0), 0);
+    expect(packTotal).toBe(0);
+
+    const stayerStats = await UserDialogStats.findOne({
+      tenantId,
+      userId: stayerId,
+      dialogId
+    }).lean();
+    expect(stayerStats?.unreadCount).toBe(5);
+
+    const userStats = await UserStats.findOne({ tenantId, userId: newMemberId }).lean();
+    expect(userStats?.totalUnreadCount).toBe(0);
+    expect(userStats?.dialogCount).toBe(1);
   });
 
   test('dialog.member.remove deletes per-dialog stats for user', async () => {

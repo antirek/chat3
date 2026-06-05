@@ -11,4 +11,11 @@ describe('isUnreadForUser / unreadMessageMatchExtras', () => {
     const extras = unreadMessageMatchExtras('Bob');
     expect(extras.senderId).toEqual({ $ne: 'bob' });
   });
+
+  test('adds createdAt $gte when memberJoinedAt is set', () => {
+    const joinAt = 1_700_000_000_000;
+    const extras = unreadMessageMatchExtras('bob', { memberJoinedAt: joinAt });
+    expect(extras.createdAt).toEqual({ $gte: joinAt });
+    expect(extras.senderId).toEqual({ $ne: 'bob' });
+  });
 });

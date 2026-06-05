@@ -1,12 +1,25 @@
-import { Message, UserDialogStats, UserDialogUnreadBySenderType } from '@chat3/models';
+import { DialogMember, Message, UserDialogStats, UserDialogUnreadBySenderType } from '@chat3/models';
 import type { PipelineStage } from 'mongoose';
 import { generateTimestamp } from '../timestampUtils.js';
 import { getUserType } from '../userTypeUtils.js';
 import { PACK_UNREAD_SENDER_TYPES, normalizeSenderType } from '../packUnreadSenderTypes.js';
 import { messageReadLookupPipeline, unreadMessageMatchExtras } from './isUnreadForUser.js';
 
+/** Момент вступления user в dialog; null — не участник. */
+export async function getDialogMemberJoinedAt(
+  tenantId: string,
+  userId: string,
+  dialogId: string
+): Promise<number | null> {
+  const uid = (userId || '').trim().toLowerCase();
+  const member = await DialogMember.findOne({ tenantId, userId: uid, dialogId })
+    .select('createdAt')
+    .lean();
+  return (member as { createdAt?: number } | null)?.createdAt ?? null;
+}
+
 /**
- * Ожидаемый unread для пары (userId, dialogId) без записи в БД (A12).
+ * Ожидаемый unread для пары (userId, dialogId) без записи в БД (A12 + граница join).
  */
 export async function countUserDialogUnread(
   tenantId: string,
@@ -14,13 +27,17 @@ export async function countUserDialogUnread(
   dialogId: string
 ): Promise<number> {
   const uid = (userId || '').trim().toLowerCase();
+  const memberJoinedAt = await getDialogMemberJoinedAt(tenantId, uid, dialogId);
+  if (memberJoinedAt == null) {
+    return 0;
+  }
 
   const unreadCountPipeline: PipelineStage[] = [
     {
       $match: {
         tenantId,
         dialogId,
-        ...unreadMessageMatchExtras(uid)
+        ...unreadMessageMatchExtras(uid, { memberJoinedAt })
       }
     },
     ...(messageReadLookupPipeline(tenantId, uid) as unknown as PipelineStage[]),
@@ -41,6 +58,11 @@ export async function recalculateUserDialogUnread(
   dialogId: string
 ): Promise<number> {
   const uid = (userId || '').trim().toLowerCase();
+  const memberJoinedAt = await getDialogMemberJoinedAt(tenantId, uid, dialogId);
+  if (memberJoinedAt == null) {
+    return 0;
+  }
+
   const unreadCount = await countUserDialogUnread(tenantId, uid, dialogId);
 
   const now = generateTimestamp();
@@ -58,7 +80,7 @@ export async function recalculateUserDialogUnread(
       $match: {
         tenantId,
         dialogId,
-        ...unreadMessageMatchExtras(uid)
+        ...unreadMessageMatchExtras(uid, { memberJoinedAt })
       }
     },
     ...(messageReadLookupPipeline(tenantId, uid) as unknown as PipelineStage[]),
