@@ -5,13 +5,9 @@ import { toEventPayload } from './eventPayload.js';
 import { publishCounterUpdates } from './publishCounterUpdates.js';
 import { recalculateSlice } from './recalculateSlice.js';
 import { resolveSlice } from './resolveSlice.js';
+import { CounterProcessorError } from './errors.js';
 
-export class CounterProcessorError extends Error {
-  constructor(message: string, public readonly retryable = true) {
-    super(message);
-    this.name = 'CounterProcessorError';
-  }
-}
+export { CounterProcessorError } from './errors.js';
 
 /**
  * Идемпотентная обработка доменного события: slice → stats → counter-Updates.

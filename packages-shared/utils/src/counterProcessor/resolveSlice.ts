@@ -1,5 +1,6 @@
 import { Message } from '@chat3/models';
 import { getPackIdsForDialog } from '../packStatsUtils.js';
+import { CounterProcessorError } from './errors.js';
 import type { CounterEventPayload, CounterSlice } from './types.js';
 import {
   getDialogIdFromEvent,
@@ -24,7 +25,7 @@ function addUserDialog(
 }
 
 export async function resolveSlice(event: CounterEventPayload): Promise<CounterSlice> {
-  const { tenantId, eventType, eventId, data, actorId, actorType } = event;
+  const { tenantId, eventType, eventId, entityId, data, actorId, actorType } = event;
   const dialogIds: string[] = [];
   const messageIds: string[] = [];
   const userIds: string[] = [];
@@ -33,7 +34,7 @@ export async function resolveSlice(event: CounterEventPayload): Promise<CounterS
   let senderId: string | null = getSenderIdFromEvent(data);
 
   const dialogId = getDialogIdFromEvent(data);
-  const eventUserId = getUserIdFromEvent(data);
+  const eventUserId = getUserIdFromEvent(data, entityId);
   const eventMessageId = getMessageIdFromEvent(data);
 
   switch (eventType) {
@@ -121,6 +122,15 @@ export async function resolveSlice(event: CounterEventPayload): Promise<CounterS
     }
     default:
       break;
+  }
+
+  if (eventType === 'dialog.member.remove') {
+    if (!dialogId || !eventUserId) {
+      throw new CounterProcessorError(
+        `dialog.member.remove: missing dialogId or userId in event payload (eventId=${eventId})`,
+        false
+      );
+    }
   }
 
   return {

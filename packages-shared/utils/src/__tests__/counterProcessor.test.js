@@ -5,11 +5,13 @@ import {
   MessageStatus,
   MessageStatusStats,
   DialogMember,
+  DialogStats,
   ProcessedCounterEvent,
   UserDialogStats,
-  UserDialogUnreadBySenderType
+  UserDialogUnreadBySenderType,
+  UserStats
 } from '@chat3/models';
-import { processCounterEvent } from '../counterProcessor/processCounterEvent.js';
+import { processCounterEvent, CounterProcessorError } from '../counterProcessor/processCounterEvent.js';
 import { generateTimestamp } from '../timestampUtils.js';
 
 describe('counterProcessor', () => {
@@ -172,6 +174,119 @@ describe('counterProcessor', () => {
 
     expect(await UserDialogStats.findOne({ tenantId, userId, dialogId }).lean()).toBeNull();
     expect(await UserDialogUnreadBySenderType.countDocuments({ tenantId, userId, dialogId })).toBe(0);
+  });
+
+  test('dialog.member.remove recalculates UserStats and DialogStats.memberCount', async () => {
+    const tenantId = 'tnt_test';
+    const dialogId = 'dlg_ee666666666666666666';
+    const leaver = 'leaver';
+    const stayer = 'stayer';
+    const now = generateTimestamp();
+
+    await DialogMember.create({
+      tenantId,
+      dialogId,
+      userId: stayer,
+      createdAt: now
+    });
+
+    await UserStats.create({
+      tenantId,
+      userId: leaver,
+      dialogCount: 2,
+      totalUnreadCount: 5,
+      unreadDialogsCount: 1,
+      totalMessagesCount: 0,
+      createdAt: now
+    });
+
+    await UserDialogStats.create({
+      tenantId,
+      dialogId,
+      userId: leaver,
+      unreadCount: 5,
+      createdAt: now
+    });
+
+    await UserDialogUnreadBySenderType.create({
+      tenantId,
+      dialogId,
+      userId: leaver,
+      fromType: 'user',
+      countUnread: 5,
+      createdAt: now
+    });
+
+    await processCounterEvent({
+      eventId: 'evt_e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6',
+      tenantId,
+      eventType: 'dialog.member.remove',
+      entityType: 'dialogMember',
+      entityId: `${dialogId}:${leaver}`,
+      data: {
+        context: { dialogId, userId: leaver },
+        dialog: { dialogId }
+      }
+    });
+
+    const userStats = await UserStats.findOne({ tenantId, userId: leaver }).lean();
+    expect(userStats?.totalUnreadCount).toBe(0);
+    expect(userStats?.unreadDialogsCount).toBe(0);
+    expect(userStats?.dialogCount).toBe(1);
+
+    const dialogStats = await DialogStats.findOne({ tenantId, dialogId }).lean();
+    expect(dialogStats?.memberCount).toBe(1);
+  });
+
+  test('dialog.member.remove resolves userId from entityId when context omits userId', async () => {
+    const tenantId = 'tnt_test';
+    const dialogId = 'dlg_ff888888888888888888';
+    const userId = 'leaver2';
+    const now = generateTimestamp();
+
+    await UserDialogUnreadBySenderType.create({
+      tenantId,
+      dialogId,
+      userId,
+      fromType: 'user',
+      countUnread: 2,
+      createdAt: now
+    });
+
+    await processCounterEvent({
+      eventId: 'evt_f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8',
+      tenantId,
+      eventType: 'dialog.member.remove',
+      entityType: 'dialogMember',
+      entityId: `${dialogId}:${userId}`,
+      data: {
+        context: { dialogId },
+        dialog: { dialogId }
+      }
+    });
+
+    expect(await UserDialogUnreadBySenderType.countDocuments({ tenantId, userId, dialogId })).toBe(0);
+  });
+
+  test('dialog.member.remove rejects payload without userId', async () => {
+    await expect(
+      processCounterEvent({
+        eventId: 'evt_badbadbadbadbadbadbadbadbadba',
+        tenantId: 'tnt_test',
+        eventType: 'dialog.member.remove',
+        entityType: 'dialogMember',
+        entityId: 'dlg_only_no_user_suffix',
+        data: {
+          context: { dialogId: 'dlg_x' },
+          dialog: { dialogId: 'dlg_x' }
+        }
+      })
+    ).rejects.toThrow(CounterProcessorError);
+
+    const processed = await ProcessedCounterEvent.countDocuments({
+      eventId: 'evt_badbadbadbadbadbadbadbadbadba'
+    });
+    expect(processed).toBe(0);
   });
 
   test('message.status.changed recalculates MessageStatusStats from history', async () => {

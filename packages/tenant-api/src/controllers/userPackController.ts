@@ -332,6 +332,7 @@ export async function joinPack(req: AuthenticatedRequest, res: Response): Promis
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.member.add',
         dialogId,
+        userId,
         entityId: `${dialogId}:${userId}`,
         includedSections: ['dialog', 'member'],
         updatedFields: ['member']
@@ -454,6 +455,7 @@ export async function leavePack(req: AuthenticatedRequest, res: Response): Promi
         const eventContext = eventUtils.buildEventContext({
           eventType: 'dialog.member.remove',
           dialogId,
+          userId,
           entityId: `${dialogId}:${userId}`,
           includedSections: ['dialog', 'member'],
           updatedFields: ['member']

@@ -126,6 +126,7 @@ const dialogMemberController = {
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.member.add',
         dialogId: dialog.dialogId,
+        userId,
         entityId: `${dialog.dialogId}:${userId}`, // Используем составной ID
         includedSections: ['dialog', 'member'],
         updatedFields: ['member']
@@ -527,6 +528,7 @@ const dialogMemberController = {
         const eventContext = eventUtils.buildEventContext({
           eventType: 'dialog.member.remove',
           dialogId: dialog.dialogId,
+          userId,
           entityId: `${dialog.dialogId}:${userId}`, // Используем составной ID
           includedSections: ['dialog', 'member'],
           updatedFields: ['member']
@@ -742,6 +744,7 @@ const dialogMemberController = {
       const eventContext = eventUtils.buildEventContext({
         eventType: 'dialog.member.changed',
         dialogId: dialog.dialogId,
+        userId,
         entityId: `${dialog.dialogId}:${userId}`,
         includedSections: ['dialog', 'member'],
         updatedFields: ['member.state.unreadCount', 'member.state.lastSeenAt']

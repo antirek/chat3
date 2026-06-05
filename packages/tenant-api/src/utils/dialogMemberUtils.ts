@@ -1,4 +1,4 @@
-import { DialogMember, UserDialogActivity, UserDialogStats } from '@chat3/models';
+import { DialogMember, UserDialogActivity, UserDialogStats, UserDialogUnreadBySenderType } from '@chat3/models';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import type { ActorType } from '@chat3/models';
@@ -73,7 +73,13 @@ export async function removeDialogMember(
       userId,
       dialogId
     });
-    
+
+    await UserDialogUnreadBySenderType.deleteMany({
+      tenantId,
+      userId,
+      dialogId
+    });
+
     // 2. Удаляем UserDialogActivity (hard delete)
     await UserDialogActivity.deleteOne({
       tenantId,

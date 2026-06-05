@@ -92,6 +92,10 @@ router.post(
  * /api/dialogs/{dialogId}/members/{userId}/remove:
  *   post:
  *     summary: Remove a member from a dialog
+ *     description: |
+ *       Удаляет участника и связанные per-dialog записи (stats, activity, unread-by-sender).
+ *       Создаёт событие `dialog.member.remove`; агрегаты (`UserStats`, pack unread в БД) пересчитывает
+ *       **counter-worker** асинхронно. Ответ POST не гарантирует финальные счётчики.
  *     tags: [DialogMember]
  *     security:
  *       - ApiKeyAuth: []

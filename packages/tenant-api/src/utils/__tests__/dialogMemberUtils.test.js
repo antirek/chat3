@@ -450,6 +450,31 @@ describe('dialogMemberUtils - Integration Tests with MongoDB', () => {
       const member = await DialogMember.findOne({ tenantId, userId, dialogId });
       expect(member).toBeNull();
     });
+
+    test('should delete UserDialogUnreadBySenderType for removed member', async () => {
+      const dialogId = generateDialogId();
+      const userId = 'user1';
+      const now = generateTimestamp();
+
+      await addDialogMember(tenantId, userId, dialogId);
+      await UserDialogUnreadBySenderType.create({
+        tenantId,
+        userId,
+        dialogId,
+        fromType: 'user',
+        countUnread: 2,
+        createdAt: now
+      });
+
+      await removeDialogMember(tenantId, userId, dialogId);
+
+      const rows = await UserDialogUnreadBySenderType.countDocuments({
+        tenantId,
+        userId,
+        dialogId
+      });
+      expect(rows).toBe(0);
+    });
   });
 
   describe('updateLastSeen', () => {

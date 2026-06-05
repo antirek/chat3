@@ -52,21 +52,36 @@ export function getSenderIdFromEvent(data: Record<string, unknown> | undefined):
   return null;
 }
 
-export function getUserIdFromEvent(data: Record<string, unknown> | undefined): string | null {
+/** userId из составного entityId dialogMember: `{dialogId}:{userId}` */
+export function getUserIdFromDialogMemberEntityId(entityId: string | null | undefined): string | null {
+  if (!entityId || typeof entityId !== 'string') {
+    return null;
+  }
+  const sep = entityId.indexOf(':');
+  if (sep === -1 || sep === entityId.length - 1) {
+    return null;
+  }
+  return entityId.slice(sep + 1).trim().toLowerCase() || null;
+}
+
+export function getUserIdFromEvent(
+  data: Record<string, unknown> | undefined,
+  entityId?: string | null
+): string | null {
   const ctx = getContext(data);
   if (ctx?.userId && typeof ctx.userId === 'string') {
-    return ctx.userId;
+    return normalizeUserId(ctx.userId);
   }
   const member = asRecord(data?.member);
   if (member?.userId && typeof member.userId === 'string') {
-    return member.userId;
+    return normalizeUserId(member.userId);
   }
   const message = asRecord(data?.message);
   const statusUpdate = asRecord(message?.statusUpdate);
   if (statusUpdate?.userId && typeof statusUpdate.userId === 'string') {
-    return statusUpdate.userId;
+    return normalizeUserId(statusUpdate.userId);
   }
-  return null;
+  return getUserIdFromDialogMemberEntityId(entityId);
 }
 
 export function getPackIdFromEvent(data: Record<string, unknown> | undefined): string | null {

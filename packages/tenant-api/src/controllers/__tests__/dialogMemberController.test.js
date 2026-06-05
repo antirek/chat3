@@ -438,7 +438,8 @@ describe('dialogMemberController', () => {
       expect(event.entityId).toBe(`${dialog.dialogId}:alice`);
       expect(event.data.context).toMatchObject({
         eventType: 'dialog.member.remove',
-        dialogId: dialog.dialogId
+        dialogId: dialog.dialogId,
+        userId: 'alice'
       });
       
       // Проверяем, что dialog и member секции присутствуют
