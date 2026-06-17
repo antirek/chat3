@@ -1,4 +1,4 @@
-import { DialogReadTask, Message, MessageStatus } from '@chat3/models';
+import { DialogReadTask, Message, MessageStatus, UserDialogStats } from '@chat3/models';
 import type { IDialogReadTask, ActorType } from '@chat3/models';
 import { generateTimestamp } from './timestampUtils.js';
 import * as eventUtils from './eventUtils.js';
@@ -233,6 +233,8 @@ const MARK_ALL_READ_TIMEOUT_MS = 120_000; // 2 minutes
 export interface MarkDialogMessagesAsReadUntilOptions {
   batchSize?: number;
   timeoutMs?: number;
+  /** Если true — эмитить bulk_read даже при processedCount=0 (явный пересчёт). */
+  forceBulkReadRecalc?: boolean;
 }
 
 /**
@@ -271,6 +273,14 @@ export async function markDialogMessagesAsReadUntil(
     let processedCount = 0;
     let hasMore = true;
 
+    let forceBulkReadRecalc = options.forceBulkReadRecalc;
+    if (forceBulkReadRecalc === undefined) {
+      const statsRow = await UserDialogStats.findOne({ tenantId, userId, dialogId })
+        .select('unreadCount')
+        .lean();
+      forceBulkReadRecalc = ((statsRow as { unreadCount?: number } | null)?.unreadCount ?? 0) > 0;
+    }
+
     while (hasMore) {
       const batch = await fetchNextMessageBatch(taskLike as IDialogReadTask, batchSize);
       if (!batch.length) {
@@ -304,7 +314,7 @@ export async function markDialogMessagesAsReadUntil(
     }
 
     let bulkReadEventId: string | null = null;
-    if (emitBulkRead && processedCount > 0) {
+    if (emitBulkRead && (processedCount > 0 || forceBulkReadRecalc)) {
       bulkReadEventId = await publishDialogMessagesBulkRead({
         tenantId,
         dialogId,

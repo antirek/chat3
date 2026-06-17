@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
-import { Tenant, DialogReadTask, Dialog, DialogMember, Message, MessageStatus } from '@chat3/models';
-import { scheduleDialogReadTask, runDialogReadTask } from '../dialogReadTaskUtils.js';
+import { Tenant, DialogReadTask, Dialog, DialogMember, Message, MessageStatus, UserDialogStats, OutboxEvent } from '@chat3/models';
+import { scheduleDialogReadTask, runDialogReadTask, markDialogMessagesAsReadUntil } from '../dialogReadTaskUtils.js';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '@chat3/tenant-api/src/utils/__tests__/setup.js';
+import { flushCounterEvents } from '@chat3/tenant-api/src/utils/__tests__/counterTestHelpers.js';
 import { generateTimestamp } from '../timestampUtils.js';
 
 const tenantId = 'tnt_test';
@@ -149,6 +150,109 @@ describe('dialogReadTaskUtils', () => {
       expect(reloadedTask.status).toBe('completed');
       expect(reloadedTask.processedCount).toBe(4);
       expect(reloadedTask.finishedAt).toBeDefined();
+    });
+  });
+
+  describe('markDialogMessagesAsReadUntil', () => {
+    test('эмитит bulk_read при drift stats (unreadCount>0, нет чужих сообщений для обработки)', async () => {
+      const dialogId = generateDialogId();
+      const userId = 'agent';
+      const now = generateTimestamp();
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        createdBy: 'system',
+        createdAt: now,
+        updatedAt: now
+      });
+
+      await DialogMember.create({
+        tenantId,
+        dialogId,
+        userId,
+        unreadCount: 1,
+        createdAt: now,
+        lastSeenAt: now
+      });
+
+      await UserDialogStats.create({
+        tenantId,
+        dialogId,
+        userId,
+        unreadCount: 1,
+        lastMessageAt: now,
+        updatedAt: now
+      });
+
+      const result = await markDialogMessagesAsReadUntil(
+        tenantId,
+        dialogId,
+        userId,
+        Number.MAX_SAFE_INTEGER
+      );
+
+      expect(result.processedCount).toBe(0);
+      expect(result.bulkReadEventId).toBeTruthy();
+
+      const bulkReadOutbox = await OutboxEvent.findOne({
+        tenantId,
+        eventType: 'dialog.messages.bulk_read',
+        entityId: `${dialogId}:${userId}`
+      }).lean();
+      expect(bulkReadOutbox).toBeTruthy();
+
+      await flushCounterEvents();
+
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId }).lean();
+      expect(stats?.unreadCount).toBe(0);
+    });
+
+    test('не эмитит bulk_read если unreadCount=0 и processedCount=0', async () => {
+      const dialogId = generateDialogId();
+      const userId = 'agent';
+      const now = generateTimestamp();
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        createdBy: 'system',
+        createdAt: now,
+        updatedAt: now
+      });
+
+      await DialogMember.create({
+        tenantId,
+        dialogId,
+        userId,
+        unreadCount: 0,
+        createdAt: now,
+        lastSeenAt: now
+      });
+
+      await UserDialogStats.create({
+        tenantId,
+        dialogId,
+        userId,
+        unreadCount: 0,
+        updatedAt: now
+      });
+
+      const result = await markDialogMessagesAsReadUntil(
+        tenantId,
+        dialogId,
+        userId,
+        Number.MAX_SAFE_INTEGER
+      );
+
+      expect(result.processedCount).toBe(0);
+      expect(result.bulkReadEventId).toBeNull();
+
+      const bulkReadOutbox = await OutboxEvent.countDocuments({
+        tenantId,
+        eventType: 'dialog.messages.bulk_read'
+      });
+      expect(bulkReadOutbox).toBe(0);
     });
   });
 });

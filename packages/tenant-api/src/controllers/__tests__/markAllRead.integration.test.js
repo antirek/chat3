@@ -7,7 +7,7 @@ import * as fakeAmqp from '@onify/fake-amqplib';
 import { dialogController } from '../dialogController.js';
 import messageController from '../messageController.js';
 import userDialogController from '../userDialogController.js';
-import { Tenant, UserDialogStats, MessageStatus, UserDialogUnreadBySenderType } from '@chat3/models';
+import { Tenant, UserDialogStats, MessageStatus, UserDialogUnreadBySenderType, Message } from '@chat3/models';
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
@@ -176,6 +176,95 @@ describe('markAllRead integration', () => {
       userId: USER_ID
     }).sort({ createdAt: -1 }).lean();
     expect(status2?.status).toBe('read');
+  });
+
+  test('markAllRead обнуляет drift stats когда непрочитанных сообщений нет', async () => {
+    const res1 = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: USER_ID, type: 'user' },
+            { userId: CONTACT_ID, type: 'contact' }
+          ]
+        }
+      }),
+      res1
+    );
+    expect(res1.statusCode).toBe(201);
+    const dialogId = res1.body?.data?.dialogId;
+
+    const res2 = createMockRes();
+    await messageController.createMessage(
+      createReq({
+        params: { dialogId },
+        body: {
+          senderId: CONTACT_ID,
+          content: 'Drift message',
+          type: 'internal.text'
+        }
+      }),
+      res2
+    );
+    expect(res2.statusCode).toBe(201);
+
+    await flushCounterEvents();
+
+    const resMarkFirst = createMockRes();
+    await userDialogController.markAllRead(
+      createReq({
+        params: { userId: USER_ID, dialogId }
+      }),
+      resMarkFirst
+    );
+    expect(resMarkFirst.statusCode).toBe(200);
+    await flushCounterEvents();
+
+    await Message.deleteMany({ tenantId, dialogId });
+    await UserDialogStats.updateOne(
+      { tenantId, userId: USER_ID, dialogId },
+      { $set: { unreadCount: 1 } }
+    );
+    await UserDialogUnreadBySenderType.updateOne(
+      { tenantId, userId: USER_ID, dialogId, fromType: 'contact' },
+      { $set: { countUnread: 1 } },
+      { upsert: true }
+    );
+
+    const statsBefore = await UserDialogStats.findOne({
+      tenantId,
+      userId: USER_ID,
+      dialogId
+    }).lean();
+    expect(statsBefore?.unreadCount).toBe(1);
+
+    const resMark = createMockRes();
+    await userDialogController.markAllRead(
+      createReq({
+        params: { userId: USER_ID, dialogId }
+      }),
+      resMark
+    );
+    expect(resMark.statusCode).toBe(200);
+    expect(resMark.body?.data?.processedMessageCount).toBe(0);
+
+    await flushCounterEvents();
+
+    const statsAfter = await UserDialogStats.findOne({
+      tenantId,
+      userId: USER_ID,
+      dialogId
+    }).lean();
+    expect(statsAfter?.unreadCount).toBe(0);
+
+    const rowsBySender = await UserDialogUnreadBySenderType.find({
+      tenantId,
+      userId: USER_ID,
+      dialogId
+    }).lean();
+    rowsBySender.forEach((row) => {
+      expect(row.countUnread).toBe(0);
+    });
   });
 
   test('markAllRead возвращает 403 если userId не участник диалога', async () => {
