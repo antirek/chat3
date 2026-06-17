@@ -505,9 +505,12 @@ interface BuildUserSectionParams {
     unreadDialogsCount?: number;
     totalUnreadCount?: number;
     totalMessagesCount?: number;
+    statsVersion?: number;
+    lastUpdatedAt?: number;
     unreadBySenderType?: Array<{ fromType: string; countUnread: number }>;
     'packs.messages.totalUnreadCount'?: number;
     'packs.messages.unreadBySenderType'?: Array<{ fromType: string; countUnread: number }>;
+    'packs.messages.lastUpdatedAt'?: number;
   };
 }
 
@@ -543,9 +546,12 @@ export function buildUserSection({
       unreadDialogsCount: number;
       totalUnreadCount: number;
       totalMessagesCount: number;
+      statsVersion?: number;
+      lastUpdatedAt?: number;
       unreadBySenderType?: Array<{ fromType: string; countUnread: number }>;
       'packs.messages.totalUnreadCount'?: number;
       'packs.messages.unreadBySenderType'?: Array<{ fromType: string; countUnread: number }>;
+      'packs.messages.lastUpdatedAt'?: number;
     };
   } = {
     userId,
@@ -553,13 +559,19 @@ export function buildUserSection({
     meta: metaObject
   };
 
-  if (stats && (stats.dialogCount !== undefined || stats.unreadDialogsCount !== undefined || stats.totalUnreadCount !== undefined || stats.totalMessagesCount !== undefined || stats.unreadBySenderType !== undefined || stats['packs.messages.totalUnreadCount'] !== undefined || stats['packs.messages.unreadBySenderType'] !== undefined)) {
+  if (stats && (stats.dialogCount !== undefined || stats.unreadDialogsCount !== undefined || stats.totalUnreadCount !== undefined || stats.totalMessagesCount !== undefined || stats.statsVersion !== undefined || stats.lastUpdatedAt !== undefined || stats.unreadBySenderType !== undefined || stats['packs.messages.totalUnreadCount'] !== undefined || stats['packs.messages.unreadBySenderType'] !== undefined || stats['packs.messages.lastUpdatedAt'] !== undefined)) {
     userSection.stats = {
       dialogCount: stats.dialogCount ?? 0,
       unreadDialogsCount: stats.unreadDialogsCount ?? 0,
       totalUnreadCount: stats.totalUnreadCount ?? 0,
       totalMessagesCount: stats.totalMessagesCount ?? 0
     };
+    if (stats.statsVersion !== undefined) {
+      userSection.stats.statsVersion = stats.statsVersion;
+    }
+    if (stats.lastUpdatedAt !== undefined) {
+      userSection.stats.lastUpdatedAt = stats.lastUpdatedAt;
+    }
     if (stats.unreadBySenderType && Array.isArray(stats.unreadBySenderType)) {
       userSection.stats.unreadBySenderType = stats.unreadBySenderType;
     }
@@ -568,6 +580,9 @@ export function buildUserSection({
     }
     if (stats['packs.messages.unreadBySenderType'] && Array.isArray(stats['packs.messages.unreadBySenderType'])) {
       userSection.stats['packs.messages.unreadBySenderType'] = stats['packs.messages.unreadBySenderType'];
+    }
+    if (stats['packs.messages.lastUpdatedAt'] !== undefined) {
+      userSection.stats['packs.messages.lastUpdatedAt'] = stats['packs.messages.lastUpdatedAt'];
     }
   }
 

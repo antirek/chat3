@@ -11,7 +11,7 @@ import { getUserType } from './userTypeUtils.js';
 import { buildStatusMessageMatrix } from './userDialogUtils.js';
 import * as eventUtils from './eventUtils.js';
 import * as topicUtils from './topicUtils.js';
-import { buildUnreadBySenderTypeMatrix, getPackDialogIds } from './packStatsUtils.js';
+import { buildUnreadBySenderTypeMatrix, getPackDialogIds, maxStatsLastUpdatedAt } from './packStatsUtils.js';
 
 function withUpdateContext(
   context: Record<string, unknown>,
@@ -71,6 +71,39 @@ function buildUpdateDocumentFields(
   updateType: UpdateType
 ): Pick<IUpdate, 'sourceEventType' | 'updateType'> {
   return { sourceEventType, updateType };
+}
+
+export interface UserStatsUpdateMonotonicState {
+  statsVersion?: number;
+  lastUpdatedAt?: number;
+  'packs.messages.lastUpdatedAt'?: number;
+}
+
+/**
+ * Применять UserStatsUpdate только если версия/timestamp не старее локального снимка.
+ * Используется клиентами (message-server) для защиты от WS ordering 1→0→1.
+ */
+export function shouldApplyUserStatsUpdate(
+  local: UserStatsUpdateMonotonicState | null | undefined,
+  incoming: UserStatsUpdateMonotonicState
+): boolean {
+  const incomingVersion = incoming.statsVersion ?? 0;
+  const localVersion = local?.statsVersion ?? 0;
+  if (incomingVersion > localVersion) {
+    return true;
+  }
+  if (incomingVersion < localVersion) {
+    return false;
+  }
+  const incomingAt = Math.max(
+    incoming.lastUpdatedAt ?? 0,
+    incoming['packs.messages.lastUpdatedAt'] ?? 0
+  );
+  const localAt = Math.max(
+    local?.lastUpdatedAt ?? 0,
+    local?.['packs.messages.lastUpdatedAt'] ?? 0
+  );
+  return incomingAt >= localAt;
 }
 
 const DEFAULT_TYPING_EXPIRES_MS = 5000;
@@ -993,9 +1026,16 @@ export async function createUserStatsUpdate(
     const [stats, unreadRows, packedUnreadRows] = await Promise.all([
       UserStats.findOne({ tenantId, userId }).lean(),
       UserUnreadBySenderType.find({ tenantId, userId }).select('fromType countUnread').lean(),
-      UserPackedMessagesUnreadBySenderType.find({ tenantId, userId }).select('fromType countUnread').lean()
+      UserPackedMessagesUnreadBySenderType.find({ tenantId, userId }).select('fromType countUnread lastUpdatedAt').lean()
     ]);
-    const statsObj = stats as { dialogCount?: number; unreadDialogsCount?: number; totalUnreadCount?: number; totalMessagesCount?: number } | null;
+    const statsObj = stats as {
+      dialogCount?: number;
+      unreadDialogsCount?: number;
+      totalUnreadCount?: number;
+      totalMessagesCount?: number;
+      statsVersion?: number;
+      lastUpdatedAt?: number;
+    } | null;
     const unreadBySenderType = buildUnreadBySenderTypeMatrix(
       unreadRows as Array<{ fromType: string; countUnread: number }>
     );
@@ -1004,6 +1044,9 @@ export async function createUserStatsUpdate(
     );
     const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
     const packsMessagesTotalUnreadCount = packsMessagesUnreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
+    const packsMessagesLastUpdatedAt = maxStatsLastUpdatedAt(
+      packedUnreadRows as Array<{ lastUpdatedAt?: number }>
+    );
 
     const user = await User.findOne({ userId, tenantId }).lean();
     if (!user) {
@@ -1024,9 +1067,12 @@ export async function createUserStatsUpdate(
         unreadDialogsCount: finalStats.unreadDialogsCount || 0,
         totalUnreadCount,
         totalMessagesCount: finalStats.totalMessagesCount || 0,
+        statsVersion: statsObj?.statsVersion ?? 0,
+        lastUpdatedAt: statsObj?.lastUpdatedAt ?? 0,
         unreadBySenderType,
         'packs.messages.totalUnreadCount': packsMessagesTotalUnreadCount,
-        'packs.messages.unreadBySenderType': packsMessagesUnreadBySenderType
+        'packs.messages.unreadBySenderType': packsMessagesUnreadBySenderType,
+        'packs.messages.lastUpdatedAt': packsMessagesLastUpdatedAt ?? statsObj?.lastUpdatedAt ?? 0
       }
     });
 
@@ -1036,7 +1082,10 @@ export async function createUserStatsUpdate(
       'user.stats.totalUnreadCount',
       'user.stats.unreadBySenderType',
       'user.stats.packs.messages.totalUnreadCount',
-      'user.stats.packs.messages.unreadBySenderType'
+      'user.stats.packs.messages.unreadBySenderType',
+      'user.stats.statsVersion',
+      'user.stats.lastUpdatedAt',
+      'user.stats.packs.messages.lastUpdatedAt'
     ];
     const contextBase = {
       entityId: userId,

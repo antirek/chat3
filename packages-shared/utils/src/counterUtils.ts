@@ -524,6 +524,9 @@ async function updateUserStatsFromUnreadCount(
             ]
           },
           lastUpdatedAt: timestamp,
+          statsVersion: {
+            $add: [{ $ifNull: ['$statsVersion', 0] }, 1]
+          },
           totalUnreadCount: {
             $cond: {
               if: { $ne: [{ $ifNull: ["$_id", null] }, null] },
@@ -606,6 +609,9 @@ export async function updateUserStatsDialogCount(
             ]
           },
           lastUpdatedAt: timestamp,
+          statsVersion: {
+            $add: [{ $ifNull: ['$statsVersion', 0] }, 1]
+          },
           // Устанавливаем значения по умолчанию только при создании (если _id не существует)
           unreadDialogsCount: {
             $cond: {
@@ -794,6 +800,7 @@ export async function recalculateUserStats(
         totalMessagesCount,
         lastUpdatedAt: generateTimestamp()
       },
+      $inc: { statsVersion: 1 },
       $setOnInsert: {
         createdAt: generateTimestamp()
       }

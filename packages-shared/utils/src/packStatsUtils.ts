@@ -436,7 +436,11 @@ export async function recalculateUserUnreadBySenderType(
 
   await UserStats.findOneAndUpdate(
     { tenantId, userId: uid },
-    { $set: { totalUnreadCount, unreadDialogsCount, lastUpdatedAt: now }, $setOnInsert: { dialogCount: 0, totalMessagesCount: 0, createdAt: now } },
+    {
+      $set: { totalUnreadCount, unreadDialogsCount, lastUpdatedAt: now },
+      $inc: { statsVersion: 1 },
+      $setOnInsert: { dialogCount: 0, totalMessagesCount: 0, createdAt: now }
+    },
     { upsert: true, new: true }
   );
   const unreadBySenderType = PACK_UNREAD_SENDER_TYPES.map((ft) => ({
@@ -497,20 +501,39 @@ export type UserStatsUnreadResponse = {
   unreadBySenderType: UnreadBySenderTypeItem[];
   'packs.messages.totalUnreadCount': number;
   'packs.messages.unreadBySenderType': UnreadBySenderTypeItem[];
+  statsVersion?: number;
+  lastUpdatedAt?: number;
+  'packs.messages.lastUpdatedAt'?: number;
 };
+
+export function maxStatsLastUpdatedAt(
+  rows: Array<{ lastUpdatedAt?: number | null }>
+): number | undefined {
+  let max: number | undefined;
+  for (const row of rows) {
+    if (row.lastUpdatedAt == null) continue;
+    if (max == null || row.lastUpdatedAt > max) {
+      max = row.lastUpdatedAt;
+    }
+  }
+  return max;
+}
 
 export function composeUserStatsUnreadResponse(
   base: {
     dialogCount?: number;
     unreadDialogsCount?: number;
     totalMessagesCount?: number;
+    statsVersion?: number;
+    lastUpdatedAt?: number;
   },
   unreadBySenderType: UnreadBySenderTypeItem[],
-  packsMessagesUnreadBySenderType: UnreadBySenderTypeItem[]
+  packsMessagesUnreadBySenderType: UnreadBySenderTypeItem[],
+  options?: { packsMessagesLastUpdatedAt?: number }
 ): UserStatsUnreadResponse {
   const totalUnreadCount = unreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
   const packsMessagesTotalUnreadCount = packsMessagesUnreadBySenderType.reduce((s, x) => s + x.countUnread, 0);
-  return {
+  const response: UserStatsUnreadResponse = {
     dialogCount: base.dialogCount ?? 0,
     unreadDialogsCount: base.unreadDialogsCount ?? 0,
     totalMessagesCount: base.totalMessagesCount ?? 0,
@@ -519,6 +542,16 @@ export function composeUserStatsUnreadResponse(
     'packs.messages.totalUnreadCount': packsMessagesTotalUnreadCount,
     'packs.messages.unreadBySenderType': packsMessagesUnreadBySenderType
   };
+  if (base.statsVersion !== undefined) {
+    response.statsVersion = base.statsVersion;
+  }
+  if (base.lastUpdatedAt !== undefined) {
+    response.lastUpdatedAt = base.lastUpdatedAt;
+  }
+  if (options?.packsMessagesLastUpdatedAt !== undefined) {
+    response['packs.messages.lastUpdatedAt'] = options.packsMessagesLastUpdatedAt;
+  }
+  return response;
 }
 
 export async function getPackedDialogIdsForUser(tenantId: string, userId: string): Promise<string[]> {

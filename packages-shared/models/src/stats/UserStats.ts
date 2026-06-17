@@ -9,6 +9,7 @@ export interface IUserStats extends mongoose.Document {
   unreadDialogsCount: number;
   totalUnreadCount: number;
   totalMessagesCount: number;
+  statsVersion: number;
   lastUpdatedAt: number;
   createdAt: number;
 }
@@ -52,6 +53,13 @@ const userStatsSchema = new mongoose.Schema<IUserStats>({
     min: 0,
     required: true,
     description: 'Общее количество сообщений, отправленных пользователем'
+  },
+  statsVersion: {
+    type: Number,
+    default: 0,
+    min: 0,
+    required: true,
+    description: 'Монотонная версия stats для отсечения stale WS UserStatsUpdate'
   },
   lastUpdatedAt: {
     type: Number,

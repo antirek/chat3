@@ -232,6 +232,22 @@ message.create (chat3_events)
 
 Порядок доставки Updates **не гарантирован** между worker’ами; оба consumer’а читают одну очередь событий независимо (`update_worker_queue`, `counter_worker_queue`).
 
+#### Stale `UserStatsUpdate` (P1 этап 4)
+
+`UserStatsUpdate` (`update.user`, `sourceEventType` = доменное событие counter-worker) содержит monotonic-поля:
+
+| Поле | Назначение |
+|------|------------|
+| `data.user.stats.statsVersion` | Инкремент при каждом пересчёте `UserStats` в counter-worker |
+| `data.user.stats.lastUpdatedAt` | Timestamp последнего пересчёта `UserStats` |
+| `data.user.stats.packs.messages.lastUpdatedAt` | Max `lastUpdatedAt` по `UserPackedMessagesUnreadBySenderType` |
+
+Клиент **не должен** применять update, если `statsVersion` (или `lastUpdatedAt` при равной версии) меньше уже применённого снимка. Утилита MMS3: `shouldApplyUserStatsUpdate(local, incoming)` из `@chat3/utils`.
+
+Типичный «отскок» 1→0→1: устаревший `UserStatsUpdate` от `message.create` приходит **после** `dialog.messages.bulk_read` — отклоняется по `statsVersion`.
+
+Per-pack push (`user.pack.stats.updated`) **отключён** (R5); packed unread — только в `user.stats.packs.messages.*`.
+
 ### 5.4. `UserStatsUpdate`
 
 Публикуется counter-worker с `eventType` в документе Update: **`user.stats.update`** (внутренний тип Update, не доменный Event).
