@@ -151,6 +151,64 @@ describe('dialogReadTaskUtils', () => {
       expect(reloadedTask.processedCount).toBe(4);
       expect(reloadedTask.finishedAt).toBeDefined();
     });
+
+    test('эмитит bulk_read при drift stats (unreadCount>0, нет чужих сообщений)', async () => {
+      const dialogId = generateDialogId();
+      const userId = 'agent';
+      const now = generateTimestamp();
+
+      await Dialog.create({
+        tenantId,
+        dialogId,
+        createdBy: 'system',
+        createdAt: now,
+        updatedAt: now
+      });
+
+      await DialogMember.create({
+        tenantId,
+        dialogId,
+        userId,
+        unreadCount: 1,
+        createdAt: now,
+        lastSeenAt: now
+      });
+
+      await UserDialogStats.create({
+        tenantId,
+        dialogId,
+        userId,
+        unreadCount: 1,
+        lastMessageAt: now,
+        updatedAt: now
+      });
+
+      const task = await DialogReadTask.create({
+        tenantId,
+        dialogId,
+        userId,
+        readUntil: Number.MAX_SAFE_INTEGER,
+        status: 'running',
+        startedAt: now
+      });
+
+      await runDialogReadTask(task, { batchSize: 50 });
+
+      expect(task.processedCount || 0).toBe(0);
+
+      const bulkReadOutbox = await OutboxEvent.findOne({
+        tenantId,
+        eventType: 'dialog.messages.bulk_read',
+        entityId: `${dialogId}:${userId}`
+      }).lean();
+      expect(bulkReadOutbox).toBeTruthy();
+      expect(bulkReadOutbox.actorId).toBe('dialog-read-worker');
+
+      await flushCounterEvents();
+
+      const stats = await UserDialogStats.findOne({ tenantId, userId, dialogId }).lean();
+      expect(stats?.unreadCount).toBe(0);
+    });
   });
 
   describe('markDialogMessagesAsReadUntil', () => {

@@ -68,6 +68,8 @@ export async function scheduleDialogReadTask({
 
 interface RunDialogReadTaskOptions {
   batchSize?: number;
+  /** Если true — эмитить bulk_read даже при processedCount=0 (явный пересчёт). */
+  forceBulkReadRecalc?: boolean;
 }
 
 export interface PublishBulkReadParams {
@@ -118,6 +120,21 @@ export async function publishDialogMessagesBulkRead({
   return event?.eventId ?? null;
 }
 
+async function resolveForceBulkReadRecalc(
+  tenantId: string,
+  userId: string,
+  dialogId: string,
+  explicit?: boolean
+): Promise<boolean> {
+  if (explicit !== undefined) {
+    return explicit;
+  }
+  const statsRow = await UserDialogStats.findOne({ tenantId, userId, dialogId })
+    .select('unreadCount')
+    .lean();
+  return ((statsRow as { unreadCount?: number } | null)?.unreadCount ?? 0) > 0;
+}
+
 export async function runDialogReadTask(
   task: IDialogReadTask, 
   options: RunDialogReadTaskOptions = {}
@@ -128,6 +145,12 @@ export async function runDialogReadTask(
 
   const batchSize = parseInt(String(options.batchSize), 10) || DEFAULT_BATCH_SIZE;
   const readTimestamp = task.readUntil || generateTimestamp();
+  const forceBulkReadRecalc = await resolveForceBulkReadRecalc(
+    task.tenantId,
+    task.userId,
+    task.dialogId,
+    options.forceBulkReadRecalc
+  );
 
   let hasMore = true;
 
@@ -184,7 +207,7 @@ export async function runDialogReadTask(
   task.error = null;
   await task.save();
 
-  if ((task.processedCount || 0) > 0) {
+  if ((task.processedCount || 0) > 0 || forceBulkReadRecalc) {
     await publishDialogMessagesBulkRead({
       tenantId: task.tenantId,
       dialogId: task.dialogId,
@@ -273,13 +296,12 @@ export async function markDialogMessagesAsReadUntil(
     let processedCount = 0;
     let hasMore = true;
 
-    let forceBulkReadRecalc = options.forceBulkReadRecalc;
-    if (forceBulkReadRecalc === undefined) {
-      const statsRow = await UserDialogStats.findOne({ tenantId, userId, dialogId })
-        .select('unreadCount')
-        .lean();
-      forceBulkReadRecalc = ((statsRow as { unreadCount?: number } | null)?.unreadCount ?? 0) > 0;
-    }
+    let forceBulkReadRecalc = await resolveForceBulkReadRecalc(
+      tenantId,
+      userId,
+      dialogId,
+      options.forceBulkReadRecalc
+    );
 
     while (hasMore) {
       const batch = await fetchNextMessageBatch(taskLike as IDialogReadTask, batchSize);
