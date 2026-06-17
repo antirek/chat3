@@ -77,12 +77,34 @@ tenant-api пишет доменные данные и ставит событи
 
 Порядок:
 
-1. API обновляет activity / планирует чтение.
-2. Пишутся `MessageStatus = read` (синхронно или через dialog-read-worker).
-3. Публикуется **`dialog.messages.bulk_read`** (после bulk write статусов).
+1. API обновляет `UserDialogActivity` (`applyMarkDialogAllRead`) — **не пишет** `UserDialogStats` напрямую.
+2. Пишутся `MessageStatus = read` синхронно (`markDialogMessagesAsReadUntil`).
+3. Публикуется **`dialog.messages.bulk_read`** — в т.ч. при `processedCount = 0`, если до операции `UserDialogStats.unreadCount > 0` (drift).
 4. counter-worker пересчитывает slice и шлёт Updates.
 
-Событие **`dialog.messages.bulk_read` не уходит до записи статусов** в БД.
+Событие **`dialog.messages.bulk_read` не уходит до записи статусов** в БД (или при отсутствии сообщений — сразу при `unreadCount > 0`).
+
+#### Membership (`markAllReadForAllUsers` / `markPackAllRead`)
+
+| Условие | Результат для user U |
+|---------|----------------------|
+| U member в dlgA и dlgB | Оба диалога: `MessageStatus` read + пересчёт → pack contact unread = 0 |
+| U member **только** в dlgB, inbound **только** в dlgA | dlgA **не** обрабатывается; pack contact unread для U **может остаться > 0**, если unread был в A и U не member в A |
+| U member только в dlgB, inbound только в dlgA (U не видит A) | pack contact unread для U = **0** (нет строк по A) |
+| `?memberType=user` | Contacts в паке не обрабатываются |
+
+**Q1 (продукт):** оператор **не всегда** member inbound-dialog при outbound в другом диалоге пака — интегратор должен учитывать partial membership или вызывать markAllRead после добавления в dlgA.
+
+**HTTP vs eventual consistency:** `200 OK` = MessageStatus записаны для обработанных пар `(user, dialog)`. Финальные `UserPackUnreadBySenderType` / `GET /users/:userId/stats` — после counter-worker (секунды).
+
+#### Когда contact pack unread остаётся > 0 после markAllRead
+
+| Причина | Действие интегратора |
+|---------|----------------------|
+| User не member в диалоге с inbound | Добавить member в dlgA или не ожидать сброса |
+| `memberType=user` не применён, но ожидали сброс для contact | Передать `?memberType=user` |
+| Counter-worker ещё не обработал outbox | Poll stats / дождаться Updates |
+| Drift stats без сообщений | Повторить markAllRead (эмитится `bulk_read` при `unreadCount > 0`) |
 
 ### 3.5. PATCH unread участника (`setUnreadCount`)
 

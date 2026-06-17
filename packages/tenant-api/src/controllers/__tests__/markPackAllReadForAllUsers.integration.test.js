@@ -12,7 +12,8 @@ import {
   UserDialogStats,
   UserDialogUnreadBySenderType,
   UserPackUnreadBySenderType,
-  MessageStatus
+  MessageStatus,
+  Message
 } from '@chat3/models';
 import {
   setupMongoMemoryServer,
@@ -26,6 +27,9 @@ const tenantId = 'tnt_default';
 const USER_A = 'usr_pack_all_a';
 const USER_B = 'usr_pack_all_b';
 const CONTACT_ID = 'cnt_pack_all';
+const P1_OPERATOR = 'usr_p1_operator';
+const P1_ALICE = 'usr_p1_alice';
+const P1_BOB = 'usr_p1_bob';
 
 function createMockRes() {
   const res = { statusCode: 200, body: null };
@@ -49,6 +53,16 @@ function createReq(overrides = {}) {
     apiKey: { name: 'test-key' },
     ...overrides
   };
+}
+
+async function sumPackContactUnread(userId, packId) {
+  const rows = await UserPackUnreadBySenderType.find({
+    tenantId,
+    userId,
+    packId,
+    fromType: 'contact'
+  }).lean();
+  return rows.reduce((sum, row) => sum + (row.countUnread || 0), 0);
 }
 
 beforeAll(async () => {
@@ -420,6 +434,340 @@ describe('markAllReadForAllUsers integration', () => {
     );
     expect(res.statusCode).toBe(400);
     expect(res.body?.message).toMatch(/memberType/i);
+  });
+});
+
+describe('P1 markAllRead invariant', () => {
+  test('P1-I1: inbound только dlgA, outbound только dlgB — contact pack unread = 0', async () => {
+    const resPack = createMockRes();
+    await packController.create(createReq(), resPack);
+    const packId = resPack.body?.data?.packId;
+
+    const resDlgA = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: P1_OPERATOR, type: 'user' },
+            { userId: CONTACT_ID, type: 'contact' }
+          ]
+        }
+      }),
+      resDlgA
+    );
+    const dialogIdA = resDlgA.body?.data?.dialogId;
+
+    const resDlgB = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: P1_OPERATOR, type: 'user' },
+            { userId: CONTACT_ID, type: 'contact' }
+          ]
+        }
+      }),
+      resDlgB
+    );
+    const dialogIdB = resDlgB.body?.data?.dialogId;
+
+    await packController.addDialog(
+      createReq({ params: { packId }, body: { dialogId: dialogIdA } }),
+      createMockRes()
+    );
+    await packController.addDialog(
+      createReq({ params: { packId }, body: { dialogId: dialogIdB } }),
+      createMockRes()
+    );
+
+    await messageController.createMessage(
+      createReq({
+        params: { dialogId: dialogIdA },
+        body: { senderId: CONTACT_ID, content: 'Inbound A', type: 'internal.text' }
+      }),
+      createMockRes()
+    );
+    await messageController.createMessage(
+      createReq({
+        params: { dialogId: dialogIdB },
+        body: { senderId: P1_OPERATOR, content: 'Outbound B', type: 'internal.text' }
+      }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    const statsBefore = await UserDialogStats.findOne({
+      tenantId,
+      userId: P1_OPERATOR,
+      dialogId: dialogIdA
+    }).lean();
+    expect(statsBefore?.unreadCount).toBeGreaterThanOrEqual(1);
+
+    await packController.markAllReadForAllUsers(
+      createReq({ params: { packId }, query: { memberType: 'user' } }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    expect(await sumPackContactUnread(P1_OPERATOR, packId)).toBe(0);
+
+    const statsDlgA = await UserDialogStats.findOne({
+      tenantId,
+      userId: P1_OPERATOR,
+      dialogId: dialogIdA
+    }).lean();
+    expect(statsDlgA?.unreadCount).toBe(0);
+  });
+
+  test('P1-I2: drift stats после markAllRead — повторный markAllRead обнуляет pack unread', async () => {
+    const resPack = createMockRes();
+    await packController.create(createReq(), resPack);
+    const packId = resPack.body?.data?.packId;
+
+    const resDlg = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: P1_OPERATOR, type: 'user' },
+            { userId: CONTACT_ID, type: 'contact' }
+          ]
+        }
+      }),
+      resDlg
+    );
+    const dialogId = resDlg.body?.data?.dialogId;
+
+    await packController.addDialog(
+      createReq({ params: { packId }, body: { dialogId } }),
+      createMockRes()
+    );
+
+    await messageController.createMessage(
+      createReq({
+        params: { dialogId },
+        body: { senderId: CONTACT_ID, content: 'Drift', type: 'internal.text' }
+      }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    await packController.markAllReadForAllUsers(
+      createReq({ params: { packId }, query: { memberType: 'user' } }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    await Message.deleteMany({ tenantId, dialogId });
+    await UserDialogStats.updateOne(
+      { tenantId, userId: P1_OPERATOR, dialogId },
+      { $set: { unreadCount: 1 } }
+    );
+    await UserDialogUnreadBySenderType.updateOne(
+      { tenantId, userId: P1_OPERATOR, dialogId, fromType: 'contact' },
+      { $set: { countUnread: 1 } },
+      { upsert: true }
+    );
+
+    await packController.markAllReadForAllUsers(
+      createReq({ params: { packId }, query: { memberType: 'user' } }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    expect(await sumPackContactUnread(P1_OPERATOR, packId)).toBe(0);
+    const stats = await UserDialogStats.findOne({
+      tenantId,
+      userId: P1_OPERATOR,
+      dialogId
+    }).lean();
+    expect(stats?.unreadCount).toBe(0);
+  });
+
+  test('P1-I3: partial membership — alice только dlgA, bob только dlgB', async () => {
+    const resPack = createMockRes();
+    await packController.create(createReq(), resPack);
+    const packId = resPack.body?.data?.packId;
+
+    const resDlgA = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: P1_ALICE, type: 'user' },
+            { userId: CONTACT_ID, type: 'contact' }
+          ]
+        }
+      }),
+      resDlgA
+    );
+    const dialogIdA = resDlgA.body?.data?.dialogId;
+
+    const resDlgB = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: P1_BOB, type: 'user' },
+            { userId: CONTACT_ID, type: 'contact' }
+          ]
+        }
+      }),
+      resDlgB
+    );
+    const dialogIdB = resDlgB.body?.data?.dialogId;
+
+    await packController.addDialog(
+      createReq({ params: { packId }, body: { dialogId: dialogIdA } }),
+      createMockRes()
+    );
+    await packController.addDialog(
+      createReq({ params: { packId }, body: { dialogId: dialogIdB } }),
+      createMockRes()
+    );
+
+    await messageController.createMessage(
+      createReq({
+        params: { dialogId: dialogIdA },
+        body: { senderId: CONTACT_ID, content: 'Inbound A', type: 'internal.text' }
+      }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    await packController.markAllReadForAllUsers(
+      createReq({ params: { packId }, query: { memberType: 'user' } }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    expect(await sumPackContactUnread(P1_ALICE, packId)).toBe(0);
+    expect(await sumPackContactUnread(P1_BOB, packId)).toBe(0);
+
+    const aliceDlgA = await UserDialogStats.findOne({
+      tenantId,
+      userId: P1_ALICE,
+      dialogId: dialogIdA
+    }).lean();
+    expect(aliceDlgA?.unreadCount).toBe(0);
+  });
+
+  test('P1-I4: distribution — alice только dlgB, inbound только dlgA — pack contact = 0', async () => {
+    const resPack = createMockRes();
+    await packController.create(createReq(), resPack);
+    const packId = resPack.body?.data?.packId;
+
+    const resDlgA = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: P1_BOB, type: 'user' },
+            { userId: CONTACT_ID, type: 'contact' }
+          ]
+        }
+      }),
+      resDlgA
+    );
+    const dialogIdA = resDlgA.body?.data?.dialogId;
+
+    const resDlgB = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: P1_ALICE, type: 'user' },
+            { userId: CONTACT_ID, type: 'contact' }
+          ]
+        }
+      }),
+      resDlgB
+    );
+    const dialogIdB = resDlgB.body?.data?.dialogId;
+
+    await packController.addDialog(
+      createReq({ params: { packId }, body: { dialogId: dialogIdA } }),
+      createMockRes()
+    );
+    await packController.addDialog(
+      createReq({ params: { packId }, body: { dialogId: dialogIdB } }),
+      createMockRes()
+    );
+
+    await messageController.createMessage(
+      createReq({
+        params: { dialogId: dialogIdA },
+        body: { senderId: CONTACT_ID, content: 'Inbound only A', type: 'internal.text' }
+      }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    expect(await sumPackContactUnread(P1_ALICE, packId)).toBe(0);
+
+    await packController.markAllReadForAllUsers(
+      createReq({ params: { packId }, query: { memberType: 'user' } }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    expect(await sumPackContactUnread(P1_ALICE, packId)).toBe(0);
+    expect(await sumPackContactUnread(P1_BOB, packId)).toBe(0);
+  });
+
+  test('P1-I5: message.create → flush → markAllRead → flush — финальные stats = 0', async () => {
+    const resPack = createMockRes();
+    await packController.create(createReq(), resPack);
+    const packId = resPack.body?.data?.packId;
+
+    const resDlg = createMockRes();
+    await dialogController.create(
+      createReq({
+        body: {
+          members: [
+            { userId: P1_OPERATOR, type: 'user' },
+            { userId: CONTACT_ID, type: 'contact' }
+          ]
+        }
+      }),
+      resDlg
+    );
+    const dialogId = resDlg.body?.data?.dialogId;
+
+    await packController.addDialog(
+      createReq({ params: { packId }, body: { dialogId } }),
+      createMockRes()
+    );
+
+    await messageController.createMessage(
+      createReq({
+        params: { dialogId },
+        body: { senderId: CONTACT_ID, content: 'Ordering test', type: 'internal.text' }
+      }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    const statsMid = await UserDialogStats.findOne({
+      tenantId,
+      userId: P1_OPERATOR,
+      dialogId
+    }).lean();
+    expect(statsMid?.unreadCount).toBeGreaterThanOrEqual(1);
+
+    await packController.markAllReadForAllUsers(
+      createReq({ params: { packId }, query: { memberType: 'user' } }),
+      createMockRes()
+    );
+    await flushCounterEvents();
+
+    expect(await sumPackContactUnread(P1_OPERATOR, packId)).toBe(0);
+    const statsFinal = await UserDialogStats.findOne({
+      tenantId,
+      userId: P1_OPERATOR,
+      dialogId
+    }).lean();
+    expect(statsFinal?.unreadCount).toBe(0);
   });
 });
 

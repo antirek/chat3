@@ -14,6 +14,7 @@
 | `message.status.update` | `MessageStatus.post('save')` | `MessageStatusStats.count` (+1) для нового статуса<br><br>**Если статус изменился на 'read':**<br>`UserDialogStats.unreadCount` (-1)<br>`UserStats.unreadDialogsCount` (пересчет)<br>`UserStats.totalUnreadCount` (пересчет) | `updateStatusCount`<br>`updateUnreadCount`<br>`updateUserStatsFromUnreadCount` | Обновление происходит через middleware модели `MessageStatus` |
 | `message.reaction.update` | `MessageReaction.post('save')` | `MessageReactionStats.count` (+1) | `updateReactionCount` | Обновление происходит через middleware модели `MessageReaction` при создании реакции |
 | `message.reaction.update` | `MessageReaction.post('remove')` | `MessageReactionStats.count` (-1) | `updateReactionCount` | Обновление происходит через middleware модели `MessageReaction` при удалении реакции |
+| `dialog.messages.bulk_read` | `markDialogMessagesAsReadUntil`<br>`runDialogReadTask` (dialog-read-worker) | `UserDialogStats.unreadCount` (пересчёт)<br>`UserDialogUnreadBySenderType`<br>`UserPackUnreadBySenderType`<br>`UserStats.totalUnreadCount`, `unreadDialogsCount` | **counter-worker** (`recalculateSlice`) | Эмитится при `processedCount > 0` **или** `UserDialogStats.unreadCount > 0` до операции (drift). См. `markPackAllReadForAllUsers.integration.test.js` P1-I2. |
 
 ## Детальное описание счетчиков
 

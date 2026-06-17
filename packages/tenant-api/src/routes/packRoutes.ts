@@ -291,7 +291,22 @@ router.get(
  * /api/packs/{packId}/markAllReadForAllUsers:
  *   post:
  *     summary: Отметить все сообщения пака прочитанными для всех пользователей
- *     description: Для каждого пользователя — участника диалогов пака обнуляются счётчики непрочитанных и проставляется MessageStatus = read по всем диалогам пака, где он участник. Опционально memberType=user — обрабатывать только участников с типом user (contact не трогать). Общий таймаут 5 минут; при превышении — 503.
+ *     description: |
+ *       Для каждого пользователя — участника диалогов пака: по **каждому диалогу пака, где он member**
+ *       (`packDialogIds ∩ DialogMember(userId)`) выставляется `MessageStatus = read` и публикуется
+ *       `dialog.messages.bulk_read` для counter-worker.
+ *
+ *       **Membership:** inbound в dialog A не помечается read для user, который **не member** в A
+ *       (multi-channel distribution). Инвариант «contact pack unread = 0» после markAllRead выполняется
+ *       для user, который member в диалоге с непрочитанным inbound.
+ *
+ *       **memberType=user** — обрабатываются только участники с `User.type === user` (contact не трогается).
+ *
+ *       **Счётчики:** HTTP 200 не гарантирует финальные stats в БД. `UserPackUnreadBySenderType` и
+ *       `UserDialogStats` обновляются **асинхронно** counter-worker после `dialog.messages.bulk_read`.
+ *       Для проверки — poll `GET /users/:userId/stats` или дождаться Updates.
+ *
+ *       Общий таймаут 5 минут; при превышении — 503.
  *     tags: [Packs]
  *     security:
  *       - ApiKeyAuth: []
