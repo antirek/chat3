@@ -82,6 +82,6 @@ antirek/mms3:0.0.80
 
 ---
 
-[0.0.81]: https://github.com/antirek/chat3/compare/bf857d3...HEAD
+[0.0.81]: https://github.com/antirek/chat3/compare/bf857d3...e195759
 [0.0.80]: https://github.com/antirek/chat3/compare/8eb2024...bf857d3
 [0.0.79]: https://github.com/antirek/chat3/commit/8eb20240f32b4353685ebdc07bc108ad3be6db06
