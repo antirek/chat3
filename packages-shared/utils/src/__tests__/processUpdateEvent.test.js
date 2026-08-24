@@ -1,4 +1,3 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import {
   Dialog,
@@ -10,6 +9,7 @@ import {
 import { processUpdateEvent } from '../updateProcessor/processUpdateEvent.js';
 import { toOutboxPublishPayload } from '../domainEventPayload.js';
 import { generateTimestamp } from '../timestampUtils.js';
+import { createTestMongoServer } from './createTestMongoServer.js';
 
 const tenantId = 'tnt_update_processor';
 
@@ -17,7 +17,7 @@ describe('processUpdateEvent', () => {
   let mongoServer;
 
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
+    mongoServer = await createTestMongoServer();
     await mongoose.connect(mongoServer.getUri());
   });
 
@@ -168,5 +168,74 @@ describe('processUpdateEvent', () => {
     }).lean();
 
     expect(update?.eventId).toBe(event.eventId);
+  });
+
+  test('creates MessageUpdate from message.deleted event', async () => {
+    const dialogId = 'dlg_eeeeeeeeeeeeeeeeeeee';
+    const messageId = 'msg_ffffffffffffffffffff';
+    const now = generateTimestamp();
+
+    await Dialog.create({ tenantId, dialogId, createdAt: now });
+    await DialogMember.insertMany([
+      { tenantId, dialogId, userId: 'alice', createdAt: now },
+      { tenantId, dialogId, userId: 'bob', createdAt: now }
+    ]);
+    await Message.create({
+      tenantId,
+      dialogId,
+      messageId,
+      senderId: 'alice',
+      type: 'internal.text',
+      content: 'bye',
+      createdAt: now,
+      deleted: true,
+      deletedAt: now,
+      deletedBy: 'alice'
+    });
+
+    const event = await Event.create({
+      tenantId,
+      eventType: 'message.deleted',
+      entityType: 'message',
+      entityId: messageId,
+      actorId: 'alice',
+      data: {
+        context: { dialogId, messageId, eventType: 'message.deleted' },
+        message: {
+          messageId,
+          dialogId,
+          senderId: 'alice',
+          type: 'internal.text',
+          deleted: true,
+          deletedAt: now,
+          deletedBy: 'alice'
+        },
+        dialog: { dialogId, tenantId },
+        deleted: true,
+        deletedAt: now,
+        deletedBy: 'alice'
+      }
+    });
+
+    await processUpdateEvent(
+      toOutboxPublishPayload({
+        eventId: event.eventId,
+        tenantId,
+        eventType: 'message.deleted',
+        entityType: 'message',
+        entityId: messageId,
+        actorId: 'alice',
+        actorType: 'user',
+        data: event.data,
+        createdAt: now
+      })
+    );
+
+    const updates = await Update.find({ tenantId, entityId: messageId, eventId: event.eventId }).lean();
+    expect(updates.length).toBe(2);
+    updates.forEach((row) => {
+      expect(row.eventId).toBe(event.eventId);
+      expect(row.data?.message?.deleted).toBe(true);
+    });
   });
 });

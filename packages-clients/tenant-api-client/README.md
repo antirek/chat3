@@ -86,6 +86,7 @@ const client = new Chat3Client({
 - `getMessage(messageId)` - Получить сообщение по ID
 - `getUserMessage(userId, dialogId, messageId)` - Получить сообщение в контексте пользователя
 - `updateMessage(messageId, data)` - Обновить сообщение
+- `patchMessageDeleted(messageId, { deleted, deletedBy? })` - Soft-delete / undelete сообщения
 - `getMessages(params)` - Получить все сообщения
 
 ### Dialog Members

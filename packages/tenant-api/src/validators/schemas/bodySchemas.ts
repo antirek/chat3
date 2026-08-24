@@ -136,6 +136,14 @@ export const createMessageSchema = Joi.object({
 });
 
 /**
+ * Схема валидации soft-delete / undelete сообщения (PATCH /api/messages/:messageId)
+ */
+export const patchMessageDeletedSchema = Joi.object({
+  deleted: Joi.boolean().required(),
+  deletedBy: Joi.string().trim().max(200).optional().allow(null, '')
+});
+
+/**
  * Схема валидации обновления содержимого сообщения
  * Разрешаем изменять только поле content
  */

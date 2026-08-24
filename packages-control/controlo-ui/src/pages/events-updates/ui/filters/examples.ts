@@ -7,7 +7,7 @@ export const eventFilterExamples: FilterExample[] = [
       { value: 'eventType=pack.changed', label: 'pack.changed' },
       { value: 'eventType=message.create', label: 'message.create' },
       { value: 'eventType=message.changed', label: 'message.changed' },
-      { value: 'eventType=message.delete', label: 'message.delete' },
+      { value: 'eventType=message.deleted', label: 'message.deleted' },
       { value: 'eventType=dialog.create', label: 'dialog.create' },
       { value: 'eventType=dialog.changed', label: 'dialog.changed' },
       { value: 'eventType=dialog.delete', label: 'dialog.delete' },
@@ -30,6 +30,7 @@ export const updateFilterExamples: FilterExample[] = [
     options: [
       { value: 'sourceEventType=message.create', label: 'message.create' },
       { value: 'sourceEventType=message.changed', label: 'message.changed' },
+      { value: 'sourceEventType=message.deleted', label: 'message.deleted' },
       { value: 'sourceEventType=dialog.create', label: 'dialog.create' },
     ],
   },

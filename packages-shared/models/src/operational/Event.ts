@@ -9,6 +9,7 @@ export type EventType =
   | 'dialog.delete'
   | 'message.create'
   | 'message.changed'
+  | 'message.deleted'
   | 'dialog.member.add'
   | 'dialog.member.remove'
   | 'dialog.member.changed'
@@ -65,6 +66,7 @@ const EVENT_TYPE_ENUM: EventType[] = [
   'dialog.delete',
   'message.create',
   'message.changed',
+  'message.deleted',
   'dialog.member.add',
   'dialog.member.remove',
   'dialog.member.changed',
@@ -153,6 +155,7 @@ eventSchema.virtual('description').get(function() {
     'dialog.delete': 'Удален диалог',
     'message.create': 'Создано сообщение',
     'message.changed': 'Обновлено сообщение',
+    'message.deleted': 'Сообщение помечено удалённым',
     'dialog.member.add': 'Добавлен участник диалога',
     'dialog.member.remove': 'Удален участник диалога',
     'dialog.member.changed': 'Обновлен участник диалога',

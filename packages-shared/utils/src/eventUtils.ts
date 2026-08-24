@@ -10,6 +10,7 @@ export type UiTarget = 'messages.list' | 'dialogs.list' | 'users.list';
 const UI_TARGET_BY_EVENT_TYPE: Partial<Record<EventType, UiTarget>> = {
   'message.create': 'messages.list',
   'message.changed': 'messages.list',
+  'message.deleted': 'messages.list',
   'message.status.changed': 'messages.list',
   'message.reaction.changed': 'messages.list',
   'dialog.typing': 'messages.list',
@@ -386,6 +387,9 @@ interface BuildMessageSectionParams {
   statusMessageMatrix?: unknown | null;
   topicId?: string | null;
   topic?: unknown | null;
+  deleted?: boolean | null;
+  deletedAt?: number | null;
+  deletedBy?: string | null;
 }
 
 export function buildMessageSection({
@@ -400,7 +404,10 @@ export function buildMessageSection({
   reactionUpdate = null,
   statusMessageMatrix = null,
   topicId = null,
-  topic = null
+  topic = null,
+  deleted = null,
+  deletedAt = null,
+  deletedBy = null
 }: BuildMessageSectionParams): Record<string, unknown> | null {
   if (!messageId) {
     return null;
@@ -416,6 +423,16 @@ export function buildMessageSection({
     topicId: topicId ?? null,
     topic: topic ?? null
   };
+
+  if (deleted !== null && deleted !== undefined) {
+    result.deleted = deleted;
+  }
+  if (deletedAt !== null && deletedAt !== undefined) {
+    result.deletedAt = deletedAt;
+  }
+  if (deletedBy !== null && deletedBy !== undefined) {
+    result.deletedBy = deletedBy;
+  }
 
   // Добавляем quotedMessage только если он передан
   if (quotedMessage !== null && quotedMessage !== undefined) {

@@ -1,0 +1,21 @@
+{
+  "eventId": "evt_c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2",
+  "tenantId": "tnt_fixture",
+  "eventType": "message.deleted",
+  "entityType": "message",
+  "entityId": "msg_bbbbbbbbbbbbbbbbbbbb",
+  "data": {
+    "context": {
+      "dialogId": "dlg_aaaaaaaaaaaaaaaaaaaa",
+      "messageId": "msg_bbbbbbbbbbbbbbbbbbbb"
+    },
+    "message": {
+      "messageId": "msg_bbbbbbbbbbbbbbbbbbbb",
+      "dialogId": "dlg_aaaaaaaaaaaaaaaaaaaa",
+      "senderId": "alice",
+      "type": "internal.text",
+      "deleted": true
+    },
+    "deleted": true
+  }
+}

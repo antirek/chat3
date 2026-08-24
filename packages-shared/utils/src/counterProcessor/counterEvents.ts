@@ -3,6 +3,7 @@ import type { EventType } from '@chat3/models';
 /** Доменные события, влияющие на unread / pack / dialog stats. */
 export const COUNTER_EVENT_TYPES: ReadonlySet<EventType> = new Set([
   'message.create',
+  'message.deleted',
   'message.status.changed',
   'dialog.messages.bulk_read',
   'dialog.member.add',

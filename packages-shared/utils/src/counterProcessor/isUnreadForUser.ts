@@ -16,7 +16,9 @@ export function unreadMessageMatchExtras(
   const uid = (viewerUserId || '').trim().toLowerCase();
   const match: Record<string, unknown> = {
     senderId: { $ne: uid },
-    type: { $not: { $regex: /^system\./ } }
+    type: { $not: { $regex: /^system\./ } },
+    // soft-deleted messages are excluded from unread (missing field = not deleted)
+    deleted: { $ne: true }
   };
   if (options.memberJoinedAt != null) {
     match.createdAt = { $gte: options.memberJoinedAt };

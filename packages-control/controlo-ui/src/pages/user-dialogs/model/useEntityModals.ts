@@ -381,7 +381,7 @@ export function useEntityModals(
       'dialog.member.changed': 'Обновлен участник диалога',
       'message.create': 'Создано сообщение',
       'message.changed': 'Обновлено сообщение',
-      'message.delete': 'Удалено сообщение',
+      'message.deleted': 'Сообщение помечено удалённым',
       'message.status.changed': 'Обновлен статус сообщения',
       'message.reaction.changed': 'Обновлена реакция на сообщение',
       'dialog.typing': 'Пользователь печатает в диалоге',

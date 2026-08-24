@@ -398,6 +398,7 @@ export function useMessageModals(
       'dialog.delete': 'Удален диалог',
       'message.create': 'Создано сообщение',
       'message.changed': 'Обновлено сообщение',
+      'message.deleted': 'Сообщение помечено удалённым',
       'dialog.member.add': 'Добавлен участник диалога',
       'dialog.member.remove': 'Удален участник диалога',
       'dialog.member.changed': 'Обновлен участник диалога',

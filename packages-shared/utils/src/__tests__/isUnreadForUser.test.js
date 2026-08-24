@@ -5,6 +5,7 @@ describe('isUnreadForUser / unreadMessageMatchExtras', () => {
     const extras = unreadMessageMatchExtras('bob');
     expect(extras.senderId).toEqual({ $ne: 'bob' });
     expect(extras.type).toEqual({ $not: { $regex: /^system\./ } });
+    expect(extras.deleted).toEqual({ $ne: true });
   });
 
   test('normalizes viewer userId to lowercase in sender filter', () => {
@@ -17,5 +18,10 @@ describe('isUnreadForUser / unreadMessageMatchExtras', () => {
     const extras = unreadMessageMatchExtras('bob', { memberJoinedAt: joinAt });
     expect(extras.createdAt).toEqual({ $gte: joinAt });
     expect(extras.senderId).toEqual({ $ne: 'bob' });
+  });
+
+  test('excludes soft-deleted messages from unread match', () => {
+    const extras = unreadMessageMatchExtras('bob');
+    expect(extras.deleted).toEqual({ $ne: true });
   });
 });

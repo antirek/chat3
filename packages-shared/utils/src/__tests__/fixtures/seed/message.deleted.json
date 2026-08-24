@@ -1,0 +1,4 @@
+{
+  "extends": "message.create",
+  "deleted": true
+}

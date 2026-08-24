@@ -1,7 +1,6 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import {
   DialogMember,
@@ -15,6 +14,7 @@ import {
 } from '@chat3/models';
 import { processCounterEvent } from '../counterProcessor/processCounterEvent.js';
 import { generateTimestamp } from '../timestampUtils.js';
+import { createTestMongoServer } from './createTestMongoServer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -53,7 +53,10 @@ async function applySeed(seedKey) {
     senderId,
     type: 'internal.text',
     content: 'golden fixture',
-    createdAt: now
+    createdAt: now,
+    ...(seed.deleted === true
+      ? { deleted: true, deletedAt: now, deletedBy: senderId }
+      : {})
   });
 
   for (const row of seed.messageStatuses ?? []) {
@@ -137,7 +140,7 @@ describe('counter golden fixtures (I.15)', () => {
   let mongoServer;
 
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
+    mongoServer = await createTestMongoServer();
     await mongoose.connect(mongoServer.getUri());
   });
 
@@ -152,7 +155,8 @@ describe('counter golden fixtures (I.15)', () => {
 
   test.each([
     ['message.create', 'events/message.create.json', 'message.create'],
-    ['message.status.changed.read', 'events/message.status.changed.read.json', 'message.status.changed.read']
+    ['message.status.changed.read', 'events/message.status.changed.read.json', 'message.status.changed.read'],
+    ['message.deleted', 'events/message.deleted.json', 'message.deleted']
   ])('%s matches expected-stats and expected-updates', async (seedKey, eventPath, fixtureKey) => {
     const { tenantId } = await applySeed(seedKey);
     const event = loadJson(eventPath);

@@ -17,7 +17,11 @@ import type { CounterSlice } from './types.js';
 
 async function refreshSenderMessageCount(tenantId: string, senderId: string): Promise<void> {
   const uid = (senderId || '').trim().toLowerCase();
-  const totalMessagesCount = await Message.countDocuments({ tenantId, senderId: uid });
+  const totalMessagesCount = await Message.countDocuments({
+    tenantId,
+    senderId: uid,
+    deleted: { $ne: true }
+  });
   await UserStats.findOneAndUpdate(
     { tenantId, userId: uid },
     {
@@ -85,7 +89,7 @@ export async function recalculateSlice(slice: CounterSlice): Promise<void> {
     }
   }
 
-  if (senderId && sourceEventType === 'message.create') {
+  if (senderId && (sourceEventType === 'message.create' || sourceEventType === 'message.deleted')) {
     await refreshSenderMessageCount(tenantId, senderId);
   }
 

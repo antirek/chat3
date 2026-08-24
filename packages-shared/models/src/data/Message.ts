@@ -21,6 +21,9 @@ export interface IMessage extends mongoose.Document {
   content: string;
   type: string;
   quotedMessage: unknown | null;
+  deleted: boolean;
+  deletedAt: number | null;
+  deletedBy: string | null;
   createdAt: number;
 }
 
@@ -74,6 +77,21 @@ const messageSchema = new mongoose.Schema<IMessage>({
     type: mongoose.Schema.Types.Mixed,
     default: null,
     description: 'Цитируемое сообщение с мета-тегами'
+  },
+  deleted: {
+    type: Boolean,
+    default: false,
+    description: 'Soft-delete: сообщение помечено удалённым'
+  },
+  deletedAt: {
+    type: Number,
+    default: null,
+    description: 'Timestamp soft-delete (мс), null если не удалено'
+  },
+  deletedBy: {
+    type: String,
+    default: null,
+    description: 'Кто пометил сообщение удалённым (id клиента API)'
   },
   createdAt: {
     type: Number,

@@ -1516,3 +1516,203 @@ describe('messageController.getMessageById - error handling', () => {
     expect(res.body.data.topic.meta).toBeDefined();
   });
 });
+
+describe('messageController.patchMessageDeleted', () => {
+  let dialog;
+  let message;
+
+  const createRequest = (body = {}) => ({
+    tenantId,
+    params: { messageId: message.messageId },
+    body,
+    apiKey: { name: 'test-key' }
+  });
+
+  beforeEach(async () => {
+    dialog = await Dialog.create({
+      tenantId,
+      dialogId: generateDialogId(),
+      createdBy: 'alice',
+      createdAt: generateTimestamp(),
+    });
+
+    message = await Message.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      messageId: generateMessageId(),
+      senderId: 'alice',
+      content: 'Soft-delete candidate',
+      type: 'internal.text',
+      createdAt: generateTimestamp(),
+    });
+
+    await DialogMember.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      userId: 'alice',
+      createdAt: generateTimestamp(),
+    });
+  });
+
+  test('soft-deletes message and creates message.deleted event', async () => {
+    const req = createRequest({ deleted: true, deletedBy: 'alice' });
+    const res = createMockRes();
+
+    await messageController.patchMessageDeleted(req, res);
+
+    expect(res.body.data.deleted).toBe(true);
+    expect(res.body.data.deletedBy).toBe('alice');
+    expect(res.body.data.deletedAt).toEqual(expect.any(Number));
+
+    const updated = await Message.findOne({ tenantId, messageId: message.messageId }).lean();
+    expect(updated.deleted).toBe(true);
+    expect(updated.deletedBy).toBe('alice');
+    expect(updated.deletedAt).toEqual(expect.any(Number));
+
+    const event = await Event.findOne({
+      tenantId,
+      eventType: 'message.deleted',
+      entityId: message.messageId
+    }).lean();
+    expect(event).toBeTruthy();
+    expect(event.data.deleted).toBe(true);
+    expect(event.data.message.deleted).toBe(true);
+  });
+
+  test('idempotent delete does not create second event', async () => {
+    const req = createRequest({ deleted: true, deletedBy: 'alice' });
+    await messageController.patchMessageDeleted(req, createMockRes());
+
+    const res2 = createMockRes();
+    await messageController.patchMessageDeleted(req, res2);
+
+    expect(res2.body.data.deleted).toBe(true);
+    expect(res2.body.message).toBe('Message is already deleted');
+
+    const events = await Event.find({
+      tenantId,
+      eventType: 'message.deleted',
+      entityId: message.messageId
+    }).lean();
+    expect(events).toHaveLength(1);
+  });
+
+  test('undelete clears deleted fields and emits event with deleted:false', async () => {
+    await messageController.patchMessageDeleted(
+      createRequest({ deleted: true, deletedBy: 'alice' }),
+      createMockRes()
+    );
+
+    const res = createMockRes();
+    await messageController.patchMessageDeleted(createRequest({ deleted: false }), res);
+
+    expect(res.body.data.deleted).toBe(false);
+    expect(res.body.data.deletedAt).toBeNull();
+    expect(res.body.data.deletedBy).toBeNull();
+
+    const updated = await Message.findOne({ tenantId, messageId: message.messageId }).lean();
+    expect(updated.deleted).toBe(false);
+    expect(updated.deletedAt).toBeNull();
+    expect(updated.deletedBy).toBeNull();
+
+    const events = await Event.find({
+      tenantId,
+      eventType: 'message.deleted',
+      entityId: message.messageId
+    }).sort({ createdAt: 1 }).lean();
+    expect(events).toHaveLength(2);
+    expect(events[1].data.deleted).toBe(false);
+  });
+
+  test('GET list includes soft-deleted message', async () => {
+    await messageController.patchMessageDeleted(
+      createRequest({ deleted: true, deletedBy: 'alice' }),
+      createMockRes()
+    );
+
+    const req = createMockReq({ filter: `(messageId,eq,${message.messageId})` });
+    const res = createMockRes();
+    await messageController.getAll(req, res);
+
+    const found = res.body.data.find((m) => m.messageId === message.messageId);
+    expect(found).toBeTruthy();
+    expect(found.deleted).toBe(true);
+  });
+
+  test('quotedMessage includes deleted flags from original', async () => {
+    await messageController.patchMessageDeleted(
+      createRequest({ deleted: true, deletedBy: 'alice' }),
+      createMockRes()
+    );
+
+    const req = {
+      tenantId,
+      params: { dialogId: dialog.dialogId },
+      body: {
+        senderId: 'alice',
+        content: 'quote of deleted',
+        type: 'internal.text',
+        quotedMessageId: message.messageId
+      },
+      apiKey: { name: 'test-key' }
+    };
+    const res = createMockRes();
+    await messageController.createMessage(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.quotedMessage.deleted).toBe(true);
+    expect(res.body.data.quotedMessage.deletedBy).toBe('alice');
+  });
+
+  test('PUT content and PATCH topic work after soft-delete', async () => {
+    await messageController.patchMessageDeleted(
+      createRequest({ deleted: true, deletedBy: 'alice' }),
+      createMockRes()
+    );
+
+    const contentRes = createMockRes();
+    await messageController.updateMessageContent(
+      {
+        tenantId,
+        params: { messageId: message.messageId },
+        body: { content: 'edited after delete' },
+        apiKey: { name: 'test-key' }
+      },
+      contentRes
+    );
+    expect(contentRes.body.data.content).toBe('edited after delete');
+    expect(contentRes.body.data.deleted).toBe(true);
+
+    const topicId = generateTopicId();
+    await Topic.create({
+      tenantId,
+      dialogId: dialog.dialogId,
+      topicId,
+      createdAt: generateTimestamp()
+    });
+
+    const topicRes = createMockRes();
+    await messageController.updateMessageTopic(
+      {
+        tenantId,
+        params: { messageId: message.messageId },
+        body: { topicId },
+        apiKey: { name: 'test-key' }
+      },
+      topicRes
+    );
+    expect(topicRes.body.data.topicId).toBe(topicId);
+  });
+
+  test('returns 404 when message not found', async () => {
+    const req = {
+      tenantId,
+      params: { messageId: 'msg_nonexistent0000000' },
+      body: { deleted: true },
+      apiKey: { name: 'test-key' }
+    };
+    const res = createMockRes();
+    await messageController.patchMessageDeleted(req, res);
+    expect(res.statusCode).toBe(404);
+  });
+});

@@ -1265,7 +1265,7 @@ const userDialogController = {
             tenantId: req.tenantId
           })
             .sort({ createdAt: -1 })
-            .select('messageId content senderId type createdAt')
+            .select('messageId content senderId type createdAt deleted deletedAt deletedBy')
             .lean();
           
           return { dialogId: dialog.dialogId, message: lastMsg };
@@ -1372,7 +1372,10 @@ const userDialogController = {
               content: lastMsg.content,
               senderId: lastMsg.senderId,
               type: lastMsg.type,
-              createdAt: lastMsg.createdAt
+              createdAt: lastMsg.createdAt,
+              deleted: lastMsg.deleted === true,
+              deletedAt: lastMsg.deletedAt ?? null,
+              deletedBy: lastMsg.deletedBy ?? null
             };
 
             // Добавляем senderInfo если отправитель найден

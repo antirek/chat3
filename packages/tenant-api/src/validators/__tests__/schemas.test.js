@@ -5,7 +5,8 @@ import {
   setMetaSchema,
   registerMetaIndexSchema,
   updateMessageContentSchema,
-  updateMessageTopicSchema
+  updateMessageTopicSchema,
+  patchMessageDeletedSchema
 } from '../schemas/bodySchemas.js';
 import {
   paginationSchema,
@@ -293,6 +294,33 @@ describe('bodySchemas.updateMessageContentSchema', () => {
   test('rejects empty content', () => {
     const { error } = validate({ content: '' });
 
+    expect(error).toBeDefined();
+  });
+});
+
+describe('bodySchemas.patchMessageDeletedSchema', () => {
+  const validate = (payload) => patchMessageDeletedSchema.validate(payload, { abortEarly: false });
+
+  test('accepts deleted true with deletedBy', () => {
+    const { error, value } = validate({ deleted: true, deletedBy: 'alice' });
+    expect(error).toBeUndefined();
+    expect(value.deleted).toBe(true);
+    expect(value.deletedBy).toBe('alice');
+  });
+
+  test('accepts deleted false without deletedBy', () => {
+    const { error, value } = validate({ deleted: false });
+    expect(error).toBeUndefined();
+    expect(value.deleted).toBe(false);
+  });
+
+  test('rejects missing deleted', () => {
+    const { error } = validate({ deletedBy: 'alice' });
+    expect(error).toBeDefined();
+  });
+
+  test('rejects non-boolean deleted', () => {
+    const { error } = validate({ deleted: 'yes' });
     expect(error).toBeDefined();
   });
 });

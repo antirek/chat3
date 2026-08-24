@@ -154,6 +154,7 @@ const DIALOG_MEMBER_UPDATE_EVENTS = [
 const MESSAGE_UPDATE_EVENTS = [
   'message.create',
   'message.changed',
+  'message.deleted',
   'message.reaction.changed',
   'message.status.changed'
 ] as const;
@@ -675,7 +676,7 @@ export async function createMessageUpdate(
         return;
       }
       // Для message.create/update нужно полное сообщение
-      if (['message.create', 'message.changed'].includes(eventType)) {
+      if (['message.create', 'message.changed', 'message.deleted'].includes(eventType)) {
         const senderCache = new Map<string, SenderInfo | null>();
         const fullMessage = await buildFullMessagePayload(tenantId, message, senderCache);
         if (!fullMessage) {
@@ -769,7 +770,7 @@ export async function createMessageUpdate(
     }
 
     // Для message.create/update всегда добавляем senderInfo в сообщение, если его ещё нет
-    if (['message.create', 'message.changed'].includes(eventType) && eventMessage?.senderId != null) {
+    if (['message.create', 'message.changed', 'message.deleted'].includes(eventType) && eventMessage?.senderId != null) {
       const hasSenderInfo = eventMessage.senderInfo != null && typeof eventMessage.senderInfo === 'object';
       if (!hasSenderInfo) {
         const senderCache = new Map<string, SenderInfo | null>();

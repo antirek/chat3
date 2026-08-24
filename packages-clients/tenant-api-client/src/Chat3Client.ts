@@ -174,6 +174,18 @@ export class Chat3Client {
   }
 
   /**
+   * Soft-delete or undelete a message
+   * PATCH /api/messages/{messageId}
+   */
+  async patchMessageDeleted(
+    messageId: string,
+    data: { deleted: boolean; deletedBy?: string | null },
+  ): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.client.patch(`/api/messages/${messageId}`, data);
+    return response.data;
+  }
+
+  /**
    * Get all messages with filtering
    */
   async getMessages(params: Record<string, any> = {}): Promise<ApiResponse> {

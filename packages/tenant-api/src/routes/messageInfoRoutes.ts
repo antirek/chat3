@@ -3,7 +3,7 @@ import messageController from '../controllers/messageController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
 import { validateMessageId } from '../validators/urlValidators/index.js';
 import { validateBody, validateQuery } from '../validators/middleware.js';
-import { messagesQuerySchema, updateMessageContentSchema, updateMessageTopicSchema } from '../validators/schemas/index.js';
+import { messagesQuerySchema, updateMessageContentSchema, updateMessageTopicSchema, patchMessageDeletedSchema } from '../validators/schemas/index.js';
 
 const router = express.Router();
 
@@ -292,6 +292,54 @@ router.patch(
   validateMessageId,
   validateBody(updateMessageTopicSchema),
   messageController.updateMessageTopic
+);
+
+/**
+ * @swagger
+ * /api/messages/{messageId}:
+ *   patch:
+ *     summary: Soft-delete or undelete a message
+ *     description: |
+ *       Sets or clears soft-delete flags (`deleted`, `deletedAt`, `deletedBy`).
+ *       Idempotent: if `deleted` already equals the target value, returns 200 without a new event.
+ *       After soft-delete, PUT content / PATCH topic / reactions remain allowed.
+ *     tags: [Messages]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/TenantIdHeader'
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [deleted]
+ *             properties:
+ *               deleted:
+ *                 type: boolean
+ *                 description: true = soft-delete, false = undelete
+ *               deletedBy:
+ *                 type: string
+ *                 description: Optional actor id (used when deleted=true)
+ *     responses:
+ *       200:
+ *         description: Message soft-delete state updated (or unchanged)
+ *       404:
+ *         description: Message not found
+ */
+router.patch(
+  '/:messageId',
+  apiAuth,
+  requirePermission('write'),
+  validateMessageId,
+  validateBody(patchMessageDeletedSchema),
+  messageController.patchMessageDeleted
 );
 
 router.put(

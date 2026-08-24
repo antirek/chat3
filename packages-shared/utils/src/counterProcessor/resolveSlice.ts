@@ -38,7 +38,8 @@ export async function resolveSlice(event: CounterEventPayload): Promise<CounterS
   const eventMessageId = getMessageIdFromEvent(data);
 
   switch (eventType) {
-    case 'message.create': {
+    case 'message.create':
+    case 'message.deleted': {
       if (eventMessageId) {
         messageIds.push(eventMessageId);
       }

@@ -64,7 +64,7 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
       allowedDialogIds.length > 0
         ? Message.findOne({ tenantId, dialogId: { $in: allowedDialogIds } })
             .sort({ createdAt: -1 })
-            .select('messageId content senderId type createdAt dialogId')
+            .select('messageId content senderId type createdAt dialogId deleted deletedAt deletedBy')
             .lean()
         : Promise.resolve(null)
     ]);
@@ -77,7 +77,17 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
     let lastMessage: any = null;
     let lastActivityAt: number | null = null;
     if (lastMsgDoc) {
-      const lastMsg = lastMsgDoc as { messageId: string; content?: string; senderId: string; type: string; createdAt: number; dialogId: string };
+      const lastMsg = lastMsgDoc as {
+        messageId: string;
+        content?: string;
+        senderId: string;
+        type: string;
+        createdAt: number;
+        dialogId: string;
+        deleted?: boolean;
+        deletedAt?: number | null;
+        deletedBy?: string | null;
+      };
       lastActivityAt = lastMsg.createdAt;
       const [senderInfo, messageMeta, statusMessageMatrix] = await Promise.all([
         getSenderInfo(tenantId, lastMsg.senderId),
@@ -91,6 +101,9 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
         type: lastMsg.type,
         createdAt: lastMsg.createdAt,
         dialogId: lastMsg.dialogId,
+        deleted: lastMsg.deleted === true,
+        deletedAt: lastMsg.deletedAt ?? null,
+        deletedBy: lastMsg.deletedBy ?? null,
         meta: messageMeta || {},
         statusMessageMatrix: statusMessageMatrix || []
       };
@@ -795,7 +808,17 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
     }
     const allDialogIdsForPacks = [...dialogToPackIds.keys()];
 
-    let lastMessageByPack = new Map<string, { messageId: string; content?: string; senderId: string; type: string; createdAt: number; dialogId: string }>();
+    let lastMessageByPack = new Map<string, {
+      messageId: string;
+      content?: string;
+      senderId: string;
+      type: string;
+      createdAt: number;
+      dialogId: string;
+      deleted?: boolean;
+      deletedAt?: number | null;
+      deletedBy?: string | null;
+    }>();
     if (allDialogIdsForPacks.length > 0) {
       const recentMessages = await Message.find({
         tenantId,
@@ -803,7 +826,7 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
       })
         .sort({ createdAt: -1 })
         .limit(300)
-        .select('messageId content senderId type createdAt dialogId')
+        .select('messageId content senderId type createdAt dialogId deleted deletedAt deletedBy')
         .lean();
       const assignedPacks = new Set<string>();
       for (const msg of recentMessages as any[]) {
@@ -817,7 +840,10 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
             senderId: msg.senderId,
             type: msg.type,
             createdAt: msg.createdAt,
-            dialogId: msg.dialogId
+            dialogId: msg.dialogId,
+            deleted: msg.deleted === true,
+            deletedAt: msg.deletedAt ?? null,
+            deletedBy: msg.deletedBy ?? null
           });
         }
         if (assignedPacks.size === pagePackIds.length) break;
@@ -857,6 +883,9 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
           type: lastMsg.type,
           createdAt: lastMsg.createdAt,
           dialogId: lastMsg.dialogId,
+          deleted: lastMsg.deleted === true,
+          deletedAt: lastMsg.deletedAt ?? null,
+          deletedBy: lastMsg.deletedBy ?? null,
           meta: messageMetaByMessageId.get(lastMsg.messageId) || {},
           statusMessageMatrix: statusMatrixByMessageId.get(lastMsg.messageId) || []
         };

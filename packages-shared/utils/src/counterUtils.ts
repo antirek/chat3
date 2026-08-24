@@ -788,7 +788,11 @@ export async function recalculateUserStats(
   const { totalUnreadCount, unreadDialogsCount } = await recalculateUserUnreadBySenderType(tenantId, uid);
   await recalculateUserPackedMessagesUnreadBySenderType(tenantId, uid);
 
-  const totalMessagesCount = await Message.countDocuments({ tenantId, senderId: uid });
+  const totalMessagesCount = await Message.countDocuments({
+    tenantId,
+    senderId: uid,
+    deleted: { $ne: true }
+  });
 
   await UserStats.findOneAndUpdate(
     { tenantId, userId: uid },
@@ -1200,7 +1204,11 @@ export async function recalculateDialogStats(
   // Используем уже импортированные модели
   const topicCount = await Topic.countDocuments({ tenantId, dialogId });
   const memberCount = await DialogMember.countDocuments({ tenantId, dialogId });
-  const messageCount = await Message.countDocuments({ tenantId, dialogId });
+  const messageCount = await Message.countDocuments({
+    tenantId,
+    dialogId,
+    deleted: { $ne: true }
+  });
 
   const timestamp = generateTimestamp();
   await DialogStats.findOneAndUpdate(

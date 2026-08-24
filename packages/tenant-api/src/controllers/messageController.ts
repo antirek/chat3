@@ -64,7 +64,7 @@ const messageController = {
 
       // Get messages with pagination
       const messages = await Message.find(query)
-        .select('messageId dialogId senderId content type createdAt')
+        .select('messageId dialogId senderId content type createdAt deleted deletedAt deletedBy')
         .sort(sortOptions as any)
         .skip(skip)
         .limit(limit);
@@ -531,6 +531,9 @@ const messageController = {
               content: quotedMsg.content,
               type: quotedMsg.type,
               createdAt: quotedMsg.createdAt,
+              deleted: (quotedMsg as { deleted?: boolean }).deleted === true,
+              deletedAt: (quotedMsg as { deletedAt?: number | null }).deletedAt ?? null,
+              deletedBy: (quotedMsg as { deletedBy?: string | null }).deletedBy ?? null,
               meta: quotedMessageMeta || {},
               senderInfo: quotedSenderInfo || null
             };
@@ -1052,6 +1055,193 @@ const messageController = {
       });
     } catch (error: any) {
       console.error(`[${routePath}] Error:`, error.message);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    } finally {
+      log('>>>>> end');
+    }
+  },
+
+  /**
+   * Soft-delete / undelete сообщения (PATCH /api/messages/:messageId).
+   * Body: { deleted: boolean, deletedBy?: string }.
+   * Идемпотентно: если флаг уже равен целевому — 200 без Event.
+   */
+  async patchMessageDeleted(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const routePath = 'patch /messages/:messageId';
+    const log = (...args: any[]) => {
+      console.log(`[${routePath}]`, ...args);
+    };
+    log('>>>>> start');
+
+    try {
+      const { messageId } = req.params;
+      const { deleted, deletedBy: deletedByRaw } = req.body as {
+        deleted: boolean;
+        deletedBy?: string | null;
+      };
+      const deletedBy =
+        deletedByRaw !== undefined && deletedByRaw !== null && String(deletedByRaw).trim() !== ''
+          ? String(deletedByRaw).trim()
+          : null;
+      log(`Получены параметры: messageId=${messageId}, deleted=${deleted}, deletedBy=${deletedBy ?? 'null'}`);
+
+      const message = await Message.findOne({
+        messageId,
+        tenantId: req.tenantId!
+      });
+
+      if (!message) {
+        log(`Сообщение не найдено: messageId=${messageId}`);
+        res.status(404).json({
+          error: 'Not Found',
+          message: 'Message not found'
+        });
+        return;
+      }
+
+      const currentlyDeleted = (message as any).deleted === true;
+      const targetDeleted = deleted === true;
+
+      const respondWithMessage = async (responseMessage: string) => {
+        const meta = await metaUtils.getEntityMeta(req.tenantId!, 'message', message.messageId);
+        const messageObj = message.toObject() as unknown as Record<string, unknown>;
+        const statusMessageMatrix = await buildStatusMessageMatrix(
+          req.tenantId!,
+          message.messageId,
+          messageObj.senderId as string
+        );
+        const reactionSet = await buildReactionSet(req.tenantId!, message.messageId, null);
+        const senderInfo = await getSenderInfo(req.tenantId!, message.senderId);
+
+        const data = sanitizeResponse({
+          ...messageObj,
+          statusMessageMatrix,
+          reactionSet,
+          meta,
+          senderInfo: senderInfo || null
+        }) as Record<string, unknown>;
+
+        // sanitizeResponse убирает null — клиенту нужны явные deleted*/null после undelete
+        data.deleted = (message as any).deleted === true;
+        data.deletedAt = (message as any).deletedAt ?? null;
+        data.deletedBy = (message as any).deletedBy ?? null;
+
+        res.json({
+          data,
+          message: responseMessage
+        });
+      };
+
+      if (currentlyDeleted === targetDeleted) {
+        log(`Флаг deleted уже равен целевому (${targetDeleted}): messageId=${message.messageId}`);
+        await respondWithMessage(
+          targetDeleted ? 'Message is already deleted' : 'Message is not deleted'
+        );
+        return;
+      }
+
+      if (targetDeleted) {
+        (message as any).deleted = true;
+        (message as any).deletedAt = generateTimestamp();
+        (message as any).deletedBy = deletedBy;
+      } else {
+        (message as any).deleted = false;
+        (message as any).deletedAt = null;
+        (message as any).deletedBy = null;
+      }
+      await message.save();
+      log(
+        `Soft-delete обновлён: messageId=${message.messageId}, deleted=${(message as any).deleted}, deletedAt=${(message as any).deletedAt ?? 'null'}`
+      );
+
+      const meta = await metaUtils.getEntityMeta(req.tenantId!, 'message', message.messageId);
+
+      const dialog = await Dialog.findOne({
+        dialogId: message.dialogId,
+        tenantId: req.tenantId!
+      }).lean();
+
+      let dialogSection: any = null;
+      if (dialog) {
+        const dialogMeta = await metaUtils.getEntityMeta(req.tenantId!, 'dialog', message.dialogId);
+        dialogSection = eventUtils.buildDialogSection({
+          dialogId: (dialog as any).dialogId,
+          tenantId: (dialog as any).tenantId,
+          createdAt: (dialog as any).createdAt,
+          meta: dialogMeta || {}
+        });
+      }
+
+      let topicForEvent: any = null;
+      const messageTopicIdForEvent = (message as any).topicId ?? null;
+      if (messageTopicIdForEvent) {
+        try {
+          topicForEvent = await topicUtils.getTopicWithMeta(
+            req.tenantId!,
+            message.dialogId,
+            messageTopicIdForEvent
+          );
+        } catch {
+          topicForEvent = { topicId: messageTopicIdForEvent, meta: {} };
+        }
+      }
+
+      const MAX_CONTENT_LENGTH = 4096;
+      const content = typeof message.content === 'string' ? message.content : '';
+      const eventContent =
+        content.length > MAX_CONTENT_LENGTH ? content.substring(0, MAX_CONTENT_LENGTH) : content;
+
+      const messageSection = eventUtils.buildMessageSection({
+        messageId: message.messageId,
+        dialogId: message.dialogId,
+        senderId: message.senderId,
+        type: message.type,
+        content: eventContent,
+        meta: meta || {},
+        topicId: messageTopicIdForEvent,
+        topic: topicForEvent,
+        deleted: (message as any).deleted === true,
+        deletedAt: (message as any).deletedAt ?? null,
+        deletedBy: (message as any).deletedBy ?? null
+      });
+
+      const eventContext = eventUtils.buildEventContext({
+        eventType: 'message.deleted',
+        dialogId: message.dialogId,
+        entityId: message.messageId,
+        messageId: message.messageId,
+        includedSections: dialogSection ? ['dialog', 'message'] : ['message'],
+        updatedFields: ['message.deleted', 'message.deletedAt', 'message.deletedBy']
+      });
+
+      log(`Создание события message.deleted: messageId=${message.messageId}, deleted=${targetDeleted}`);
+      await eventUtils.createEvent({
+        tenantId: req.tenantId!,
+        eventType: 'message.deleted',
+        entityType: 'message',
+        entityId: message.messageId,
+        actorId: req.apiKey?.name || 'unknown',
+        actorType: 'api',
+        data: eventUtils.composeEventData({
+          context: eventContext,
+          dialog: dialogSection,
+          message: messageSection,
+          extra: {
+            deleted: targetDeleted,
+            deletedAt: (message as any).deletedAt ?? null,
+            deletedBy: (message as any).deletedBy ?? null
+          }
+        })
+      });
+
+      await respondWithMessage(
+        targetDeleted ? 'Message soft-deleted successfully' : 'Message undeleted successfully'
+      );
+    } catch (error: any) {
+      log(`Ошибка обработки запроса:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message

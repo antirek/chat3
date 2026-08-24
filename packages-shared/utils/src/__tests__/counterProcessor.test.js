@@ -1,4 +1,3 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import {
   Message,
@@ -17,12 +16,13 @@ import {
 import { processCounterEvent, CounterProcessorError } from '../counterProcessor/processCounterEvent.js';
 import { recalculateUserDialogUnread } from '../counterProcessor/recalculateUserDialogUnread.js';
 import { generateTimestamp } from '../timestampUtils.js';
+import { createTestMongoServer } from './createTestMongoServer.js';
 
 describe('counterProcessor', () => {
   let mongoServer;
 
   beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
+    mongoServer = await createTestMongoServer();
     await mongoose.connect(mongoServer.getUri());
   });
 
@@ -456,5 +456,118 @@ describe('counterProcessor', () => {
     expect(okLine).toMatch(/durationMs=\d+(\.\d+)?/);
 
     console.log = origLog;
+  });
+
+  test('message.deleted recalculates unread and totalMessagesCount; repeat is idempotent', async () => {
+    const tenantId = 'tnt_del';
+    const dialogId = 'dlg_hh999999999999999999';
+    const senderId = 'alice';
+    const readerId = 'bob';
+    const messageId = 'msg_ii000000000000000000';
+    const now = generateTimestamp();
+
+    await DialogMember.insertMany([
+      { tenantId, dialogId, userId: senderId, createdAt: now },
+      { tenantId, dialogId, userId: readerId, createdAt: now }
+    ]);
+
+    await Message.create({
+      tenantId,
+      dialogId,
+      messageId,
+      senderId,
+      type: 'internal.text',
+      content: 'bye',
+      createdAt: now
+    });
+
+    await processCounterEvent({
+      eventId: 'evt_d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0',
+      tenantId,
+      eventType: 'message.create',
+      entityType: 'message',
+      entityId: messageId,
+      data: {
+        context: { dialogId, messageId },
+        message: { messageId, dialogId, senderId, type: 'internal.text' }
+      }
+    });
+
+    let stats = await UserDialogStats.findOne({ tenantId, userId: readerId, dialogId }).lean();
+    expect(stats?.unreadCount).toBe(1);
+
+    let senderStats = await UserStats.findOne({ tenantId, userId: senderId }).lean();
+    expect(senderStats?.totalMessagesCount).toBe(1);
+
+    let dialogStats = await DialogStats.findOne({ tenantId, dialogId }).lean();
+    expect(dialogStats?.messageCount).toBe(1);
+
+    await Message.updateOne(
+      { tenantId, messageId },
+      { $set: { deleted: true, deletedAt: now + 1, deletedBy: senderId } }
+    );
+
+    const deletedEvent = {
+      eventId: 'evt_e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1',
+      tenantId,
+      eventType: 'message.deleted',
+      entityType: 'message',
+      entityId: messageId,
+      data: {
+        context: { dialogId, messageId },
+        message: { messageId, dialogId, senderId, type: 'internal.text', deleted: true },
+        deleted: true
+      }
+    };
+
+    await processCounterEvent(deletedEvent);
+
+    stats = await UserDialogStats.findOne({ tenantId, userId: readerId, dialogId }).lean();
+    expect(stats?.unreadCount).toBe(0);
+
+    senderStats = await UserStats.findOne({ tenantId, userId: senderId }).lean();
+    expect(senderStats?.totalMessagesCount).toBe(0);
+
+    dialogStats = await DialogStats.findOne({ tenantId, dialogId }).lean();
+    expect(dialogStats?.messageCount).toBe(0);
+
+    // Repeat with same final state — ProcessedCounterEvent blocks re-run; simulate fresh id
+    await processCounterEvent({
+      ...deletedEvent,
+      eventId: 'evt_f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2'
+    });
+
+    stats = await UserDialogStats.findOne({ tenantId, userId: readerId, dialogId }).lean();
+    expect(stats?.unreadCount).toBe(0);
+    senderStats = await UserStats.findOne({ tenantId, userId: senderId }).lean();
+    expect(senderStats?.totalMessagesCount).toBe(0);
+    dialogStats = await DialogStats.findOne({ tenantId, dialogId }).lean();
+    expect(dialogStats?.messageCount).toBe(0);
+
+    // Undelete restores counts
+    await Message.updateOne(
+      { tenantId, messageId },
+      { $set: { deleted: false, deletedAt: null, deletedBy: null } }
+    );
+
+    await processCounterEvent({
+      eventId: 'evt_a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3',
+      tenantId,
+      eventType: 'message.deleted',
+      entityType: 'message',
+      entityId: messageId,
+      data: {
+        context: { dialogId, messageId },
+        message: { messageId, dialogId, senderId, type: 'internal.text', deleted: false },
+        deleted: false
+      }
+    });
+
+    stats = await UserDialogStats.findOne({ tenantId, userId: readerId, dialogId }).lean();
+    expect(stats?.unreadCount).toBe(1);
+    senderStats = await UserStats.findOne({ tenantId, userId: senderId }).lean();
+    expect(senderStats?.totalMessagesCount).toBe(1);
+    dialogStats = await DialogStats.findOne({ tenantId, dialogId }).lean();
+    expect(dialogStats?.messageCount).toBe(1);
   });
 });
