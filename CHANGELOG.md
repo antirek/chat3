@@ -5,6 +5,27 @@
 
 ---
 
+## [0.0.81] — 2026-08-24
+
+Soft-delete сообщений (#15507): флаг `deleted`, API, событие `message.deleted`, пересчёт unread без soft-deleted.
+
+### Добавлено
+
+- **`Message.deleted` / `deletedAt` / `deletedBy`** — soft-delete без физического удаления.
+- **`PATCH /api/messages/:messageId`** — `{ deleted: boolean, deletedBy? }`; идемпотентно; undelete сбрасывает поля.
+- **Событие `message.deleted`** — в enum Event, outbox, update-worker (`MessageUpdate`), counter-worker.
+- Soft-deleted **исключаются** из unread (`deleted: { $ne: true }` в A12 / recalculate).
+- **SDK:** helper в `@chat3/tenant-api-client`; Controlo UI labels; FDR-0001.
+- Тесты: `messageController.patchMessageDeleted`, counter/processUpdateEvent fixtures.
+
+### Docker
+
+```text
+antirek/mms3:0.0.81
+```
+
+---
+
 ## [0.0.80] — 2026-06-18
 
 Pack unread после outbound + `markAllReadForAllUsers`: инвариант P1/P4, fix drift stats (C1), monotonic WS для `UserStatsUpdate`.
@@ -61,5 +82,6 @@ antirek/mms3:0.0.80
 
 ---
 
+[0.0.81]: https://github.com/antirek/chat3/compare/bf857d3...HEAD
 [0.0.80]: https://github.com/antirek/chat3/compare/8eb2024...bf857d3
 [0.0.79]: https://github.com/antirek/chat3/commit/8eb20240f32b4353685ebdc07bc108ad3be6db06
