@@ -8,7 +8,10 @@
       :loading="loading"
       :error="error"
       :get-item-key="(item) => item.messageId"
-      :get-row-class="(item) => item.context?.isMine ? 'message-row-mine' : ''"
+      :get-row-class="(item) => [
+        item.context?.isMine ? 'message-row-mine' : '',
+        item.deleted ? 'message-row-deleted' : '',
+      ].filter(Boolean).join(' ')"
       loading-text="Загрузка сообщений..."
       empty-text="Сообщения не найдены"
     >
@@ -36,7 +39,11 @@
           <span v-if="item.context?.isMine" style="color: #4fc3f7; margin-left: 5px;" title="Ваше сообщение">👤</span>
         </td>
         <td :title="item.createdAt != null ? String(item.createdAt) : undefined">{{ formatTimestamp(item.createdAt) }}</td>
-        <td class="message-content">{{ item.content }}</td>
+        <td class="message-content" :class="{ 'message-deleted': item.deleted }">
+          {{ item.content }}
+          <span v-if="item.edited" class="badge edited" title="Отредактировано">изм.</span>
+          <span v-if="item.deleted" class="badge deleted" title="Soft-deleted">удал.</span>
+        </td>
         <td>
           <span
             v-if="item.context?.isMine && getMessageStatus(item)"
@@ -56,6 +63,14 @@
           <BaseButton variant="statuses" size="small" @click="$emit('show-statuses', item.messageId)">📋 Статусы</BaseButton>
           <BaseButton variant="set-status" size="small" @click="$emit('show-set-status', item.messageId)">✏️ Установить статус</BaseButton>
           <BaseButton variant="primary" size="small" @click="$emit('show-topic', item)">📌 Топик</BaseButton>
+          <BaseButton variant="primary" size="small" @click="$emit('show-edit', item)">✏️ Править</BaseButton>
+          <BaseButton
+            :variant="item.deleted ? 'success' : 'danger'"
+            size="small"
+            @click="$emit('show-soft-delete', item)"
+          >
+            {{ item.deleted ? '♻️ Восстановить' : '🗑️ Удалить' }}
+          </BaseButton>
         </td>
       </template>
     </BaseTable>
@@ -73,6 +88,12 @@ interface Message {
   createdAt: string | number;
   topicId?: string | null;
   dialogId?: string;
+  edited?: boolean;
+  editedAt?: number | null;
+  editedBy?: string | null;
+  deleted?: boolean;
+  deletedAt?: number | null;
+  deletedBy?: string | null;
   context?: {
     isMine?: boolean;
     status?: string;
@@ -115,6 +136,8 @@ const emit = defineEmits<{
   (e: 'show-statuses', messageId: string): void;
   (e: 'show-set-status', messageId: string): void;
   (e: 'show-topic', message: Message): void;
+  (e: 'show-edit', message: Message): void;
+  (e: 'show-soft-delete', message: Message): void;
   (e: 'toggle-sort', field: string): void;
 }>();
 
@@ -169,11 +192,40 @@ function getStatusIcon(status: string | null): string {
   background-color: #f0f8ff;
 }
 
+:deep(.message-row-deleted) {
+  background-color: #fff5f5;
+}
+
 .message-content {
   max-width: 300px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.message-content.message-deleted {
+  text-decoration: line-through;
+  color: #6c757d;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.badge.edited {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.badge.deleted {
+  background: #f8d7da;
+  color: #721c24;
 }
 
 .dialog-id-cell {

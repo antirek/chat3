@@ -274,6 +274,8 @@
                 @show-statuses="showStatusesModal"
                 @show-set-status="showSetStatusModal"
                 @show-topic="showMessageTopicModal"
+                @show-edit="showEditMessageModal"
+                @show-soft-delete="showSoftDeleteMessageModal"
                 @toggle-sort="() => {}"
               />
             </div>
@@ -415,6 +417,8 @@
             @show-statuses="showStatusesModal"
             @show-set-status="showSetStatusModal"
             @show-topic="showMessageTopicModal"
+            @show-edit="showEditMessageModal"
+            @show-soft-delete="showSoftDeleteMessageModal"
             @toggle-sort="toggleMessageSort"
           />
         </div>
@@ -634,6 +638,36 @@
       @set="setMessageTopic"
     />
 
+    <EditMessageModal
+      :is-open="isEditMessageModalOpen"
+      :message-id="currentMessageForEdit?.messageId ?? null"
+      v-model:content="editMessageContent"
+      v-model:edited-by-input="editMessageEditedBy"
+      :edited="currentMessageForEdit?.edited ?? false"
+      :edited-at="currentMessageForEdit?.editedAt ?? null"
+      :edited-by="currentMessageForEdit?.editedBy ?? null"
+      :versions="editMessageVersions"
+      :loading-versions="loadingEditVersions"
+      :loading="loadingEditMessage"
+      :error="errorEditMessage"
+      @close="closeEditMessageModal"
+      @submit="submitEditMessage"
+    />
+
+    <SoftDeleteMessageModal
+      :is-open="isSoftDeleteMessageModalOpen"
+      :message-id="currentMessageForSoftDelete?.messageId ?? null"
+      :content="currentMessageForSoftDelete?.content ?? ''"
+      :deleted="currentMessageForSoftDelete?.deleted ?? false"
+      :deleted-at="currentMessageForSoftDelete?.deletedAt ?? null"
+      :deleted-by="currentMessageForSoftDelete?.deletedBy ?? null"
+      v-model:deleted-by-input="softDeleteByInput"
+      :loading="loadingSoftDelete"
+      :error="errorSoftDelete"
+      @close="closeSoftDeleteMessageModal"
+      @submit="submitSoftDeleteMessage"
+    />
+
     <!-- Модальное окно мета-тегов сообщения -->
     <MetaModal
       :is-open="isMessageMetaModalOpen"
@@ -739,6 +773,8 @@ import {
   ReactionModal,
   SetStatusModal,
   MessageTopicModal,
+  EditMessageModal,
+  SoftDeleteMessageModal,
   EventsModal,
   DialogEventsModal,
   StatusMatrixModal,
@@ -929,6 +965,8 @@ const {
   isStatusesModalOpen,
   isSetStatusModalOpen,
   isMessageTopicModalOpen,
+  isEditMessageModalOpen,
+  isSoftDeleteMessageModalOpen,
   isDialogEventsModalOpen,
   isDialogMetaModalOpen,
   isAddMemberModalOpen,
@@ -1047,6 +1085,23 @@ const {
   errorMessageTopic,
   setMessageTopic,
   clearMessageTopic,
+  showEditMessageModal,
+  closeEditMessageModal,
+  submitEditMessage,
+  currentMessageForEdit,
+  editMessageContent,
+  editMessageEditedBy,
+  editMessageVersions,
+  loadingEditMessage,
+  loadingEditVersions,
+  errorEditMessage,
+  showSoftDeleteMessageModal,
+  closeSoftDeleteMessageModal,
+  submitSoftDeleteMessage,
+  currentMessageForSoftDelete,
+  softDeleteByInput,
+  loadingSoftDelete,
+  errorSoftDelete,
   setStatusResult,
   setStatusUrl,
   loadingStatusMatrix,

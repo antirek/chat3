@@ -26,6 +26,8 @@ export function useMessageModals(
   const statusesModal = useModal();
   const setStatusModal = useModal();
   const messageTopicModal = useModal();
+  const editMessageModal = useModal();
+  const softDeleteMessageModal = useModal();
 
   // Добавление сообщения
   const messageSender = ref('carl');
@@ -36,6 +38,33 @@ export function useMessageModals(
   const messageMetaTags = ref<Array<{ key: string; value: string }>>([{ key: '', value: '' }]);
   const availableTopics = ref<any[]>([]);
   const payloadJson = ref('{}');
+
+  // Редактирование сообщения
+  const currentMessageForEdit = ref<{
+    messageId: string;
+    content: string;
+    edited?: boolean;
+    editedAt?: number | null;
+    editedBy?: string | null;
+  } | null>(null);
+  const editMessageContent = ref('');
+  const editMessageEditedBy = ref('');
+  const editMessageVersions = ref<any[]>([]);
+  const loadingEditMessage = ref(false);
+  const loadingEditVersions = ref(false);
+  const errorEditMessage = ref<string | null>(null);
+
+  // Soft-delete сообщения
+  const currentMessageForSoftDelete = ref<{
+    messageId: string;
+    content: string;
+    deleted: boolean;
+    deletedAt?: number | null;
+    deletedBy?: string | null;
+  } | null>(null);
+  const softDeleteByInput = ref('');
+  const loadingSoftDelete = ref(false);
+  const errorSoftDelete = ref<string | null>(null);
 
   // Реакции
   const currentMessageIdForReaction = ref<string | null>(null);
@@ -768,6 +797,153 @@ export function useMessageModals(
     }
   }
 
+  // --- Edit message (PUT /edit) ---
+  async function showEditMessageModal(message: {
+    messageId: string;
+    content?: string;
+    edited?: boolean;
+    editedAt?: number | null;
+    editedBy?: string | null;
+  }) {
+    currentMessageForEdit.value = {
+      messageId: message.messageId,
+      content: message.content ?? '',
+      edited: Boolean(message.edited),
+      editedAt: message.editedAt ?? null,
+      editedBy: message.editedBy ?? null,
+    };
+    editMessageContent.value = message.content ?? '';
+    editMessageEditedBy.value = '';
+    editMessageVersions.value = [];
+    errorEditMessage.value = null;
+    editMessageModal.open();
+
+    loadingEditVersions.value = true;
+    try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const response = await fetch(
+        `${baseUrl}/api/messages/${message.messageId}/versions`,
+        { headers: credentialsStore.getHeaders() }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        editMessageVersions.value = data.data ?? [];
+      }
+    } catch (err) {
+      console.error('Error loading message versions:', err);
+    } finally {
+      loadingEditVersions.value = false;
+    }
+  }
+
+  function closeEditMessageModal() {
+    editMessageModal.close();
+    currentMessageForEdit.value = null;
+    editMessageContent.value = '';
+    editMessageEditedBy.value = '';
+    editMessageVersions.value = [];
+    errorEditMessage.value = null;
+  }
+
+  async function submitEditMessage() {
+    if (!currentMessageForEdit.value) return;
+    const content = editMessageContent.value;
+    if (typeof content !== 'string' || content.trim().length === 0) {
+      errorEditMessage.value = 'Содержимое не может быть пустым';
+      return;
+    }
+    loadingEditMessage.value = true;
+    errorEditMessage.value = null;
+    try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const body: Record<string, string> = { content };
+      const editedBy = editMessageEditedBy.value.trim();
+      if (editedBy) body.editedBy = editedBy;
+      const response = await fetch(
+        `${baseUrl}/api/messages/${currentMessageForEdit.value.messageId}/edit`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...credentialsStore.getHeaders() },
+          body: JSON.stringify(body),
+        }
+      );
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${response.status}`);
+      }
+      if (currentDialogId.value) {
+        loadDialogMessages(currentDialogId.value, messagesPagination.currentPage.value);
+      }
+      closeEditMessageModal();
+    } catch (err) {
+      errorEditMessage.value = err instanceof Error ? err.message : 'Ошибка сохранения';
+    } finally {
+      loadingEditMessage.value = false;
+    }
+  }
+
+  // --- Soft-delete / undelete (PATCH /messages/:id) ---
+  function showSoftDeleteMessageModal(message: {
+    messageId: string;
+    content?: string;
+    deleted?: boolean;
+    deletedAt?: number | null;
+    deletedBy?: string | null;
+  }) {
+    currentMessageForSoftDelete.value = {
+      messageId: message.messageId,
+      content: message.content ?? '',
+      deleted: Boolean(message.deleted),
+      deletedAt: message.deletedAt ?? null,
+      deletedBy: message.deletedBy ?? null,
+    };
+    softDeleteByInput.value = '';
+    errorSoftDelete.value = null;
+    softDeleteMessageModal.open();
+  }
+
+  function closeSoftDeleteMessageModal() {
+    softDeleteMessageModal.close();
+    currentMessageForSoftDelete.value = null;
+    softDeleteByInput.value = '';
+    errorSoftDelete.value = null;
+  }
+
+  async function submitSoftDeleteMessage() {
+    if (!currentMessageForSoftDelete.value) return;
+    loadingSoftDelete.value = true;
+    errorSoftDelete.value = null;
+    try {
+      const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
+      const willDelete = !currentMessageForSoftDelete.value.deleted;
+      const body: Record<string, unknown> = { deleted: willDelete };
+      if (willDelete) {
+        const deletedBy = softDeleteByInput.value.trim();
+        if (deletedBy) body.deletedBy = deletedBy;
+      }
+      const response = await fetch(
+        `${baseUrl}/api/messages/${currentMessageForSoftDelete.value.messageId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', ...credentialsStore.getHeaders() },
+          body: JSON.stringify(body),
+        }
+      );
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${response.status}`);
+      }
+      if (currentDialogId.value) {
+        loadDialogMessages(currentDialogId.value, messagesPagination.currentPage.value);
+      }
+      closeSoftDeleteMessageModal();
+    } catch (err) {
+      errorSoftDelete.value = err instanceof Error ? err.message : 'Ошибка soft-delete';
+    } finally {
+      loadingSoftDelete.value = false;
+    }
+  }
+
   return {
     // Modals
     addMessageModal,
@@ -849,5 +1025,26 @@ export function useMessageModals(
     closeMessageTopicModal,
     setMessageTopic,
     clearMessageTopic,
+    // Edit message
+    editMessageModal,
+    currentMessageForEdit,
+    editMessageContent,
+    editMessageEditedBy,
+    editMessageVersions,
+    loadingEditMessage,
+    loadingEditVersions,
+    errorEditMessage,
+    showEditMessageModal,
+    closeEditMessageModal,
+    submitEditMessage,
+    // Soft-delete
+    softDeleteMessageModal,
+    currentMessageForSoftDelete,
+    softDeleteByInput,
+    loadingSoftDelete,
+    errorSoftDelete,
+    showSoftDeleteMessageModal,
+    closeSoftDeleteMessageModal,
+    submitSoftDeleteMessage,
   };
 }
