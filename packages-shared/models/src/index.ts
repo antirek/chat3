@@ -3,6 +3,7 @@ import Tenant from './data/Tenant.js';
 import User from './data/User.js';
 import Dialog from './data/Dialog.js';
 import Message from './data/Message.js';
+import MessageVersion from './data/MessageVersion.js';
 import Meta from './data/Meta.js';
 import MetaIndexDefinition from './data/MetaIndexDefinition.js';
 import MetaIndex from './data/MetaIndex.js';
@@ -45,6 +46,7 @@ export {
   User,
   Dialog,
   Message,
+  MessageVersion,
   Meta,
   MetaIndexDefinition,
   MetaIndex,
@@ -81,6 +83,7 @@ export type { ITenant } from './data/Tenant';
 export type { IUser } from './data/User';
 export type { IDialog } from './data/Dialog';
 export type { IMessage } from './data/Message';
+export type { IMessageVersion } from './data/MessageVersion';
 export type { IMeta } from './data/Meta';
 export type { IMetaIndexDefinition } from './data/MetaIndexDefinition';
 export type { IMetaIndex } from './data/MetaIndex';

@@ -283,7 +283,7 @@ Payload содержит секцию `pack` с метаданными пака 
 
 **Routing Key:** `message.changed.{tenantId}`
 
-**Примечание:** Создается при обновлении содержимого сообщения через `PUT /api/messages/:messageId`
+**Примечание:** Создается при правке content через `PUT /api/messages/:messageId/edit` (legacy `PUT /api/messages/:messageId`). На документе — `edited` / `editedAt` / `editedBy`; архив — `MessageVersion`.
 
 ### Message Status Events
 

@@ -371,20 +371,31 @@ npm run generate-key
 - Массив статусов (statuses) с историей изменений
 - Meta теги
 
-#### PUT /api/messages/:messageId
-Обновить содержимое сообщения
+#### PUT /api/messages/:messageId/edit
+Править содержимое сообщения (канонический путь; #15519)
 
 **Body:**
 ```json
 {
-  "content": "Updated content"
+  "content": "Updated content",
+  "editedBy": "alice"
 }
 ```
 
 **Примечания:**
-- Можно изменить только поле `content`
-- Автоматически создается событие `message.update`
-- Устанавливается meta тег `updated`
+- `content` обязателен; `editedBy` опционален
+- На `Message`: `edited=true`, `editedAt`, `editedBy` (не meta)
+- Предыдущий `content` → `MessageVersion` (`versionIndex` с 1)
+- `createdAt` сообщения не меняется
+- Событие `message.changed` (счётчики не трогаем)
+- Legacy: `PUT /api/messages/:messageId` — тот же handler
+
+#### GET /api/messages/:messageId/versions
+История версий content (permission `read`)
+
+**Примечания:**
+- Последние **20** версий, свежие → старые; без пагинации
+- Актуальный текст — всегда `Message.content`
 
 #### PATCH /api/messages/:messageId/topic
 Установить или сбросить топик сообщения

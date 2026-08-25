@@ -390,6 +390,9 @@ interface BuildMessageSectionParams {
   deleted?: boolean | null;
   deletedAt?: number | null;
   deletedBy?: string | null;
+  edited?: boolean | null;
+  editedAt?: number | null;
+  editedBy?: string | null;
 }
 
 export function buildMessageSection({
@@ -407,7 +410,10 @@ export function buildMessageSection({
   topic = null,
   deleted = null,
   deletedAt = null,
-  deletedBy = null
+  deletedBy = null,
+  edited = null,
+  editedAt = null,
+  editedBy = null
 }: BuildMessageSectionParams): Record<string, unknown> | null {
   if (!messageId) {
     return null;
@@ -432,6 +438,15 @@ export function buildMessageSection({
   }
   if (deletedBy !== null && deletedBy !== undefined) {
     result.deletedBy = deletedBy;
+  }
+  if (edited !== null && edited !== undefined) {
+    result.edited = edited;
+  }
+  if (editedAt !== null && editedAt !== undefined) {
+    result.editedAt = editedAt;
+  }
+  if (editedBy !== null && editedBy !== undefined) {
+    result.editedBy = editedBy;
   }
 
   // Добавляем quotedMessage только если он передан

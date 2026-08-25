@@ -291,6 +291,13 @@ describe('bodySchemas.updateMessageContentSchema', () => {
     expect(value.content).toBe('updated text');
   });
 
+  test('accepts optional editedBy', () => {
+    const { error, value } = validate({ content: 'updated text', editedBy: 'alice' });
+
+    expect(error).toBeUndefined();
+    expect(value.editedBy).toBe('alice');
+  });
+
   test('rejects empty content', () => {
     const { error } = validate({ content: '' });
 

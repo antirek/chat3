@@ -165,11 +165,26 @@ export class Chat3Client {
   }
 
   /**
-   * Update message content
-   * PUT /api/messages/{messageId}
+   * Update message content (edit + MessageVersion archive).
+   * PUT /api/messages/{messageId}/edit
+   * Body: { content, editedBy? }
    */
   async updateMessage(messageId: string, data: Record<string, any>): Promise<ApiResponse> {
-    const response: AxiosResponse<ApiResponse> = await this.client.put(`/api/messages/${messageId}`, data);
+    const response: AxiosResponse<ApiResponse> = await this.client.put(
+      `/api/messages/${messageId}/edit`,
+      data
+    );
+    return response.data;
+  }
+
+  /**
+   * Message content version history (last 20, newest first).
+   * GET /api/messages/{messageId}/versions
+   */
+  async getMessageVersions(messageId: string): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.client.get(
+      `/api/messages/${messageId}/versions`
+    );
     return response.data;
   }
 

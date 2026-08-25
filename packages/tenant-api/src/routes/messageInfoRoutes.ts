@@ -342,6 +342,32 @@ router.patch(
   messageController.patchMessageDeleted
 );
 
+/**
+ * Edit message content + archive previous version.
+ * PUT /api/messages/:messageId/edit
+ */
+router.put(
+  '/:messageId/edit',
+  apiAuth,
+  requirePermission('write'),
+  validateMessageId,
+  validateBody(updateMessageContentSchema),
+  messageController.updateMessageContent
+);
+
+/**
+ * Message content version history (last 20, newest first).
+ * GET /api/messages/:messageId/versions
+ */
+router.get(
+  '/:messageId/versions',
+  apiAuth,
+  requirePermission('read'),
+  validateMessageId,
+  messageController.getMessageVersions
+);
+
+/** @deprecated Prefer PUT /:messageId/edit — same handler for peers still on old path */
 router.put(
   '/:messageId',
   apiAuth,

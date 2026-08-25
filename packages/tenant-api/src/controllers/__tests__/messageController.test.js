@@ -1,7 +1,7 @@
 import * as fakeAmqp from '@onify/fake-amqplib';
 import { jest } from '@jest/globals';
 import messageController from '../messageController.js';
-import { Tenant, User, Meta, Dialog, Message, MessageStatus, DialogMember, Event, UserDialogStats, Topic, UserTopicStats } from '@chat3/models';
+import { Tenant, User, Meta, Dialog, Message, MessageVersion, MessageStatus, DialogMember, Event, UserDialogStats, Topic, UserTopicStats } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { generateTopicId } from '@chat3/utils/topicUtils.js';
@@ -409,32 +409,38 @@ describe('messageController.updateMessageContent', () => {
     });
   });
 
-  test('updates only content and keeps other fields unchanged', async () => {
-    const req = createRequest({ content: 'Updated content' });
+  test('updates content, sets edited fields, archives previous version (no meta editedAt)', async () => {
+    const req = createRequest({ content: 'Updated content', editedBy: 'alice' });
     const res = createResponse();
 
     await messageController.updateMessageContent(req, res);
 
     expect(res.body.data.content).toBe('Updated content');
-    expect(res.body.data.meta).toEqual(expect.objectContaining({ editedAt: expect.any(Number) }));
+    expect(res.body.data.edited).toBe(true);
+    expect(res.body.data.editedAt).toEqual(expect.any(Number));
+    expect(res.body.data.editedBy).toBe('alice');
+    expect(res.body.data.meta?.editedAt).toBeUndefined();
 
     const updated = await Message.findOne({ tenantId, messageId: message.messageId }).lean();
     expect(updated.content).toBe('Updated content');
+    expect(updated.edited).toBe(true);
+    expect(updated.editedBy).toBe('alice');
     expect(updated.senderId).toBe(message.senderId);
     expect(updated.type).toBe(message.type);
+
+    const versions = await MessageVersion.find({ tenantId, messageId: message.messageId }).lean();
+    expect(versions).toHaveLength(1);
+    expect(versions[0].versionIndex).toBe(1);
+    expect(versions[0].content).toBe('Original content');
+    expect(versions[0].editedBy).toBe('alice');
 
     const metaRecords = await Meta.find({
       tenantId,
       entityType: 'message',
-      entityId: message.messageId
+      entityId: message.messageId,
+      key: 'editedAt'
     }).lean();
-
-    const updatedMeta = metaRecords.reduce((acc, m) => {
-      acc[m.key] = m.value;
-      return acc;
-    }, {});
-
-    expect(updatedMeta.editedAt).toBeGreaterThan(0);
+    expect(metaRecords).toHaveLength(0);
   });
 
   test('returns 400 when clearing content of internal.text message', async () => {
@@ -447,7 +453,7 @@ describe('messageController.updateMessageContent', () => {
     expect(res.body.error).toBe('Bad Request');
   });
 
-  test('returns message when content is unchanged', async () => {
+  test('returns message when content is unchanged (no new version)', async () => {
     const req = createRequest({ content: 'Original content' });
     const res = createResponse();
 
@@ -456,6 +462,8 @@ describe('messageController.updateMessageContent', () => {
     expect(res.statusCode).toBeUndefined();
     expect(res.body.data.content).toBe('Original content');
     expect(res.body.message).toBe('Message content is unchanged');
+    const versions = await MessageVersion.countDocuments({ tenantId, messageId: message.messageId });
+    expect(versions).toBe(0);
   });
 
   test('returns 404 when message not found', async () => {
@@ -502,6 +510,8 @@ describe('messageController.updateMessageContent', () => {
     expect(event.data.message.meta).toBeDefined();
     expect(typeof event.data.message.meta).toBe('object');
     expect(event.data.message.meta.category).toBe('support');
+    expect(event.data.message.edited).toBe(true);
+    expect(event.data.message.meta.editedAt).toBeUndefined();
   });
 
   test('message.changed event should include topicId and topic when message has topicId', async () => {
@@ -571,6 +581,31 @@ describe('messageController.updateMessageContent', () => {
     expect(event.data.message).toBeDefined();
     expect(event.data.message.topicId).toBeNull();
     expect(event.data.message.topic).toBeNull();
+  });
+
+  test('getMessageVersions returns last 20 newest-first', async () => {
+    for (let i = 1; i <= 3; i++) {
+      const req = createRequest({ content: `v${i}`, editedBy: `u${i}` });
+      const res = createResponse();
+      await messageController.updateMessageContent(req, res);
+      expect(res.statusCode).toBeUndefined();
+    }
+
+    const req = {
+      tenantId,
+      params: { messageId: message.messageId }
+    };
+    const res = createResponse();
+    await messageController.getMessageVersions(req, res);
+
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.data[0].versionIndex).toBe(3);
+    expect(res.body.data[0].content).toBe('v2');
+    expect(res.body.data[2].versionIndex).toBe(1);
+    expect(res.body.data[2].content).toBe('Original content');
+
+    const current = await Message.findOne({ tenantId, messageId: message.messageId }).lean();
+    expect(current.content).toBe('v3');
   });
 });
 

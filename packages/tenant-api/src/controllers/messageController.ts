@@ -1,5 +1,5 @@
  
-import { Message, Dialog, MessageStatus, User, DialogMember } from '@chat3/models';
+import { Message, MessageVersion, Dialog, MessageStatus, User, DialogMember } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
@@ -64,7 +64,7 @@ const messageController = {
 
       // Get messages with pagination
       const messages = await Message.find(query)
-        .select('messageId dialogId senderId content type createdAt deleted deletedAt deletedBy')
+        .select('messageId dialogId senderId content type createdAt deleted deletedAt deletedBy edited editedAt editedBy')
         .sort(sortOptions as any)
         .skip(skip)
         .limit(limit);
@@ -687,9 +687,9 @@ const messageController = {
     }
   },
 
-  // Update message content (only content can be changed)
+  // Update message content (PUT /api/messages/:messageId/edit; legacy PUT /:messageId)
   async updateMessageContent(req: AuthenticatedRequest, res: Response): Promise<void> {
-    const routePath = 'put /messages/:messageId';
+    const routePath = 'put /messages/:messageId/edit';
     const log = (...args: any[]) => {
       console.log(`[${routePath}]`, ...args);
     }
@@ -697,8 +697,12 @@ const messageController = {
     
     try {
       const { messageId } = req.params;
-      const { content } = req.body;
-      log(`Получены параметры: messageId=${messageId}, content=${content ? 'есть' : 'нет'}`);
+      const { content, editedBy: editedByRaw } = req.body;
+      const editedBy =
+        typeof editedByRaw === 'string' && editedByRaw.trim().length > 0
+          ? editedByRaw.trim()
+          : null;
+      log(`Получены параметры: messageId=${messageId}, content=${content ? 'есть' : 'нет'}, editedBy=${editedBy ?? 'null'}`);
 
       log(`Поиск сообщения: messageId=${messageId}, tenantId=${req.tenantId}`);
       const message = await Message.findOne({
@@ -730,7 +734,6 @@ const messageController = {
       const oldContent = message.content;
       if (oldContent === newContent) {
         log(`Содержимое не изменилось: messageId=${message.messageId}`);
-        // Ничего не меняем, но возвращаем текущее состояние
         const meta = await metaUtils.getEntityMeta(
           req.tenantId,
           'message',
@@ -738,13 +741,8 @@ const messageController = {
         );
 
         const messageObj = message.toObject();
-
-        // Формируем матрицу статусов (исключая статусы отправителя сообщения)
         const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, message.messageId, messageObj.senderId);
-        
-        // Формируем reactionSet (без currentUserId, так как это общий эндпоинт)
         const reactionSet = await buildReactionSet(req.tenantId, message.messageId, null);
-
         const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
 
         res.json({
@@ -760,24 +758,35 @@ const messageController = {
         return;
       }
 
+      const editedAt = generateTimestamp();
+
+      // Архив предыдущего content (первая версия — только при первой успешной правке)
+      const lastVersion = await MessageVersion.findOne({
+        tenantId: req.tenantId!,
+        messageId: message.messageId
+      })
+        .sort({ versionIndex: -1 })
+        .select('versionIndex')
+        .lean();
+      const versionIndex = (lastVersion?.versionIndex ?? 0) + 1;
+
+      log(`Создание MessageVersion #${versionIndex}: messageId=${message.messageId}`);
+      await MessageVersion.create({
+        tenantId: req.tenantId!,
+        messageId: message.messageId,
+        versionIndex,
+        content: oldContent,
+        editedBy,
+        createdAt: editedAt
+      });
+
       log(`Обновление содержимого сообщения: messageId=${message.messageId}`);
       message.content = newContent;
+      message.edited = true;
+      message.editedAt = editedAt;
+      message.editedBy = editedBy;
       await message.save();
-      log(`Сообщение обновлено: messageId=${message.messageId}`);
-
-      log(`Установка мета-тега editedAt: messageId=${message.messageId}`);
-      // Отмечаем сообщение как отредактированное через мета-тег editedAt
-      await metaUtils.setEntityMeta(
-        req.tenantId,
-        'message',
-        message.messageId,
-        'editedAt',
-        generateTimestamp(),
-        'number',
-        {
-          createdBy: req.apiKey?.name || 'unknown'
-        }
-      );
+      log(`Сообщение обновлено: messageId=${message.messageId}, editedAt=${editedAt}`);
 
       const meta = await metaUtils.getEntityMeta(
         req.tenantId,
@@ -786,7 +795,6 @@ const messageController = {
       );
 
       log(`Получение диалога для события: dialogId=${message.dialogId}`);
-      // Получаем диалог и его метаданные для события
       const dialog = await Dialog.findOne({
         dialogId: message.dialogId,
         tenantId: req.tenantId!
@@ -808,7 +816,6 @@ const messageController = {
         ? newContent.substring(0, MAX_CONTENT_LENGTH)
         : newContent;
 
-      // Получаем топик для события, если topicId указан
       let topicForEvent: any = null;
       const messageTopicIdForEvent = (message as any).topicId;
       if (messageTopicIdForEvent) {
@@ -828,7 +835,10 @@ const messageController = {
         content: eventContent,
         meta: meta || {},
         topicId: messageTopicIdForEvent || null,
-        topic: topicForEvent
+        topic: topicForEvent,
+        edited: message.edited,
+        editedAt: message.editedAt,
+        editedBy: message.editedBy
       });
 
       const eventContext = eventUtils.buildEventContext({
@@ -864,13 +874,8 @@ const messageController = {
       });
 
       const messageObj = message.toObject();
-
-      // Формируем матрицу статусов (исключая статусы отправителя сообщения)
       const statusMessageMatrix = await buildStatusMessageMatrix(req.tenantId, message.messageId, messageObj.senderId);
-      
-      // Формируем reactionSet (без currentUserId, так как это общий эндпоинт)
       const reactionSet = await buildReactionSet(req.tenantId, message.messageId, null);
-
       const senderInfo = await getSenderInfo(req.tenantId, message.senderId);
 
       log(`Отправка успешного ответа: messageId=${message.messageId}`);
@@ -886,6 +891,56 @@ const messageController = {
       });
     } catch (error: any) {
       log(`Ошибка обработки запроса:`, error.message);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    } finally {
+      log('>>>>> end');
+    }
+  },
+
+  /**
+   * История версий content (последние 20, свежие → старые).
+   * GET /api/messages/:messageId/versions — permission read.
+   */
+  async getMessageVersions(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const routePath = 'get /messages/:messageId/versions';
+    const log = (...args: any[]) => {
+      console.log(`[${routePath}]`, ...args);
+    };
+    log('>>>>> start');
+
+    try {
+      const { messageId } = req.params;
+      const message = await Message.findOne({
+        messageId,
+        tenantId: req.tenantId!
+      }).select('messageId');
+
+      if (!message) {
+        res.status(404).json({
+          error: 'Not Found',
+          message: 'Message not found'
+        });
+        return;
+      }
+
+      const versions = await MessageVersion.find({
+        tenantId: req.tenantId!,
+        messageId
+      })
+        .sort({ versionIndex: -1 })
+        .limit(20)
+        .select('messageId tenantId versionIndex content editedBy createdAt -_id')
+        .lean();
+
+      log(`Версий: ${versions.length}`);
+      res.json({
+        data: sanitizeResponse(versions)
+      });
+    } catch (error: any) {
+      log(`Ошибка:`, error.message);
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message

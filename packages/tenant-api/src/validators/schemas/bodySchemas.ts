@@ -148,7 +148,8 @@ export const patchMessageDeletedSchema = Joi.object({
  * Разрешаем изменять только поле content
  */
 export const updateMessageContentSchema = Joi.object({
-  content: Joi.string().trim().min(1).max(10000).required()
+  content: Joi.string().trim().min(1).max(10000).required(),
+  editedBy: Joi.string().trim().max(256).allow('', null).optional()
 });
 
 /**

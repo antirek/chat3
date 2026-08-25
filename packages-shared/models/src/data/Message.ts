@@ -24,6 +24,10 @@ export interface IMessage extends mongoose.Document {
   deleted: boolean;
   deletedAt: number | null;
   deletedBy: string | null;
+  /** Было ли сообщение успешно отредактировано (document fields, не meta). */
+  edited: boolean;
+  editedAt: number | null;
+  editedBy: string | null;
   createdAt: number;
 }
 
@@ -92,6 +96,21 @@ const messageSchema = new mongoose.Schema<IMessage>({
     type: String,
     default: null,
     description: 'Кто пометил сообщение удалённым (id клиента API)'
+  },
+  edited: {
+    type: Boolean,
+    default: false,
+    description: 'Сообщение было отредактировано (PUT …/edit)'
+  },
+  editedAt: {
+    type: Number,
+    default: null,
+    description: 'Timestamp последней успешной правки content'
+  },
+  editedBy: {
+    type: String,
+    default: null,
+    description: 'Кто выполнил последнюю правку (из body.editedBy)'
   },
   createdAt: {
     type: Number,
