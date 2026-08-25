@@ -25,6 +25,7 @@ import OutboxEvent from './operational/OutboxEvent.js';
 
 // Journals
 import ApiJournal from './journals/ApiJournal.js';
+export { JOURNAL_LOG_TTL_SECONDS } from './journals/journalLogTtl.js';
 
 // Stats models
 import UserStats from './stats/UserStats.js';

@@ -97,7 +97,8 @@ export function apiJournalMiddleware(req: AuthenticatedRequest, res: Response, n
         requestSize,
         responseSize,
         requestBody,
-        createdAt: startTimestamp
+        createdAt: startTimestamp,
+        expireAt: new Date()
       }).catch((err: any) => {
         // Логируем ошибку, но не прерываем выполнение
         console.error('Error saving API journal entry:', err.message);

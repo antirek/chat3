@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { JOURNAL_LOG_TTL_SECONDS } from './journalLogTtl.js';
 
 // TypeScript типы для ApiJournal
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
@@ -15,6 +16,8 @@ export interface IApiJournal extends mongoose.Document {
   responseSize?: number;
   requestBody?: unknown;
   createdAt: number;
+  /** BSON Date for Mongo TTL monitor; createdAt stays Number for Controlo activity. */
+  expireAt: Date;
 }
 
 const apiJournalSchema = new mongoose.Schema<IApiJournal>({
@@ -67,6 +70,12 @@ const apiJournalSchema = new mongoose.Schema<IApiJournal>({
     required: true,
     index: true,
     description: 'Timestamp создания записи (микросекунды)'
+  },
+  expireAt: {
+    type: Date,
+    default: () => new Date(),
+    required: true,
+    description: 'BSON Date для MongoDB TTL (retention 60 дней, FDR-0002 / #15522)'
   }
 }, {
   timestamps: false // Отключаем автоматические timestamps
@@ -81,6 +90,9 @@ apiJournalSchema.index({ statusCode: 1, createdAt: -1 });
 // Составной индекс для частых запросов
 apiJournalSchema.index({ tenantId: 1, endpoint: 1, createdAt: -1 });
 apiJournalSchema.index({ tenantId: 1, statusCode: 1, createdAt: -1 });
+
+// TTL: Mongo удаляет документы, у которых expireAt старше JOURNAL_LOG_TTL_SECONDS
+apiJournalSchema.index({ expireAt: 1 }, { expireAfterSeconds: JOURNAL_LOG_TTL_SECONDS });
 
 const ApiJournal = mongoose.model<IApiJournal>('ApiJournal', apiJournalSchema);
 
