@@ -5,6 +5,26 @@
 
 ---
 
+## [0.0.82] — 2026-08-25
+
+Редактирование сообщений с историей версий (#15519), модалки в Controlo UI, TTL retention для ApiJournal (#15522).
+
+### Добавлено
+
+- **`PUT /api/messages/:messageId/edit`** — смена content; предыдущий текст в **`MessageVersion`**; на `Message` — `edited` / `editedAt` / `editedBy`.
+- **`GET /api/messages/:messageId/versions`** — последние 20 версий.
+- **SDK** (`@chat3/tenant-api-client`): helpers edit / versions.
+- **Controlo UI:** модалки Править / Удалить (soft-delete) в таблице сообщений User Dialogs.
+- **ApiJournal TTL 60 дней** — `expireAt` + Mongo TTL index (`JOURNAL_LOG_TTL_SECONDS`), FDR-0002.
+
+### Docker
+
+```text
+antirek/mms3:0.0.82
+```
+
+---
+
 ## [0.0.81] — 2026-08-24
 
 Soft-delete сообщений (#15507): флаг `deleted`, API, событие `message.deleted`, пересчёт unread без soft-deleted.
@@ -82,6 +102,7 @@ antirek/mms3:0.0.80
 
 ---
 
+[0.0.82]: https://github.com/antirek/chat3/compare/e195759...8883818
 [0.0.81]: https://github.com/antirek/chat3/compare/bf857d3...e195759
 [0.0.80]: https://github.com/antirek/chat3/compare/8eb2024...bf857d3
 [0.0.79]: https://github.com/antirek/chat3/commit/8eb20240f32b4353685ebdc07bc108ad3be6db06

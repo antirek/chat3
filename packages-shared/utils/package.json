@@ -1,6 +1,6 @@
 {
   "name": "@chat3/utils",
-  "version": "0.0.81",
+  "version": "0.0.82",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
