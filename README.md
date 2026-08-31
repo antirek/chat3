@@ -51,6 +51,7 @@
 - **[Обновления](docs/UPDATES.md)** - Система персонализированных обновлений
 - **[Интеграция](docs/INTEGRATION.md)** - Интеграция внешних систем через RabbitMQ
 - **[Аутентификация](docs/AUTHENTICATION.md)** - API ключи и безопасность
+- **[FDR-0003: Controlo public base path](docs/fdr/FDR-0003-controlo-public-base-path.md)** — classic FQDN vs path-gateway (`CONTROLO_PUBLIC_PATH`)
 
 ## 📦 Установка и настройка
 

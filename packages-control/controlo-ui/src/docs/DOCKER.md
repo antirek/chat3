@@ -73,3 +73,16 @@ RABBITMQ_MANAGEMENT_URL=http://localhost:15672
 MMS3_PROJECT_NAME=chat3
 NODE_ENV=production
 ```
+
+### Path-gateway (mone-red-mms3 и аналоги)
+
+При публикации controlo за path-gateway задайте согласованную пару:
+
+| Переменная | Пример | Назначение |
+|------------|--------|------------|
+| `CONTROLO_PUBLIC_PATH` | `/control-app` | Префикс path для браузерных URL (HTML, статика) |
+| `CONTROL_APP_URL` | `https://host/control-app` | Полный публичный base URL для `CHAT3_CONFIG` и API |
+
+Classic FQDN (`mone-mms3-control-app`): `CONTROLO_PUBLIC_PATH` не задавать.
+
+Подробнее: [FDR-0003](../../../../docs/fdr/FDR-0003-controlo-public-base-path.md).

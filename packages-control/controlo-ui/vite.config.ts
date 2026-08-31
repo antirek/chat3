@@ -9,6 +9,16 @@ const packageJson = JSON.parse(
   readFileSync(join(__dirname, '../../package.json'), 'utf-8')
 );
 
+function normalizePublicPath(raw: string | undefined): string {
+  if (!raw) return '';
+  let s = raw.trim();
+  if (s === '' || s === '/') return '';
+  if (!s.startsWith('/')) s = `/${s}`;
+  return s.replace(/\/+$/, '');
+}
+
+const CONTROLO_PUBLIC_PATH = normalizePublicPath(process.env.CONTROLO_PUBLIC_PATH);
+
 // Функция для генерации config.js
 function generateConfigJs() {
   const TENANT_API_URL = process.env.TENANT_API_URL || 'http://localhost:3000';
@@ -49,8 +59,26 @@ function configJsPlugin() {
   };
 }
 
+function publicPathDevPlugin() {
+  return {
+    name: 'controlo-public-path-dev',
+    configureServer(server) {
+      if (!CONTROLO_PUBLIC_PATH) return;
+
+      server.middlewares.use((req, _res, next) => {
+        const url = req.url ?? '';
+        if (url === CONTROLO_PUBLIC_PATH || url.startsWith(`${CONTROLO_PUBLIC_PATH}/`)) {
+          req.url = url.slice(CONTROLO_PUBLIC_PATH.length) || '/';
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [vue(), configJsPlugin()],
+  base: './',
+  plugins: [vue(), configJsPlugin(), publicPathDevPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

@@ -1,3 +1,4 @@
+export * from './publicPath.js';
 export * from './counterUtils.js';
 export * from './databaseUtils.js';
 export * from './dialogReadTaskUtils.js';
