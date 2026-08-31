@@ -96,7 +96,8 @@ app.get('/config.js', (_req, res) => {
     CONTROL_APP_URL,
     RABBITMQ_MANAGEMENT_URL,
     PROJECT_NAME,
-    APP_VERSION
+    APP_VERSION,
+    CONTROLO_PUBLIC_PATH,
   };
 
   res.send(buildConfigJsContent(config));
@@ -109,7 +110,8 @@ const controloUiDistPath = join(__dirname, '../../controlo-ui/dist');
 let cachedIndexHtml: string | null = null;
 
 if (existsSync(controloUiDistPath)) {
-  app.use(express.static(controloUiDistPath));
+  // index: false — иначе GET / отдаёт сырой index.html и обходит rewriteSpaIndexHtml
+  app.use(express.static(controloUiDistPath, { index: false }));
 
   // Все остальные маршруты (кроме /api/*, /health, /config.js, /api-docs) отдаем index.html для SPA
   app.get('*', (req, res, next) => {

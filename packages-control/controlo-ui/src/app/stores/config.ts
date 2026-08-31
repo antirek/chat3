@@ -7,6 +7,8 @@ export interface AppConfig {
   RABBITMQ_MANAGEMENT_URL: string;
   PROJECT_NAME: string;
   APP_VERSION: string;
+  /** '' for classic FQDN; '/control-app' for path-gateway */
+  CONTROLO_PUBLIC_PATH?: string;
 }
 
 declare global {

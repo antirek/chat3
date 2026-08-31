@@ -7,6 +7,7 @@ import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { useModal } from '@/shared/lib/composables/useModal';
 import { formatTimestamp } from '@/shared/lib/utils/date';
+import { getControlApiUrl } from '@/shared/lib/utils/url';
 
 export function useMessageModals(
   currentUserId: Ref<string | null>,
@@ -372,8 +373,9 @@ export function useMessageModals(
       loadingEvents.value = true;
       eventsError.value = null;
       
-      const baseUrl = configStore.config.CONTROL_APP_URL || 'http://localhost:3001';
-      const fullUrl = `${baseUrl}/api/messages/${messageId}/events?tenantId=${encodeURIComponent(tenantId.value)}`;
+      const fullUrl = getControlApiUrl(
+        `/api/messages/${messageId}/events?tenantId=${encodeURIComponent(tenantId.value)}`,
+      );
       
       const response = await fetch(fullUrl, {
         method: 'GET',
@@ -457,7 +459,9 @@ export function useMessageModals(
     if (!currentMessageIdForEvents.value) return;
     
     try {
-      const url = `/api/messages/${currentMessageIdForEvents.value}/updates?tenantId=${encodeURIComponent(tenantId.value)}`;
+      const url = getControlApiUrl(
+        `/api/messages/${currentMessageIdForEvents.value}/updates?tenantId=${encodeURIComponent(tenantId.value)}`,
+      );
       const response = await fetch(url, {
         method: 'GET',
         headers: {

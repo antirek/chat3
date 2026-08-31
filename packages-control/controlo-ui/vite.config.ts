@@ -35,6 +35,7 @@ window.CHAT3_CONFIG = {
     RABBITMQ_MANAGEMENT_URL: ${JSON.stringify(RABBITMQ_MANAGEMENT_URL)},
     PROJECT_NAME: ${JSON.stringify(PROJECT_NAME)},
     APP_VERSION: ${JSON.stringify(APP_VERSION)},
+    CONTROLO_PUBLIC_PATH: ${JSON.stringify(CONTROLO_PUBLIC_PATH)},
     
     getTenantApiUrl: function(path = '') {
         return this.TENANT_API_URL + path;

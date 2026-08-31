@@ -18,6 +18,7 @@ export async function loadConfig(): Promise<void> {
         RABBITMQ_MANAGEMENT_URL: config.RABBITMQ_MANAGEMENT_URL || 'http://localhost:15672',
         PROJECT_NAME: config.PROJECT_NAME || 'chat3',
         APP_VERSION: config.APP_VERSION || '0.0.0',
+        CONTROLO_PUBLIC_PATH: config.CONTROLO_PUBLIC_PATH || '',
       });
       resolve();
     } else {
@@ -32,6 +33,7 @@ export async function loadConfig(): Promise<void> {
             RABBITMQ_MANAGEMENT_URL: config.RABBITMQ_MANAGEMENT_URL || 'http://localhost:15672',
             PROJECT_NAME: config.PROJECT_NAME || 'chat3',
             APP_VERSION: config.APP_VERSION || '0.0.0',
+            CONTROLO_PUBLIC_PATH: config.CONTROLO_PUBLIC_PATH || '',
           });
           clearInterval(checkInterval);
           resolve();

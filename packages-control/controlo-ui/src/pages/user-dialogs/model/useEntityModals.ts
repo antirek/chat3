@@ -6,6 +6,7 @@ import { ref, type Ref } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { useModal } from '@/shared/lib/composables/useModal';
+import { getControlApiUrl } from '@/shared/lib/utils/url';
 
 export function useEntityModals(
   currentDialogId: Ref<string | null>,
@@ -307,7 +308,9 @@ export function useEntityModals(
       loadingDialogEvents.value = true;
       dialogEventsError.value = null;
       
-      let url = `/api/dialogs/${dialogId}/events?tenantId=${encodeURIComponent(tenantId.value)}`;
+      let url = getControlApiUrl(
+        `/api/dialogs/${dialogId}/events?tenantId=${encodeURIComponent(tenantId.value)}`,
+      );
       
       console.log('Запрос событий диалога к:', url);
       
@@ -406,7 +409,9 @@ export function useEntityModals(
     try {
       selectedDialogEventId.value = eventId;
       
-      let url = `/api/dialogs/${dialogId}/updates?tenantId=${encodeURIComponent(tenantId.value)}`;
+      let url = getControlApiUrl(
+        `/api/dialogs/${dialogId}/updates?tenantId=${encodeURIComponent(tenantId.value)}`,
+      );
       
       console.log('Запрос обновлений диалога к:', url);
       

@@ -74,26 +74,29 @@
     - или единая утилита `withPublicPath(path)` на сервере при отдаче HTML/static metadata.
     - **Запрещено** как основное решение: отдельные Docker-образы или CI-сборки с разным Vite `base` per environment.
 11. Dev-сервер Vite (`vite.config.ts`): учитывать `CONTROLO_PUBLIC_PATH` для локальной проверки path-gateway (middleware / `base`), без поломки dev без env.
+12. **Vue Router:** `createWebHistory(resolveControloRouterBase())` — base из `CHAT3_CONFIG.CONTROLO_PUBLIC_PATH` (fallback: pathname `CONTROL_APP_URL`). Classic → `/`; path-gateway → `/control-app/`.
+13. **Serve SPA:** `express.static(..., { index: false })` + `rewriteSpaIndexHtml` на `GET *` (в т.ч. `/`), чтобы не отдавать сырой `index.html` в обход rewrite. Rewrite покрывает и absolute `/…`, и Vite `./…`.
+14. Control-API вызовы events/updates в UI — только через `getControlApiUrl` (не root-absolute `/api/…`).
 
 ### 5. Клиентские API-вызовы
 
-12. Все XHR/fetch controlo API идут через `getControlApiUrl` / `CHAT3_CONFIG.getControlApiUrl` — **не** hardcoded `/api/…` от корня хоста.
-13. При корректном `CONTROL_APP_URL` (с path) дополнительный префикс в `getControlApiUrl` не нужен; `CONTROLO_PUBLIC_PATH` влияет на статику и начальную загрузку `config.js`, не дублирует path в API base.
+15. Все XHR/fetch controlo API идут через `getControlApiUrl` / `CHAT3_CONFIG.getControlApiUrl` — **не** hardcoded `/api/…` от корня хоста.
+16. При корректном `CONTROL_APP_URL` (с path) дополнительный префикс в `getControlApiUrl` не нужен; `CONTROLO_PUBLIC_PATH` влияет на статику и начальную загрузку `config.js`, не дублирует path в API base.
 
 ### 6. Деплой path-gateway
 
-14. После выката образа с поддержкой `CONTROLO_PUBLIC_PATH` в `mone-red-mms3-deploy` (и аналогах):
+17. После выката образа с поддержкой `CONTROLO_PUBLIC_PATH` в `mone-red-mms3-deploy` (и аналогах):
     - задать `CONTROLO_PUBLIC_PATH=/control-app` в env сервиса controlo;
     - **удалить** Caddy workaround, проксирующий `/config.js`, `/assets/*` с корня хоста (commit `9bda499` и подобные);
     - оставить только `handle_path /control-app*` → controlo backend.
-15. Classic/green деплои (`mone-mms3`, `amone-mms3`, `amax-mms3`, …): `CONTROLO_PUBLIC_PATH` не задавать → поведение без регрессии.
+18. Classic/green деплои (`mone-mms3`, `amone-mms3`, `amax-mms3`, …): `CONTROLO_PUBLIC_PATH` не задавать → поведение без регрессии.
 
 ### Acceptance (проверка успеха #15601)
 
 - Classic FQDN (`mone-mms3-control-app.cs.mobilon.ru`): UI, API, Swagger — без регрессии.
-- Path-gateway (`mone-red-mms3.cs.mobilon.ru/control-app/`): нет 404 на `/control-app/config.js`, `/control-app/assets/*`; `CHAT3_CONFIG.CONTROL_APP_URL` содержит `/control-app`.
+- Path-gateway (`mone-red-mms3.cs.mobilon.ru/control-app/`): нет 404 на `/control-app/config.js`, `/control-app/assets/*`; `CHAT3_CONFIG.CONTROL_APP_URL` содержит `/control-app`; deep-link `/control-app/user-dialogs` и client-side navigation остаются под `/control-app/…`.
 - Swagger «Try it out» за gateway использует URL с path.
-- Unit/smoke на нормализацию `CONTROLO_PUBLIC_PATH` и сборку публичных URL.
+- Unit/smoke на нормализацию `CONTROLO_PUBLIC_PATH`, rewrite HTML, router base и сборку публичных URL.
 - Workaround на корне Caddy удалён после выката tag.
 
 ## Consequences
