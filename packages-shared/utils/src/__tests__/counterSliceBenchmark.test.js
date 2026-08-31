@@ -83,7 +83,6 @@ describe('counterSliceBenchmark', () => {
     const p99Index = Math.min(samples.length - 1, Math.ceil(samples.length * 0.99) - 1);
     const p99 = samples[p99Index];
 
-    // eslint-disable-next-line no-console
     console.log(`[counterSliceBenchmark] samples(ms)=${samples.map((n) => n.toFixed(1)).join(',')} p99=${p99.toFixed(1)}`);
 
     expect(p99).toBeLessThan(5000);

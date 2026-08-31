@@ -350,7 +350,7 @@ export async function joinPack(req: AuthenticatedRequest, res: Response): Promis
         includedSections: ['dialog', 'member'],
         updatedFields: ['member']
       });
-      const memberEvent = await eventUtils.createEvent({
+      await eventUtils.createEvent({
         tenantId,
         eventType: 'dialog.member.add',
         entityType: 'dialogMember',
@@ -363,7 +363,6 @@ export async function joinPack(req: AuthenticatedRequest, res: Response): Promis
           member: memberSection
         })
       });
-      const sourceEventId = memberEvent?.eventId ?? null;
 
       joinedDialogsCount += 1;
     }

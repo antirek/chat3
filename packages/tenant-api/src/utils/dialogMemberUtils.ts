@@ -1,6 +1,5 @@
 import { DialogMember, UserDialogActivity, UserDialogStats, UserDialogUnreadBySenderType } from '@chat3/models';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
-import * as eventUtils from '@chat3/utils/eventUtils.js';
 import type { ActorType } from '@chat3/models';
 
 /**
@@ -62,10 +61,10 @@ export async function removeDialogMember(
   tenantId: string,
   userId: string,
   dialogId: string,
-  sourceEventId: string | null = null,
-  sourceEventType: string | null = null,
-  actorId: string | null = null,
-  actorType: string | null = null
+  _sourceEventId: string | null = null,
+  _sourceEventType: string | null = null,
+  _actorId: string | null = null,
+  _actorType: string | null = null
 ): Promise<void> {
   try {
     await UserDialogStats.deleteOne({

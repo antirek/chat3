@@ -164,7 +164,14 @@ async function runGetUsersAggregation(
   const packedUnreadByUser = mergeUnreadRowsByUser(userIds, packedUnreadRows as Array<{ userId: string; fromType: string; countUnread: number }>);
 
   const list = data.map((doc: any) => {
-    const { statsDoc, dialogCount, unreadDialogsCount, totalUnreadCount, totalMessagesCount, ...user } = doc;
+    const {
+      statsDoc: _statsDoc,
+      dialogCount,
+      unreadDialogsCount,
+      totalUnreadCount: _totalUnreadCount,
+      totalMessagesCount,
+      ...user
+    } = doc;
     user.stats = composeUserStatsUnreadResponse(
       {
         dialogCount: dialogCount ?? 0,

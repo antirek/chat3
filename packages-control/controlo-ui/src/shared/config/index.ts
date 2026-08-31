@@ -1,4 +1,3 @@
-/* eslint-env browser */
 import { useConfigStore } from '@/app/stores/config';
 
 export async function loadConfig(): Promise<void> {

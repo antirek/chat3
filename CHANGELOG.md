@@ -5,6 +5,26 @@
 
 ---
 
+## [0.0.83] — 2026-08-31
+
+Controlo под path-gateway (`CONTROLO_PUBLIC_PATH`, #15601); ESLint: ignore локальных скриптов и чистка unused.
+
+### Добавлено
+
+- **`CONTROLO_PUBLIC_PATH`** — runtime base path для Controlo UI за path-gateway: `normalizePublicPath`, rewrite SPA `index.html`, config.js/Swagger через `CONTROL_APP_URL`, relative Vite base. FDR-0003.
+
+### Изменено
+
+- **ESLint:** ignore `scripts/**` и `*.mjs`; `performance` в globals; убраны unused imports/vars в tenant-api, utils, controlo-ui.
+
+### Docker
+
+```text
+antirek/mms3:0.0.83
+```
+
+---
+
 ## [0.0.82] — 2026-08-25
 
 Редактирование сообщений с историей версий (#15519), модалки в Controlo UI, TTL retention для ApiJournal (#15522).
@@ -102,6 +122,7 @@ antirek/mms3:0.0.80
 
 ---
 
+[0.0.83]: https://github.com/antirek/chat3/compare/3561ba7...a6bc1d4
 [0.0.82]: https://github.com/antirek/chat3/compare/e195759...3561ba7
 [0.0.81]: https://github.com/antirek/chat3/compare/bf857d3...e195759
 [0.0.80]: https://github.com/antirek/chat3/compare/8eb2024...bf857d3

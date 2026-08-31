@@ -1,7 +1,5 @@
 import {
-  Pack,
   PackLink,
-  UserDialogStats,
   UserDialogUnreadBySenderType,
   UserPackUnreadBySenderType,
   UserUnreadBySenderType,
@@ -216,7 +214,7 @@ export type UserPackUnreadBySenderMap = Record<
 export async function recalculateUserPackUnreadBySenderType(
   tenantId: string,
   packId: string,
-  options: UpdateOptions
+  _options: UpdateOptions
 ): Promise<UserPackUnreadBySenderMap> {
   const dialogIds = await getPackDialogIds(tenantId, packId);
   if (!dialogIds.length) {

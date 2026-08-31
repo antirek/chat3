@@ -409,8 +409,8 @@ const messageController = {
         topic: topicForEvent
       });
 
-      // КРИТИЧНО: Создаем событие и сохраняем eventId для обновления счетчиков
-      const messageEvent = await eventUtils.createEvent({
+      // КРИТИЧНО: Создаем событие (счётчики — counter-worker по message.create)
+      await eventUtils.createEvent({
         tenantId: req.tenantId!,
         eventType: 'message.create',
         entityType: 'message',

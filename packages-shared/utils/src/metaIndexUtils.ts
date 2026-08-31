@@ -39,8 +39,6 @@ export interface MetaIndexDefinitionLean {
   when?: WhenSpec;
 }
 
-type MetaMap = Record<string, { value: unknown; dataType?: string }>;
-
 export function sortIndexKeys(keys: string[]): string[] {
   return [...keys].sort();
 }

@@ -2,7 +2,7 @@
  * Модуль модальных окон для паков
  * Создание (POST /api/packs), инфо (GET /api/packs/:packId), meta, удаление, URL
  */
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { useConfigStore } from '@/app/stores/config';
 import { useCredentialsStore } from '@/app/stores/credentials';
 import { useModal } from '@/shared/lib/composables/useModal';
@@ -528,8 +528,6 @@ export function usePackModals(
     const baseUrl = configStore.config.TENANT_API_URL || 'http://localhost:3000';
     return `${baseUrl}/api/packs?${params.toString()}`;
   }
-
-  const fullUrl = computed(() => generateApiUrl());
 
   function showUrlModal() {
     generatedUrl.value = generateApiUrl();

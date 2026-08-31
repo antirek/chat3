@@ -429,7 +429,7 @@ function collectPreservedAndConditions(nestedRegular: MongoQuery): MongoQuery[] 
   const cleaned: MongoQuery = { ...rest };
   if (topic && typeof topic === 'object') {
     const topicObj = topic as MongoQuery;
-    const { meta, ...topicWithoutMeta } = topicObj;
+    const { meta: _meta, ...topicWithoutMeta } = topicObj;
     if (Object.keys(topicWithoutMeta).length > 0) {
       cleaned.topic = topicWithoutMeta;
     }

@@ -142,12 +142,8 @@ export function usePacksPage() {
   );
   const {
     createModal,
-    addDialogModal,
-    addMemberModal,
     markAllReadModal,
-    addDialogPackId,
     addDialogDialogId,
-    addMemberPackId,
     addMemberUserId,
     addMemberUserType,
     markAllReadPackId,
@@ -186,7 +182,6 @@ export function usePacksPage() {
     showInfoModal,
     copyJsonToClipboard,
     showDialogInfoModal,
-    closeDialogInfoModal,
     copyDialogJsonToClipboard,
     deletePack,
     showUrlModal,

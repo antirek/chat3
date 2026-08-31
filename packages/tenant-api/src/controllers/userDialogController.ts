@@ -3,7 +3,6 @@ import {
   Meta, MessageStatus, 
   User,
   UserDialogStats,
-  UserDialogActivity,
   Topic,
   DialogStats,
   UserTopicStats

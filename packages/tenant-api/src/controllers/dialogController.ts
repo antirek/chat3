@@ -794,7 +794,7 @@ export const dialogController = {
             updatedFields: ['member']
           });
 
-          const memberEvent = await eventUtils.createEvent({
+          await eventUtils.createEvent({
             tenantId: req.tenantId!,
             eventType: 'dialog.member.add',
             entityType: 'dialogMember',
@@ -807,8 +807,6 @@ export const dialogController = {
               member: memberSection
             })
           });
-
-          const memberEventId = memberEvent?.eventId || null;
 
         }
       }

@@ -19,6 +19,10 @@ export default [
       'packages-clients/tenant-api-client/node_modules/**',
       'packages-clients/tenant-api-client/coverage/**',
       '**/*.d.ts',
+      // Локальные/утилитарные скрипты (не часть пакетов)
+      'scripts/**',
+      '*.mjs',
+      '**/*.mjs',
     ],
   },
   js.configs.recommended,
@@ -48,6 +52,7 @@ export default [
         URL: 'readonly',
         URLSearchParams: 'readonly',
         structuredClone: 'readonly',
+        performance: 'readonly',
       },
     },
     plugins: {
