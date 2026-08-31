@@ -5,6 +5,22 @@
 
 ---
 
+## [0.0.84] — 2026-08-31
+
+Fix Controlo path-gateway на базе `6f03c43` (#15601): SPA base, HTML rewrite, control-api URLs.
+
+### Исправлено
+
+- **Path-gateway Controlo:** router/`CONTROLO_PUBLIC_PATH` в config; `express.static` с `index: false`; rewrite относительных Vite assets; `getControlApiUrl` для events/updates; `controloPublicPath` helper; тесты `publicPath` / `publicPathServe`. FDR-0003.
+
+### Docker
+
+```text
+antirek/mms3:0.0.84
+```
+
+---
+
 ## [0.0.83] — 2026-08-31
 
 Controlo под path-gateway (`CONTROLO_PUBLIC_PATH`, #15601); ESLint: ignore локальных скриптов и чистка unused.
@@ -122,6 +138,7 @@ antirek/mms3:0.0.80
 
 ---
 
+[0.0.84]: https://github.com/antirek/chat3/compare/6818eff...main
 [0.0.83]: https://github.com/antirek/chat3/compare/3561ba7...6818eff
 [0.0.82]: https://github.com/antirek/chat3/compare/e195759...3561ba7
 [0.0.81]: https://github.com/antirek/chat3/compare/bf857d3...e195759
