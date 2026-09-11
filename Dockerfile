@@ -27,7 +27,10 @@ RUN npm run build --workspace=@chat3/models || true
 RUN npm run build --workspace=@chat3/utils && npm run build --workspace=@chat3/models
 
 # Собираем остальные пакеты (все зависят от models и utils)
-RUN npm run build --workspace=@chat3/tenant-api && \
+# app-services — общий use-case слой для tenant-api и user-grpc-server
+RUN npm run build --workspace=@chat3/app-services && \
+    npm run build --workspace=@chat3/tenant-api && \
+    npm run build --workspace=@chat3/user-grpc-server && \
     npm run build --workspace=@chat3/controlo-backend && \
     npm run build --workspace=@chat3/update-worker && \
     npm run build --workspace=@chat3/counter-worker && \
@@ -65,6 +68,7 @@ COPY --chown=chat3user:nodejs packages-shared/ ./packages-shared/
 
 # Собранные dist поверх (после packages/, чтобы не затереть артефакты vite/tsc)
 COPY --from=base --chown=chat3user:nodejs /app/packages/tenant-api/dist ./packages/tenant-api/dist
+COPY --from=base --chown=chat3user:nodejs /app/packages/user-grpc-server/dist ./packages/user-grpc-server/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-control/controlo-backend/dist ./packages-control/controlo-backend/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/update-worker/dist ./packages/update-worker/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages/counter-worker/dist ./packages/counter-worker/dist
@@ -73,6 +77,7 @@ COPY --from=base --chown=chat3user:nodejs /app/packages/dialog-read-worker/dist 
 COPY --from=base --chown=chat3user:nodejs /app/packages-control/controlo-ui/dist ./packages-control/controlo-ui/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-shared/models/dist ./packages-shared/models/dist
 COPY --from=base --chown=chat3user:nodejs /app/packages-shared/utils/dist ./packages-shared/utils/dist
+COPY --from=base --chown=chat3user:nodejs /app/packages-shared/app-services/dist ./packages-shared/app-services/dist
 
 # Устанавливаем только production зависимости
 RUN npm ci --omit=dev && npm cache clean --force
