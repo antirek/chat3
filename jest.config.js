@@ -15,6 +15,7 @@ export default {
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@chat3/app-services$': '<rootDir>/packages-shared/app-services/dist/index.js',
     '^@chat3/models$': '<rootDir>/packages-shared/models/dist/index.js',
     '^@chat3/models/(.*)$': '<rootDir>/packages-shared/models/dist/$1.js',
     '^@chat3/utils$': '<rootDir>/packages-shared/utils/dist/index.js',

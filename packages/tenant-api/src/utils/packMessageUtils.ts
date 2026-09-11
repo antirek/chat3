@@ -1,5 +1,5 @@
 import { Pack, PackLink, Message } from '@chat3/models';
-import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
+import { parseFilters, buildFilterQuery } from '@chat3/utils/queryParser.js';
 
 const CURSOR_SEPARATOR = '|';
 const DEFAULT_LIMIT = 50;

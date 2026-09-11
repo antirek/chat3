@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "skipLibCheck": true,
+    "composite": false,
+    "paths": {
+      "@chat3/app-services": ["../../packages-shared/app-services/dist/index.js"],
+      "@chat3/models": ["../../packages-shared/models/dist/index.js"],
+      "@chat3/models/*": ["../../packages-shared/models/dist/*.js"],
+      "@chat3/utils": ["../../packages-shared/utils/dist/index.js"],
+      "@chat3/utils/*": ["../../packages-shared/utils/dist/*.js"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/__tests__/**"]
+}

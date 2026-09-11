@@ -2,7 +2,7 @@ import {
   messageCreatedAtNumericExpr,
   buildMessageCreatedAtMatchExpr,
   buildMessageCreatedAtDistinctPipeline
-} from '../userDialogMessageFilterUtils.js';
+} from '@chat3/utils/userDialogMessageFilterUtils.js';
 
 describe('userDialogMessageFilterUtils', () => {
   describe('messageCreatedAtNumericExpr', () => {

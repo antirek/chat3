@@ -1,0 +1,22 @@
+{
+  "name": "@chat3/app-services",
+  "version": "0.0.84",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "private": true,
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "build:watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@chat3/models": "*",
+    "@chat3/utils": "*"
+  }
+}

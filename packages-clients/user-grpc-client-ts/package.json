@@ -1,0 +1,21 @@
+{
+  "name": "@chat3/user-grpc-client-ts",
+  "version": "0.0.84",
+  "description": "TypeScript client for Chat3 integrator User gRPC service",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "private": true,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@chat3/user-grpc-proto": "*",
+    "@grpc/grpc-js": "^1.11.0",
+    "@grpc/proto-loader": "^0.7.13"
+  }
+}

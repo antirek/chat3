@@ -28,6 +28,7 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
+      "@chat3/app-services": ["packages-shared/app-services/src"],
       "@chat3/models": ["packages-shared/models/src"],
       "@chat3/models/*": ["packages-shared/models/src/*"],
       "@chat3/utils": ["packages-shared/utils/src"],

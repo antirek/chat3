@@ -1,5 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { ApiKey, Tenant } from '@chat3/models';
+import {
+  authenticateApiKey,
+  assertPermission,
+  isAppServiceError,
+  appServiceErrorToHttpStatus,
+  appServiceErrorToHttpBody
+} from '@chat3/app-services';
 
 // Расширяем Request для добавления кастомных полей
 export interface AuthenticatedRequest extends Request {
@@ -10,163 +16,80 @@ export interface AuthenticatedRequest extends Request {
   userId?: string; // Для некоторых контроллеров
 }
 
+function sendAuthError(res: Response, error: unknown): void {
+  if (isAppServiceError(error)) {
+    res.status(appServiceErrorToHttpStatus(error)).json(appServiceErrorToHttpBody(error));
+    return;
+  }
+  console.error('API Auth error:', error);
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: 'Authentication failed'
+  });
+}
+
 export const apiAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // 1. Get API key from header
-    const apiKey = req.headers['x-api-key'] as string | undefined;
+    const ctx = await authenticateApiKey({
+      apiKey: req.headers['x-api-key'] as string | undefined,
+      tenantId: req.headers['x-tenant-id'] as string | undefined
+    });
 
-    if (!apiKey) {
-      res.status(401).json({
-        error: 'Unauthorized',
-        message: 'API key is required. Please provide it in the X-API-Key header.'
-      });
-      return;
-    }
-
-    // 2. Find and validate API key (без привязки к tenant)
-    const key = await ApiKey.findOne({ key: apiKey });
-
-    if (!key) {
-      res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Invalid API key'
-      });
-      return;
-    }
-
-    if (!key.isValid()) {
-      res.status(401).json({
-        error: 'Unauthorized',
-        message: 'API key is expired or inactive'
-      });
-      return;
-    }
-
-    // Update last used timestamp
-    await key.updateLastUsed();
-
-    // 3. Get tenantId from X-TENANT-ID header or use default
-    let tenantId = req.headers['x-tenant-id'] as string | undefined;
-    
-    if (!tenantId) {
-      tenantId = 'tnt_default';
-    }
-
-    // Normalize tenantId (lowercase, trim)
-    tenantId = tenantId.toLowerCase().trim();
-
-    // 4. Validate tenant exists
-    const tenant = await Tenant.findOne({ tenantId: tenantId });
-    
-    if (!tenant) {
-      res.status(404).json({
-        error: 'Not Found',
-        message: `Tenant '${tenantId}' not found`
-      });
-      return;
-    }
-
-    // 5. Attach info to request
-    req.apiKey = key;
-    req.tenantId = tenant.tenantId; // String ID (tnt_XXXXXXXX)
-    req.tenant = tenant; // Full tenant object
-    req.tenantObjectId = tenant._id; // MongoDB ObjectId для обратной совместимости
+    req.apiKey = ctx.apiKey;
+    req.tenantId = ctx.tenantId;
+    req.tenant = ctx.tenant;
+    req.tenantObjectId = ctx.tenantObjectId;
 
     next();
   } catch (error: any) {
-    console.error('API Auth error:', error);
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Authentication failed'
-    });
+    sendAuthError(res, error);
   }
 };
 
 // Check specific permission
 export const requirePermission = (permission: string) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!req.apiKey || !req.apiKey.permissions.includes(permission)) {
-      res.status(403).json({
-        error: 'Forbidden',
-        message: `Permission '${permission}' is required`
-      });
-      return;
+    try {
+      assertPermission(req.apiKey, permission);
+      next();
+    } catch (error: any) {
+      sendAuthError(res, error);
     }
-    next();
   };
 };
 
 // Middleware для создания тенанта - требует только валидный API ключ, запрещает X-Tenant-Id
 export const apiAuthForTenantCreation = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // 1. Get API key from header
-    const apiKey = req.headers['x-api-key'] as string | undefined;
-
-    if (!apiKey) {
-      res.status(401).json({
-        error: 'Unauthorized',
-        message: 'API key is required. Please provide it in the X-API-Key header.'
-      });
-      return;
-    }
-
-    // 2. Find and validate API key
-    const key = await ApiKey.findOne({ key: apiKey });
-
-    if (!key) {
-      res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Invalid API key'
-      });
-      return;
-    }
-
-    if (!key.isValid()) {
-      res.status(401).json({
-        error: 'Unauthorized',
-        message: 'API key is expired or inactive'
-      });
-      return;
-    }
-
-    // 3. Проверяем, что заголовок X-Tenant-Id отсутствует
-    // Создание тенанта должно происходить вне контекста другого тенанта
-    // Express нормализует заголовки в lowercase, но проверяем все варианты для надежности
-    const tenantIdHeader = 
-      req.headers['x-tenant-id'] || 
+    const tenantIdHeader =
+      req.headers['x-tenant-id'] ||
       req.headers['X-Tenant-Id'] ||
       req.headers['X-Tenant-ID'] ||
       req.headers['X-TENANT-ID'];
-    
+
     if (tenantIdHeader) {
       console.log('⚠️  Tenant creation blocked: X-Tenant-Id header detected:', tenantIdHeader);
-      res.status(400).json({
-        error: 'Bad Request',
-        message: 'X-Tenant-Id header is not allowed when creating a tenant. Tenant creation must be performed outside of any tenant context.'
-      });
-      return;
     }
-    
 
-    // 4. Проверяем права доступа
-    if (!key.permissions.includes('write')) {
+    const ctx = await authenticateApiKey({
+      apiKey: req.headers['x-api-key'] as string | undefined,
+      tenantId: tenantIdHeader as string | undefined,
+      skipTenant: true,
+      forbidTenantHeader: true
+    });
+
+    assertPermission(ctx.apiKey, 'write');
+
+    req.apiKey = ctx.apiKey;
+    next();
+  } catch (error: any) {
+    if (isAppServiceError(error) && error.code === 'FORBIDDEN') {
       res.status(403).json({
         error: 'Forbidden',
         message: 'Permission "write" is required to create tenants'
       });
       return;
     }
-
-    // 5. Attach API key to request (но НЕ tenantId)
-    req.apiKey = key;
-    // req.tenantId НЕ устанавливается - создание тенанта вне контекста
-
-    next();
-  } catch (error: any) {
-    console.error('API Auth for tenant creation error:', error);
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Authentication failed'
-    });
+    sendAuthError(res, error);
   }
 };

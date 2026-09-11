@@ -13,6 +13,7 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "dependencies": {
+    "@chat3/app-services": "*",
     "@chat3/models": "*",
     "@chat3/utils": "*",
     "express": "^4.18.2",

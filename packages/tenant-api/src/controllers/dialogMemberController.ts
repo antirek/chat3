@@ -4,7 +4,7 @@ import { applyMarkDialogAllRead } from '../utils/dialogMemberUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
-import { parseFilters, extractMetaFilters, buildFilterQuery } from '../utils/queryParser.js';
+import { parseFilters, extractMetaFilters, buildFilterQuery } from '@chat3/utils/queryParser.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { scheduleDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import * as userUtils from '../utils/userUtils.js';

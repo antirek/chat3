@@ -9,7 +9,7 @@ import { buildUserPackStatsFromBySenderRows, getPackDialogIds } from '@chat3/uti
 import { markDialogMessagesAsReadUntil } from '@chat3/utils/dialogReadTaskUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { Response } from 'express';
-import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
+import { parseFilters, buildFilterQuery } from '@chat3/utils/queryParser.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 import { applyMarkDialogAllRead, addDialogMember, removeDialogMember } from '../utils/dialogMemberUtils.js';
 import * as userUtils from '../utils/userUtils.js';

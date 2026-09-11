@@ -3,7 +3,7 @@ import { Message, MessageVersion, Dialog, MessageStatus, User, DialogMember } fr
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
-import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
+import { parseFilters, buildFilterQuery } from '@chat3/utils/queryParser.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { buildStatusMessageMatrix, buildReactionSet } from '@chat3/utils/userDialogUtils.js';
@@ -11,6 +11,13 @@ import { updateLastMessageAt } from '../utils/dialogMemberUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 import { getSenderInfo, enrichMessagesWithMetaAndStatuses } from '../utils/messageEnrichment.js';
+import {
+  setMessageDeleted,
+  sendMessage,
+  isAppServiceError,
+  appServiceErrorToHttpStatus,
+  appServiceErrorToHttpBody
+} from '@chat3/app-services';
 
 const messageController = {
   // Get all messages with filtering and pagination
@@ -228,365 +235,34 @@ const messageController = {
       const { dialogId } = req.params;
       const { content, senderId, type = 'internal.text', meta, quotedMessageId, topicId } = req.body;
       log(`Получены параметры: dialogId=${dialogId}, senderId=${senderId}, type=${type}, topicId=${topicId || 'нет'}, quotedMessageId=${quotedMessageId || 'нет'}`);
-      // Нормализуем topicId: пустая строка становится null
-      const normalizedTopicId = topicId && topicId.trim() ? topicId.trim() : null;
-      const normalizedType = type;
-      const messageContent = typeof content === 'string' ? content : '';
-      const metaPayload = meta && typeof meta === 'object' ? { ...meta } : {};
-      const isSystemMessage = normalizedType.startsWith('system.');
-      const MEDIA_MESSAGE_TYPES = new Set(['internal.image', 'internal.file', 'internal.audio', 'internal.video', 'internal.sticker']);
 
-      if (!senderId) {
-        log(`Ошибка валидации: отсутствует senderId`);
-        res.status(400).json({
-          error: 'Bad Request',
-          message: 'Missing required field: senderId'
-        });
-        return;
-      }
-
-      if (normalizedType === 'internal.text' && messageContent.trim().length === 0) {
-        log(`Ошибка валидации: пустой content для internal.text`);
-        res.status(400).json({
-          error: 'Bad Request',
-          message: 'content is required for internal.text messages'
-        });
-        return;
-      }
-
-      if (MEDIA_MESSAGE_TYPES.has(normalizedType)) {
-        const mediaUrl = typeof metaPayload.url === 'string' ? metaPayload.url.trim() : '';
-        if (!mediaUrl) {
-          res.status(400).json({
-            error: 'Bad Request',
-            message: `meta.url is required for ${normalizedType} messages`
-          });
-          return;
-        }
-        metaPayload.url = mediaUrl;
-      }
-
-      // Check if dialog exists and belongs to tenant
-      const dialog = await Dialog.findOne({
-        dialogId: dialogId,
-        tenantId: req.tenantId!
+      const result = await sendMessage({
+        tenantId: req.tenantId!,
+        dialogId,
+        userId: senderId,
+        content,
+        type,
+        meta,
+        quotedMessageId,
+        topicId
       });
 
-      if (!dialog) {
-        res.status(404).json({
-          error: 'Not Found',
-          message: 'Dialog not found'
-        });
-        return;
-      }
-
-      // Валидация topicId, если указан
-      let topic = null;
-      if (normalizedTopicId) {
-        const topicDoc = await topicUtils.getTopicById(req.tenantId, dialogId, normalizedTopicId);
-        if (!topicDoc) {
+      log(`Отправка успешного ответа: messageId=${result.message?.messageId}, dialogId=${dialogId}`);
+      res.status(201).json({
+        data: result.message,
+        message: 'Message created successfully'
+      });
+    } catch (error: any) {
+      log(`Ошибка обработки запроса:`, error.message);
+      if (isAppServiceError(error)) {
+        if (error.message === 'Topic not found') {
           res.status(404).json({
             error: 'ERROR_NO_TOPIC',
             message: 'Topic not found'
           });
           return;
         }
-        // Получаем топик с мета-тегами для ответа
-        try {
-          topic = await topicUtils.getTopicWithMeta(req.tenantId, dialogId, normalizedTopicId);
-        } catch (error) {
-          console.error('Error getting topic with meta:', error);
-          topic = { topicId: normalizedTopicId, meta: {} };
-        }
-      }
-
-      // Create message
-      const message = await Message.create([{
-        tenantId: req.tenantId!,
-        dialogId: dialog.dialogId, // Используем строковый dialogId
-        content: messageContent || '',
-        senderId,
-        type: normalizedType,
-        topicId: normalizedTopicId
-      }]);
-
-      const createdMessage = message[0];
-
-      // Add meta data if provided (ПЕРЕД созданием события, чтобы метаданные попали в событие)
-      if (metaPayload && typeof metaPayload === 'object' && Object.keys(metaPayload).length > 0) {
-        for (const [key, value] of Object.entries(metaPayload)) {
-          const metaOptions = {
-            createdBy: senderId,
-          };
-
-          if (typeof value === 'object' && value !== null && Object.prototype.hasOwnProperty.call(value, 'value')) {
-            // If value is an object with dataType/value properties
-            const valueObj = value as any;
-            await metaUtils.setEntityMeta(
-              req.tenantId,
-              'message',
-              createdMessage.messageId,
-              key,
-              valueObj.value,
-              valueObj.dataType || 'string',
-              metaOptions
-            );
-          } else {
-            // If value is a simple value
-            await metaUtils.setEntityMeta(
-              req.tenantId,
-              'message',
-              createdMessage.messageId,
-              key,
-              value,
-              typeof value === 'number' ? 'number' : 
-              typeof value === 'boolean' ? 'boolean' :
-              Array.isArray(value) ? 'array' : 'string',
-              metaOptions
-            );
-          }
-        }
-      }
-
-      // Создаем событие message.create ПЕРЕД обновлением счетчиков, чтобы получить eventId
-      const eventContext = eventUtils.buildEventContext({
-        eventType: 'message.create',
-        dialogId: dialog.dialogId,
-        entityId: createdMessage.messageId,
-        messageId: createdMessage.messageId,
-        includedSections: ['dialog', 'message'],
-        updatedFields: ['message']
-      });
-
-      // Получаем мета-теги сообщения для события (теперь они уже сохранены)
-      const messageMeta = await metaUtils.getEntityMeta(
-        req.tenantId,
-        'message',
-        createdMessage.messageId
-      );
-
-      const dialogMeta = await metaUtils.getEntityMeta(
-        req.tenantId,
-        'dialog',
-        dialog.dialogId
-      );
-
-      const dialogSection = eventUtils.buildDialogSection({
-        dialogId: dialog.dialogId,
-        tenantId: dialog.tenantId,
-        createdAt: dialog.createdAt,
-        meta: dialogMeta || {}
-      });
-
-      const senderInfo = await getSenderInfo(req.tenantId, senderId);
-
-      // Ограничиваем контент до 4096 символов для события
-      const MAX_CONTENT_LENGTH = 4096;
-      const eventContent = messageContent.length > MAX_CONTENT_LENGTH 
-        ? messageContent.substring(0, MAX_CONTENT_LENGTH) 
-        : messageContent;
-
-      // Получаем топик для события, если topicId указан
-      let topicForEvent: any = null;
-      if (normalizedTopicId) {
-        try {
-          topicForEvent = await topicUtils.getTopicWithMeta(req.tenantId, dialogId, normalizedTopicId);
-        } catch (error) {
-          console.error('Error getting topic with meta for event:', error);
-          topicForEvent = { topicId: normalizedTopicId, meta: {} };
-        }
-      }
-
-      const messageSection = eventUtils.buildMessageSection({
-        messageId: createdMessage.messageId,
-        dialogId: dialog.dialogId,
-        senderId,
-        type,
-        content: eventContent,
-        meta: messageMeta || {},
-        quotedMessage: null, // quotedMessage добавим позже
-        topicId: normalizedTopicId,
-        topic: topicForEvent
-      });
-
-      // КРИТИЧНО: Создаем событие (счётчики — counter-worker по message.create)
-      await eventUtils.createEvent({
-        tenantId: req.tenantId!,
-        eventType: 'message.create',
-        entityType: 'message',
-        entityId: createdMessage.messageId,
-        actorId: senderId,
-        actorType: 'user',
-        data: eventUtils.composeEventData({
-          context: eventContext,
-          dialog: dialogSection,
-          message: messageSection
-        })
-      });
-
-      // MessageStatus для получателей; счётчики — counter-worker по message.create
-      if (!isSystemMessage) {
-        const dialogMembers = await DialogMember.find({
-          tenantId: req.tenantId!,
-          dialogId: dialog.dialogId
-        }).select('userId').lean();
-
-        const recipients = dialogMembers.filter(m => m.userId !== senderId);
-
-        if (recipients.length > 0) {
-          const userIds = recipients.map(m => m.userId);
-          const users = await User.find({
-            tenantId: req.tenantId!,
-            userId: { $in: userIds }
-          }).select('userId type').lean();
-
-          const userTypeMap = new Map<string, string | null>();
-          users.forEach(user => {
-            userTypeMap.set(user.userId, user.type || null);
-          });
-
-          const messageStatuses = recipients.map(member => ({
-            messageId: createdMessage.messageId,
-            userId: (member.userId || '').trim().toLowerCase(),
-            dialogId: dialog.dialogId,
-            userType: userTypeMap.get(member.userId) || null,
-            tenantId: req.tenantId!,
-            status: 'unread',
-            createdAt: generateTimestamp()
-          }));
-
-          if (messageStatuses.length > 0) {
-            await MessageStatus.insertMany(messageStatuses, { ordered: false });
-          }
-        }
-
-        const messageTimestamp = createdMessage.createdAt;
-        await Promise.allSettled(
-          dialogMembers.map(member =>
-            updateLastMessageAt(req.tenantId!, member.userId, dialog.dialogId, messageTimestamp)
-          )
-        );
-      }
-
-      // Add meta data if provided
-      if (metaPayload && typeof metaPayload === 'object') {
-        for (const [key, value] of Object.entries(metaPayload)) {
-          const metaOptions = {
-            createdBy: senderId,
-          };
-
-          if (typeof value === 'object' && value !== null && Object.prototype.hasOwnProperty.call(value, 'value')) {
-            // If value is an object with dataType/value properties
-            const valueObj = value as any;
-            await metaUtils.setEntityMeta(
-              req.tenantId,
-              'message',
-              createdMessage.messageId,
-              key,
-              valueObj.value,
-              valueObj.dataType || 'string',
-              metaOptions
-            );
-          } else {
-            // If value is a simple value
-            await metaUtils.setEntityMeta(
-              req.tenantId,
-              'message',
-              createdMessage.messageId,
-              key,
-              value,
-              typeof value === 'number' ? 'number' : 
-              typeof value === 'boolean' ? 'boolean' :
-              Array.isArray(value) ? 'array' : 'string',
-              metaOptions
-            );
-          }
-        }
-      }
-      // Обработка quotedMessageId: находим цитируемое сообщение с мета-тегами
-      let quotedMessage = null;
-      if (quotedMessageId && typeof quotedMessageId === 'string' && quotedMessageId.trim()) {
-        try {
-          const quotedMsg = await Message.findOne({
-            messageId: quotedMessageId.trim(),
-            tenantId: req.tenantId!
-          }).lean();
-
-          if (quotedMsg) {
-            // Получаем мета-теги цитируемого сообщения
-            const quotedMessageMeta = await metaUtils.getEntityMeta(
-              req.tenantId,
-              'message',
-              quotedMsg.messageId
-            );
-
-            // Получаем информацию об отправителе цитируемого сообщения
-            const quotedSenderInfo = await getSenderInfo(req.tenantId, quotedMsg.senderId);
-
-            // Формируем объект quotedMessage с мета-тегами и senderInfo
-            quotedMessage = {
-              messageId: quotedMsg.messageId,
-              dialogId: quotedMsg.dialogId,
-              senderId: quotedMsg.senderId,
-              content: quotedMsg.content,
-              type: quotedMsg.type,
-              createdAt: quotedMsg.createdAt,
-              deleted: (quotedMsg as { deleted?: boolean }).deleted === true,
-              deletedAt: (quotedMsg as { deletedAt?: number | null }).deletedAt ?? null,
-              deletedBy: (quotedMsg as { deletedBy?: string | null }).deletedBy ?? null,
-              meta: quotedMessageMeta || {},
-              senderInfo: quotedSenderInfo || null
-            };
-
-            // Сохраняем quotedMessage в созданное сообщение
-            await Message.findOneAndUpdate(
-              { messageId: createdMessage.messageId },
-              { quotedMessage: quotedMessage }
-            );
-          } else {
-            console.warn(`Quoted message ${quotedMessageId} not found`);
-          }
-        } catch (error) {
-          console.error(`Error processing quotedMessageId ${quotedMessageId}:`, error);
-          // Не прерываем создание сообщения, если не удалось найти цитируемое
-        }
-      }
-
-      // Get message with meta data (включая quotedMessage, если оно было добавлено)
-      const messageWithMeta = await Message.findOne({ messageId: createdMessage.messageId })
-        .select('-__v')
-        .populate('tenantId', 'name domain');
-
-      // messageMeta уже загружено выше для события, используем его
-      const messageObj = messageWithMeta.toObject();
-      
-      // dialogId теперь уже строка в формате dlg_, не нужно преобразовывать
-
-      log(`Отправка успешного ответа: messageId=${messageObj.messageId}, dialogId=${dialogId}`);
-      res.status(201).json({
-        data: sanitizeResponse({
-          ...messageObj,
-          meta: messageMeta || {},
-          topic: topic || null, // Добавляем topic в ответ
-          senderInfo: senderInfo || null,
-          quotedMessage: quotedMessage || null
-        }),
-        message: 'Message created successfully'
-      });
-    } catch (error: any) {
-      log(`Ошибка обработки запроса:`, error.message);
-      if (error.name === 'CastError') {
-        res.status(400).json({
-          error: 'Bad Request',
-          message: 'Invalid dialog ID'
-        });
-        return;
-      }
-      if (error.name === 'ValidationError') {
-        res.status(400).json({
-          error: 'Bad Request',
-          message: error.message
-        });
+        res.status(appServiceErrorToHttpStatus(error)).json(appServiceErrorToHttpBody(error));
         return;
       }
       res.status(500).json({
@@ -1137,166 +813,26 @@ const messageController = {
         deleted: boolean;
         deletedBy?: string | null;
       };
-      const deletedBy =
-        deletedByRaw !== undefined && deletedByRaw !== null && String(deletedByRaw).trim() !== ''
-          ? String(deletedByRaw).trim()
-          : null;
-      log(`Получены параметры: messageId=${messageId}, deleted=${deleted}, deletedBy=${deletedBy ?? 'null'}`);
+      log(`Получены параметры: messageId=${messageId}, deleted=${deleted}, deletedBy=${deletedByRaw ?? 'null'}`);
 
-      const message = await Message.findOne({
-        messageId,
-        tenantId: req.tenantId!
-      });
-
-      if (!message) {
-        log(`Сообщение не найдено: messageId=${messageId}`);
-        res.status(404).json({
-          error: 'Not Found',
-          message: 'Message not found'
-        });
-        return;
-      }
-
-      const currentlyDeleted = (message as any).deleted === true;
-      const targetDeleted = deleted === true;
-
-      const respondWithMessage = async (responseMessage: string) => {
-        const meta = await metaUtils.getEntityMeta(req.tenantId!, 'message', message.messageId);
-        const messageObj = message.toObject() as unknown as Record<string, unknown>;
-        const statusMessageMatrix = await buildStatusMessageMatrix(
-          req.tenantId!,
-          message.messageId,
-          messageObj.senderId as string
-        );
-        const reactionSet = await buildReactionSet(req.tenantId!, message.messageId, null);
-        const senderInfo = await getSenderInfo(req.tenantId!, message.senderId);
-
-        const data = sanitizeResponse({
-          ...messageObj,
-          statusMessageMatrix,
-          reactionSet,
-          meta,
-          senderInfo: senderInfo || null
-        }) as Record<string, unknown>;
-
-        // sanitizeResponse убирает null — клиенту нужны явные deleted*/null после undelete
-        data.deleted = (message as any).deleted === true;
-        data.deletedAt = (message as any).deletedAt ?? null;
-        data.deletedBy = (message as any).deletedBy ?? null;
-
-        res.json({
-          data,
-          message: responseMessage
-        });
-      };
-
-      if (currentlyDeleted === targetDeleted) {
-        log(`Флаг deleted уже равен целевому (${targetDeleted}): messageId=${message.messageId}`);
-        await respondWithMessage(
-          targetDeleted ? 'Message is already deleted' : 'Message is not deleted'
-        );
-        return;
-      }
-
-      if (targetDeleted) {
-        (message as any).deleted = true;
-        (message as any).deletedAt = generateTimestamp();
-        (message as any).deletedBy = deletedBy;
-      } else {
-        (message as any).deleted = false;
-        (message as any).deletedAt = null;
-        (message as any).deletedBy = null;
-      }
-      await message.save();
-      log(
-        `Soft-delete обновлён: messageId=${message.messageId}, deleted=${(message as any).deleted}, deletedAt=${(message as any).deletedAt ?? 'null'}`
-      );
-
-      const meta = await metaUtils.getEntityMeta(req.tenantId!, 'message', message.messageId);
-
-      const dialog = await Dialog.findOne({
-        dialogId: message.dialogId,
-        tenantId: req.tenantId!
-      }).lean();
-
-      let dialogSection: any = null;
-      if (dialog) {
-        const dialogMeta = await metaUtils.getEntityMeta(req.tenantId!, 'dialog', message.dialogId);
-        dialogSection = eventUtils.buildDialogSection({
-          dialogId: (dialog as any).dialogId,
-          tenantId: (dialog as any).tenantId,
-          createdAt: (dialog as any).createdAt,
-          meta: dialogMeta || {}
-        });
-      }
-
-      let topicForEvent: any = null;
-      const messageTopicIdForEvent = (message as any).topicId ?? null;
-      if (messageTopicIdForEvent) {
-        try {
-          topicForEvent = await topicUtils.getTopicWithMeta(
-            req.tenantId!,
-            message.dialogId,
-            messageTopicIdForEvent
-          );
-        } catch {
-          topicForEvent = { topicId: messageTopicIdForEvent, meta: {} };
-        }
-      }
-
-      const MAX_CONTENT_LENGTH = 4096;
-      const content = typeof message.content === 'string' ? message.content : '';
-      const eventContent =
-        content.length > MAX_CONTENT_LENGTH ? content.substring(0, MAX_CONTENT_LENGTH) : content;
-
-      const messageSection = eventUtils.buildMessageSection({
-        messageId: message.messageId,
-        dialogId: message.dialogId,
-        senderId: message.senderId,
-        type: message.type,
-        content: eventContent,
-        meta: meta || {},
-        topicId: messageTopicIdForEvent,
-        topic: topicForEvent,
-        deleted: (message as any).deleted === true,
-        deletedAt: (message as any).deletedAt ?? null,
-        deletedBy: (message as any).deletedBy ?? null
-      });
-
-      const eventContext = eventUtils.buildEventContext({
-        eventType: 'message.deleted',
-        dialogId: message.dialogId,
-        entityId: message.messageId,
-        messageId: message.messageId,
-        includedSections: dialogSection ? ['dialog', 'message'] : ['message'],
-        updatedFields: ['message.deleted', 'message.deletedAt', 'message.deletedBy']
-      });
-
-      log(`Создание события message.deleted: messageId=${message.messageId}, deleted=${targetDeleted}`);
-      await eventUtils.createEvent({
+      const result = await setMessageDeleted({
         tenantId: req.tenantId!,
-        eventType: 'message.deleted',
-        entityType: 'message',
-        entityId: message.messageId,
-        actorId: req.apiKey?.name || 'unknown',
-        actorType: 'api',
-        data: eventUtils.composeEventData({
-          context: eventContext,
-          dialog: dialogSection,
-          message: messageSection,
-          extra: {
-            deleted: targetDeleted,
-            deletedAt: (message as any).deletedAt ?? null,
-            deletedBy: (message as any).deletedBy ?? null
-          }
-        })
+        messageId,
+        deleted: deleted === true,
+        deletedBy: deletedByRaw,
+        actorId: req.apiKey?.name || 'unknown'
       });
 
-      await respondWithMessage(
-        targetDeleted ? 'Message soft-deleted successfully' : 'Message undeleted successfully'
-      );
+      res.json({
+        data: result.message,
+        message: result.responseMessage
+      });
     } catch (error: any) {
       log(`Ошибка обработки запроса:`, error.message);
+      if (isAppServiceError(error)) {
+        res.status(appServiceErrorToHttpStatus(error)).json(appServiceErrorToHttpBody(error));
+        return;
+      }
       res.status(500).json({
         error: 'Internal Server Error',
         message: error.message

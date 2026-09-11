@@ -1,0 +1,204 @@
+syntax = "proto3";
+
+package chat3.user;
+
+import "google/protobuf/struct.proto";
+
+// Интеграторский User gRPC API.
+// Auth metadata: x-api-key, x-tenant-id.
+// Контекст пользователя — поле user_id в теле каждого RPC.
+service Chat3UserService {
+  rpc GetUserDialogs(GetUserDialogsRequest) returns (GetUserDialogsResponse);
+  rpc GetDialogMessages(GetDialogMessagesRequest) returns (GetDialogMessagesResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc SubscribeUpdates(SubscribeUpdatesRequest) returns (stream Update);
+  rpc SetMessageStatus(SetMessageStatusRequest) returns (SetMessageStatusResponse);
+  rpc SetMessageReaction(SetMessageReactionRequest) returns (SetMessageReactionResponse);
+  rpc SendTypingIndicator(SendTypingIndicatorRequest) returns (SendTypingIndicatorResponse);
+  rpc SetMessageDeleted(SetMessageDeletedRequest) returns (SetMessageDeletedResponse);
+  rpc MarkDialogAllRead(MarkDialogAllReadRequest) returns (MarkDialogAllReadResponse);
+}
+
+message GetUserDialogsRequest {
+  string user_id = 1;
+  int32 page = 2;
+  int32 limit = 3;
+  string filter = 4;
+  string sort = 5;
+  bool include_last_message = 6;
+}
+
+message GetUserDialogsResponse {
+  repeated Dialog dialogs = 1;
+  Pagination pagination = 2;
+}
+
+message GetDialogMessagesRequest {
+  string user_id = 1;
+  string dialog_id = 2;
+  int32 page = 3;
+  int32 limit = 4;
+  string filter = 5;
+  string sort = 6;
+}
+
+message GetDialogMessagesResponse {
+  repeated Message messages = 1;
+  Pagination pagination = 2;
+}
+
+message SendMessageRequest {
+  string user_id = 1;
+  string dialog_id = 2;
+  string content = 3;
+  string type = 4;
+  google.protobuf.Struct meta = 5;
+  string idempotency_key = 6;
+}
+
+message SendMessageResponse {
+  Message message = 1;
+}
+
+message SubscribeUpdatesRequest {
+  string user_id = 1;
+}
+
+message Update {
+  string update_id = 1;
+  string tenant_id = 2;
+  string user_id = 3;
+  string entity_id = 4;
+  string event_id = 5;
+  string source_event_type = 6;
+  string update_type = 7;
+  google.protobuf.Struct data = 8;
+  double created_at = 9;
+}
+
+message Dialog {
+  string dialog_id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string created_by = 4;
+  double created_at = 5;
+  double updated_at = 6;
+  google.protobuf.Struct meta = 7;
+  DialogMember member = 8;
+  Message last_message = 9;
+}
+
+message DialogMember {
+  string user_id = 1;
+  google.protobuf.Struct meta = 2;
+  MemberState state = 3;
+}
+
+message MemberState {
+  int32 unread_count = 1;
+  double last_seen_at = 2;
+  double last_message_at = 3;
+  bool is_active = 4;
+}
+
+message Message {
+  string message_id = 1;
+  string dialog_id = 2;
+  string sender_id = 3;
+  string type = 4;
+  string content = 5;
+  google.protobuf.Struct meta = 6;
+  repeated MessageStatus statuses = 7;
+  google.protobuf.Struct reaction_set = 8;
+  SenderInfo sender_info = 9;
+  double created_at = 10;
+  string topic_id = 11;
+  google.protobuf.Struct topic = 12;
+  bool deleted = 13;
+  double deleted_at = 14;
+  string deleted_by = 15;
+  google.protobuf.Struct status_message_matrix = 16;
+  bool edited = 17;
+  double edited_at = 18;
+  string edited_by = 19;
+}
+
+message MessageStatus {
+  string user_id = 1;
+  string status = 2;
+  double read_at = 3;
+  double created_at = 4;
+}
+
+message SenderInfo {
+  string user_id = 1;
+  string name = 2;
+  double created_at = 3;
+  google.protobuf.Struct meta = 4;
+}
+
+message Pagination {
+  int32 page = 1;
+  int32 limit = 2;
+  int32 total = 3;
+  int32 pages = 4;
+}
+
+message SetMessageStatusRequest {
+  string user_id = 1;
+  string dialog_id = 2;
+  string message_id = 3;
+  string status = 4;
+}
+
+message SetMessageStatusResponse {
+  MessageStatus status = 1;
+  Message message = 2;
+}
+
+message SetMessageReactionRequest {
+  string user_id = 1;
+  string dialog_id = 2;
+  string message_id = 3;
+  string reaction = 4;
+  bool set = 5;
+}
+
+message SetMessageReactionResponse {
+  string message = 1;
+  google.protobuf.Struct reaction_set = 2;
+}
+
+message SendTypingIndicatorRequest {
+  string user_id = 1;
+  string dialog_id = 2;
+}
+
+message SendTypingIndicatorResponse {
+  string message = 1;
+  string dialog_id = 2;
+  string user_id = 3;
+  int32 expires_in_ms = 4;
+}
+
+message SetMessageDeletedRequest {
+  string user_id = 1;
+  string message_id = 2;
+  bool deleted = 3;
+  string deleted_by = 4;
+}
+
+message SetMessageDeletedResponse {
+  Message message = 1;
+}
+
+message MarkDialogAllReadRequest {
+  string user_id = 1;
+  string dialog_id = 2;
+}
+
+message MarkDialogAllReadResponse {
+  string message = 1;
+  string dialog_id = 2;
+  string user_id = 3;
+}

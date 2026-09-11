@@ -1,4 +1,4 @@
-import { parseFilter, parseFilters, extractMetaFilters, parseMemberSort, parseSort, buildFilterQuery, FilterValidationError } from '../queryParser.js';
+import { parseFilter, parseFilters, extractMetaFilters, parseMemberSort, parseSort, buildFilterQuery, FilterValidationError } from '@chat3/utils/queryParser.js';
 
 describe('queryParser', () => {
   describe('parseFilter', () => {

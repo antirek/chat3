@@ -3,7 +3,7 @@ import type { ActorType } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
-import { parseFilters, buildFilterQuery } from '../utils/queryParser.js';
+import { parseFilters, buildFilterQuery } from '@chat3/utils/queryParser.js';
 import { loadPackMessages } from '../utils/packMessageUtils.js';
 import { enrichMessagesWithMetaAndStatuses } from '../utils/messageEnrichment.js';
 import { getPackDialogIds } from '@chat3/utils/packStatsUtils.js';

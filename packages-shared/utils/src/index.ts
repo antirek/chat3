@@ -20,3 +20,5 @@ export * from './updateProcessor/processUpdateEvent.js';
 export * from './counterProcessor/counterEvents.js';
 export * from './counterProcessor/isUnreadForUser.js';
 export * from './counterProcessor/recalculateMessageStatusStats.js';
+export * from './queryParser.js';
+export * from './userDialogMessageFilterUtils.js';

@@ -3,13 +3,13 @@ import { Dialog, Meta, DialogMember, PackLink, Message,
   UserDialogStats, UserDialogActivity, UserDialogUnreadBySenderType, DialogStats } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
-import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort, buildFilterQuery } from '../utils/queryParser.js';
+import { parseFilters, extractMetaFilters, processMemberFilters, parseMemberSort, buildFilterQuery } from '@chat3/utils/queryParser.js';
 import {
   assertFilterNotOrWithMessage,
   buildMessageCreatedAtDistinctPipeline,
   collectMessageCreatedAtCondition,
   stripMessageFilterFromParsed
-} from '../utils/userDialogMessageFilterUtils.js';
+} from '@chat3/utils/userDialogMessageFilterUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 
 import * as userUtils from '../utils/userUtils.js';

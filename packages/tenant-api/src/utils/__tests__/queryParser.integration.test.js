@@ -1,4 +1,4 @@
-import { processMemberFilters } from '../queryParser.js';
+import { processMemberFilters } from '@chat3/utils/queryParser.js';
 import { DialogMember } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from './setup.js';
 

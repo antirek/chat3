@@ -29,7 +29,10 @@
     "./counterProcessor/reconcileCounterDrift.js": "./dist/counterProcessor/reconcileCounterDrift.js",
     "./updateProcessor/processUpdateEvent.js": "./dist/updateProcessor/processUpdateEvent.js",
     "./domainEventPayload.js": "./dist/domainEventPayload.js",
-    "./outboxUtils.js": "./dist/outboxUtils.js"
+    "./outboxUtils.js": "./dist/outboxUtils.js",
+    "./queryParser.js": "./dist/queryParser.js",
+    "./userDialogMessageFilterUtils.js": "./dist/userDialogMessageFilterUtils.js",
+    "./dialogMemberActivityUtils.js": "./dist/dialogMemberActivityUtils.js"
   },
   "private": true,
   "scripts": {
