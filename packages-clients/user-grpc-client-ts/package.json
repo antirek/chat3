@@ -1,6 +1,6 @@
 {
   "name": "@chat3/user-grpc-client-ts",
-  "version": "0.0.84",
+  "version": "0.0.85",
   "description": "TypeScript client for Chat3 integrator User gRPC service",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

@@ -5,6 +5,31 @@
 
 ---
 
+## [0.0.85] — 2026-09-12
+
+Integrator gRPC API: общий слой `@chat3/app-services`, `user-grpc-server` / TS-клиент, REST thin поверх тех же use-case.
+
+### Добавлено
+
+- **`@chat3/app-services`** — доменный use-case слой (auth, typing, status, reaction, soft-delete, sendMessage, markAllRead, list dialogs/messages) для REST и gRPC.
+- **`@chat3/user-grpc-server`** — gRPC API интегратора (MVP RPC + `SubscribeUpdates` через AMQP), plaintext, `user_id` в теле RPC.
+- **`@chat3/user-grpc-client-ts`** + **`@chat3/proto`** (`chat3_user.proto`).
+- Утилиты в shared: `queryParser`, `userDialogMessageFilterUtils`, `dialogMemberActivityUtils`.
+
+### Изменено
+
+- Controllers tenant-api / `apiAuth` тонко делегируют в app-services; HTTP API совместим.
+- Docker-образ: сборка и копирование `app-services` и `user-grpc-server`.
+- Удалён устаревший `alwaysStrict: false` в корневом `tsconfig`.
+
+### Docker
+
+```text
+antirek/mms3:0.0.85
+```
+
+---
+
 ## [0.0.84] — 2026-08-31
 
 Fix Controlo path-gateway на базе `6f03c43` (#15601): SPA base, HTML rewrite, control-api URLs.
@@ -138,6 +163,7 @@ antirek/mms3:0.0.80
 
 ---
 
+[0.0.85]: https://github.com/antirek/chat3/compare/80076ae...93f3ade
 [0.0.84]: https://github.com/antirek/chat3/compare/6818eff...80076ae
 [0.0.83]: https://github.com/antirek/chat3/compare/3561ba7...6818eff
 [0.0.82]: https://github.com/antirek/chat3/compare/e195759...3561ba7
