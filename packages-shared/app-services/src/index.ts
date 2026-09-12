@@ -68,3 +68,32 @@ export type {
   MarkDialogAllReadInput,
   MarkDialogAllReadResult
 } from './dialogs/markDialogAllRead.js';
+
+export { upsertUser } from './users/upsertUser.js';
+export type { UpsertUserInput, UpsertUserResult } from './users/upsertUser.js';
+
+export { getUser } from './users/getUser.js';
+export type { GetUserInput, GetUserResult } from './users/getUser.js';
+
+export { createDialog } from './dialogs/createDialog.js';
+export type { CreateDialogInput, CreateDialogResult } from './dialogs/createDialog.js';
+
+export { findDialogByMeta } from './dialogs/findDialogByMeta.js';
+export type {
+  FindDialogByMetaInput,
+  FindDialogByMetaResult
+} from './dialogs/findDialogByMeta.js';
+
+export { addDialogMembers } from './dialogs/addDialogMembers.js';
+export type {
+  AddDialogMembersInput,
+  AddDialogMembersResult
+} from './dialogs/addDialogMembers.js';
+
+export { removeDialogMemberService } from './dialogs/removeDialogMember.js';
+export type {
+  RemoveDialogMemberInput,
+  RemoveDialogMemberResult
+} from './dialogs/removeDialogMember.js';
+
+export { normalizeUserId } from './dialogs/dialogHelpers.js';

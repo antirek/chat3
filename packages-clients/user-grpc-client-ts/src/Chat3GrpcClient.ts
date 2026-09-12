@@ -192,6 +192,74 @@ export class Chat3GrpcClient {
     });
   }
 
+  async upsertUser(options: {
+    userId: string;
+    name?: string;
+    type?: string;
+    meta?: Record<string, any>;
+  }): Promise<any> {
+    return this.unary('UpsertUser', {
+      user_id: options.userId,
+      name: options.name || '',
+      type: options.type || '',
+      meta: options.meta
+    });
+  }
+
+  async getUser(options: { userId: string }): Promise<any> {
+    return this.unary('GetUser', {
+      user_id: options.userId
+    });
+  }
+
+  async createDialog(options: {
+    userId: string;
+    memberUserIds?: string[];
+    meta?: Record<string, any>;
+  }): Promise<any> {
+    return this.unary('CreateDialog', {
+      user_id: options.userId,
+      member_user_ids: options.memberUserIds || [],
+      meta: options.meta
+    });
+  }
+
+  async findDialogByMeta(options: {
+    userId?: string;
+    metaKey: string;
+    metaValue: string;
+  }): Promise<any> {
+    return this.unary('FindDialogByMeta', {
+      user_id: options.userId || '',
+      meta_key: options.metaKey,
+      meta_value: options.metaValue
+    });
+  }
+
+  async addDialogMembers(options: {
+    userId: string;
+    dialogId: string;
+    memberUserIds: string[];
+  }): Promise<any> {
+    return this.unary('AddDialogMembers', {
+      user_id: options.userId,
+      dialog_id: options.dialogId,
+      member_user_ids: options.memberUserIds
+    });
+  }
+
+  async removeDialogMember(options: {
+    userId: string;
+    dialogId: string;
+    memberUserId: string;
+  }): Promise<any> {
+    return this.unary('RemoveDialogMember', {
+      user_id: options.userId,
+      dialog_id: options.dialogId,
+      member_user_id: options.memberUserId
+    });
+  }
+
   /**
    * Server-streaming SubscribeUpdates. One stream = one userId.
    * Yields connection.established first, then Updates from chat3_updates.

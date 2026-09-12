@@ -1,6 +1,7 @@
 import * as grpc from '@grpc/grpc-js';
 import { listUserDialogs, AppServiceError } from '@chat3/app-services';
 import type { AuthenticatedContext } from '@chat3/app-services';
+import { structFromObject } from './grpcMappers.js';
 
 function mapLastMessage(msg: any): any | undefined {
   if (!msg) return undefined;
@@ -43,7 +44,7 @@ function mapDialog(dialog: any): any {
     created_by: dialog.createdBy || '',
     created_at: dialog.createdAt || 0,
     updated_at: dialog.updatedAt || 0,
-    meta: dialog.meta || {},
+    meta: dialog.meta ? structFromObject(dialog.meta) : { fields: {} },
     member: {
       user_id: context.userId || '',
       meta: {},

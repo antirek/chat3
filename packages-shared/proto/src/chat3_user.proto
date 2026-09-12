@@ -17,6 +17,14 @@ service Chat3UserService {
   rpc SendTypingIndicator(SendTypingIndicatorRequest) returns (SendTypingIndicatorResponse);
   rpc SetMessageDeleted(SetMessageDeletedRequest) returns (SetMessageDeletedResponse);
   rpc MarkDialogAllRead(MarkDialogAllReadRequest) returns (MarkDialogAllReadResponse);
+
+  // Provisioning (local-chat / integrator)
+  rpc UpsertUser(UpsertUserRequest) returns (UpsertUserResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  rpc CreateDialog(CreateDialogRequest) returns (CreateDialogResponse);
+  rpc FindDialogByMeta(FindDialogByMetaRequest) returns (FindDialogByMetaResponse);
+  rpc AddDialogMembers(AddDialogMembersRequest) returns (AddDialogMembersResponse);
+  rpc RemoveDialogMember(RemoveDialogMemberRequest) returns (RemoveDialogMemberResponse);
 }
 
 message GetUserDialogsRequest {
@@ -201,4 +209,83 @@ message MarkDialogAllReadResponse {
   string message = 1;
   string dialog_id = 2;
   string user_id = 3;
+}
+
+message User {
+  string user_id = 1;
+  string tenant_id = 2;
+  string type = 3;
+  double created_at = 4;
+  google.protobuf.Struct meta = 5;
+}
+
+message DialogInfo {
+  string dialog_id = 1;
+  string tenant_id = 2;
+  double created_at = 3;
+  google.protobuf.Struct meta = 4;
+  repeated string member_user_ids = 5;
+}
+
+message UpsertUserRequest {
+  string user_id = 1;
+  string name = 2;
+  string type = 3;
+  google.protobuf.Struct meta = 4;
+}
+
+message UpsertUserResponse {
+  User user = 1;
+  bool created = 2;
+}
+
+message GetUserRequest {
+  string user_id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message CreateDialogRequest {
+  string user_id = 1;
+  repeated string member_user_ids = 2;
+  google.protobuf.Struct meta = 3;
+}
+
+message CreateDialogResponse {
+  DialogInfo dialog = 1;
+  bool created = 2;
+}
+
+message FindDialogByMetaRequest {
+  string user_id = 1;
+  string meta_key = 2;
+  string meta_value = 3;
+}
+
+message FindDialogByMetaResponse {
+  bool found = 1;
+  DialogInfo dialog = 2;
+}
+
+message AddDialogMembersRequest {
+  string user_id = 1;
+  string dialog_id = 2;
+  repeated string member_user_ids = 3;
+}
+
+message AddDialogMembersResponse {
+  DialogInfo dialog = 1;
+  repeated string added_user_ids = 2;
+}
+
+message RemoveDialogMemberRequest {
+  string user_id = 1;
+  string dialog_id = 2;
+  string member_user_id = 3;
+}
+
+message RemoveDialogMemberResponse {
+  DialogInfo dialog = 1;
 }

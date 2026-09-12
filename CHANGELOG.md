@@ -5,6 +5,17 @@
 
 ---
 
+## [Unreleased]
+
+### Добавлено (gRPC provisioning для local-chat)
+
+- app-services: `upsertUser`, `getUser`, `createDialog`, `findDialogByMeta`, `addDialogMembers`, `removeDialogMemberService`
+- Proto / user-grpc-server / client: `UpsertUser`, `GetUser`, `CreateDialog`, `FindDialogByMeta`, `AddDialogMembers`, `RemoveDialogMember`
+- Dialog meta остаётся opaque: продуктовые конвенции (например 1:1 keys) — на стороне интегратора
+- Fix: `GetUserDialogs` отдаёт `meta` как protobuf Struct
+
+---
+
 ## [0.0.85] — 2026-09-12
 
 Integrator gRPC API: общий слой `@chat3/app-services`, `user-grpc-server` / TS-клиент, REST thin поверх тех же use-case.
