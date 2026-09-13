@@ -65,9 +65,9 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| user_id | [string](#string) |  |  |
+| user_id | [string](#string) |  | Actor операции. |
 | dialog_id | [string](#string) |  |  |
-| member_user_ids | [string](#string) | repeated |  |
+| member_user_ids | [string](#string) | repeated | Кого добавить. |
 
 
 
@@ -83,7 +83,7 @@
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | dialog | [DialogInfo](#chat3-user-DialogInfo) |  |  |
-| added_user_ids | [string](#string) | repeated |  |
+| added_user_ids | [string](#string) | repeated | Фактически добавленные (без уже состоявших в dialog). |
 
 
 
@@ -98,9 +98,9 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| user_id | [string](#string) |  |  |
-| member_user_ids | [string](#string) | repeated |  |
-| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  |  |
+| user_id | [string](#string) |  | Actor create; всегда добавляется в members. |
+| member_user_ids | [string](#string) | repeated | Дополнительные участники (без дублей, без обязательности существования в Chat3 — обычно интегратор делает UpsertUser заранее). |
+| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  | Произвольная meta. Примеры интегратора: {type:group,title:...} или {type:dm,dmKey:...}. |
 
 
 
@@ -116,7 +116,7 @@
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | dialog | [DialogInfo](#chat3-user-DialogInfo) |  |  |
-| created | [bool](#bool) |  |  |
+| created | [bool](#bool) |  | Для create всегда true (идемпотентность 1:1 делает интегратор через FindDialogByMeta). |
 
 
 
@@ -137,9 +137,9 @@
 | created_by | [string](#string) |  |  |
 | created_at | [double](#double) |  |  |
 | updated_at | [double](#double) |  |  |
-| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  |  |
-| member | [DialogMember](#chat3-user-DialogMember) |  |  |
-| last_message | [Message](#chat3-user-Message) |  |  |
+| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  | Opaque meta dialog (type, title, dmKey, … — на стороне интегратора). |
+| member | [DialogMember](#chat3-user-DialogMember) |  | Контекст членства запрашивающего user_id (unread и т.п.). |
+| last_message | [Message](#chat3-user-Message) |  | Последнее сообщение, если include_last_message=true. |
 
 
 
@@ -149,7 +149,7 @@
 <a name="chat3-user-DialogInfo"></a>
 
 ### DialogInfo
-
+Компактное представление dialog после create / find / members.
 
 
 | Field | Type | Label | Description |
@@ -157,8 +157,8 @@
 | dialog_id | [string](#string) |  |  |
 | tenant_id | [string](#string) |  |  |
 | created_at | [double](#double) |  |  |
-| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  |  |
-| member_user_ids | [string](#string) | repeated |  |
+| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  | Opaque meta dialog. |
+| member_user_ids | [string](#string) | repeated | Текущий список member user_id. |
 
 
 
@@ -190,9 +190,9 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| user_id | [string](#string) |  |  |
-| meta_key | [string](#string) |  |  |
-| meta_value | [string](#string) |  |  |
+| user_id | [string](#string) |  | Опционально: если задан — dialog вернётся только если user member. |
+| meta_key | [string](#string) |  | Ключ meta, напр. dmKey. |
+| meta_value | [string](#string) |  | Точное значение meta, напр. alice:bob. |
 
 
 
@@ -207,8 +207,8 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| found | [bool](#bool) |  |  |
-| dialog | [DialogInfo](#chat3-user-DialogInfo) |  |  |
+| found | [bool](#bool) |  | false — dialog с таким meta не найден (или нет членства). |
+| dialog | [DialogInfo](#chat3-user-DialogInfo) |  | Заполняется только если found=true. |
 
 
 
@@ -223,12 +223,12 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| user_id | [string](#string) |  |  |
-| dialog_id | [string](#string) |  |  |
+| user_id | [string](#string) |  | Запрашивающий пользователь (проверка членства). |
+| dialog_id | [string](#string) |  | Целевой dialog. |
 | page | [int32](#int32) |  |  |
 | limit | [int32](#int32) |  |  |
 | filter | [string](#string) |  |  |
-| sort | [string](#string) |  |  |
+| sort | [string](#string) |  | Sort, напр. {&#34;createdAt&#34;:1} для хронологии. |
 
 
 
@@ -259,12 +259,12 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| user_id | [string](#string) |  |  |
-| page | [int32](#int32) |  |  |
-| limit | [int32](#int32) |  |  |
-| filter | [string](#string) |  |  |
-| sort | [string](#string) |  |  |
-| include_last_message | [bool](#bool) |  |  |
+| user_id | [string](#string) |  | Пользователь, чьи dialogs вернуть. |
+| page | [int32](#int32) |  | Номер страницы (с 1). |
+| limit | [int32](#int32) |  | Размер страницы. |
+| filter | [string](#string) |  | Filter expression (синтаксис как у Tenant API list dialogs). |
+| sort | [string](#string) |  | Sort, обычно JSON, напр. {&#34;updatedAt&#34;:-1}. |
+| include_last_message | [bool](#bool) |  | Если true — в каждый Dialog включить last_message. |
 
 
 
@@ -379,7 +379,7 @@
 | message_id | [string](#string) |  |  |
 | dialog_id | [string](#string) |  |  |
 | sender_id | [string](#string) |  |  |
-| type | [string](#string) |  |  |
+| type | [string](#string) |  | Тип, напр. internal.text. |
 | content | [string](#string) |  |  |
 | meta | [google.protobuf.Struct](#google-protobuf-Struct) |  |  |
 | statuses | [MessageStatus](#chat3-user-MessageStatus) | repeated |  |
@@ -388,7 +388,7 @@
 | created_at | [double](#double) |  |  |
 | topic_id | [string](#string) |  |  |
 | topic | [google.protobuf.Struct](#google-protobuf-Struct) |  |  |
-| deleted | [bool](#bool) |  |  |
+| deleted | [bool](#bool) |  | Soft-delete flag. |
 | deleted_at | [double](#double) |  |  |
 | deleted_by | [string](#string) |  |  |
 | status_message_matrix | [google.protobuf.Struct](#google-protobuf-Struct) |  |  |
@@ -410,7 +410,7 @@
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | user_id | [string](#string) |  |  |
-| status | [string](#string) |  |  |
+| status | [string](#string) |  | Значение статуса, напр. read / delivered. |
 | read_at | [double](#double) |  |  |
 | created_at | [double](#double) |  |  |
 
@@ -445,9 +445,9 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| user_id | [string](#string) |  |  |
+| user_id | [string](#string) |  | Actor операции. |
 | dialog_id | [string](#string) |  |  |
-| member_user_id | [string](#string) |  |  |
+| member_user_id | [string](#string) |  | Кого удалить. |
 
 
 
@@ -477,12 +477,12 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| user_id | [string](#string) |  |  |
+| user_id | [string](#string) |  | Отправитель (actor). |
 | dialog_id | [string](#string) |  |  |
-| content | [string](#string) |  |  |
-| type | [string](#string) |  |  |
-| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  |  |
-| idempotency_key | [string](#string) |  |  |
+| content | [string](#string) |  | Текст / payload сообщения. |
+| type | [string](#string) |  | Тип сообщения, напр. internal.text. |
+| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  | Произвольная meta сообщения. |
+| idempotency_key | [string](#string) |  | Ключ идемпотентности (повтор с тем же ключом не создаст дубликат). |
 
 
 
@@ -512,7 +512,7 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| user_id | [string](#string) |  |  |
+| user_id | [string](#string) |  | Кто печатает (должен быть member dialog). |
 | dialog_id | [string](#string) |  |  |
 
 
@@ -531,7 +531,7 @@
 | message | [string](#string) |  |  |
 | dialog_id | [string](#string) |  |  |
 | user_id | [string](#string) |  |  |
-| expires_in_ms | [int32](#int32) |  |  |
+| expires_in_ms | [int32](#int32) |  | Через сколько мс индикатор истечёт на клиентах. |
 
 
 
@@ -566,8 +566,8 @@
 | ----- | ---- | ----- | ----------- |
 | user_id | [string](#string) |  |  |
 | message_id | [string](#string) |  |  |
-| deleted | [bool](#bool) |  |  |
-| deleted_by | [string](#string) |  |  |
+| deleted | [bool](#bool) |  | true — пометить удалённым, false — восстановить. |
+| deleted_by | [string](#string) |  | Кто удалил (обычно = user_id). |
 
 
 
@@ -600,8 +600,8 @@
 | user_id | [string](#string) |  |  |
 | dialog_id | [string](#string) |  |  |
 | message_id | [string](#string) |  |  |
-| reaction | [string](#string) |  |  |
-| set | [bool](#bool) |  |  |
+| reaction | [string](#string) |  | Код/emoji реакции. |
+| set | [bool](#bool) |  | true — поставить, false — снять. |
 
 
 
@@ -635,7 +635,7 @@
 | user_id | [string](#string) |  |  |
 | dialog_id | [string](#string) |  |  |
 | message_id | [string](#string) |  |  |
-| status | [string](#string) |  |  |
+| status | [string](#string) |  | Новый статус для user_id, напр. read. |
 
 
 
@@ -666,7 +666,7 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| user_id | [string](#string) |  |  |
+| user_id | [string](#string) |  | Пользователь, на чьи updates подписаться. |
 
 
 
@@ -676,7 +676,7 @@
 <a name="chat3-user-Update"></a>
 
 ### Update
-
+Персональное update-событие из потока SubscribeUpdates.
 
 
 | Field | Type | Label | Description |
@@ -686,10 +686,10 @@
 | user_id | [string](#string) |  |  |
 | entity_id | [string](#string) |  |  |
 | event_id | [string](#string) |  |  |
-| source_event_type | [string](#string) |  |  |
+| source_event_type | [string](#string) |  | Исходный domain event, напр. message.create. |
 | update_type | [string](#string) |  |  |
-| data | [google.protobuf.Struct](#google-protobuf-Struct) |  |  |
-| created_at | [double](#double) |  |  |
+| data | [google.protobuf.Struct](#google-protobuf-Struct) |  | Полезная нагрузка update (структура зависит от update_type). |
+| created_at | [double](#double) |  | Unix time (мс, double как в Chat3). |
 
 
 
@@ -704,10 +704,10 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| user_id | [string](#string) |  |  |
-| name | [string](#string) |  |  |
-| type | [string](#string) |  |  |
-| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  |  |
+| user_id | [string](#string) |  | Id пользователя (будет нормализован: trim &#43; lowercase). |
+| name | [string](#string) |  | Отображаемое имя → meta.name. |
+| type | [string](#string) |  | Тип, по умолчанию user. |
+| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  | Дополнительная meta (мержится с name). |
 
 
 
@@ -723,7 +723,7 @@
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | user | [User](#chat3-user-User) |  |  |
-| created | [bool](#bool) |  |  |
+| created | [bool](#bool) |  | true если пользователь только что создан. |
 
 
 
@@ -738,11 +738,11 @@
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| user_id | [string](#string) |  |  |
+| user_id | [string](#string) |  | Стабильный id пользователя в тенанте (часто login). |
 | tenant_id | [string](#string) |  |  |
-| type | [string](#string) |  |  |
+| type | [string](#string) |  | Тип сущности user, обычно &#34;user&#34;. |
 | created_at | [double](#double) |  |  |
-| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  |  |
+| meta | [google.protobuf.Struct](#google-protobuf-Struct) |  | Профильная meta (name и произвольные ключи). |
 
 
 
@@ -770,21 +770,21 @@ Meta на сущностях — opaque google.protobuf.Struct (продукто
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
-| GetUserDialogs | [GetUserDialogsRequest](#chat3-user-GetUserDialogsRequest) | [GetUserDialogsResponse](#chat3-user-GetUserDialogsResponse) | Список диалогов пользователя (с опциональным last message). |
-| GetDialogMessages | [GetDialogMessagesRequest](#chat3-user-GetDialogMessagesRequest) | [GetDialogMessagesResponse](#chat3-user-GetDialogMessagesResponse) | Сообщения диалога (пагинация / filter / sort). |
-| SendMessage | [SendMessageRequest](#chat3-user-SendMessageRequest) | [SendMessageResponse](#chat3-user-SendMessageResponse) | Отправить текстовое (или typed) сообщение в dialog. |
-| SubscribeUpdates | [SubscribeUpdatesRequest](#chat3-user-SubscribeUpdatesRequest) | [Update](#chat3-user-Update) stream | Realtime-подписка на updates пользователя (server streaming). |
-| SetMessageStatus | [SetMessageStatusRequest](#chat3-user-SetMessageStatusRequest) | [SetMessageStatusResponse](#chat3-user-SetMessageStatusResponse) |  |
-| SetMessageReaction | [SetMessageReactionRequest](#chat3-user-SetMessageReactionRequest) | [SetMessageReactionResponse](#chat3-user-SetMessageReactionResponse) |  |
-| SendTypingIndicator | [SendTypingIndicatorRequest](#chat3-user-SendTypingIndicatorRequest) | [SendTypingIndicatorResponse](#chat3-user-SendTypingIndicatorResponse) |  |
-| SetMessageDeleted | [SetMessageDeletedRequest](#chat3-user-SetMessageDeletedRequest) | [SetMessageDeletedResponse](#chat3-user-SetMessageDeletedResponse) |  |
-| MarkDialogAllRead | [MarkDialogAllReadRequest](#chat3-user-MarkDialogAllReadRequest) | [MarkDialogAllReadResponse](#chat3-user-MarkDialogAllReadResponse) |  |
-| UpsertUser | [UpsertUserRequest](#chat3-user-UpsertUserRequest) | [UpsertUserResponse](#chat3-user-UpsertUserResponse) | Создать или обновить пользователя (user_id &#43; optional name/meta). |
-| GetUser | [GetUserRequest](#chat3-user-GetUserRequest) | [GetUserResponse](#chat3-user-GetUserResponse) | Получить пользователя и meta. |
-| CreateDialog | [CreateDialogRequest](#chat3-user-CreateDialogRequest) | [CreateDialogResponse](#chat3-user-CreateDialogResponse) | Создать dialog с members и произвольной meta. |
-| FindDialogByMeta | [FindDialogByMetaRequest](#chat3-user-FindDialogByMetaRequest) | [FindDialogByMetaResponse](#chat3-user-FindDialogByMetaResponse) | Найти dialog по одному meta key/value (идемпотентный lookup для интегратора). |
-| AddDialogMembers | [AddDialogMembersRequest](#chat3-user-AddDialogMembersRequest) | [AddDialogMembersResponse](#chat3-user-AddDialogMembersResponse) | Добавить участников в dialog. |
-| RemoveDialogMember | [RemoveDialogMemberRequest](#chat3-user-RemoveDialogMemberRequest) | [RemoveDialogMemberResponse](#chat3-user-RemoveDialogMemberResponse) | Удалить участника (нельзя удалить последнего). |
+| GetUserDialogs | [GetUserDialogsRequest](#chat3-user-GetUserDialogsRequest) | [GetUserDialogsResponse](#chat3-user-GetUserDialogsResponse) | Список диалогов пользователя. Поддерживает page/limit, filter/sort (как в Tenant REST) и опционально last_message. |
+| GetDialogMessages | [GetDialogMessagesRequest](#chat3-user-GetDialogMessagesRequest) | [GetDialogMessagesResponse](#chat3-user-GetDialogMessagesResponse) | История сообщений диалога с пагинацией. user_id должен быть участником dialog (иначе ошибка доступа). |
+| SendMessage | [SendMessageRequest](#chat3-user-SendMessageRequest) | [SendMessageResponse](#chat3-user-SendMessageResponse) | Отправить сообщение в dialog. type по умолчанию для текста: internal.text; content — тело сообщения. Членство в dialog для SendMessage не требуется (поведение Chat3). |
+| SubscribeUpdates | [SubscribeUpdatesRequest](#chat3-user-SubscribeUpdatesRequest) | [Update](#chat3-user-Update) stream | Server-streaming подписка на персональные updates пользователя (новые сообщения, статусы, typing и т.д. через chat3_updates). |
+| SetMessageStatus | [SetMessageStatusRequest](#chat3-user-SetMessageStatusRequest) | [SetMessageStatusResponse](#chat3-user-SetMessageStatusResponse) | Выставить статус сообщения для user_id (например read / delivered). |
+| SetMessageReaction | [SetMessageReactionRequest](#chat3-user-SetMessageReactionRequest) | [SetMessageReactionResponse](#chat3-user-SetMessageReactionResponse) | Поставить или снять реакцию на сообщение (set=true/false). |
+| SendTypingIndicator | [SendTypingIndicatorRequest](#chat3-user-SendTypingIndicatorRequest) | [SendTypingIndicatorResponse](#chat3-user-SendTypingIndicatorResponse) | Короткий индикатор «печатает» в dialog. Требует членства в dialog. |
+| SetMessageDeleted | [SetMessageDeletedRequest](#chat3-user-SetMessageDeletedRequest) | [SetMessageDeletedResponse](#chat3-user-SetMessageDeletedResponse) | Soft-delete / restore сообщения (deleted=true/false). |
+| MarkDialogAllRead | [MarkDialogAllReadRequest](#chat3-user-MarkDialogAllReadRequest) | [MarkDialogAllReadResponse](#chat3-user-MarkDialogAllReadResponse) | Пометить весь dialog прочитанным для user_id (сброс unread). |
+| UpsertUser | [UpsertUserRequest](#chat3-user-UpsertUserRequest) | [UpsertUserResponse](#chat3-user-UpsertUserResponse) | Создать пользователя или обновить существующего по user_id. name записывается в meta.name; дополнительные ключи — в meta. |
+| GetUser | [GetUserRequest](#chat3-user-GetUserRequest) | [GetUserResponse](#chat3-user-GetUserResponse) | Получить пользователя тенанта по user_id (профиль &#43; meta). |
+| CreateDialog | [CreateDialogRequest](#chat3-user-CreateDialogRequest) | [CreateDialogResponse](#chat3-user-CreateDialogResponse) | Создать dialog: actor (user_id) всегда становится member; member_user_ids — дополнительные участники; meta — произвольные ключи. |
+| FindDialogByMeta | [FindDialogByMetaRequest](#chat3-user-FindDialogByMetaRequest) | [FindDialogByMetaResponse](#chat3-user-FindDialogByMetaResponse) | Найти dialog по одному meta key/value (tenant-scoped). Если передан user_id — возвращает результат только при членстве этого user. Типичный паттерн 1:1 у интегратора: meta_key=dmKey, meta_value=a:b. |
+| AddDialogMembers | [AddDialogMembersRequest](#chat3-user-AddDialogMembersRequest) | [AddDialogMembersResponse](#chat3-user-AddDialogMembersResponse) | Добавить участников в существующий dialog. Дедуп: уже состоящие в dialog не возвращаются в added_user_ids. |
+| RemoveDialogMember | [RemoveDialogMemberRequest](#chat3-user-RemoveDialogMemberRequest) | [RemoveDialogMemberResponse](#chat3-user-RemoveDialogMemberResponse) | Удалить участника из dialog. Нельзя удалить последнего member. |
 
  
 

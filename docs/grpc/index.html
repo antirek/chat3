@@ -370,7 +370,7 @@
                   <td>user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Actor операции. </p></td>
                 </tr>
               
                 <tr>
@@ -384,7 +384,7 @@
                   <td>member_user_ids</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Кого добавить. </p></td>
                 </tr>
               
             </tbody>
@@ -415,7 +415,7 @@
                   <td>added_user_ids</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Фактически добавленные (без уже состоявших в dialog). </p></td>
                 </tr>
               
             </tbody>
@@ -439,21 +439,22 @@
                   <td>user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Actor create; всегда добавляется в members. </p></td>
                 </tr>
               
                 <tr>
                   <td>member_user_ids</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Дополнительные участники (без дублей, без обязательности существования в Chat3
+— обычно интегратор делает UpsertUser заранее). </p></td>
                 </tr>
               
                 <tr>
                   <td>meta</td>
                   <td><a href="#google.protobuf.Struct">google.protobuf.Struct</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Произвольная meta. Примеры интегратора: {type:group,title:...} или {type:dm,dmKey:...}. </p></td>
                 </tr>
               
             </tbody>
@@ -484,7 +485,7 @@
                   <td>created</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Для create всегда true (идемпотентность 1:1 делает интегратор через FindDialogByMeta). </p></td>
                 </tr>
               
             </tbody>
@@ -550,21 +551,21 @@
                   <td>meta</td>
                   <td><a href="#google.protobuf.Struct">google.protobuf.Struct</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Opaque meta dialog (type, title, dmKey, … — на стороне интегратора). </p></td>
                 </tr>
               
                 <tr>
                   <td>member</td>
                   <td><a href="#chat3.user.DialogMember">DialogMember</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Контекст членства запрашивающего user_id (unread и т.п.). </p></td>
                 </tr>
               
                 <tr>
                   <td>last_message</td>
                   <td><a href="#chat3.user.Message">Message</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Последнее сообщение, если include_last_message=true. </p></td>
                 </tr>
               
             </tbody>
@@ -575,7 +576,7 @@
         
       
         <h3 id="chat3.user.DialogInfo">DialogInfo</h3>
-        <p></p>
+        <p>Компактное представление dialog после create / find / members.</p>
 
         
           <table class="field-table">
@@ -609,14 +610,14 @@
                   <td>meta</td>
                   <td><a href="#google.protobuf.Struct">google.protobuf.Struct</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Opaque meta dialog. </p></td>
                 </tr>
               
                 <tr>
                   <td>member_user_ids</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Текущий список member user_id. </p></td>
                 </tr>
               
             </tbody>
@@ -678,21 +679,21 @@
                   <td>user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Опционально: если задан — dialog вернётся только если user member. </p></td>
                 </tr>
               
                 <tr>
                   <td>meta_key</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Ключ meta, напр. dmKey. </p></td>
                 </tr>
               
                 <tr>
                   <td>meta_value</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Точное значение meta, напр. alice:bob. </p></td>
                 </tr>
               
             </tbody>
@@ -716,14 +717,14 @@
                   <td>found</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>false — dialog с таким meta не найден (или нет членства). </p></td>
                 </tr>
               
                 <tr>
                   <td>dialog</td>
                   <td><a href="#chat3.user.DialogInfo">DialogInfo</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Заполняется только если found=true. </p></td>
                 </tr>
               
             </tbody>
@@ -747,14 +748,14 @@
                   <td>user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Запрашивающий пользователь (проверка членства). </p></td>
                 </tr>
               
                 <tr>
                   <td>dialog_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Целевой dialog. </p></td>
                 </tr>
               
                 <tr>
@@ -782,7 +783,7 @@
                   <td>sort</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Sort, напр. {&#34;createdAt&#34;:1} для хронологии. </p></td>
                 </tr>
               
             </tbody>
@@ -837,42 +838,42 @@
                   <td>user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Пользователь, чьи dialogs вернуть. </p></td>
                 </tr>
               
                 <tr>
                   <td>page</td>
                   <td><a href="#int32">int32</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Номер страницы (с 1). </p></td>
                 </tr>
               
                 <tr>
                   <td>limit</td>
                   <td><a href="#int32">int32</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Размер страницы. </p></td>
                 </tr>
               
                 <tr>
                   <td>filter</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Filter expression (синтаксис как у Tenant API list dialogs). </p></td>
                 </tr>
               
                 <tr>
                   <td>sort</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Sort, обычно JSON, напр. {&#34;updatedAt&#34;:-1}. </p></td>
                 </tr>
               
                 <tr>
                   <td>include_last_message</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Если true — в каждый Dialog включить last_message. </p></td>
                 </tr>
               
             </tbody>
@@ -1110,7 +1111,7 @@
                   <td>type</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Тип, напр. internal.text. </p></td>
                 </tr>
               
                 <tr>
@@ -1173,7 +1174,7 @@
                   <td>deleted</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Soft-delete flag. </p></td>
                 </tr>
               
                 <tr>
@@ -1246,7 +1247,7 @@
                   <td>status</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Значение статуса, напр. read / delivered. </p></td>
                 </tr>
               
                 <tr>
@@ -1329,7 +1330,7 @@
                   <td>user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Actor операции. </p></td>
                 </tr>
               
                 <tr>
@@ -1343,7 +1344,7 @@
                   <td>member_user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Кого удалить. </p></td>
                 </tr>
               
             </tbody>
@@ -1391,7 +1392,7 @@
                   <td>user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Отправитель (actor). </p></td>
                 </tr>
               
                 <tr>
@@ -1405,28 +1406,28 @@
                   <td>content</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Текст / payload сообщения. </p></td>
                 </tr>
               
                 <tr>
                   <td>type</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Тип сообщения, напр. internal.text. </p></td>
                 </tr>
               
                 <tr>
                   <td>meta</td>
                   <td><a href="#google.protobuf.Struct">google.protobuf.Struct</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Произвольная meta сообщения. </p></td>
                 </tr>
               
                 <tr>
                   <td>idempotency_key</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Ключ идемпотентности (повтор с тем же ключом не создаст дубликат). </p></td>
                 </tr>
               
             </tbody>
@@ -1474,7 +1475,7 @@
                   <td>user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Кто печатает (должен быть member dialog). </p></td>
                 </tr>
               
                 <tr>
@@ -1526,7 +1527,7 @@
                   <td>expires_in_ms</td>
                   <td><a href="#int32">int32</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Через сколько мс индикатор истечёт на клиентах. </p></td>
                 </tr>
               
             </tbody>
@@ -1609,14 +1610,14 @@
                   <td>deleted</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>true — пометить удалённым, false — восстановить. </p></td>
                 </tr>
               
                 <tr>
                   <td>deleted_by</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Кто удалил (обычно = user_id). </p></td>
                 </tr>
               
             </tbody>
@@ -1685,14 +1686,14 @@
                   <td>reaction</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Код/emoji реакции. </p></td>
                 </tr>
               
                 <tr>
                   <td>set</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>true — поставить, false — снять. </p></td>
                 </tr>
               
             </tbody>
@@ -1768,7 +1769,7 @@
                   <td>status</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Новый статус для user_id, напр. read. </p></td>
                 </tr>
               
             </tbody>
@@ -1823,7 +1824,7 @@
                   <td>user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Пользователь, на чьи updates подписаться. </p></td>
                 </tr>
               
             </tbody>
@@ -1834,7 +1835,7 @@
         
       
         <h3 id="chat3.user.Update">Update</h3>
-        <p></p>
+        <p>Персональное update-событие из потока SubscribeUpdates.</p>
 
         
           <table class="field-table">
@@ -1882,7 +1883,7 @@
                   <td>source_event_type</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Исходный domain event, напр. message.create. </p></td>
                 </tr>
               
                 <tr>
@@ -1896,14 +1897,14 @@
                   <td>data</td>
                   <td><a href="#google.protobuf.Struct">google.protobuf.Struct</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Полезная нагрузка update (структура зависит от update_type). </p></td>
                 </tr>
               
                 <tr>
                   <td>created_at</td>
                   <td><a href="#double">double</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Unix time (мс, double как в Chat3). </p></td>
                 </tr>
               
             </tbody>
@@ -1927,28 +1928,28 @@
                   <td>user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Id пользователя (будет нормализован: trim &#43; lowercase). </p></td>
                 </tr>
               
                 <tr>
                   <td>name</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Отображаемое имя → meta.name. </p></td>
                 </tr>
               
                 <tr>
                   <td>type</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Тип, по умолчанию user. </p></td>
                 </tr>
               
                 <tr>
                   <td>meta</td>
                   <td><a href="#google.protobuf.Struct">google.protobuf.Struct</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Дополнительная meta (мержится с name). </p></td>
                 </tr>
               
             </tbody>
@@ -1979,7 +1980,7 @@
                   <td>created</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>true если пользователь только что создан. </p></td>
                 </tr>
               
             </tbody>
@@ -2003,7 +2004,7 @@
                   <td>user_id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Стабильный id пользователя в тенанте (часто login). </p></td>
                 </tr>
               
                 <tr>
@@ -2017,7 +2018,7 @@
                   <td>type</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Тип сущности user, обычно &#34;user&#34;. </p></td>
                 </tr>
               
                 <tr>
@@ -2031,7 +2032,7 @@
                   <td>meta</td>
                   <td><a href="#google.protobuf.Struct">google.protobuf.Struct</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Профильная meta (name и произвольные ключи). </p></td>
                 </tr>
               
             </tbody>
@@ -2059,105 +2060,115 @@
                 <td>GetUserDialogs</td>
                 <td><a href="#chat3.user.GetUserDialogsRequest">GetUserDialogsRequest</a></td>
                 <td><a href="#chat3.user.GetUserDialogsResponse">GetUserDialogsResponse</a></td>
-                <td><p>Список диалогов пользователя (с опциональным last message).</p></td>
+                <td><p>Список диалогов пользователя.
+Поддерживает page/limit, filter/sort (как в Tenant REST) и опционально last_message.</p></td>
               </tr>
             
               <tr>
                 <td>GetDialogMessages</td>
                 <td><a href="#chat3.user.GetDialogMessagesRequest">GetDialogMessagesRequest</a></td>
                 <td><a href="#chat3.user.GetDialogMessagesResponse">GetDialogMessagesResponse</a></td>
-                <td><p>Сообщения диалога (пагинация / filter / sort).</p></td>
+                <td><p>История сообщений диалога с пагинацией.
+user_id должен быть участником dialog (иначе ошибка доступа).</p></td>
               </tr>
             
               <tr>
                 <td>SendMessage</td>
                 <td><a href="#chat3.user.SendMessageRequest">SendMessageRequest</a></td>
                 <td><a href="#chat3.user.SendMessageResponse">SendMessageResponse</a></td>
-                <td><p>Отправить текстовое (или typed) сообщение в dialog.</p></td>
+                <td><p>Отправить сообщение в dialog.
+type по умолчанию для текста: internal.text; content — тело сообщения.
+Членство в dialog для SendMessage не требуется (поведение Chat3).</p></td>
               </tr>
             
               <tr>
                 <td>SubscribeUpdates</td>
                 <td><a href="#chat3.user.SubscribeUpdatesRequest">SubscribeUpdatesRequest</a></td>
                 <td><a href="#chat3.user.Update">Update</a> stream</td>
-                <td><p>Realtime-подписка на updates пользователя (server streaming).</p></td>
+                <td><p>Server-streaming подписка на персональные updates пользователя
+(новые сообщения, статусы, typing и т.д. через chat3_updates).</p></td>
               </tr>
             
               <tr>
                 <td>SetMessageStatus</td>
                 <td><a href="#chat3.user.SetMessageStatusRequest">SetMessageStatusRequest</a></td>
                 <td><a href="#chat3.user.SetMessageStatusResponse">SetMessageStatusResponse</a></td>
-                <td><p></p></td>
+                <td><p>Выставить статус сообщения для user_id (например read / delivered).</p></td>
               </tr>
             
               <tr>
                 <td>SetMessageReaction</td>
                 <td><a href="#chat3.user.SetMessageReactionRequest">SetMessageReactionRequest</a></td>
                 <td><a href="#chat3.user.SetMessageReactionResponse">SetMessageReactionResponse</a></td>
-                <td><p></p></td>
+                <td><p>Поставить или снять реакцию на сообщение (set=true/false).</p></td>
               </tr>
             
               <tr>
                 <td>SendTypingIndicator</td>
                 <td><a href="#chat3.user.SendTypingIndicatorRequest">SendTypingIndicatorRequest</a></td>
                 <td><a href="#chat3.user.SendTypingIndicatorResponse">SendTypingIndicatorResponse</a></td>
-                <td><p></p></td>
+                <td><p>Короткий индикатор «печатает» в dialog. Требует членства в dialog.</p></td>
               </tr>
             
               <tr>
                 <td>SetMessageDeleted</td>
                 <td><a href="#chat3.user.SetMessageDeletedRequest">SetMessageDeletedRequest</a></td>
                 <td><a href="#chat3.user.SetMessageDeletedResponse">SetMessageDeletedResponse</a></td>
-                <td><p></p></td>
+                <td><p>Soft-delete / restore сообщения (deleted=true/false).</p></td>
               </tr>
             
               <tr>
                 <td>MarkDialogAllRead</td>
                 <td><a href="#chat3.user.MarkDialogAllReadRequest">MarkDialogAllReadRequest</a></td>
                 <td><a href="#chat3.user.MarkDialogAllReadResponse">MarkDialogAllReadResponse</a></td>
-                <td><p></p></td>
+                <td><p>Пометить весь dialog прочитанным для user_id (сброс unread).</p></td>
               </tr>
             
               <tr>
                 <td>UpsertUser</td>
                 <td><a href="#chat3.user.UpsertUserRequest">UpsertUserRequest</a></td>
                 <td><a href="#chat3.user.UpsertUserResponse">UpsertUserResponse</a></td>
-                <td><p>Создать или обновить пользователя (user_id &#43; optional name/meta).</p></td>
+                <td><p>Создать пользователя или обновить существующего по user_id.
+name записывается в meta.name; дополнительные ключи — в meta.</p></td>
               </tr>
             
               <tr>
                 <td>GetUser</td>
                 <td><a href="#chat3.user.GetUserRequest">GetUserRequest</a></td>
                 <td><a href="#chat3.user.GetUserResponse">GetUserResponse</a></td>
-                <td><p>Получить пользователя и meta.</p></td>
+                <td><p>Получить пользователя тенанта по user_id (профиль &#43; meta).</p></td>
               </tr>
             
               <tr>
                 <td>CreateDialog</td>
                 <td><a href="#chat3.user.CreateDialogRequest">CreateDialogRequest</a></td>
                 <td><a href="#chat3.user.CreateDialogResponse">CreateDialogResponse</a></td>
-                <td><p>Создать dialog с members и произвольной meta.</p></td>
+                <td><p>Создать dialog: actor (user_id) всегда становится member;
+member_user_ids — дополнительные участники; meta — произвольные ключи.</p></td>
               </tr>
             
               <tr>
                 <td>FindDialogByMeta</td>
                 <td><a href="#chat3.user.FindDialogByMetaRequest">FindDialogByMetaRequest</a></td>
                 <td><a href="#chat3.user.FindDialogByMetaResponse">FindDialogByMetaResponse</a></td>
-                <td><p>Найти dialog по одному meta key/value (идемпотентный lookup для интегратора).</p></td>
+                <td><p>Найти dialog по одному meta key/value (tenant-scoped).
+Если передан user_id — возвращает результат только при членстве этого user.
+Типичный паттерн 1:1 у интегратора: meta_key=dmKey, meta_value=a:b.</p></td>
               </tr>
             
               <tr>
                 <td>AddDialogMembers</td>
                 <td><a href="#chat3.user.AddDialogMembersRequest">AddDialogMembersRequest</a></td>
                 <td><a href="#chat3.user.AddDialogMembersResponse">AddDialogMembersResponse</a></td>
-                <td><p>Добавить участников в dialog.</p></td>
+                <td><p>Добавить участников в существующий dialog.
+Дедуп: уже состоящие в dialog не возвращаются в added_user_ids.</p></td>
               </tr>
             
               <tr>
                 <td>RemoveDialogMember</td>
                 <td><a href="#chat3.user.RemoveDialogMemberRequest">RemoveDialogMemberRequest</a></td>
                 <td><a href="#chat3.user.RemoveDialogMemberResponse">RemoveDialogMemberResponse</a></td>
-                <td><p>Удалить участника (нельзя удалить последнего).</p></td>
+                <td><p>Удалить участника из dialog. Нельзя удалить последнего member.</p></td>
               </tr>
             
           </tbody>
