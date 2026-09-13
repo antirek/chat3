@@ -1,0 +1,45 @@
+name: gRPC docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages-shared/proto/**"
+      - "scripts/gen-grpc-docs.sh"
+      - "docs/grpc/**"
+      - ".github/workflows/grpc-docs.yml"
+  pull_request:
+    paths:
+      - "packages-shared/proto/**"
+      - "scripts/gen-grpc-docs.sh"
+      - "docs/grpc/**"
+      - ".github/workflows/grpc-docs.yml"
+
+jobs:
+  gen-doc:
+    name: Generate & check proto docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate docs from proto
+        run: |
+          chmod +x scripts/gen-grpc-docs.sh
+          ./scripts/gen-grpc-docs.sh
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat3-grpc-docs
+          path: docs/grpc/
+          if-no-files-found: error
+
+      - name: Fail if committed docs are stale
+        run: |
+          if ! git diff --quiet -- docs/grpc/; then
+            echo "::error::docs/grpc is out of date. Run ./scripts/gen-grpc-docs.sh and commit."
+            git --no-pager diff -- docs/grpc/ | head -200
+            exit 1
+          fi
+          echo "docs/grpc is up to date"

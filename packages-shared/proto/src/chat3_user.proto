@@ -4,13 +4,23 @@ package chat3.user;
 
 import "google/protobuf/struct.proto";
 
-// Интеграторский User gRPC API.
-// Auth metadata: x-api-key, x-tenant-id.
-// Контекст пользователя — поле user_id в теле каждого RPC.
+// Chat3UserService — интеграторский User gRPC API.
+//
+// Auth (gRPC metadata на каждый вызов):
+//   - x-api-key: API key тенанта
+//   - x-tenant-id: идентификатор тенанта
+//
+// Контекст пользователя — поле user_id в теле RPC (не JWT).
+// Meta на сущностях — opaque google.protobuf.Struct (продуктовые конвенции
+// вроде type/dmKey живут у интегратора, не в Chat3).
 service Chat3UserService {
+  // Список диалогов пользователя (с опциональным last message).
   rpc GetUserDialogs(GetUserDialogsRequest) returns (GetUserDialogsResponse);
+  // Сообщения диалога (пагинация / filter / sort).
   rpc GetDialogMessages(GetDialogMessagesRequest) returns (GetDialogMessagesResponse);
+  // Отправить текстовое (или typed) сообщение в dialog.
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  // Realtime-подписка на updates пользователя (server streaming).
   rpc SubscribeUpdates(SubscribeUpdatesRequest) returns (stream Update);
   rpc SetMessageStatus(SetMessageStatusRequest) returns (SetMessageStatusResponse);
   rpc SetMessageReaction(SetMessageReactionRequest) returns (SetMessageReactionResponse);
@@ -18,12 +28,19 @@ service Chat3UserService {
   rpc SetMessageDeleted(SetMessageDeletedRequest) returns (SetMessageDeletedResponse);
   rpc MarkDialogAllRead(MarkDialogAllReadRequest) returns (MarkDialogAllReadResponse);
 
-  // Provisioning (local-chat / integrator)
+  // --- Provisioning ---
+
+  // Создать или обновить пользователя (user_id + optional name/meta).
   rpc UpsertUser(UpsertUserRequest) returns (UpsertUserResponse);
+  // Получить пользователя и meta.
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  // Создать dialog с members и произвольной meta.
   rpc CreateDialog(CreateDialogRequest) returns (CreateDialogResponse);
+  // Найти dialog по одному meta key/value (идемпотентный lookup для интегратора).
   rpc FindDialogByMeta(FindDialogByMetaRequest) returns (FindDialogByMetaResponse);
+  // Добавить участников в dialog.
   rpc AddDialogMembers(AddDialogMembersRequest) returns (AddDialogMembersResponse);
+  // Удалить участника (нельзя удалить последнего).
   rpc RemoveDialogMember(RemoveDialogMemberRequest) returns (RemoveDialogMemberResponse);
 }
 

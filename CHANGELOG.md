@@ -13,6 +13,8 @@
 - Proto / user-grpc-server / client: `UpsertUser`, `GetUser`, `CreateDialog`, `FindDialogByMeta`, `AddDialogMembers`, `RemoveDialogMember`
 - Dialog meta остаётся opaque: продуктовые конвенции (например 1:1 keys) — на стороне интегратора
 - Fix: `GetUserDialogs` отдаёт `meta` как protobuf Struct
+- Docs: `./scripts/gen-grpc-docs.sh` → `docs/grpc/` (HTML+MD); CI workflow `grpc-docs.yml`
+- Proto comments for Chat3UserService RPCs
 
 ---
 

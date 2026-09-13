@@ -41,12 +41,14 @@
 5. **Доступ к сервисам:**
    - 🧪 **API Test Suite**: http://localhost:3001
    - 📊 **Swagger UI**: http://localhost:3000/api-docs
+   - 📡 **User gRPC docs**: [docs/grpc/](docs/grpc/) (`npm run docs:grpc`)
    - 💚 **Health Check**: http://localhost:3000/health
 
 ## 📚 Документация
 
 - **[Архитектура](docs/ARCHITECTURE.md)** - Компоненты системы, потоки данных, RabbitMQ
 - **[API](docs/API.md)** - Полное описание REST API с примерами
+- **[User gRPC](docs/grpc/)** - Сгенерированная документация `Chat3UserService` (HTML/MD)
 - **[События](docs/EVENTS.md)** - Система событий и их обработка
 - **[Обновления](docs/UPDATES.md)** - Система персонализированных обновлений
 - **[Интеграция](docs/INTEGRATION.md)** - Интеграция внешних систем через RabbitMQ
