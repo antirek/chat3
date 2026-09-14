@@ -7,6 +7,13 @@
 
 ## [Unreleased]
 
+### Изменено (AMQP updates: tenant в routing key)
+
+- Routing key: `update.{category}.{tenantId}.{userType}.{userId}.{segment}` (ось = `(tenantId, userId)`)
+- SubscribeUpdates / `ensureUserUpdatesQueue`: bind `update.*.{tenantId}.{userType}.{userId}.*`
+- Defense-in-depth: drop messages с чужим `tenantId` на consume
+- **Breaking** для внешних AMQP-подписчиков со старым bind без `tenantId`
+
 ### Добавлено (gRPC provisioning для local-chat)
 
 - app-services: `upsertUser`, `getUser`, `createDialog`, `findDialogByMeta`, `addDialogMembers`, `removeDialogMemberService`

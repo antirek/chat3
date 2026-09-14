@@ -56,27 +56,33 @@ async function connectToChat3() {
 }
 ```
 
-## Формат Routing Keys для Updates (PR3 / 0.0.77)
+## Формат Routing Keys для Updates
 
 Updates публикуются в exchange `chat3_updates` с routing key:
 
 ```
-update.{category}.{userType}.{userId}.{routingSegment}
+update.{category}.{tenantId}.{userType}.{userId}.{routingSegment}
 ```
+
+Ось изоляции та же, что у User: **`(tenantId, userId)`**.
 
 | Сегмент | Значения |
 |---------|----------|
 | `category` | `dialog` (для `update.message` и `update.dialog`) или `user` (для `update.user`) |
+| `tenantId` | тенант получателя |
 | `routingSegment` | `message`, `dialog`, `user` — хвост поля **`updateType`** |
 
 **Примеры:**
-- `update.dialog.user.carl.message` — `updateType: update.message`
-- `update.dialog.user.carl.dialog` — `updateType: update.dialog` (sidebar, typing, member)
-- `update.user.user.carl.user` — `updateType: update.user` (profile и stats)
+- `update.dialog.tnt_acme.user.carl.message` — `updateType: update.message`
+- `update.dialog.tnt_acme.user.carl.dialog` — `updateType: update.dialog` (sidebar, typing, member)
+- `update.user.tnt_acme.user.carl.user` — `updateType: update.user` (profile и stats)
 
-Wildcard: `update.*.user.carl.*` — все Updates для пользователя.
+Wildcard: `update.*.tnt_acme.user.carl.*` — все Updates для пользователя в tenant.  
+Firehose tenant: `update.*.tnt_acme.*.*.*`.
 
-**Breaking (0.0.77):** slug `messageupdate`, `userstatsupdate`, … заменены на `message`, `dialog`, `user`. Поле **`Update.eventType`** удалено → **`sourceEventType`** + **`updateType`**. Маршрутизация в UI — по **`data.context.uiTarget`**.
+**Breaking:** в routing key добавлен `tenantId` после `category`. Старые bind вида `update.*.{userType}.{userId}.*` больше не получают сообщения.
+
+**Также (0.0.77):** slug `messageupdate`, `userstatsupdate`, … заменены на `message`, `dialog`, `user`. Поле **`Update.eventType`** удалено → **`sourceEventType`** + **`updateType`**. Маршрутизация в UI — по **`data.context.uiTarget`**.
 
 **Миграция для внешних проектов:** [MIGRATION_UPDATES_0.0.77.md](./MIGRATION_UPDATES_0.0.77.md)
 
@@ -103,8 +109,8 @@ GET /api/users/:userId
 ### Шаг 2: Создать очередь для пользователя
 
 ```javascript
-async function subscribeToUserUpdates(channel, userId, userType = 'user') {
-  const queueName = `user_${userId}_updates`;
+async function subscribeToUserUpdates(channel, tenantId, userId, userType = 'user') {
+  const queueName = `user_${tenantId}_${userId}_updates`;
   
   // Создаем очередь с TTL 1 час
   await channel.assertQueue(queueName, {
@@ -114,13 +120,11 @@ async function subscribeToUserUpdates(channel, userId, userType = 'user') {
     }
   });
   
-  // Привязываем к exchange с routing key
-  // Формат: update.{category}.{userType}.{userId}.*
-  // category: dialog (DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate) или user (UserUpdate, UserStatsUpdate)
-  const routingKey = `update.*.${userType}.${userId}.*`;
+  // Формат: update.{category}.{tenantId}.{userType}.{userId}.*
+  const routingKey = `update.*.${tenantId}.${userType}.${userId}.*`;
   await channel.bindQueue(queueName, 'chat3_updates', routingKey);
   
-  console.log(`✅ Subscribed to updates for user ${userId} (type: ${userType})`);
+  console.log(`✅ Subscribed to updates for ${tenantId}/${userId} (type: ${userType})`);
   console.log(`   Queue: ${queueName}`);
   console.log(`   Routing key pattern: ${routingKey}`);
   
@@ -764,7 +768,8 @@ const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://rmuser:rmpassword@local
 const UPDATES_EXCHANGE = 'chat3_updates';
 
 class Chat3Integration {
-  constructor(userId, userType = 'user') {
+  constructor(tenantId, userId, userType = 'user') {
+    this.tenantId = tenantId;
     this.userId = userId;
     this.userType = userType;
     this.connection = null;
@@ -781,16 +786,15 @@ class Chat3Integration {
   }
   
   async subscribe() {
-    const queueName = `user_${this.userId}_updates`;
+    const queueName = `user_${this.tenantId}_${this.userId}_updates`;
     
     await this.channel.assertQueue(queueName, {
       durable: true,
       arguments: { 'x-message-ttl': 3600000 }
     });
     
-    // Подписываемся на все updates для пользователя
-    // Формат routing key: update.{category}.{userType}.{userId}.{updateType}
-    const routingKey = `update.*.${this.userType}.${this.userId}.*`;
+    // Формат: update.{category}.{tenantId}.{userType}.{userId}.{updateType}
+    const routingKey = `update.*.${this.tenantId}.${this.userType}.${this.userId}.*`;
     await this.channel.bindQueue(queueName, UPDATES_EXCHANGE, routingKey);
     
     await this.channel.consume(queueName, async (msg) => {
@@ -1045,50 +1049,41 @@ curl -X POST http://localhost:3000/api/dialogs/{dialogId}/messages \
 
 ## Примеры routing keys
 
-Формат routing key: `update.{category}.{userType}.{userId}.{updateType}`
+Формат: `update.{category}.{tenantId}.{userType}.{userId}.{updateType}`
 
 Где:
-- `category` - категория обновления: `dialog` (DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate) или `user` (UserUpdate, UserStatsUpdate)
-- `userType` - тип пользователя из модели User (user, bot, contact и т.д.)
-- `userId` - ID пользователя
-- `updateType` - тип обновления в нижнем регистре (dialogupdate, dialogmemberupdate, messageupdate, typingupdate, userupdate, userstatsupdate)
+- `category` — `dialog` или `user`
+- `tenantId` — тенант получателя
+- `userType` — тип из модели User (user, bot, contact, …)
+- `userId` — ID пользователя **в рамках tenant**
+- `updateType` — хвост `updateType` (`message`, `dialog`, `user`, …)
 
 **Примеры routing keys:**
 
 ```
-# Все обновления для пользователя carl типа user
-update.*.user.carl.*
+# Все обновления для carl в tnt_acme
+update.*.tnt_acme.user.carl.*
 
-# Все обновления диалогов для пользователя carl
-update.dialog.user.carl.*
+# Только dialog-категория
+update.dialog.tnt_acme.user.carl.*
 
-# Все обновления сообщений для пользователя carl
-update.dialog.user.carl.messageupdate
+# Сообщения
+update.dialog.tnt_acme.user.carl.message
 
-# Все обновления для всех пользователей типа bot
-update.*.bot.*.*
+# Firehose всего tenant
+update.*.tnt_acme.*.*.*
 
-# Все обновления диалогов для всех пользователей типа user
-update.dialog.user.*.dialogupdate
-
-# Все обновления статистики пользователей
-update.user.*.*.userstatsupdate
+# Все bot в tenant
+update.*.tnt_acme.bot.*.*
 ```
 
 **Примеры для подписки (wildcards):**
 
 ```javascript
-// Все обновления для пользователя carl
-await channel.bindQueue(queueName, 'chat3_updates', 'update.*.user.carl.*');
-
-// Только обновления диалогов для пользователя carl
-await channel.bindQueue(queueName, 'chat3_updates', 'update.dialog.user.carl.*');
-
-// Все обновления для всех пользователей типа bot
-await channel.bindQueue(queueName, 'chat3_updates', 'update.*.bot.*.*');
-
-// Все обновления диалогов для всех пользователей типа user
-await channel.bindQueue(queueName, 'chat3_updates', 'update.dialog.user.*.*');
+await channel.bindQueue(queueName, 'chat3_updates', 'update.*.tnt_acme.user.carl.*');
+await channel.bindQueue(queueName, 'chat3_updates', 'update.dialog.tnt_acme.user.carl.*');
+await channel.bindQueue(queueName, 'chat3_updates', 'update.*.tnt_acme.bot.*.*');
+await channel.bindQueue(queueName, 'chat3_updates', 'update.*.tnt_acme.*.*.*');
 ```
 
 ## Поддержка

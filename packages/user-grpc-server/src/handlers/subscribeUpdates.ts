@@ -42,6 +42,7 @@ export async function subscribeUpdatesHandler(
     }
 
     const { connId, subscription: sub } = await rabbitmqClient.subscribeToUserUpdates(
+      auth.tenantId,
       userId,
       userType,
       (update) => {

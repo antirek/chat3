@@ -134,7 +134,7 @@ update.{category}.{userType}.{userId}.{updateType}
 |---------|------------|
 | `update.dialog.user.carl.messageupdate` | только MessageUpdate для carl |
 | `update.dialog.user.carl.*` | все dialog-Updates для carl |
-| `update.*.user.carl.*` | **все** Updates, получатель carl |
+| `update.*.tnt_acme.user.carl.*` | **все** Updates, получатель carl в tnt_acme |
 | `update.user.user.carl.*` | UserUpdate + UserStatsUpdate для carl |
 | `update.pack.user.carl.*` | PackStatsUpdate + UserPackStatsUpdate для carl |
 
@@ -142,7 +142,7 @@ update.{category}.{userType}.{userId}.{updateType}
 
 | Кто подписывается | `{userId}` в ключе | Пример binding |
 |-------------------|-------------------|----------------|
-| Агент carl (свой inbox) | `carl` | `update.*.user.carl.*` |
+| Агент carl (свой inbox) | `carl` | `update.*.tnt_acme.user.carl.*` |
 | Монитор, строка для agent_1 | `agent_1` | `update.user.user.agent_1.*` |
 | Монитор, N агентов | N bindings с разным userId | по одному `update.user.user.{Aᵢ}.*` на агента |
 
@@ -150,7 +150,7 @@ update.{category}.{userType}.{userId}.{updateType}
 
 ### UI target ↔ routing (фильтрация на клиенте)
 
-Один binding `update.*.user.carl.*` покрывает несколько UI targets; клиент **раскладывает** по `eventType` / `updateType`:
+Один binding `update.*.tnt_acme.user.carl.*` покрывает несколько UI targets; клиент **раскладывает** по `eventType` / `updateType`:
 
 | UI target | Матчит ключи (пример для userId = carl) | updateType |
 |-----------|------------------------------------------|------------|
@@ -159,7 +159,7 @@ update.{category}.{userType}.{userId}.{updateType}
 | `users.list` | `update.user.user.carl.userstatsupdate`, `…userupdate` | stats, user |
 | per-pack (users.list) | `update.pack.user.carl.userpackstatsupdate` | user pack stats |
 
-Узкий binding (только `messageupdate`) — меньше шума на wire. Широкий (`update.*.user.carl.*`) — проще подключение, фильтр в приложении.
+Узкий binding (только `message`) — меньше шума на wire. Широкий (`update.*.{tenantId}.user.carl.*`) — проще подключение, фильтр в приложении.
 
 ---
 
@@ -170,7 +170,7 @@ update.{category}.{userType}.{userId}.{updateType}
 ```mermaid
 flowchart LR
   subgraph RMQ["exchange chat3_updates"]
-    RK["update.*.user.carl.*<br/>или узкие ключи по updateType"]
+    RK["update.*.tnt_acme.user.carl.*<br/>или узкие ключи по updateType"]
   end
 
   subgraph Client["Клиент userId = carl"]
@@ -275,7 +275,7 @@ sequenceDiagram
 
 `messageCount` пака меняется на **каждое** `message.create` в любом диалоге пака; fan-out `pack.stats.updated` всем членам пака — шум без выигрыша для inbox: клиент всё равно не перерисовывает sidebar по этому полю.
 
-**Когда push имел бы смысл:** отдельный экран admin/analytics с live-метриками по паку (controlo). Тогда — отдельная подписка, не часть агентского `update.*.{userId}.*`.
+**Когда push имел бы смысл:** отдельный экран admin/analytics с live-метриками по паку (controlo). Тогда — отдельная подписка, не часть агентского `update.*.{tenantId}.{userId}.*`.
 
 **Направление:** убрать `createPackStatsUpdate` из `publishCounterUpdates`; оставить пересчёт `PackStats` + GET. Клиенты на `update.pack.*` могут игнорировать `packstatsupdate` или перестать получать его после удаления.
 
@@ -335,7 +335,7 @@ Counter-worker публикует Updates со счётчиками (`UserStatsU
 | P2b | **`UserPackStatsUpdate` всем** пользователям пака | `users.list` | высокий | **R1** | slice × push, см. §8.6 |
 | P3 | **`UserStatsUpdate` — полный snapshot** | `users.list` | — | **канон** | не partial; integrator replace целиком, см. §10.1 |
 | P4 | **Unread в двух Updates** одного target | `dialogs.list` | средний | P1 | `DialogUpdate.dialog.stats` vs `DialogMemberUpdate` — один канал |
-| P5 | **Unread в `dialogs.list` + `users.list`** | оба | низкий* | P2 | *разные экраны; шум при `update.*.{userId}.*` — фильтр на клиенте |
+| P5 | **Unread в `dialogs.list` + `users.list`** | оба | низкий* | P2 | *разные экраны; шум при `update.*.{tenantId}.{userId}.*` — фильтр на клиенте |
 | P6 | **`UserStatsUpdate` + `UserPackStatsUpdate`** на одно событие | `users.list` | средний | P1 | монитору с `packs.messages.*` часто не нужен per-pack |
 | P7 | **`pack.dialog.add/remove`** — push для всех членов диалога | оба | высокий | P1 | slice уже знает members; не fan-out лишним |
 | P8 | **`category=pack`** смешивает `packstatsupdate` и `userpackstatsupdate` | routing | низкий | P2 | после P0 останется `userpackstatsupdate` |
@@ -523,7 +523,7 @@ function onUpdate(u) {
 }
 ```
 
-Подписка RabbitMQ может остаться `update.*.user.{userId}.*`; **маршрутизация внутри приложения** — по `uiTarget`. Позже (breaking v2) можно вынести target в routing: `update.{uiTarget}.{userType}.{userId}.{updateType}`.
+Подписка RabbitMQ может остаться `update.*.{tenantId}.user.{userId}.*`; **маршрутизация внутри приложения** — по `uiTarget`. Позже (breaking v2) можно вынести target в routing: `update.{uiTarget}.{tenantId}.{userType}.{userId}.{updateType}`.
 
 ### 9.4. Рекомендуемая стратегия
 

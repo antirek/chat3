@@ -154,7 +154,7 @@ typing → status → reaction → soft-delete → sendMessage → mark-all-read
 
 1. **Update 0.0.77+** — `event_id`, `source_event_type`, `update_type` (не legacy `event_type`).
 2. **Message** — soft-delete, `status_message_matrix`, `edited*` по наличию в REST.
-3. Binding стрима: `update.*.{userType}.{userId}.*`.
+3. Binding стрима: `update.*.{tenantId}.{userType}.{userId}.*`.
 4. Connection frame: `source_event_type = "connection.established"`, `conn_id` в `data`.
 5. Новые RPC: `SetMessageDeleted`, `MarkDialogAllRead` — зеркало актуальных REST.
 6. Убрать зависимость от `x-user-id` в metadata (как было на `origin/grpc`); везде явный `user_id` в proto request. `SendMessage`: предпочесть одно поле `user_id` вместо пары metadata+`sender_id`.

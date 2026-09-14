@@ -22,8 +22,8 @@ function generateConnectionId(): string {
   return result;
 }
 
-function formatUserQueueName(userId: string, connId: string): string {
-  return `user_${userId}_conn_${connId}_updates`;
+function formatUserQueueName(tenantId: string, userId: string, connId: string): string {
+  return `user_${tenantId}_${userId}_conn_${connId}_updates`;
 }
 
 export class RabbitMQClient {
@@ -56,6 +56,7 @@ export class RabbitMQClient {
   }
 
   async subscribeToUserUpdates(
+    tenantId: string,
     userId: string,
     userType: string,
     onMessage: (update: any) => void
@@ -63,10 +64,14 @@ export class RabbitMQClient {
     if (!this.channel) {
       throw new Error('RabbitMQ not connected');
     }
+    if (!tenantId) {
+      throw new Error('tenantId is required for updates subscription');
+    }
 
     const connId = generateConnectionId();
-    const queueName = formatUserQueueName(userId, connId);
-    const routingKey = `update.*.${userType}.${userId}.*`;
+    const queueName = formatUserQueueName(tenantId, userId, connId);
+    // Matches publish: update.{category}.{tenantId}.{userType}.{userId}.{segment}
+    const routingKey = `update.*.${tenantId}.${userType}.${userId}.*`;
 
     await this.channel.assertQueue(queueName, {
       exclusive: true,
@@ -81,6 +86,11 @@ export class RabbitMQClient {
       if (!msg) return;
       try {
         const update = JSON.parse(msg.content.toString());
+        // Defense-in-depth: drop cross-tenant deliveries
+        if (update?.tenantId && update.tenantId !== tenantId) {
+          this.channel!.ack(msg);
+          return;
+        }
         onMessage(update);
         this.channel!.ack(msg);
       } catch (error) {

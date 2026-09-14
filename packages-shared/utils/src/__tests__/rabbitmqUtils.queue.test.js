@@ -81,46 +81,55 @@ describe('rabbitmqUtils - Queue Tests', () => {
   });
 
   describe('ensureUserUpdatesQueue', () => {
+    const tenantId = 'tnt_test';
+
     test('should create user updates queue with default type (usr)', async () => {
       await rabbitmqUtils.initRabbitMQ();
 
-      const userId = `user_${Date.now()}`; // Уникальное имя
-      const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(userId);
+      const userId = `user_${Date.now()}`;
+      const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(tenantId, userId);
 
-      expect(queueName).toBe(`user_${userId}_updates`);
+      expect(queueName).toBe(`user_${tenantId}_${userId}_updates`);
     });
 
     test('should create user updates queue with usr prefix', async () => {
       await rabbitmqUtils.initRabbitMQ();
 
       const userId = `usr_${Date.now()}`;
-      const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(userId);
+      const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(tenantId, userId);
 
-      expect(queueName).toBe(`user_${userId}_updates`);
+      expect(queueName).toBe(`user_${tenantId}_${userId}_updates`);
     });
 
     test('should create user updates queue with cnt prefix', async () => {
       await rabbitmqUtils.initRabbitMQ();
 
       const userId = `cnt_${Date.now()}`;
-      const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(userId);
+      const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(tenantId, userId);
 
-      expect(queueName).toBe(`user_${userId}_updates`);
+      expect(queueName).toBe(`user_${tenantId}_${userId}_updates`);
     });
 
     test('should create user updates queue with bot prefix', async () => {
       await rabbitmqUtils.initRabbitMQ();
 
       const userId = `bot_${Date.now()}`;
-      const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(userId);
+      const queueName = await rabbitmqUtils.ensureUserUpdatesQueue(tenantId, userId);
 
-      expect(queueName).toBe(`user_${userId}_updates`);
+      expect(queueName).toBe(`user_${tenantId}_${userId}_updates`);
     });
 
     test('should throw error if not connected', async () => {
       await expect(
-        rabbitmqUtils.ensureUserUpdatesQueue(`user_${Date.now()}`)
+        rabbitmqUtils.ensureUserUpdatesQueue(tenantId, `user_${Date.now()}`)
       ).rejects.toThrow('RabbitMQ is not connected');
+    });
+
+    test('should throw error if tenantId missing', async () => {
+      await rabbitmqUtils.initRabbitMQ();
+      await expect(
+        rabbitmqUtils.ensureUserUpdatesQueue('', `user_${Date.now()}`)
+      ).rejects.toThrow('tenantId is required');
     });
   });
 });

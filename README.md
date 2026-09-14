@@ -474,14 +474,14 @@ import amqp from 'amqplib';
 const connection = await amqp.connect('amqp://rmuser:rmpassword@localhost:5672/');
 const channel = await connection.createChannel();
 
-const queueName = `user_carl_updates`;
+const queueName = `user_tnt_acme_carl_updates`;
 await channel.assertQueue(queueName, {
   durable: true,
   arguments: { 'x-message-ttl': 3600000 } // 1 час TTL
 });
 
-// Подписка на все обновления пользователя carl
-await channel.bindQueue(queueName, 'chat3_updates', 'update.*.user.carl.*');
+// Подписка на все обновления carl в tnt_acme
+await channel.bindQueue(queueName, 'chat3_updates', 'update.*.tnt_acme.user.carl.*');
 
 channel.consume(queueName, (msg) => {
   const update = JSON.parse(msg.content.toString());

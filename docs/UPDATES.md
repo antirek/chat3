@@ -333,19 +333,22 @@ Push **`user.pack.stats.updated`** и **`pack.stats.updated`** отключен�
 
 ### Routing Keys
 
-Формат: `update.{category}.{userType}.{userId}.{updateType}`
+Формат: `update.{category}.{tenantId}.{userType}.{userId}.{updateType}`
+
+Ось изоляции та же, что у User в MongoDB: **`(tenantId, userId)`**.
 
 **Компоненты:**
 - `category` - категория обновления: `dialog` (DialogUpdate, …), `user` (UserUpdate, UserStatsUpdate)
+- `tenantId` - тенант получателя
 - `userType` - тип пользователя из модели User (user, bot, contact и т.д.)
-- `userId` - ID пользователя-получателя
+- `userId` - ID пользователя-получателя **в рамках tenant**
 - `updateType` - тип обновления в нижнем регистре: `dialogupdate`, `dialogmemberupdate`, `messageupdate`, `typingupdate`, `userupdate`, `userstatsupdate`
 
 **Примеры:**
-- `update.dialog.user.carl.dialogupdate` - обновление диалога для пользователя carl типа user
-- `update.dialog.user.carl.messageupdate` - обновление сообщения для пользователя carl
-- `update.dialog.bot.bot_123.messageupdate` - обновление сообщения для бота bot_123
-- `update.user.user.carl.userstatsupdate` - обновление статистики для пользователя carl
+- `update.dialog.tnt_acme.user.carl.dialogupdate` - обновление диалога для carl в tnt_acme
+- `update.dialog.tnt_acme.user.carl.messageupdate` - обновление сообщения для carl
+- `update.dialog.tnt_acme.bot.bot_123.messageupdate` - для бота bot_123
+- `update.user.tnt_acme.user.carl.userstatsupdate` - статистика для carl
 
 **Примечание:** Если пользователь не найден в модели User, используется тип `user` по умолчанию.
 
@@ -354,10 +357,11 @@ Push **`user.pack.stats.updated`** и **`pack.stats.updated`** отключен�
 #### Подписка для конкретного пользователя
 
 ```javascript
+const tenantId = 'tnt_acme';
 const userId = 'carl';
 const userType = 'user'; // Получается из модели User
 
-const queueName = `user_${userId}_updates`;
+const queueName = `user_${tenantId}_${userId}_updates`;
 await channel.assertQueue(queueName, {
   durable: true,
   arguments: {
@@ -365,29 +369,33 @@ await channel.assertQueue(queueName, {
   }
 });
 
-// Подписка на все обновления пользователя
-// Формат: update.{category}.{userType}.{userId}.*
-await channel.bindQueue(queueName, 'chat3_updates', `update.*.${userType}.${userId}.*`);
+// Подписка на все обновления пользователя в tenant
+// Формат: update.{category}.{tenantId}.{userType}.{userId}.*
+await channel.bindQueue(queueName, 'chat3_updates', `update.*.${tenantId}.${userType}.${userId}.*`);
 ```
 
-#### Подписка для всех пользователей определенного типа
+#### Подписка на весь tenant (firehose)
 
 ```javascript
-// Все обновления для пользователей типа bot
-await channel.bindQueue(queueName, 'chat3_updates', 'update.*.bot.*.*');
-
-// Все обновления диалогов для пользователей типа user
-await channel.bindQueue(queueName, 'chat3_updates', 'update.dialog.user.*.*');
-
-// Все обновления статистики для всех пользователей
-await channel.bindQueue(queueName, 'chat3_updates', 'update.user.*.*.userstatsupdate');
+// Все updates всех пользователей tenant
+await channel.bindQueue(queueName, 'chat3_updates', `update.*.${tenantId}.*.*.*`);
 ```
 
-#### Подписка на все обновления
+#### Подписка для всех пользователей определенного типа (в tenant)
 
 ```javascript
-// Все обновления для всех пользователей
-await channel.bindQueue(queueName, 'chat3_updates', 'update.*.*.*.*');
+// Все обновления для bot в tenant
+await channel.bindQueue(queueName, 'chat3_updates', `update.*.${tenantId}.bot.*.*`);
+
+// Все обновления диалогов для user в tenant
+await channel.bindQueue(queueName, 'chat3_updates', `update.dialog.${tenantId}.user.*.*`);
+```
+
+#### Подписка на все обновления (осторожно)
+
+```javascript
+// Все updates всех tenant — только для супер-ключей / отладки
+await channel.bindQueue(queueName, 'chat3_updates', 'update.*.*.*.*.*');
 ```
 
 ## Создание Updates
@@ -415,17 +423,18 @@ import amqp from 'amqplib';
 const connection = await amqp.connect('amqp://localhost:5672');
 const channel = await connection.createChannel();
 
+const tenantId = 'tnt_acme';
 const userId = 'carl';
 const userType = 'user'; // Получается из модели User
 
-const queueName = `user_${userId}_updates`;
+const queueName = `user_${tenantId}_${userId}_updates`;
 await channel.assertQueue(queueName, {
   durable: true,
   arguments: { 'x-message-ttl': 3600000 }
 });
 
-// Подписка на все обновления пользователя
-await channel.bindQueue(queueName, 'chat3_updates', `update.*.${userType}.${userId}.*`);
+// Подписка на все обновления пользователя в tenant
+await channel.bindQueue(queueName, 'chat3_updates', `update.*.${tenantId}.${userType}.${userId}.*`);
 
 channel.consume(queueName, (msg) => {
   if (msg) {
@@ -596,12 +605,13 @@ function handleUserStatsUpdate(data) {
 | Параметр | Значение |
 |----------|----------|
 | Exchange | `chat3_updates` (type: topic) |
-| Формат routing key | `update.{category}.{userType}.{userId}.{updateType}` |
+| Формат routing key | `update.{category}.{tenantId}.{userType}.{userId}.{updateType}` |
 | category | `dialog` (DialogUpdate, …), `user` (UserUpdate, UserStatsUpdate) |
-| updateType | `dialogupdate`, `dialogmemberupdate`, `messageupdate`, `typingupdate`, `userupdate`, `userstatsupdate` |
-| Подписка (все обновления пользователя) | `update.*.{userType}.{userId}.*` (например `update.*.user.carl.*`) |
+| Ось изоляции | `(tenantId, userId)` — как у User в MongoDB |
+| Подписка (все обновления пользователя) | `update.*.{tenantId}.{userType}.{userId}.*` (например `update.*.tnt_acme.user.carl.*`) |
+| Подписка (firehose tenant) | `update.*.{tenantId}.*.*.*` |
 
 **Типы Updates (кратко):** DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate, UserUpdate, UserStatsUpdate. Per-pack unread — GET, не push (PR2).
 
-**Рекомендация:** Подписывайтесь на Updates по `userId` (и при необходимости `userType`), создавайте отдельную очередь на пользователя или сервис, обрабатывайте payload по `eventType` и типу update — примеры в [INTEGRATION.md](INTEGRATION.md).
+**Рекомендация:** Подписывайтесь на Updates по `(tenantId, userId)` (и при необходимости `userType`), создавайте отдельную очередь на пользователя или сервис, обрабатывайте payload по `eventType` и типу update — примеры в [INTEGRATION.md](INTEGRATION.md).
 

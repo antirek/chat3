@@ -378,14 +378,14 @@ flowchart TB
 
 2. **chat3_updates** (topic)
    - Персонализированные обновления для пользователей (публикует Update Worker).
-   - **Routing key**: `update.{category}.{userType}.{userId}.{updateType}`  
-     Примеры: `update.dialog.user.carl.dialogupdate`, `update.user.user.carl.userstatsupdate`.
+   - **Routing key**: `update.{category}.{tenantId}.{userType}.{userId}.{updateType}`  
+     Примеры: `update.dialog.tnt_acme.user.carl.dialog`, `update.user.tnt_acme.user.carl.user`.
    - **Категории**: `dialog` (DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate), `user` (UserUpdate, UserStatsUpdate).
 
 ### Очереди
 
 - **update_worker_queue** — подписка на `chat3_events` с binding key `#` (все события).
-- **user_{userId}_updates** — персональные очереди (binding по `userType`, `userId`), TTL по конфигурации (например, 1 час).
+- **user_{tenantId}_{userId}_updates** — персональные очереди (binding по `tenantId`, `userType`, `userId`), TTL по конфигурации (например, 1 час).
 
 ## Мультитенантность
 

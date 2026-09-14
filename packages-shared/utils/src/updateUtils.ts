@@ -1190,10 +1190,23 @@ async function publishUpdate(update: IUpdate | mongoose.Document): Promise<void>
       return;
     }
 
-    const userType = await getUserType(sanitizedUpdate.tenantId as string, sanitizedUpdate.userId as string);
+    const tenantId = String(sanitizedUpdate.tenantId || '').trim();
+    if (!tenantId) {
+      console.error(`Cannot publish update without tenantId: ${updateId}`);
+      return;
+    }
+    const userId = String(sanitizedUpdate.userId || '').trim();
+    if (!userId) {
+      console.error(`Cannot publish update without userId: ${updateId}`);
+      return;
+    }
+
+    const userType = await getUserType(tenantId, userId);
     const category = resolveUpdateCategory(updateType);
     const routingSegment = resolveUpdateRoutingSegment(updateType);
-    const routingKey = `update.${category}.${userType}.${sanitizedUpdate.userId}.${routingSegment}`;
+    // Same uniqueness axis as User model: (tenantId, userId)
+    // Format: update.{category}.{tenantId}.{userType}.{userId}.{updateType}
+    const routingKey = `update.${category}.${tenantId}.${userType}.${userId}.${routingSegment}`;
     
     // Получаем имя exchange из rabbitmqUtils (читает из process.env.RABBITMQ_UPDATES_EXCHANGE)
     const rabbitMQInfo = rabbitmqUtils.getRabbitMQInfo();

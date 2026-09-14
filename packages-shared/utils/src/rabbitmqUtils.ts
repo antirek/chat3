@@ -491,19 +491,23 @@ export function getRabbitMQInfo(): {
 }
 
 /**
- * Создает или получает очередь для пользователя user_{userId}_updates
- * @param userId - ID пользователя
- * @param tenantId - ID тенанта (опционально, для получения типа из User модели)
+ * Создает или получает очередь user_{tenantId}_{userId}_updates
+ * Binding совпадает с publish: update.*.{tenantId}.{userType}.{userId}.*
  */
-export async function ensureUserUpdatesQueue(userId: string, tenantId: string | null = null): Promise<string> {
+export async function ensureUserUpdatesQueue(tenantId: string, userId: string): Promise<string> {
   if (!isConnected || !channel) {
     throw new Error('RabbitMQ is not connected');
   }
+  if (!tenantId) {
+    throw new Error('tenantId is required for user updates queue');
+  }
+  if (!userId) {
+    throw new Error('userId is required for user updates queue');
+  }
 
-  const queueName = `user_${userId}_updates`;
+  const queueName = `user_${tenantId}_${userId}_updates`;
 
   try {
-    // Создаем очередь с TTL 1 час
     await channel.assertQueue(queueName, {
       durable: true,
       arguments: {
@@ -511,18 +515,16 @@ export async function ensureUserUpdatesQueue(userId: string, tenantId: string | 
       }
     });
 
-    // Получаем тип пользователя из модели User
-    let userType = 'user'; // Дефолтное значение
-    if (tenantId) {
-      userType = await getUserType(tenantId, userId);
-    }
-    
-    // Привязываем очередь к exchange updates с routing key user.{type}.{userId}.*
-    await channel.bindQueue(queueName, UPDATES_EXCHANGE_NAME, `user.${userType}.${userId}.*`);
+    const userType = await getUserType(tenantId, userId);
 
+    await channel.bindQueue(
+      queueName,
+      UPDATES_EXCHANGE_NAME,
+      `update.*.${tenantId}.${userType}.${userId}.*`
+    );
     return queueName;
   } catch (error) {
-    console.error(`Error creating user updates queue for ${userId}:`, error);
+    console.error(`Error creating user updates queue for ${tenantId}/${userId}:`, error);
     throw error;
   }
 }
