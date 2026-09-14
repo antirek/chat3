@@ -19,12 +19,16 @@ import { getDialogMessagesHandler } from './handlers/getDialogMessages.js';
 import { sendMessageHandler } from './handlers/sendMessage.js';
 import { markDialogAllReadHandler } from './handlers/markDialogAllRead.js';
 import { subscribeUpdatesHandler } from './handlers/subscribeUpdates.js';
+import { subscribeTenantUpdatesHandler } from './handlers/subscribeTenantUpdates.js';
 import { upsertUserHandler } from './handlers/upsertUser.js';
 import { getUserHandler } from './handlers/getUser.js';
 import { createDialogHandler } from './handlers/createDialog.js';
 import { findDialogByMetaHandler } from './handlers/findDialogByMeta.js';
 import { addDialogMembersHandler } from './handlers/addDialogMembers.js';
 import { removeDialogMemberHandler } from './handlers/removeDialogMember.js';
+import { getDialogHandler } from './handlers/getDialog.js';
+import { listDialogMembersHandler } from './handlers/listDialogMembers.js';
+import { updateDialogMetaHandler } from './handlers/updateDialogMeta.js';
 import { RabbitMQClient } from './services/rabbitmqClient.js';
 import { toGrpcServiceError } from './utils/errorMapper.js';
 
@@ -77,10 +81,18 @@ server.addService(chat3UserService.service, {
   FindDialogByMeta: wrapUnary('read', findDialogByMetaHandler),
   AddDialogMembers: wrapUnary('write', addDialogMembersHandler),
   RemoveDialogMember: wrapUnary('write', removeDialogMemberHandler),
+  GetDialog: wrapUnary('read', getDialogHandler),
+  ListDialogMembers: wrapUnary('read', listDialogMembersHandler),
+  UpdateDialogMeta: wrapUnary('write', updateDialogMetaHandler),
   SubscribeUpdates: (call: grpc.ServerWritableStream<any, any>) => {
     authenticateCall(call.metadata, 'read')
       .then((auth) => subscribeUpdatesHandler(call, auth, rabbitmqClient))
       .catch((error) => call.destroy(toGrpcServiceError(error)));
+  },
+  SubscribeTenantUpdates: (call: grpc.ServerWritableStream<any, any>) => {
+    subscribeTenantUpdatesHandler(call, rabbitmqClient).catch((error) =>
+      call.destroy(toGrpcServiceError(error))
+    );
   }
 });
 

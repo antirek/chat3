@@ -260,12 +260,61 @@ export class Chat3GrpcClient {
     });
   }
 
+  async getDialog(options: {
+    dialogId: string;
+    userId?: string;
+  }): Promise<any> {
+    return this.unary('GetDialog', {
+      dialog_id: options.dialogId,
+      user_id: options.userId || ''
+    });
+  }
+
+  async listDialogMembers(options: {
+    dialogId: string;
+    page?: number;
+    limit?: number;
+  }): Promise<any> {
+    return this.unary('ListDialogMembers', {
+      dialog_id: options.dialogId,
+      page: options.page || 1,
+      limit: options.limit || 50
+    });
+  }
+
+  async updateDialogMeta(options: {
+    userId: string;
+    dialogId: string;
+    meta: Record<string, any>;
+  }): Promise<any> {
+    return this.unary('UpdateDialogMeta', {
+      user_id: options.userId,
+      dialog_id: options.dialogId,
+      meta: options.meta
+    });
+  }
+
   /**
    * Server-streaming SubscribeUpdates. One stream = one userId.
    * Yields connection.established first, then Updates from chat3_updates.
    */
   subscribeUpdates(userId: string): AsyncIterable<any> {
-    const call = this.client.SubscribeUpdates({ user_id: userId }, this.metadata);
+    return this.streamCall(this.client.SubscribeUpdates({ user_id: userId }, this.metadata));
+  }
+
+  /**
+   * Firehose: tenant_ids empty = all tenants; otherwise listed tenants.
+   */
+  subscribeTenantUpdates(tenantIds: string[] = []): AsyncIterable<any> {
+    // Metadata may omit tenant for scope; key still required.
+    const meta = new grpc.Metadata();
+    meta.add('x-api-key', this.metadata.get('x-api-key')[0] as string);
+    return this.streamCall(
+      this.client.SubscribeTenantUpdates({ tenant_ids: tenantIds }, meta)
+    );
+  }
+
+  private streamCall(call: any): AsyncIterable<any> {
     const queue: any[] = [];
     let done = false;
     let error: Error | null = null;

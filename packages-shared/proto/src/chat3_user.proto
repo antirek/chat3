@@ -6,9 +6,12 @@ import "google/protobuf/struct.proto";
 
 // Chat3UserService — интеграторский User gRPC API.
 //
-// Auth (gRPC metadata на каждый вызов):
-//   - x-api-key: API key тенанта
-//   - x-tenant-id: идентификатор тенанта
+// Auth (gRPC metadata):
+//   - x-api-key: секрет интегратора (единственный credential)
+//
+// Tenant scope (не часть auth):
+//   - x-tenant-id: в каком tenant выполнять RPC (данные изолированы по tenant).
+//     Валидный ключ может работать с любым существующим tenant (allowlist нет).
 //
 // Контекст пользователя — поле user_id в теле RPC (не JWT).
 // Meta на сущностях — opaque google.protobuf.Struct (продуктовые конвенции
@@ -29,7 +32,13 @@ service Chat3UserService {
 
   // Server-streaming подписка на персональные updates пользователя
   // (новые сообщения, статусы, typing и т.д. через chat3_updates).
+  // Scope: один (tenant из x-tenant-id, user_id).
   rpc SubscribeUpdates(SubscribeUpdatesRequest) returns (stream Update);
+
+  // Server-streaming firehose Updates по tenant(ам) или всем tenant.
+  // tenant_ids пустой → wildcard (все tenant). Иначе — bind per tenant.
+  // Auth: только x-api-key (x-tenant-id не задаёт scope этого stream).
+  rpc SubscribeTenantUpdates(SubscribeTenantUpdatesRequest) returns (stream Update);
 
   // Выставить статус сообщения для user_id (например read / delivered).
   rpc SetMessageStatus(SetMessageStatusRequest) returns (SetMessageStatusResponse);
@@ -70,6 +79,17 @@ service Chat3UserService {
 
   // Удалить участника из dialog. Нельзя удалить последнего member.
   rpc RemoveDialogMember(RemoveDialogMemberRequest) returns (RemoveDialogMemberResponse);
+
+  // Получить dialog по id (+ meta, member_user_ids).
+  // Если передан user_id — только при членстве этого user.
+  rpc GetDialog(GetDialogRequest) returns (GetDialogResponse);
+
+  // Список участников dialog (user_id), с пагинацией.
+  rpc ListDialogMembers(ListDialogMembersRequest) returns (ListDialogMembersResponse);
+
+  // Merge meta dialog (opaque keys). Типично: смена title группы.
+  // Эмитит dialog.changed.
+  rpc UpdateDialogMeta(UpdateDialogMetaRequest) returns (UpdateDialogMetaResponse);
 }
 
 message GetUserDialogsRequest {
@@ -132,7 +152,12 @@ message SubscribeUpdatesRequest {
   string user_id = 1;
 }
 
-// Персональное update-событие из потока SubscribeUpdates.
+message SubscribeTenantUpdatesRequest {
+  // Список tenant для firehose. Пустой = все tenant (wildcard bind).
+  repeated string tenant_ids = 1;
+}
+
+// Персональное update-событие из потока SubscribeUpdates / SubscribeTenantUpdates.
 message Update {
   string update_id = 1;
   string tenant_id = 2;
@@ -390,5 +415,41 @@ message RemoveDialogMemberRequest {
 }
 
 message RemoveDialogMemberResponse {
+  DialogInfo dialog = 1;
+}
+
+message GetDialogRequest {
+  string dialog_id = 1;
+  // Опционально: если задан — dialog вернётся только если user member.
+  string user_id = 2;
+}
+
+message GetDialogResponse {
+  DialogInfo dialog = 1;
+}
+
+message ListDialogMembersRequest {
+  string dialog_id = 1;
+  int32 page = 2;
+  int32 limit = 3;
+}
+
+message ListDialogMembersResponse {
+  repeated string member_user_ids = 1;
+  int32 page = 2;
+  int32 limit = 3;
+  int32 total = 4;
+  int32 total_pages = 5;
+}
+
+message UpdateDialogMetaRequest {
+  // Actor операции (для event).
+  string user_id = 1;
+  string dialog_id = 2;
+  // Ключи мержатся в существующую meta (replace per-key, не wipe всего объекта).
+  google.protobuf.Struct meta = 3;
+}
+
+message UpdateDialogMetaResponse {
   DialogInfo dialog = 1;
 }

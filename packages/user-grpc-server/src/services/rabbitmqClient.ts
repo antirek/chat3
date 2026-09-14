@@ -1,7 +1,12 @@
 /**
- * RabbitMQ client for SubscribeUpdates (per-connection queues).
+ * RabbitMQ client for SubscribeUpdates / SubscribeTenantUpdates.
  */
 import * as amqp from 'amqplib';
+import {
+  allUpdatesBindKey,
+  tenantUpdatesBindKey,
+  userUpdatesBindKey
+} from '../updateRoutingKeys.js';
 
 export interface RabbitMQClientOptions {
   url: string;
@@ -20,10 +25,6 @@ function generateConnectionId(): string {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
-}
-
-function formatUserQueueName(tenantId: string, userId: string, connId: string): string {
-  return `user_${tenantId}_${userId}_conn_${connId}_updates`;
 }
 
 export class RabbitMQClient {
@@ -61,17 +62,58 @@ export class RabbitMQClient {
     userType: string,
     onMessage: (update: any) => void
   ): Promise<{ subscription: Subscription; connId: string }> {
+    return this.subscribeWithBinds(
+      `user_${tenantId}_${userId}`,
+      [userUpdatesBindKey(tenantId, userType, userId)],
+      onMessage,
+      (update) => !update?.tenantId || update.tenantId === tenantId
+    );
+  }
+
+  /**
+   * Firehose: one or more tenants, or all (wildcard).
+   * Empty tenantIds → wildcard bind (all tenants).
+   */
+  async subscribeToTenantUpdates(
+    tenantIds: string[],
+    onMessage: (update: any) => void
+  ): Promise<{ subscription: Subscription; connId: string }> {
+    const ids = Array.from(
+      new Set(tenantIds.map((id) => String(id || '').trim()).filter(Boolean))
+    );
+    const binds =
+      ids.length === 0
+        ? [allUpdatesBindKey()]
+        : ids.map(tenantUpdatesBindKey);
+    const allow = ids.length === 0 ? null : new Set(ids);
+
+    return this.subscribeWithBinds(
+      ids.length === 0 ? 'all' : `tenants_${ids.sort().join('_')}`,
+      binds,
+      onMessage,
+      (update) => {
+        if (!allow) return true;
+        if (!update?.tenantId) return true;
+        return allow.has(update.tenantId);
+      }
+    );
+  }
+
+  private async subscribeWithBinds(
+    queuePrefix: string,
+    routingKeys: string[],
+    onMessage: (update: any) => void,
+    accept: (update: any) => boolean
+  ): Promise<{ subscription: Subscription; connId: string }> {
     if (!this.channel) {
       throw new Error('RabbitMQ not connected');
     }
-    if (!tenantId) {
-      throw new Error('tenantId is required for updates subscription');
+    if (!routingKeys.length) {
+      throw new Error('at least one routing key is required');
     }
 
     const connId = generateConnectionId();
-    const queueName = formatUserQueueName(tenantId, userId, connId);
-    // Matches publish: update.{category}.{tenantId}.{userType}.{userId}.{segment}
-    const routingKey = `update.*.${tenantId}.${userType}.${userId}.*`;
+    const queueName = `${queuePrefix}_conn_${connId}_updates`;
 
     await this.channel.assertQueue(queueName, {
       exclusive: true,
@@ -80,14 +122,16 @@ export class RabbitMQClient {
         'x-message-ttl': 3600000
       }
     });
-    await this.channel.bindQueue(queueName, this.exchange, routingKey);
+
+    for (const routingKey of routingKeys) {
+      await this.channel.bindQueue(queueName, this.exchange, routingKey);
+    }
 
     const consumeResult = await this.channel.consume(queueName, (msg: amqp.ConsumeMessage | null) => {
       if (!msg) return;
       try {
         const update = JSON.parse(msg.content.toString());
-        // Defense-in-depth: drop cross-tenant deliveries
-        if (update?.tenantId && update.tenantId !== tenantId) {
+        if (!accept(update)) {
           this.channel!.ack(msg);
           return;
         }
@@ -99,7 +143,9 @@ export class RabbitMQClient {
       }
     });
 
-    console.log(`[user-grpc-server][RabbitMQ] Subscribed ${queueName} (${routingKey})`);
+    console.log(
+      `[user-grpc-server][RabbitMQ] Subscribed ${queueName} (${routingKeys.join(', ')})`
+    );
 
     return {
       connId,
@@ -117,3 +163,5 @@ export class RabbitMQClient {
     };
   }
 }
+
+export type { WatchScope } from '../updateRoutingKeys.js';

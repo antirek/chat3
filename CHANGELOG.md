@@ -7,6 +7,17 @@
 
 ## [Unreleased]
 
+### Добавлено (dialog read/meta gRPC)
+
+- app-services / proto / user-grpc-server / client: `GetDialog`, `ListDialogMembers`, `UpdateDialogMeta`
+- Proto auth comment: credential = `x-api-key`; `x-tenant-id` = scope (без allowlist)
+
+### Добавлено (SubscribeTenantUpdates / watch scopes)
+
+- `SubscribeTenantUpdates(tenant_ids[])` — firehose; пустой список = wildcard all tenants
+- AMQP binds: personal / per-tenant / `update.*.*.*.*.*`
+- Docs: corp-chat `WATCH_UPDATES.md` (BFF watch/unwatch=cancel + refcount)
+
 ### Изменено (AMQP updates: tenant в routing key)
 
 - Routing key: `update.{category}.{tenantId}.{userType}.{userId}.{segment}` (ось = `(tenantId, userId)`)

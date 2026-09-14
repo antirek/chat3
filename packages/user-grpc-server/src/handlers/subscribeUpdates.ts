@@ -4,20 +4,7 @@ import { AppServiceError } from '@chat3/app-services';
 import type { AuthenticatedContext } from '@chat3/app-services';
 import type { RabbitMQClient, Subscription } from '../services/rabbitmqClient.js';
 import { toGrpcServiceError } from '../utils/errorMapper.js';
-
-function convertToGrpcUpdate(update: any): any {
-  return {
-    update_id: update._id?.toString() || update.update_id || update.updateId || '',
-    tenant_id: update.tenantId || update.tenant_id || '',
-    user_id: update.userId || update.user_id || '',
-    entity_id: update.entityId?.toString() || update.entity_id || '',
-    event_id: update.eventId || update.event_id || '',
-    source_event_type: update.sourceEventType || update.source_event_type || update.eventType || '',
-    update_type: update.updateType || update.update_type || '',
-    data: update.data || {},
-    created_at: update.createdAt || update.created_at || 0
-  };
-}
+import { convertToGrpcUpdate } from './updateConverters.js';
 
 export async function subscribeUpdatesHandler(
   call: grpc.ServerWritableStream<any, any>,
@@ -63,7 +50,7 @@ export async function subscribeUpdatesHandler(
       event_id: '',
       source_event_type: 'connection.established',
       update_type: '',
-      data: { conn_id: connId },
+      data: { conn_id: connId, scope: 'user' },
       created_at: Date.now()
     });
 

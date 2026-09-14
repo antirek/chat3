@@ -96,4 +96,19 @@ export type {
   RemoveDialogMemberResult
 } from './dialogs/removeDialogMember.js';
 
+export { getDialog } from './dialogs/getDialog.js';
+export type { GetDialogInput, GetDialogResult } from './dialogs/getDialog.js';
+
+export { listDialogMembers } from './dialogs/listDialogMembers.js';
+export type {
+  ListDialogMembersInput,
+  ListDialogMembersResult
+} from './dialogs/listDialogMembers.js';
+
+export { updateDialogMeta } from './dialogs/updateDialogMeta.js';
+export type {
+  UpdateDialogMetaInput,
+  UpdateDialogMetaResult
+} from './dialogs/updateDialogMeta.js';
+
 export { normalizeUserId } from './dialogs/dialogHelpers.js';
