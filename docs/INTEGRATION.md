@@ -82,9 +82,11 @@ Firehose tenant: `update.*.tnt_acme.*.*.*`.
 
 **Breaking:** в routing key добавлен `tenantId` после `category`. Старые bind вида `update.*.{userType}.{userId}.*` больше не получают сообщения.
 
+**Миграция AMQP (tenant в routing key):** [MIGRATION_UPDATES_TENANT_ROUTING.md](./MIGRATION_UPDATES_TENANT_ROUTING.md)
+
 **Также (0.0.77):** slug `messageupdate`, `userstatsupdate`, … заменены на `message`, `dialog`, `user`. Поле **`Update.eventType`** удалено → **`sourceEventType`** + **`updateType`**. Маршрутизация в UI — по **`data.context.uiTarget`**.
 
-**Миграция для внешних проектов:** [MIGRATION_UPDATES_0.0.77.md](./MIGRATION_UPDATES_0.0.77.md)
+**Миграция для внешних проектов (0.0.77):** [MIGRATION_UPDATES_0.0.77.md](./MIGRATION_UPDATES_0.0.77.md)
 
 ### Устаревший формат (до 0.0.77)
 

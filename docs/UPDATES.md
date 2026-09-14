@@ -613,5 +613,5 @@ function handleUserStatsUpdate(data) {
 
 **Типы Updates (кратко):** DialogUpdate, DialogMemberUpdate, MessageUpdate, TypingUpdate, UserUpdate, UserStatsUpdate. Per-pack unread — GET, не push (PR2).
 
-**Рекомендация:** Подписывайтесь на Updates по `(tenantId, userId)` (и при необходимости `userType`), создавайте отдельную очередь на пользователя или сервис, обрабатывайте payload по `eventType` и типу update — примеры в [INTEGRATION.md](INTEGRATION.md).
+**Рекомендация:** Подписывайтесь на Updates по `(tenantId, userId)` (и при необходимости `userType`), создавайте отдельную очередь на пользователя или сервис, обрабатывайте payload по `eventType` и типу update — примеры в [INTEGRATION.md](INTEGRATION.md). Миграция bind после появления `tenantId` в ключе: [MIGRATION_UPDATES_TENANT_ROUTING.md](./MIGRATION_UPDATES_TENANT_ROUTING.md).
 

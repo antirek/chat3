@@ -12,7 +12,7 @@
 - Routing key: `update.{category}.{tenantId}.{userType}.{userId}.{segment}` (ось = `(tenantId, userId)`)
 - SubscribeUpdates / `ensureUserUpdatesQueue`: bind `update.*.{tenantId}.{userType}.{userId}.*`
 - Defense-in-depth: drop messages с чужим `tenantId` на consume
-- **Breaking** для внешних AMQP-подписчиков со старым bind без `tenantId`
+- **Breaking** для внешних AMQP-подписчиков со старым bind без `tenantId` — [MIGRATION_UPDATES_TENANT_ROUTING.md](./docs/MIGRATION_UPDATES_TENANT_ROUTING.md)
 
 ### Добавлено (gRPC provisioning для local-chat)
 
