@@ -7,6 +7,13 @@
 
 ## [Unreleased]
 
+### Улучшено (Users/Dialogs/Members gRPC parity)
+
+- Membership gate: actor must be member for `AddDialogMembers` / `RemoveDialogMember` / `UpdateDialogMeta`
+- `GetDialog`: при `user_id` — `member` (unread/activity/joined_at) + `stats` (member/message/topic counts)
+- `GetUserDialogs`: `tenant_id`, `created_at`, `members_count`, `stats`, `joined_at`
+- `ListDialogMembers`: опциональный `user_id` gate + `members[]` с `joined_at`
+
 ### Добавлено (WatchUpdates multiplex)
 
 - Proto / user-grpc-server / client-ts: bidi `WatchUpdates` — динамический bind/unbind personal updates на одной AMQP queue

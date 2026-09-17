@@ -1075,7 +1075,7 @@ if (dialogIds !== null && filter) {
 const dialogsData = await Dialog.find({
   dialogId: { $in: uniqueDialogIds },
   tenantId: tenantId
-}).select('dialogId name createdAt _id').lean();
+}).select('dialogId tenantId name createdAt _id').lean();
 
 // Создаем Map для быстрого поиска
 const dialogsMap = new Map(dialogsData.map(d => [d.dialogId, d]));
@@ -1111,7 +1111,7 @@ if (memberDialogIds.length > 0) {
 }
 
 // Format response data
-type DialogRow = { dialogId: string; _id: unknown };
+type DialogRow = { dialogId: string; tenantId?: string; createdAt?: number; _id: unknown };
 const dialogs = dialogMembers
   .map(member => {
     const dialog = dialogsMap.get(member.dialogId) as DialogRow | undefined;
@@ -1125,6 +1125,8 @@ const dialogs = dialogMembers
     
     return {
       dialogId: dialog.dialogId,
+      tenantId: dialog.tenantId || tenantId,
+      createdAt: dialog.createdAt || 0,
       dialogObjectId: dialog._id, // Сохраняем ObjectId для поиска сообщений
       // Context - данные текущего пользователя в этом диалоге
       context: {

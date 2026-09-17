@@ -2,6 +2,7 @@ import { Dialog } from '@chat3/models';
 import { AppServiceError } from '../errors/AppServiceError.js';
 import {
   addMemberWithEvent,
+  assertActorIsMember,
   loadDialogResult,
   normalizeUserId
 } from './dialogHelpers.js';
@@ -46,6 +47,8 @@ export async function addDialogMembers(
   if (!dialog) {
     throw new AppServiceError('NOT_FOUND', 'Dialog not found');
   }
+
+  await assertActorIsMember(tenantId, dialogId, actorId);
 
   const addedUserIds: string[] = [];
   for (const memberUserId of memberUserIds) {

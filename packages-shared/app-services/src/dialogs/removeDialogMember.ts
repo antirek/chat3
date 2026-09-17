@@ -1,6 +1,7 @@
 import { Dialog, DialogMember } from '@chat3/models';
 import { AppServiceError } from '../errors/AppServiceError.js';
 import {
+  assertActorIsMember,
   loadDialogResult,
   normalizeUserId,
   removeMemberWithEvent
@@ -43,6 +44,8 @@ export async function removeDialogMemberService(
   if (!dialog) {
     throw new AppServiceError('NOT_FOUND', 'Dialog not found');
   }
+
+  await assertActorIsMember(tenantId, dialogId, actorId);
 
   const memberCount = await DialogMember.countDocuments({ tenantId, dialogId });
   if (memberCount <= 1) {

@@ -61,6 +61,98 @@ export function toGrpcDialogInfo(dialog: any): any {
   };
 }
 
+export function toGrpcDialogMember(member: any): any {
+  if (!member) return undefined;
+  const state = member.state || {};
+  return {
+    user_id: member.userId || member.user_id || '',
+    meta: structFromObject(member.meta),
+    state: {
+      unread_count: state.unreadCount ?? state.unread_count ?? 0,
+      last_seen_at: state.lastSeenAt ?? state.last_seen_at ?? 0,
+      last_message_at: state.lastMessageAt ?? state.last_message_at ?? 0,
+      is_active: state.isActive ?? state.is_active ?? true,
+      joined_at: state.joinedAt ?? state.joined_at ?? 0
+    }
+  };
+}
+
+export function toGrpcDialogStatsLite(stats: any): any {
+  if (!stats) return undefined;
+  return {
+    member_count: stats.memberCount ?? stats.member_count ?? 0,
+    message_count: stats.messageCount ?? stats.message_count ?? 0,
+    topic_count: stats.topicCount ?? stats.topic_count ?? 0
+  };
+}
+
+function mapLastMessage(msg: any): any | undefined {
+  if (!msg) return undefined;
+  return {
+    message_id: msg.messageId || '',
+    dialog_id: msg.dialogId || '',
+    sender_id: msg.senderId || '',
+    type: msg.type || '',
+    content: msg.content || '',
+    meta: {},
+    statuses: [],
+    reaction_set: {},
+    sender_info: msg.senderInfo
+      ? {
+          user_id: msg.senderInfo.userId || '',
+          name: msg.senderInfo.name || '',
+          created_at: msg.senderInfo.createdAt || 0,
+          meta: msg.senderInfo.meta || {}
+        }
+      : undefined,
+    created_at: msg.createdAt || 0,
+    topic_id: msg.topicId || '',
+    topic: {},
+    deleted: msg.deleted === true,
+    deleted_at: msg.deletedAt || 0,
+    deleted_by: msg.deletedBy || '',
+    status_message_matrix: {},
+    edited: false,
+    edited_at: 0,
+    edited_by: ''
+  };
+}
+
+/** Map listUserDialogs row → gRPC Dialog (GetUserDialogs). */
+export function toGrpcDialogFromListRow(dialog: any): any {
+  const context = dialog.context || {};
+  const stats = dialog.stats || {};
+  const membersCount =
+    dialog.membersCount ?? stats.memberCount ?? stats.member_count ?? 0;
+  return {
+    dialog_id: dialog.dialogId || '',
+    tenant_id: dialog.tenantId || '',
+    name: dialog.name || '',
+    created_by: dialog.createdBy || '',
+    created_at: dialog.createdAt || 0,
+    updated_at: dialog.updatedAt || 0,
+    meta: dialog.meta ? structFromObject(dialog.meta) : { fields: {} },
+    member: {
+      user_id: context.userId || '',
+      meta: {},
+      state: {
+        unread_count: context.unreadCount || 0,
+        last_seen_at: context.lastSeenAt || 0,
+        last_message_at: context.lastMessageAt || 0,
+        is_active: true,
+        joined_at: context.joinedAt || 0
+      }
+    },
+    last_message: mapLastMessage(dialog.lastMessage),
+    members_count: membersCount,
+    stats: {
+      member_count: stats.memberCount ?? membersCount ?? 0,
+      message_count: stats.messageCount ?? 0,
+      topic_count: stats.topicCount ?? 0
+    }
+  };
+}
+
 export function metaFromRequest(meta: any): Record<string, unknown> | undefined {
   if (!meta) return undefined;
   // Incoming Struct → plain

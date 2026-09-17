@@ -18,6 +18,26 @@ export function normalizeUserId(userId: string): string {
   return String(userId || '').trim().toLowerCase();
 }
 
+/**
+ * Require that actor is already a DialogMember. Throws FORBIDDEN otherwise.
+ */
+export async function assertActorIsMember(
+  tenantId: string,
+  dialogId: string,
+  actorUserId: string
+): Promise<void> {
+  const userId = normalizeUserId(actorUserId);
+  if (!userId) {
+    throw new AppServiceError('VALIDATION', 'userId is required');
+  }
+  const membership = await DialogMember.findOne({ tenantId, dialogId, userId })
+    .select('_id')
+    .lean();
+  if (!membership) {
+    throw new AppServiceError('FORBIDDEN', 'User is not a member of this dialog');
+  }
+}
+
 export async function ensureUserExists(
   tenantId: string,
   userId: string,

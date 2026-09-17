@@ -274,11 +274,13 @@ export class Chat3GrpcClient {
     dialogId: string;
     page?: number;
     limit?: number;
+    userId?: string;
   }): Promise<any> {
     return this.unary('ListDialogMembers', {
       dialog_id: options.dialogId,
       page: options.page || 1,
-      limit: options.limit || 50
+      limit: options.limit || 50,
+      user_id: options.userId || ''
     });
   }
 

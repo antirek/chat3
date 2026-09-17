@@ -1,63 +1,7 @@
 import * as grpc from '@grpc/grpc-js';
 import { listUserDialogs, AppServiceError } from '@chat3/app-services';
 import type { AuthenticatedContext } from '@chat3/app-services';
-import { structFromObject } from './grpcMappers.js';
-
-function mapLastMessage(msg: any): any | undefined {
-  if (!msg) return undefined;
-  return {
-    message_id: msg.messageId || '',
-    dialog_id: msg.dialogId || '',
-    sender_id: msg.senderId || '',
-    type: msg.type || '',
-    content: msg.content || '',
-    meta: {},
-    statuses: [],
-    reaction_set: {},
-    sender_info: msg.senderInfo
-      ? {
-          user_id: msg.senderInfo.userId || '',
-          name: msg.senderInfo.name || '',
-          created_at: msg.senderInfo.createdAt || 0,
-          meta: msg.senderInfo.meta || {}
-        }
-      : undefined,
-    created_at: msg.createdAt || 0,
-    topic_id: msg.topicId || '',
-    topic: {},
-    deleted: msg.deleted === true,
-    deleted_at: msg.deletedAt || 0,
-    deleted_by: msg.deletedBy || '',
-    status_message_matrix: {},
-    edited: false,
-    edited_at: 0,
-    edited_by: ''
-  };
-}
-
-function mapDialog(dialog: any): any {
-  const context = dialog.context || {};
-  return {
-    dialog_id: dialog.dialogId || '',
-    tenant_id: dialog.tenantId || '',
-    name: dialog.name || '',
-    created_by: dialog.createdBy || '',
-    created_at: dialog.createdAt || 0,
-    updated_at: dialog.updatedAt || 0,
-    meta: dialog.meta ? structFromObject(dialog.meta) : { fields: {} },
-    member: {
-      user_id: context.userId || '',
-      meta: {},
-      state: {
-        unread_count: context.unreadCount || 0,
-        last_seen_at: context.lastSeenAt || 0,
-        last_message_at: context.lastMessageAt || 0,
-        is_active: true
-      }
-    },
-    last_message: mapLastMessage(dialog.lastMessage)
-  };
-}
+import { toGrpcDialogFromListRow } from './grpcMappers.js';
 
 export async function getUserDialogsHandler(
   call: grpc.ServerUnaryCall<any, any>,
@@ -91,7 +35,7 @@ export async function getUserDialogsHandler(
   });
 
   return {
-    dialogs: (result.data || []).map(mapDialog),
+    dialogs: (result.data || []).map(toGrpcDialogFromListRow),
     pagination: {
       page: result.pagination.page,
       limit: result.pagination.limit,

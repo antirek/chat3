@@ -3,7 +3,7 @@ import * as eventUtils from '@chat3/utils/eventUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { AppServiceError } from '../errors/AppServiceError.js';
-import { loadDialogResult, normalizeUserId } from './dialogHelpers.js';
+import { loadDialogResult, normalizeUserId, assertActorIsMember } from './dialogHelpers.js';
 
 export interface UpdateDialogMetaInput {
   tenantId: string;
@@ -46,6 +46,8 @@ export async function updateDialogMeta(
   if (!dialog) {
     throw new AppServiceError('NOT_FOUND', `Dialog '${dialogId}' not found`);
   }
+
+  await assertActorIsMember(tenantId, dialogId, actorId);
 
   await metaUtils.setEntityMetaBulk(tenantId, 'dialog', dialogId, metaPayload, {
     createdBy: actorId
