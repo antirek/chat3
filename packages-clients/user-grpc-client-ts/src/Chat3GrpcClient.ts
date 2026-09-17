@@ -314,6 +314,17 @@ export class Chat3GrpcClient {
     );
   }
 
+  /**
+   * Bidirectional multiplexed watch (personal binds on one stream).
+   * Auth: api key only (tenant in each watch/unwatch command).
+   */
+  watchUpdates(): WatchUpdatesSession {
+    const meta = new grpc.Metadata();
+    meta.add('x-api-key', this.metadata.get('x-api-key')[0] as string);
+    const call = this.client.WatchUpdates(meta);
+    return new WatchUpdatesSession(call);
+  }
+
   private streamCall(call: any): AsyncIterable<any> {
     const queue: any[] = [];
     let done = false;
@@ -370,5 +381,160 @@ export class Chat3GrpcClient {
 
   close(): void {
     this.client.close();
+  }
+}
+
+export type WatchUsersOpts = {
+  tenantId: string;
+  userIds: string[];
+  userType?: string;
+};
+
+/**
+ * Client helper for WatchUpdates bidi stream.
+ */
+export class WatchUpdatesSession {
+  private pendingAcks = new Map<
+    string,
+    { resolve: (u: any) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }
+  >();
+  private ackSeq = 0;
+  private updateHandlers = new Set<(update: any) => void>();
+  private established: Promise<any>;
+  private establishedResolve!: (u: any) => void;
+  private establishedReject!: (e: Error) => void;
+  private closed = false;
+
+  constructor(private readonly call: any) {
+    this.established = new Promise((resolve, reject) => {
+      this.establishedResolve = resolve;
+      this.establishedReject = reject;
+    });
+
+    call.on('data', (update: any) => {
+      const type = update?.source_event_type || update?.sourceEventType || '';
+      if (type === 'connection.established') {
+        this.establishedResolve(update);
+      }
+      if (type === 'watch.ack' || type === 'unwatch.ack' || type === 'watch.error') {
+        // Resolve oldest pending of matching kind (FIFO for simplicity)
+        const entry = this.pendingAcks.values().next().value as
+          | { resolve: (u: any) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }
+          | undefined;
+        if (entry) {
+          const key = this.pendingAcks.keys().next().value as string;
+          this.pendingAcks.delete(key);
+          clearTimeout(entry.timer);
+          if (type === 'watch.error') {
+            entry.reject(
+              new Error(
+                update?.data?.error ||
+                  update?.data?.fields?.error?.stringValue ||
+                  'watch.error'
+              )
+            );
+          } else {
+            entry.resolve(update);
+          }
+        }
+      }
+      for (const handler of this.updateHandlers) {
+        try {
+          handler(update);
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+
+    call.on('error', (err: Error) => {
+      if (!this.closed) this.establishedReject(err);
+      this.failPending(err);
+    });
+    call.on('end', () => {
+      this.failPending(new Error('WatchUpdates ended'));
+    });
+  }
+
+  onUpdate(handler: (update: any) => void): () => void {
+    this.updateHandlers.add(handler);
+    return () => this.updateHandlers.delete(handler);
+  }
+
+  waitEstablished(timeoutMs = 10000): Promise<any> {
+    return Promise.race([
+      this.established,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('WatchUpdates established timeout')), timeoutMs)
+      )
+    ]);
+  }
+
+  async watch(opts: WatchUsersOpts, timeoutMs = 10000): Promise<any> {
+    await this.waitEstablished(timeoutMs);
+    return this.sendCommand(
+      {
+        watch: {
+          tenant_id: opts.tenantId,
+          user_ids: opts.userIds,
+          user_type: opts.userType || 'user'
+        }
+      },
+      timeoutMs
+    );
+  }
+
+  async unwatch(opts: WatchUsersOpts, timeoutMs = 10000): Promise<any> {
+    await this.waitEstablished(timeoutMs);
+    return this.sendCommand(
+      {
+        unwatch: {
+          tenant_id: opts.tenantId,
+          user_ids: opts.userIds,
+          user_type: opts.userType || 'user'
+        }
+      },
+      timeoutMs
+    );
+  }
+
+  close(): void {
+    this.closed = true;
+    try {
+      this.call.end();
+    } catch {
+      /* ignore */
+    }
+    try {
+      this.call.cancel();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private sendCommand(msg: Record<string, unknown>, timeoutMs: number): Promise<any> {
+    const id = `ack_${++this.ackSeq}`;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingAcks.delete(id);
+        reject(new Error('WatchUpdates ack timeout'));
+      }, timeoutMs);
+      this.pendingAcks.set(id, { resolve, reject, timer });
+      try {
+        this.call.write(msg);
+      } catch (err: any) {
+        clearTimeout(timer);
+        this.pendingAcks.delete(id);
+        reject(err);
+      }
+    });
+  }
+
+  private failPending(err: Error) {
+    for (const [key, entry] of this.pendingAcks) {
+      clearTimeout(entry.timer);
+      entry.reject(err);
+      this.pendingAcks.delete(key);
+    }
   }
 }

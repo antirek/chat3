@@ -20,6 +20,7 @@ import { sendMessageHandler } from './handlers/sendMessage.js';
 import { markDialogAllReadHandler } from './handlers/markDialogAllRead.js';
 import { subscribeUpdatesHandler } from './handlers/subscribeUpdates.js';
 import { subscribeTenantUpdatesHandler } from './handlers/subscribeTenantUpdates.js';
+import { watchUpdatesHandler } from './handlers/watchUpdates.js';
 import { upsertUserHandler } from './handlers/upsertUser.js';
 import { getUserHandler } from './handlers/getUser.js';
 import { createDialogHandler } from './handlers/createDialog.js';
@@ -91,6 +92,11 @@ server.addService(chat3UserService.service, {
   },
   SubscribeTenantUpdates: (call: grpc.ServerWritableStream<any, any>) => {
     subscribeTenantUpdatesHandler(call, rabbitmqClient).catch((error) =>
+      call.destroy(toGrpcServiceError(error))
+    );
+  },
+  WatchUpdates: (call: grpc.ServerDuplexStream<any, any>) => {
+    watchUpdatesHandler(call, rabbitmqClient).catch((error) =>
       call.destroy(toGrpcServiceError(error))
     );
   }

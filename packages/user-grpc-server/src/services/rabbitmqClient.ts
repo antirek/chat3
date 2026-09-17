@@ -1,5 +1,5 @@
 /**
- * RabbitMQ client for SubscribeUpdates / SubscribeTenantUpdates.
+ * RabbitMQ client for SubscribeUpdates / SubscribeTenantUpdates / WatchUpdates.
  */
 import * as amqp from 'amqplib';
 import {
@@ -7,6 +7,12 @@ import {
   tenantUpdatesBindKey,
   userUpdatesBindKey
 } from '../updateRoutingKeys.js';
+import {
+  createMultiplexSubscription,
+  type MultiplexSubscription
+} from './multiplexSubscription.js';
+import type { MultiplexLimits } from '../multiplexActiveSet.js';
+import { DEFAULT_MULTIPLEX_LIMITS } from '../multiplexActiveSet.js';
 
 export interface RabbitMQClientOptions {
   url: string;
@@ -99,6 +105,19 @@ export class RabbitMQClient {
     );
   }
 
+  /**
+   * Multiplexed personal watches: one queue, dynamic bind/unbind.
+   */
+  async createMultiplexWatch(
+    onMessage: (update: any) => void,
+    limits: MultiplexLimits = DEFAULT_MULTIPLEX_LIMITS
+  ): Promise<MultiplexSubscription> {
+    if (!this.channel) {
+      throw new Error('RabbitMQ not connected');
+    }
+    return createMultiplexSubscription(this.channel, this.exchange, onMessage, limits);
+  }
+
   private async subscribeWithBinds(
     queuePrefix: string,
     routingKeys: string[],
@@ -165,3 +184,4 @@ export class RabbitMQClient {
 }
 
 export type { WatchScope } from '../updateRoutingKeys.js';
+export type { MultiplexSubscription } from './multiplexSubscription.js';

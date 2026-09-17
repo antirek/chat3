@@ -7,6 +7,12 @@
 
 ## [Unreleased]
 
+### Добавлено (WatchUpdates multiplex)
+
+- Proto / user-grpc-server / client-ts: bidi `WatchUpdates` — динамический bind/unbind personal updates на одной AMQP queue
+- Active-set filter + ack-кадры (`watch.ack` / `unwatch.ack` / `watch.error`); idle = keep stream
+- Docs: corp-chat `MULTIPLEXED_WATCH.md`
+
 ### Добавлено (dialog read/meta gRPC)
 
 - app-services / proto / user-grpc-server / client: `GetDialog`, `ListDialogMembers`, `UpdateDialogMeta`
