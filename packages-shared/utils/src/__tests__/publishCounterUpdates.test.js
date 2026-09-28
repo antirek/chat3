@@ -95,4 +95,22 @@ describe('publishCounterUpdates', () => {
 
     expect(createUserStatsUpdate).toHaveBeenCalledTimes(2);
   });
+
+  test('does not repeat DialogMemberUpdate already written by update-worker', async () => {
+    const tenantId = 'tnt_test';
+    const dialogId = 'dlg_cc333333333333333333';
+    const userId = 'usr_alice';
+
+    await publishCounterUpdates({
+      tenantId,
+      userIds: [userId],
+      userDialogs: [{ userId, dialogId }],
+      packIds: [],
+      sourceEventId: 'evt_e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4',
+      sourceEventType: 'dialog.member.changed'
+    });
+
+    expect(createDialogMemberUpdate).not.toHaveBeenCalled();
+    expect(createUserStatsUpdate).toHaveBeenCalledTimes(1);
+  });
 });

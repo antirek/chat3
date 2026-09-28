@@ -1,6 +1,6 @@
 {
   "name": "@chat3/user-grpc-proto",
-  "version": "0.0.87",
+  "version": "0.0.88",
   "description": "Protocol Buffers definitions for Chat3 User gRPC service",
   "type": "module",
   "private": true,

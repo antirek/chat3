@@ -9,6 +9,23 @@
 
 ---
 
+## [0.0.88] — 2026-09-28
+
+counter-worker не пишет повторный `update.dialog`, который уже создаёт update-worker.
+
+### Изменено
+
+- Для `dialog.member.add`, `dialog.member.remove` и `dialog.member.changed` counter-worker больше не вызывает `createDialogMemberUpdate` с тем же ключом. `UserStatsUpdate` остаётся.
+- Для `message.create`, смены статуса и `bulk_read` `DialogMemberUpdate` из counter-worker сохраняется: там другой `entityId`.
+
+### Docker
+
+```text
+antirek/mms3:0.0.88
+```
+
+---
+
 ## [0.0.87] — 2026-09-28
 
 Кнопка Controlo удаляет дубликаты `updates`, чтобы можно было собрать уникальный индекс.
@@ -244,6 +261,7 @@ antirek/mms3:0.0.80
 
 ---
 
+[0.0.88]: https://github.com/antirek/chat3/compare/108349c...RELEASE
 [0.0.87]: https://github.com/antirek/chat3/compare/15f1969...5c16cb8
 [0.0.86]: https://github.com/antirek/chat3/compare/c2bd723...309e0f7
 [0.0.85]: https://github.com/antirek/chat3/compare/80076ae...c2bd723
