@@ -244,7 +244,7 @@ antirek/mms3:0.0.80
 
 ---
 
-[0.0.87]: https://github.com/antirek/chat3/compare/15f1969...RELEASE
+[0.0.87]: https://github.com/antirek/chat3/compare/15f1969...5c16cb8
 [0.0.86]: https://github.com/antirek/chat3/compare/c2bd723...309e0f7
 [0.0.85]: https://github.com/antirek/chat3/compare/80076ae...c2bd723
 [0.0.84]: https://github.com/antirek/chat3/compare/6818eff...80076ae
