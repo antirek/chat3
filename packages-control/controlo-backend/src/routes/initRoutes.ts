@@ -188,4 +188,24 @@ router.post('/full-recalculate-stats', initController.fullRecalculateStats);
  */
 router.get('/reconcile-counter-drift', initController.reconcileCounterDrift);
 
+/**
+ * @swagger
+ * /api/init/dedupe-updates:
+ *   post:
+ *     summary: Remove duplicate Update documents and create the unique index
+ *     tags: [Initialization]
+ *     description: |
+ *       Группирует `updates` по (tenantId, eventId, userId, updateType, entityId).
+ *       В группе оставляет опубликованный документ, иначе самый ранний createdAt.
+ *       Затем один раз создаёт уникальный индекс.
+ *     responses:
+ *       200:
+ *         description: Duplicates removed and unique index is in place
+ *       409:
+ *         description: Duplicates removed, unique index was not created
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post('/dedupe-updates', initController.dedupeUpdates);
+
 export default router;

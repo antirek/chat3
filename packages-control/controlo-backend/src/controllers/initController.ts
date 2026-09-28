@@ -8,6 +8,7 @@ import { promisify } from 'util';
 import { recalculateUserStats } from '@chat3/utils/counterUtils.js';
 import { recalculateUserPackUnreadBySenderType } from '@chat3/utils/packStatsUtils.js';
 import { reconcileCounterDrift } from '@chat3/utils/counterProcessor/reconcileCounterDrift.js';
+import { dedupeUpdates as removeDuplicateUpdateDocs } from '@chat3/utils/dedupeUpdates.js';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { Request, Response } from 'express';
@@ -290,6 +291,33 @@ export const initController = {
       const status = result.ok ? 200 : 409;
       res.status(status).json({
         message: result.ok ? 'No counter drift detected' : 'Counter drift detected',
+        data: result
+      });
+    } catch (error: any) {
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Internal Server Error',
+          message: error.message
+        });
+      } else {
+        console.error('Error after response sent:', error);
+      }
+    }
+  },
+
+  /**
+   * Удаляет дубликаты updates по уникальному ключу и создаёт индекс один раз.
+   * В группе остаётся опубликованный документ, иначе самый ранний createdAt.
+   */
+  async dedupeUpdates(req: Request, res: Response): Promise<void> {
+    try {
+      await connectDB();
+      const result = await removeDuplicateUpdateDocs();
+      const ok = result.indexError == null;
+      res.status(ok ? 200 : 409).json({
+        message: ok
+          ? 'Duplicate updates removed'
+          : 'Duplicate updates removed, unique index was not created',
         data: result
       });
     } catch (error: any) {

@@ -126,6 +126,35 @@
             <div v-html="reconcileDriftResult.content"></div>
           </div>
         </div>
+
+        <div class="section">
+          <h2>5. Дубликаты updates</h2>
+          <p>
+            Удаляет лишние документы <code>updates</code> с одинаковым ключом
+            <code>tenantId + eventId + userId + updateType + entityId</code>.
+            В группе остаётся опубликованный документ, иначе самый ранний по <code>createdAt</code>.
+            После очистки создаётся уникальный индекс, чтобы повторные записи отсекались.
+          </p>
+          <div class="button-group">
+            <button
+              id="dedupeUpdatesBtn"
+              class="btn-warning"
+              :disabled="dedupeUpdatesLoading"
+              @click="removeDuplicateUpdates"
+            >
+              <span v-if="dedupeUpdatesLoading" class="loading"></span>
+              <span v-else>🧹</span>
+              <span>{{ dedupeUpdatesLoading ? 'Удаление...' : 'Удалить дубликаты updates' }}</span>
+            </button>
+          </div>
+          <div
+            v-if="dedupeUpdatesResult.show"
+            :class="['result', dedupeUpdatesResult.type]"
+          >
+            <strong>{{ dedupeUpdatesResult.title }}</strong>
+            <p>{{ dedupeUpdatesResult.detail }}</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -145,6 +174,9 @@ const {
   reconcileDriftLoading,
   reconcileDriftResult,
   reconcileCounterDrift,
+  dedupeUpdatesLoading,
+  dedupeUpdatesResult,
+  removeDuplicateUpdates,
   initialize,
   runSeed,
 } = useInitPage();
@@ -266,6 +298,17 @@ button {
   background: #4a5568;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(113, 128, 150, 0.3);
+}
+
+.btn-warning {
+  background: #dd6b20;
+  color: white;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: #c05621;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(221, 107, 32, 0.3);
 }
 
 button:disabled {

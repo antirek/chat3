@@ -4,6 +4,7 @@ import { useInit } from './useInit';
 import { useSeed } from './useSeed';
 import { useRecalculate } from './useRecalculate';
 import { useReconcileDrift } from './useReconcileDrift';
+import { useDedupeUpdates } from './useDedupeUpdates';
 
 export function useInitPage() {
   // Инициализация
@@ -37,6 +38,13 @@ export function useInitPage() {
     reconcileCounterDrift,
   } = driftModule;
 
+  const dedupeModule = useDedupeUpdates(getControlApiUrl);
+  const {
+    dedupeUpdatesLoading,
+    dedupeUpdatesResult,
+    removeDuplicateUpdates,
+  } = dedupeModule;
+
   // Делаем функцию копирования доступной глобально для вызова из v-html
   onMounted(() => {
     (window as any).copyApiKeyFromInit = copyApiKey;
@@ -53,6 +61,9 @@ export function useInitPage() {
     reconcileDriftLoading,
     reconcileDriftResult,
     reconcileCounterDrift,
+    dedupeUpdatesLoading,
+    dedupeUpdatesResult,
+    removeDuplicateUpdates,
     initialize,
     runSeed,
   };
