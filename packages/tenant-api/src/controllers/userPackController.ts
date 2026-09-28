@@ -5,8 +5,13 @@ import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { loadPackMessages } from '../utils/packMessageUtils.js';
 import { enrichMessagesWithMetaAndStatuses, getSenderInfo } from '../utils/messageEnrichment.js';
 import { buildStatusMessageMatrix } from '@chat3/utils/userDialogUtils.js';
-import { buildUserPackStatsFromBySenderRows, getPackDialogIds } from '@chat3/utils/packStatsUtils.js';
-import { markDialogMessagesAsReadUntil } from '@chat3/utils/dialogReadTaskUtils.js';
+import {
+  buildUserPackStatsFromBySenderRows,
+  getPackDialogIds,
+  recalculateUserPackUnreadBySenderType,
+  recalculateUserUnreadBySenderType
+} from '@chat3/utils/packStatsUtils.js';
+import { scheduleDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { Response } from 'express';
 import { parseFilters, buildFilterQuery } from '@chat3/utils/queryParser.js';
@@ -146,13 +151,11 @@ export async function getUserPackById(req: AuthenticatedRequest, res: Response):
   }
 }
 
-const PACK_MARK_ALL_READ_TIMEOUT_MS = 120_000; // 2 минуты на всю операцию
-
 /**
  * Отметить все сообщения пака прочитанными для пользователя (markPackAllRead).
  * POST /api/users/:userId/packs/:packId/markAllRead
- * Для каждого диалога пака, где пользователь участник: applyMarkDialogAllRead + markDialogMessagesAsReadUntil.
- * Общий таймаут 2 минуты; при превышении — 503.
+ * Для каждого диалога пака, где пользователь участник: applyMarkDialogAllRead + фоновая DialogReadTask.
+ * Запись MessageStatus не выполняется в HTTP-запросе.
  */
 export async function markPackAllRead(req: AuthenticatedRequest, res: Response): Promise<void> {
   const routePath = 'post /users/:userId/packs/:packId/markAllRead';
@@ -201,43 +204,28 @@ export async function markPackAllRead(req: AuthenticatedRequest, res: Response):
     }
 
     const readUntil = generateTimestamp();
-    const startTime = Date.now();
     let processedDialogsCount = 0;
-    let totalProcessedMessageCount = 0;
+    const totalProcessedMessageCount = 0;
 
     for (const dialogId of memberDialogIds) {
-      const elapsed = Date.now() - startTime;
-      const remainingMs = PACK_MARK_ALL_READ_TIMEOUT_MS - elapsed;
-      if (remainingMs <= 0) {
-        res.status(503).json({
-          error: 'Service Unavailable',
-          message:
-            'Mark pack all read timed out (2 minutes). Some dialogs were processed; repeat request or mark remaining dialogs separately.'
-        });
-        return;
-      }
-
       await applyMarkDialogAllRead(tenantId, userId, dialogId, actorId, actorType, { lastSeenAt: readUntil });
-      try {
-        const result = await markDialogMessagesAsReadUntil(tenantId, dialogId, userId, readUntil, {
-          timeoutMs: remainingMs,
-          actorId,
-          actorType
-        });
-        totalProcessedMessageCount += result.processedCount;
-        processedDialogsCount += 1;
-      } catch (err: any) {
-        if (err?.message === 'markDialogMessagesAsReadUntil timeout') {
-          res.status(503).json({
-            error: 'Service Unavailable',
-            message:
-              'Mark pack all read timed out (2 minutes). Some dialogs were processed; repeat request or mark remaining dialogs separately.'
-          });
-          return;
-        }
-        throw err;
-      }
+      await scheduleDialogReadTask({
+        tenantId,
+        dialogId,
+        userId,
+        readUntil,
+        source: 'markPackAllRead'
+      });
+      processedDialogsCount += 1;
     }
+
+    await recalculateUserUnreadBySenderType(tenantId, userId);
+    await recalculateUserPackUnreadBySenderType(tenantId, packId, {
+      sourceOperation: 'markPackAllRead',
+      sourceEntityId: packId,
+      actorId,
+      actorType
+    });
 
     res.json({
       data: sanitizeResponse({

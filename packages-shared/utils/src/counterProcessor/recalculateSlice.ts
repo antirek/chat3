@@ -11,6 +11,7 @@ import {
   recalculateUserPackedMessagesUnreadBySenderType
 } from '../packStatsUtils.js';
 import { generateTimestamp } from '../timestampUtils.js';
+import { applyHotUnread } from './applyHotUnread.js';
 import { recalculateUserDialogUnread } from './recalculateUserDialogUnread.js';
 import { recalculateMessageStatusStats } from './recalculateMessageStatusStats.js';
 import type { CounterSlice } from './types.js';
@@ -54,6 +55,8 @@ export async function recalculateSlice(slice: CounterSlice): Promise<void> {
     actorType: actorType || 'system'
   };
 
+  const hotHandled = await applyHotUnread(slice);
+
   const seenPairs = new Set<string>();
   for (const { userId, dialogId } of userDialogs) {
     const key = `${userId}:${dialogId}`;
@@ -64,7 +67,10 @@ export async function recalculateSlice(slice: CounterSlice): Promise<void> {
       await UserDialogUnreadBySenderType.deleteMany({ tenantId, userId, dialogId });
       continue;
     }
-    await recalculateUserDialogUnread(tenantId, userId, dialogId);
+    if (hotHandled) continue;
+    await recalculateUserDialogUnread(tenantId, userId, dialogId, {
+      createdAtLte: slice.sourceEventCreatedAt
+    });
   }
 
   const seenUsers = new Set<string>();

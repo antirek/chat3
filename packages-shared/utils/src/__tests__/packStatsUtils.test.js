@@ -5,6 +5,7 @@ import {
   DialogMember,
   Topic,
   User,
+  UserDialogActivity,
   UserDialogStats,
   UserDialogUnreadBySenderType,
   UserPackUnreadBySenderType,
@@ -236,6 +237,12 @@ describe('packStatsUtils', () => {
       dialogId,
       status: 'read'
     });
+    const storedMessage = await Message.findOne({ tenantId, messageId }).select('createdAt').lean();
+    await UserDialogActivity.findOneAndUpdate(
+      { tenantId, userId, dialogId },
+      { lastSeenAt: storedMessage.createdAt },
+      { upsert: true }
+    );
     await recalculateUserDialogUnread(tenantId, userId, dialogId);
 
     const dialogStatsAfter = await UserDialogStats.findOne({ tenantId, userId, dialogId }).lean();
@@ -335,6 +342,12 @@ describe('packStatsUtils', () => {
       dialogId: dialog1,
       status: 'read'
     });
+    const storedMessage = await Message.findOne({ tenantId, messageId }).select('createdAt').lean();
+    await UserDialogActivity.findOneAndUpdate(
+      { tenantId, userId: user1, dialogId: dialog1 },
+      { lastSeenAt: storedMessage.createdAt },
+      { upsert: true }
+    );
     await recalculateUserDialogUnread(tenantId, user1, dialog1);
 
     // У user1 в диалоге счётчик по contact = 0, у user2 по-прежнему 1
@@ -428,6 +441,12 @@ describe('packStatsUtils', () => {
       dialogId,
       status: 'read'
     });
+    const storedMessage = await Message.findOne({ tenantId, messageId }).select('createdAt').lean();
+    await UserDialogActivity.findOneAndUpdate(
+      { tenantId, userId: readerId, dialogId },
+      { lastSeenAt: storedMessage.createdAt },
+      { upsert: true }
+    );
     await recalculateUserDialogUnread(tenantId, 'usr_reader', dialogId);
 
     const after = await UserDialogUnreadBySenderType.findOne({

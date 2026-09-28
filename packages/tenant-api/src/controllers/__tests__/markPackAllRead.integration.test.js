@@ -13,8 +13,10 @@ import {
   UserDialogStats,
   UserDialogUnreadBySenderType,
   UserPackUnreadBySenderType,
-  MessageStatus
+  MessageStatus,
+  DialogReadTask
 } from '@chat3/models';
+import { runDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
@@ -22,6 +24,13 @@ import {
 } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { flushCounterEvents } from '../../utils/__tests__/counterTestHelpers.js';
+
+async function drainDialogReadTasks() {
+  const tasks = await DialogReadTask.find({ status: { $in: ['pending', 'running'] } });
+  for (const task of tasks) {
+    await runDialogReadTask(task);
+  }
+}
 
 const tenantId = 'tnt_default';
 const USER_ID = 'usr_pack_mark_read';
@@ -158,7 +167,8 @@ describe('markPackAllRead integration', () => {
     expect(resMark.body?.data?.packId).toBe(packId);
     expect(resMark.body?.data?.unreadCount).toBe(0);
     expect(resMark.body?.data?.processedDialogsCount).toBe(2);
-    expect(resMark.body?.data?.totalProcessedMessageCount).toBe(2);
+    expect(resMark.body?.data?.totalProcessedMessageCount).toBe(0);
+    await drainDialogReadTasks();
 
     const statsAfter = await UserDialogStats.find({
       tenantId,

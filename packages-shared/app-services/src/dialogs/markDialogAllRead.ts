@@ -1,8 +1,13 @@
 import { Dialog, DialogMember } from '@chat3/models';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
-import { markDialogMessagesAsReadUntil } from '@chat3/utils/dialogReadTaskUtils.js';
+import { scheduleDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import { applyMarkDialogAllRead } from '@chat3/utils/dialogMemberActivityUtils.js';
+import {
+  getPackIdsForDialog,
+  recalculateUserPackUnreadBySenderType,
+  recalculateUserUnreadBySenderType
+} from '@chat3/utils/packStatsUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { AppServiceError } from '../errors/AppServiceError.js';
@@ -97,31 +102,25 @@ export async function markDialogAllRead(
     })
   });
 
-  let processedCount = 0;
-  try {
-    const result = await markDialogMessagesAsReadUntil(tenantId, dialogId, userId, readUntil, {
-      timeoutMs: 120_000,
+  await recalculateUserUnreadBySenderType(tenantId, userId);
+  const packIds = await getPackIdsForDialog(tenantId, dialogId);
+  for (const packId of packIds) {
+    await recalculateUserPackUnreadBySenderType(tenantId, packId, {
+      sourceOperation: 'markDialogAllRead',
+      sourceEntityId: dialogId,
       actorId,
       actorType
     });
-    processedCount = result.processedCount;
-  } catch (err: any) {
-    if (err?.message === 'markDialogMessagesAsReadUntil timeout') {
-      return {
-        timedOut: true,
-        data: sanitizeResponse({
-          userId,
-          dialogId,
-          tenantId,
-          unreadCount: applyResult.finalUnreadCount,
-          lastSeenAt: applyResult.lastSeenAt,
-          lastMessageAt: applyResult.lastMessageAt,
-          processedMessageCount: processedCount
-        })
-      };
-    }
-    throw err;
   }
+
+  await scheduleDialogReadTask({
+    tenantId,
+    dialogId,
+    userId,
+    readUntil,
+    source: 'markDialogAllRead'
+  });
+  const processedCount = 0;
 
   return {
     data: sanitizeResponse({

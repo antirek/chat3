@@ -4,6 +4,7 @@ import {
 } from '@chat3/models';
 import type { ActorType } from '@chat3/models';
 import { generateTimestamp } from './timestampUtils.js';
+import { zeroUserDialogUnread } from './counterProcessor/recalculateUserDialogUnread.js';
 
 /**
  * Обновить время последнего сообщения в диалоге для участника.
@@ -15,10 +16,15 @@ export async function updateLastMessageAt(
   timestamp: number | null = null
 ): Promise<void> {
   const lastMessageAt = timestamp || generateTimestamp();
+  // Не даём schema default выставить lastSeenAt = now: иначе первое сообщение
+  // попадает в «уже прочитано» до инкремента unread.
   await UserDialogActivity.findOneAndUpdate(
     { tenantId, userId, dialogId },
-    { lastMessageAt },
-    { upsert: true, new: true }
+    {
+      $set: { lastMessageAt },
+      $setOnInsert: { lastSeenAt: 0 }
+    },
+    { upsert: true, setDefaultsOnInsert: false }
   );
 }
 
@@ -56,6 +62,7 @@ export async function applyMarkDialogAllRead(
     { lastSeenAt: timestamp },
     { upsert: true, new: true }
   );
+  await zeroUserDialogUnread(tenantId, userId, dialogId);
 
   const activity = await UserDialogActivity.findOne({
     tenantId,

@@ -9,6 +9,7 @@ export interface CounterEventPayload {
   actorId?: string;
   actorType?: string;
   data?: Record<string, unknown>;
+  createdAt?: number;
 }
 
 export interface CounterSlice {
@@ -23,4 +24,8 @@ export interface CounterSlice {
   sourceEventType: EventType;
   actorId?: string;
   actorType?: string;
+  /** message.status.changed: статус из payload, чтобы не сканировать историю. */
+  statusHint?: string | null;
+  /** Верхняя граница Message.createdAt для полного пересчёта этого события. */
+  sourceEventCreatedAt?: number;
 }

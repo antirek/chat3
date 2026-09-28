@@ -1,4 +1,3 @@
-import { Message } from '@chat3/models';
 import { getPackIdsForDialog } from '../packStatsUtils.js';
 import { CounterProcessorError } from './errors.js';
 import type { CounterEventPayload, CounterSlice } from './types.js';
@@ -32,6 +31,7 @@ export async function resolveSlice(event: CounterEventPayload): Promise<CounterS
   const userDialogs: Array<{ userId: string; dialogId: string }> = [];
   const packIds: string[] = [];
   let senderId: string | null = getSenderIdFromEvent(data);
+  let statusHint: string | null = null;
 
   const dialogId = getDialogIdFromEvent(data);
   const eventUserId = getUserIdFromEvent(data, entityId);
@@ -59,6 +59,10 @@ export async function resolveSlice(event: CounterEventPayload): Promise<CounterS
       break;
     }
     case 'message.status.changed': {
+      const messageSection = (data as { message?: { statusUpdate?: { status?: string } } } | undefined)?.message;
+      if (typeof messageSection?.statusUpdate?.status === 'string') {
+        statusHint = messageSection.statusUpdate.status;
+      }
       if (eventMessageId) {
         messageIds.push(eventMessageId);
       }
@@ -78,12 +82,6 @@ export async function resolveSlice(event: CounterEventPayload): Promise<CounterS
         addUserDialog(userDialogs, eventUserId, dialogId);
         const packs = await getPackIdsForDialog(tenantId, dialogId);
         packIds.push(...packs);
-        const dialogMessageIds = await Message.find({ tenantId, dialogId })
-          .select('messageId')
-          .lean();
-        for (const m of dialogMessageIds as Array<{ messageId: string }>) {
-          if (m.messageId) messageIds.push(m.messageId);
-        }
       }
       break;
     }
@@ -145,6 +143,8 @@ export async function resolveSlice(event: CounterEventPayload): Promise<CounterS
     sourceEventId: eventId,
     sourceEventType: eventType,
     actorId,
-    actorType
+    actorType,
+    statusHint,
+    sourceEventCreatedAt: typeof event.createdAt === 'number' ? event.createdAt : undefined
   };
 }

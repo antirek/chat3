@@ -1,9 +1,15 @@
-import { DialogMember, Message, UserDialogStats, UserDialogUnreadBySenderType } from '@chat3/models';
+import {
+  DialogMember,
+  Message,
+  UserDialogActivity,
+  UserDialogStats,
+  UserDialogUnreadBySenderType
+} from '@chat3/models';
 import type { PipelineStage } from 'mongoose';
 import { generateTimestamp } from '../timestampUtils.js';
 import { getUserType } from '../userTypeUtils.js';
 import { PACK_UNREAD_SENDER_TYPES, normalizeSenderType } from '../packUnreadSenderTypes.js';
-import { messageReadLookupPipeline, unreadMessageMatchExtras } from './isUnreadForUser.js';
+import { unreadMessageMatchExtras } from './isUnreadForUser.js';
 
 /** Момент вступления user в dialog; null — не участник. */
 export async function getDialogMemberJoinedAt(
@@ -18,8 +24,51 @@ export async function getDialogMemberJoinedAt(
   return (member as { createdAt?: number } | null)?.createdAt ?? null;
 }
 
+export async function getDialogLastSeenAt(
+  tenantId: string,
+  userId: string,
+  dialogId: string
+): Promise<number | null> {
+  const uid = (userId || '').trim().toLowerCase();
+  const activity = await UserDialogActivity.findOne({ tenantId, userId: uid, dialogId })
+    .select('lastSeenAt')
+    .lean();
+  const lastSeenAt = (activity as { lastSeenAt?: number } | null)?.lastSeenAt;
+  return lastSeenAt == null ? null : Number(lastSeenAt);
+}
+
+async function aggregateUnreadBySender(
+  tenantId: string,
+  userId: string,
+  dialogId: string,
+  memberJoinedAt: number,
+  createdAtLte?: number
+): Promise<Array<{ _id: string; count: number }>> {
+  const lastSeenAt = await getDialogLastSeenAt(tenantId, userId, dialogId);
+  const extras = unreadMessageMatchExtras(userId, { memberJoinedAt, lastSeenAt });
+  if (createdAtLte != null) {
+    const createdAt = (extras.createdAt && typeof extras.createdAt === 'object')
+      ? { ...(extras.createdAt as Record<string, number>) }
+      : {};
+    createdAt.$lte = createdAtLte;
+    extras.createdAt = createdAt;
+  }
+  const pipeline: PipelineStage[] = [
+    {
+      $match: {
+        tenantId,
+        dialogId,
+        ...extras
+      }
+    },
+    { $group: { _id: '$senderId', count: { $sum: 1 } } }
+  ];
+  return Message.aggregate(pipeline) as Promise<Array<{ _id: string; count: number }>>;
+}
+
 /**
- * Ожидаемый unread для пары (userId, dialogId) без записи в БД (A12 + граница join).
+ * Ожидаемый unread для пары (userId, dialogId) без записи в БД.
+ * Один проход по окну createdAt после lastSeenAt / join, без $lookup в messagestatuses.
  */
 export async function countUserDialogUnread(
   tenantId: string,
@@ -31,31 +80,46 @@ export async function countUserDialogUnread(
   if (memberJoinedAt == null) {
     return 0;
   }
+  const rows = await aggregateUnreadBySender(tenantId, uid, dialogId, memberJoinedAt);
+  return rows.reduce((sum, row) => sum + row.count, 0);
+}
 
-  const unreadCountPipeline: PipelineStage[] = [
+/** Записать unread = 0 для пары (user, dialog), включая разбивку по типу отправителя. */
+export async function zeroUserDialogUnread(
+  tenantId: string,
+  userId: string,
+  dialogId: string
+): Promise<void> {
+  const uid = (userId || '').trim().toLowerCase();
+  const now = generateTimestamp();
+  await UserDialogStats.findOneAndUpdate(
+    { tenantId, userId: uid, dialogId },
     {
-      $match: {
-        tenantId,
-        dialogId,
-        ...unreadMessageMatchExtras(uid, { memberJoinedAt })
-      }
+      $set: { unreadCount: 0, lastUpdatedAt: now },
+      $setOnInsert: { createdAt: now }
     },
-    ...(messageReadLookupPipeline(tenantId, uid) as unknown as PipelineStage[]),
-    { $count: 'unreadCount' }
-  ];
-  const unreadCountResult = await Message.aggregate(unreadCountPipeline) as Array<{ unreadCount: number }>;
-
-  const unreadCount = unreadCountResult[0]?.unreadCount ?? 0;
-  return unreadCount;
+    { upsert: true, setDefaultsOnInsert: true }
+  );
+  for (const fromType of PACK_UNREAD_SENDER_TYPES) {
+    await UserDialogUnreadBySenderType.findOneAndUpdate(
+      { tenantId, userId: uid, dialogId, fromType },
+      {
+        $set: { countUnread: 0, lastUpdatedAt: now },
+        $setOnInsert: { createdAt: now }
+      },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
+  }
 }
 
 /**
- * Пересчёт unread для одной пары (userId, dialogId) из Message + MessageStatus (A12).
+ * Редкий полный пересчёт unread для одной пары (userId, dialogId) по окну lastSeenAt.
  */
 export async function recalculateUserDialogUnread(
   tenantId: string,
   userId: string,
-  dialogId: string
+  dialogId: string,
+  options?: { createdAtLte?: number }
 ): Promise<number> {
   const uid = (userId || '').trim().toLowerCase();
   const memberJoinedAt = await getDialogMemberJoinedAt(tenantId, uid, dialogId);
@@ -63,7 +127,14 @@ export async function recalculateUserDialogUnread(
     return 0;
   }
 
-  const unreadCount = await countUserDialogUnread(tenantId, uid, dialogId);
+  const unreadBySenderAgg = await aggregateUnreadBySender(
+    tenantId,
+    uid,
+    dialogId,
+    memberJoinedAt,
+    options?.createdAtLte
+  );
+  const unreadCount = unreadBySenderAgg.reduce((sum, row) => sum + row.count, 0);
 
   const now = generateTimestamp();
   await UserDialogStats.findOneAndUpdate(
@@ -74,19 +145,6 @@ export async function recalculateUserDialogUnread(
     },
     { upsert: true, setDefaultsOnInsert: true }
   );
-
-  const bySenderPipeline: PipelineStage[] = [
-    {
-      $match: {
-        tenantId,
-        dialogId,
-        ...unreadMessageMatchExtras(uid, { memberJoinedAt })
-      }
-    },
-    ...(messageReadLookupPipeline(tenantId, uid) as unknown as PipelineStage[]),
-    { $group: { _id: '$senderId', count: { $sum: 1 } } }
-  ];
-  const unreadBySenderAgg = await Message.aggregate(bySenderPipeline) as Array<{ _id: string; count: number }>;
 
   const byType: Record<string, number> = {};
   for (const t of PACK_UNREAD_SENDER_TYPES) {

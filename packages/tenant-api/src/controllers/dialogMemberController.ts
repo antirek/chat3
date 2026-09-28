@@ -398,7 +398,7 @@ const dialogMemberController = {
         _id: 1 // Вторичная сортировка по _id для стабильности (гарантирует предсказуемый порядок)
       };
 
-      log(`Выполнение запроса участников: query=${JSON.stringify(memberQuery)}, sort=${JSON.stringify(sortOptions)}, skip=${skip}, limit=${limit}`);
+      log(`Выполнение запроса участников: dialogId=${dialog.dialogId}, skip=${skip}, limit=${limit}`);
       const [total, members] = await Promise.all([
         DialogMember.countDocuments(memberQuery),
         DialogMember.find(memberQuery)

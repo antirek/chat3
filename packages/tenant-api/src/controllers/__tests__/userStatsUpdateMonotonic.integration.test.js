@@ -5,7 +5,8 @@ import * as fakeAmqp from '@onify/fake-amqplib';
 import { dialogController } from '../dialogController.js';
 import { packController } from '../packController.js';
 import messageController from '../messageController.js';
-import { Tenant, Update, User } from '@chat3/models';
+import { DialogReadTask, Tenant, Update, User } from '@chat3/models';
+import { runDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import { shouldApplyUserStatsUpdate } from '@chat3/utils/updateUtils.js';
 import {
   setupMongoMemoryServer,
@@ -169,6 +170,10 @@ describe('P1 WS monotonic UserStatsUpdate', () => {
       createReq({ params: { packId }, query: { memberType: 'user' } }),
       createMockRes()
     );
+    const readTasks = await DialogReadTask.find({ status: { $in: ['pending', 'running'] } });
+    for (const task of readTasks) {
+      await runDialogReadTask(task);
+    }
     await runCounterStackPipeline();
 
     const markReadUpdate = await Update.findOne({

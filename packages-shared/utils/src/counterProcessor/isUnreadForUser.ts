@@ -1,11 +1,14 @@
 /**
- * A12: непрочитано = нет записи MessageStatus со status 'read' для (messageId, userId).
+ * Непрочитано на полном пересчёте: сообщения после lastSeenAt (readUntil) и не раньше join.
  * system.* и sender исключаются на уровне агрегации Message.
- * Граница join: Message.createdAt >= DialogMember.createdAt (см. DIALOG_MEMBER_ADD_JOIN_BOUNDARY_PLAN.md).
+ * Граница join: Message.createdAt >= DialogMember.createdAt.
+ * Per-message MessageStatus на этом пути не используется (см. FDR-0004).
  */
 
 export type UnreadMessageMatchOptions = {
   memberJoinedAt?: number;
+  /** Watermark: createdAt <= lastSeenAt считается прочитанным. */
+  lastSeenAt?: number | null;
 };
 
 /** Доп. условия $match для Message при подсчёте unread. */
@@ -21,7 +24,13 @@ export function unreadMessageMatchExtras(
     deleted: { $ne: true }
   };
   if (options.memberJoinedAt != null) {
-    match.createdAt = { $gte: options.memberJoinedAt };
+    const joinedAt = options.memberJoinedAt;
+    const lastSeenAt = options.lastSeenAt;
+    if (lastSeenAt != null && lastSeenAt >= joinedAt) {
+      match.createdAt = { $gt: lastSeenAt };
+    } else {
+      match.createdAt = { $gte: joinedAt };
+    }
   }
   return match;
 }

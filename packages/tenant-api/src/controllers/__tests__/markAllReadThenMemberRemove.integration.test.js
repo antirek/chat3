@@ -9,6 +9,7 @@ import dialogMemberController from '../dialogMemberController.js';
 import messageController from '../messageController.js';
 import {
   DialogMember,
+  DialogReadTask,
   OutboxEvent,
   Tenant,
   User,
@@ -20,6 +21,7 @@ import {
 } from '@chat3/models';
 import { isCounterEventType } from '@chat3/utils/counterProcessor/counterEvents.js';
 import { processCounterEvent } from '@chat3/utils/counterProcessor/processCounterEvent.js';
+import { runDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
@@ -294,6 +296,11 @@ describe('P4 markAllReadForAllUsers then member.remove', () => {
       createReq({ params: { dialogId: dialogIdB, userId: OPERATOR_ID } }),
       createMockRes()
     );
+
+    const readTasks = await DialogReadTask.find({ status: { $in: ['pending', 'running'] } });
+    for (const task of readTasks) {
+      await runDialogReadTask(task);
+    }
 
     const counterRows = await OutboxEvent.find({ tenantId })
       .sort({ createdAt: 1 })

@@ -20,6 +20,13 @@ describe('isUnreadForUser / unreadMessageMatchExtras', () => {
     expect(extras.senderId).toEqual({ $ne: 'bob' });
   });
 
+  test('uses createdAt $gt lastSeenAt when watermark is at or after join', () => {
+    const joinAt = 1_700_000_000_000;
+    const lastSeenAt = joinAt + 50;
+    const extras = unreadMessageMatchExtras('bob', { memberJoinedAt: joinAt, lastSeenAt });
+    expect(extras.createdAt).toEqual({ $gt: lastSeenAt });
+  });
+
   test('excludes soft-deleted messages from unread match', () => {
     const extras = unreadMessageMatchExtras('bob');
     expect(extras.deleted).toEqual({ $ne: true });

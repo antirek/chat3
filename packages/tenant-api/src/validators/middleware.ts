@@ -15,11 +15,6 @@ type ValidationProperty = 'body' | 'query' | 'params';
  */
 export const validate = (schema: Joi.Schema, property: ValidationProperty = 'body') => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    // Логируем для диагностики (только для query параметров)
-    if (property === 'query') {
-      console.log(`[validateQuery] До валидации: ${JSON.stringify(req.query)}`);
-    }
-    
     // Преобразуем пустые строки в undefined для query параметров
     const dataToValidate = property === 'query' 
       ? Object.fromEntries(
@@ -36,11 +31,6 @@ export const validate = (schema: Joi.Schema, property: ValidationProperty = 'bod
       convert: true // Преобразуем типы (например, строки в числа)
     });
     
-    // Логируем для диагностики (только для query параметров)
-    if (property === 'query') {
-      console.log(`[validateQuery] После валидации: ${JSON.stringify(value)}`);
-    }
-
     if (error) {
       const errors = error.details.map(detail => ({
         field: detail.path.join('.'),

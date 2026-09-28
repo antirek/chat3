@@ -7,7 +7,8 @@ import * as fakeAmqp from '@onify/fake-amqplib';
 import { dialogController } from '../dialogController.js';
 import messageController from '../messageController.js';
 import userDialogController from '../userDialogController.js';
-import { Tenant, UserDialogStats, MessageStatus, UserDialogUnreadBySenderType, Message } from '@chat3/models';
+import { Tenant, UserDialogStats, MessageStatus, UserDialogUnreadBySenderType, Message, DialogReadTask } from '@chat3/models';
+import { runDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
@@ -15,6 +16,13 @@ import {
 } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { flushCounterEvents } from '../../utils/__tests__/counterTestHelpers.js';
+
+async function drainDialogReadTasks() {
+  const tasks = await DialogReadTask.find({ status: { $in: ['pending', 'running'] } });
+  for (const task of tasks) {
+    await runDialogReadTask(task);
+  }
+}
 
 const tenantId = 'tnt_default';
 const USER_ID = 'usr_mark_all_read';
@@ -145,7 +153,8 @@ describe('markAllRead integration', () => {
     expect(resMark.statusCode).toBe(200);
     await flushCounterEvents();
     expect(resMark.body?.data?.unreadCount).toBe(0);
-    expect(resMark.body?.data?.processedMessageCount).toBe(2);
+    expect(resMark.body?.data?.processedMessageCount).toBe(0);
+    await drainDialogReadTasks();
 
     const statsAfter = await UserDialogStats.findOne({
       tenantId,

@@ -235,7 +235,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
   });
 
   describe('syncUnreadCount', () => {
-    test('should sync unread count with MessageStatus', async () => {
+    test('full recount counts both messages after join; MessageStatus read is not the watermark', async () => {
       const dialogId = generateDialogId();
       const userId = 'user1';
       const messageId1 = generateMessageId();
@@ -311,7 +311,7 @@ describe('unreadCountUtils - Integration Tests with MongoDB', () => {
       // Проверяем, что UserStats обновлены
       expect(result.dialogCount).toBe(1);
       expect(result.unreadDialogsCount).toBe(1);
-      expect(result.totalUnreadCount).toBe(1);
+      expect(result.totalUnreadCount).toBe(2);
     });
 
     test('should handle case when no messages exist', async () => {

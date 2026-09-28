@@ -127,6 +127,7 @@ export function toEventPayload(raw: unknown): CounterEventPayload | null {
     entityId: String(e.entityId ?? ''),
     actorId: typeof e.actorId === 'string' ? e.actorId : undefined,
     actorType: typeof e.actorType === 'string' ? e.actorType : undefined,
-    data: asRecord(e.data) ?? undefined
+    data: asRecord(e.data) ?? undefined,
+    createdAt: typeof e.createdAt === 'number' ? e.createdAt : undefined
   };
 }

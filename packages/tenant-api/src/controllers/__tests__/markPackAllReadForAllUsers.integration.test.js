@@ -13,8 +13,10 @@ import {
   UserDialogUnreadBySenderType,
   UserPackUnreadBySenderType,
   MessageStatus,
-  Message
+  Message,
+  DialogReadTask
 } from '@chat3/models';
+import { runDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
@@ -22,6 +24,13 @@ import {
 } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { flushCounterEvents } from '../../utils/__tests__/counterTestHelpers.js';
+
+async function drainDialogReadTasks() {
+  const tasks = await DialogReadTask.find({ status: { $in: ['pending', 'running'] } });
+  for (const task of tasks) {
+    await runDialogReadTask(task);
+  }
+}
 
 const tenantId = 'tnt_default';
 const USER_A = 'usr_pack_all_a';
@@ -215,7 +224,8 @@ describe('markAllReadForAllUsers integration', () => {
     // USER_A: 2 диалога, USER_B: 1, CONTACT_ID: 2 диалога
     expect(resMark.body?.data?.processedDialogsCount).toBe(5);
     // Сообщения помечаются только получателям (не отправителю): USER_A 2, USER_B 1; у CONTACT сообщения свои — 0
-    expect(resMark.body?.data?.totalProcessedMessageCount).toBe(3);
+    expect(resMark.body?.data?.totalProcessedMessageCount).toBe(0);
+    await drainDialogReadTasks();
 
     await flushCounterEvents();
 
@@ -386,7 +396,7 @@ describe('markAllReadForAllUsers integration', () => {
     expect(resMark.statusCode).toBe(200);
     expect(resMark.body?.data?.processedUsersCount).toBe(2);
     expect(resMark.body?.data?.processedDialogsCount).toBe(3);
-    expect(resMark.body?.data?.totalProcessedMessageCount).toBe(3);
+    expect(resMark.body?.data?.totalProcessedMessageCount).toBe(0);
 
     await flushCounterEvents();
 
@@ -860,7 +870,8 @@ describe('markAllReadForAllUsers scale integration', () => {
     expect(resMark.body?.data?.packId).toBe(packId);
     expect(resMark.body?.data?.processedUsersCount).toBe(expectedUserCount);
     expect(resMark.body?.data?.processedDialogsCount).toBe(expectedProcessedDialogs);
-    expect(resMark.body?.data?.totalProcessedMessageCount).toBe(expectedProcessedMessages);
+    expect(resMark.body?.data?.totalProcessedMessageCount).toBe(0);
+    await drainDialogReadTasks();
 
     for (const uid of uniqueUserIds) {
       const memberDialogs = dialogIds.filter((_, di) => getMembersForDialog(di).includes(uid));

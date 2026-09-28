@@ -3,8 +3,8 @@ import type { IDialogReadTask, ActorType } from '@chat3/models';
 import { generateTimestamp } from './timestampUtils.js';
 import * as eventUtils from './eventUtils.js';
 
-const DEFAULT_BATCH_SIZE = parseInt(process.env.DIALOG_READ_BATCH_SIZE || '200', 10);
-const BATCH_SLEEP_MS = parseInt(process.env.DIALOG_READ_BATCH_SLEEP_MS || '0', 10);
+const DEFAULT_BATCH_SIZE = parseInt(process.env.DIALOG_READ_BATCH_SIZE || '50', 10);
+const BATCH_SLEEP_MS = parseInt(process.env.DIALOG_READ_BATCH_SLEEP_MS || '25', 10);
 
 function sleep(ms: number): Promise<void> {
   if (!ms) {

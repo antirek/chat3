@@ -34,9 +34,7 @@ export const tenantController = {
       const limit = parseInt(String(req.query.limit)) || 10;
       const skip = (page - 1) * limit;
       
-      // Логируем все query параметры для диагностики
-      log(`Все query параметры: ${JSON.stringify(req.query)}`);
-      log(`Получены параметры: page=${page}, limit=${limit}, sort=${req.query.sort || 'нет'}`);
+      log(`Получены параметры: page=${page}, limit=${limit}, sort=${req.query.sort ? 'yes' : 'нет'}`);
 
       // Формируем сортировку (как в userController)
       let sortOptions: any = { createdAt: -1 }; // По умолчанию
