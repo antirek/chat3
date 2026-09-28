@@ -7,6 +7,20 @@
 
 ## [Unreleased]
 
+---
+
+## [0.0.86] — 2026-09-28
+
+Unread без полного скана истории диалога и фоновый markAllRead (#16023). В тот же образ вошли gRPC/AMQP изменения после 0.0.85.
+
+### Изменено
+
+- Горячие события `message.create` / `message.deleted` / `message.status.changed` / `dialog.messages.bulk_read` меняют сохранённый unread без aggregate по всей истории.
+- Полный пересчёт — один проход по окну `createdAt` после `lastSeenAt`, без `$lookup` в `messagestatuses`.
+- HTTP markAllRead / markPackAllRead ставят `DialogReadTask`; MessageStatus пишет dialog-read-worker (пачка 50, пауза 25 мс). В ответе `processedMessageCount` = 0.
+- Первое `updateLastMessageAt` не проставляет `lastSeenAt = now`.
+- tenant-api не логирует полный query.
+
 ### Улучшено (Users/Dialogs/Members gRPC parity)
 
 - Membership gate: actor must be member for `AddDialogMembers` / `RemoveDialogMember` / `UpdateDialogMeta`
@@ -46,6 +60,12 @@
 - Fix: `GetUserDialogs` отдаёт `meta` как protobuf Struct
 - Docs: `./scripts/gen-grpc-docs.sh` → `docs/grpc/` (HTML+MD); CI workflow `grpc-docs.yml`
 - Proto comments for Chat3UserService RPCs
+
+### Docker
+
+```text
+antirek/mms3:0.0.86
+```
 
 ---
 
@@ -207,6 +227,7 @@ antirek/mms3:0.0.80
 
 ---
 
+[0.0.86]: https://github.com/antirek/chat3/compare/c2bd723...309e0f7
 [0.0.85]: https://github.com/antirek/chat3/compare/80076ae...c2bd723
 [0.0.84]: https://github.com/antirek/chat3/compare/6818eff...80076ae
 [0.0.83]: https://github.com/antirek/chat3/compare/3561ba7...6818eff
