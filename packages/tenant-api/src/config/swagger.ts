@@ -191,6 +191,10 @@ const options = {
     },
     tags: [
       {
+        name: 'Health',
+        description: 'Liveness и readiness. Публичные, без API-ключа.'
+      },
+      {
         name: 'Tenants',
         description: 'Управление организациями'
       },

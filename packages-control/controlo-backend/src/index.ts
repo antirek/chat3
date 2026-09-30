@@ -9,6 +9,8 @@ import initRoutes from './routes/initRoutes.js';
 import eventsRoutes from './routes/eventsRoutes.js';
 import dbExplorerRoutes from './routes/dbExplorerRoutes.js';
 import activityRoutes from './routes/activityRoutes.js';
+import { createHealthRouter } from './routes/healthRoutes.js';
+import { isProbePath } from '@chat3/utils/httpHealth.js';
 import swaggerSpec from './config/swagger.js';
 import {
   buildConfigJsContent,
@@ -104,7 +106,16 @@ app.get('/config.js', (_req, res) => {
 });
 
 // ============================================
-// 3. Serve static files from controlo-ui/dist
+// 3. Health — до SPA catch-all
+// ============================================
+app.use(createHealthRouter(APP_VERSION));
+
+function isSpaBypass(path: string): boolean {
+  return path.startsWith('/api') || path.startsWith('/api-docs') || path === '/config.js' || isProbePath(path);
+}
+
+// ============================================
+// 4. Serve static files from controlo-ui/dist
 // ============================================
 const controloUiDistPath = join(__dirname, '../../controlo-ui/dist');
 let cachedIndexHtml: string | null = null;
@@ -116,7 +127,7 @@ if (existsSync(controloUiDistPath)) {
   // Все остальные маршруты (кроме /api/*, /health, /config.js, /api-docs) отдаем index.html для SPA
   app.get('*', (req, res, next) => {
     // Пропускаем /api/*, /health, /config.js, /api-docs - они обрабатываются отдельными маршрутами
-    if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/config.js' || req.path.startsWith('/api-docs')) {
+    if (isSpaBypass(req.path)) {
       return next();
     }
 
@@ -130,7 +141,7 @@ if (existsSync(controloUiDistPath)) {
 } else {
   // Если dist не существует, отдаем простое сообщение
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path === '/health' || req.path === '/config.js' || req.path.startsWith('/api-docs')) {
+    if (isSpaBypass(req.path)) {
       return next();
     }
     res.status(200).send(`
@@ -152,31 +163,6 @@ if (existsSync(controloUiDistPath)) {
     `);
   });
 }
-
-// ============================================
-// 4. Health check endpoint
-// ============================================
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    message: 'Chat3 Backend is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    version: APP_VERSION,
-    endpoints: {
-      apiDocs: `${CONTROL_APP_URL}/api-docs`,
-      init: `${CONTROL_APP_URL}/api/init`,
-      seed: `${CONTROL_APP_URL}/api/init/seed`,
-      fullRecalculateStats: `${CONTROL_APP_URL}/api/init/full-recalculate-stats`,
-      reconcileCounterDrift: `${CONTROL_APP_URL}/api/init/reconcile-counter-drift`,
-      dedupeUpdates: `${CONTROL_APP_URL}/api/init/dedupe-updates`,
-      dialogEvents: `${CONTROL_APP_URL}/api/dialogs/{dialogId}/events`,
-      dialogUpdates: `${CONTROL_APP_URL}/api/dialogs/{dialogId}/updates`,
-      messageEvents: `${CONTROL_APP_URL}/api/messages/{messageId}/events`,
-      messageUpdates: `${CONTROL_APP_URL}/api/messages/{messageId}/updates`
-    }
-  });
-});
 
 // Initialize database connection
 const startServer = async () => {

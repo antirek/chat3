@@ -33,7 +33,8 @@
     "./queryParser.js": "./dist/queryParser.js",
     "./userDialogMessageFilterUtils.js": "./dist/userDialogMessageFilterUtils.js",
     "./dialogMemberActivityUtils.js": "./dist/dialogMemberActivityUtils.js",
-    "./dedupeUpdates.js": "./dist/dedupeUpdates.js"
+    "./dedupeUpdates.js": "./dist/dedupeUpdates.js",
+    "./httpHealth.js": "./dist/httpHealth.js"
   },
   "private": true,
   "scripts": {

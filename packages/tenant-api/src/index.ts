@@ -16,6 +16,7 @@ import metaRoutes from './routes/metaRoutes.js';
 import topicRoutes from './routes/topicRoutes.js';
 import topicListRoutes from './routes/topicListRoutes.js';
 import packRoutes from './routes/packRoutes.js';
+import healthRoutes from './routes/healthRoutes.js';
 import idempotencyGuard from './middleware/idempotencyGuard.js';
 import { apiJournalMiddleware } from './middleware/apiJournal.js';
 
@@ -82,31 +83,7 @@ app.use('/api/dialogs', topicRoutes);
 app.use('/api/topics', topicListRoutes);
 app.use('/api/packs', packRoutes);
 app.use('/api/meta', metaRoutes);
-
-// API health check endpoint
-app.get('/health', (req, res) => {
-  const rabbitmqInfo = rabbitmqUtils.getRabbitMQInfo();
-  const isHealthy = rabbitmqInfo.connected;
-  
-  res.status(isHealthy ? 200 : 503).json({
-    status: isHealthy ? 'ok' : 'degraded',
-    message: isHealthy ? 'Chat3 Tenant API is running' : 'Chat3 Tenant API is running but RabbitMQ is disconnected',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0',
-    services: {
-      mongodb: 'connected',
-      rabbitmq: rabbitmqInfo.connected ? 'connected' : 'disconnected'
-    },
-    rabbitmq: rabbitmqInfo,
-    endpoints: {
-      tenants: `${TENANT_API_URL}/api/tenants`,
-      users: `${TENANT_API_URL}/api/users`,
-      dialogs: `${TENANT_API_URL}/api/dialogs`,
-      meta: `${TENANT_API_URL}/api/meta`
-    }
-  });
-});
+app.use(healthRoutes);
 
 // Initialize database connection
 const startServer = async (): Promise<void> => {

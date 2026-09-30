@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { ApiJournal } from '@chat3/models';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { isProbePath } from '@chat3/utils/httpHealth.js';
 import type { AuthenticatedRequest } from './apiAuth.js';
 
 /**
@@ -58,7 +59,8 @@ export function apiJournalMiddleware(req: AuthenticatedRequest, res: Response, n
       if (endpoint.startsWith('/admin') || 
           endpoint.startsWith('/api-docs') ||
           endpoint.startsWith('/api-test') ||
-          endpoint === '/favicon.ico') {
+          endpoint === '/favicon.ico' ||
+          isProbePath(endpoint)) {
         return;
       }
 

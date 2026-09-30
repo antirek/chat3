@@ -24,6 +24,10 @@ const swaggerOptions = {
     ],
     tags: [
       {
+        name: 'Health',
+        description: 'Liveness и readiness. Публичные.'
+      },
+      {
         name: 'Initialization',
         description: 'Эндпоинты для инициализации системы'
       },
