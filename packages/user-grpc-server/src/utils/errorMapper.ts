@@ -1,6 +1,5 @@
 import * as grpc from '@grpc/grpc-js';
 import {
-  AppServiceError,
   isAppServiceError,
   type AppServiceErrorCode
 } from '@chat3/app-services';

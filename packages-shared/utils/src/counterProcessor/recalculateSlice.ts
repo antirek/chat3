@@ -1,4 +1,4 @@
-import { Message, UserDialogStats, UserDialogUnreadBySenderType, UserStats } from '@chat3/models';
+import { UserDialogStats, UserDialogUnreadBySenderType } from '@chat3/models';
 import {
   recalculateDialogStats,
   updateUserStatsDialogCount
@@ -10,28 +10,11 @@ import {
   recalculateUserUnreadBySenderType,
   recalculateUserPackedMessagesUnreadBySenderType
 } from '../packStatsUtils.js';
-import { generateTimestamp } from '../timestampUtils.js';
 import { applyHotUnread } from './applyHotUnread.js';
+import { applyHotMessageCount } from './applyHotMessageCount.js';
 import { recalculateUserDialogUnread } from './recalculateUserDialogUnread.js';
 import { recalculateMessageStatusStats } from './recalculateMessageStatusStats.js';
 import type { CounterSlice } from './types.js';
-
-async function refreshSenderMessageCount(tenantId: string, senderId: string): Promise<void> {
-  const uid = (senderId || '').trim().toLowerCase();
-  const totalMessagesCount = await Message.countDocuments({
-    tenantId,
-    senderId: uid,
-    deleted: { $ne: true }
-  });
-  await UserStats.findOneAndUpdate(
-    { tenantId, userId: uid },
-    {
-      $set: { totalMessagesCount, lastUpdatedAt: generateTimestamp() },
-      $setOnInsert: { createdAt: generateTimestamp(), dialogCount: 0, unreadDialogsCount: 0, totalUnreadCount: 0 }
-    },
-    { upsert: true, setDefaultsOnInsert: true }
-  );
-}
 
 export async function recalculateSlice(slice: CounterSlice): Promise<void> {
   const {
@@ -41,7 +24,6 @@ export async function recalculateSlice(slice: CounterSlice): Promise<void> {
     dialogIds,
     messageIds,
     packIds,
-    senderId,
     sourceEventId,
     sourceEventType,
     actorId,
@@ -95,12 +77,12 @@ export async function recalculateSlice(slice: CounterSlice): Promise<void> {
     }
   }
 
-  if (senderId && (sourceEventType === 'message.create' || sourceEventType === 'message.deleted')) {
-    await refreshSenderMessageCount(tenantId, senderId);
-  }
+  const messageCountApplied = await applyHotMessageCount(slice);
 
   for (const dialogId of dialogIds) {
-    await recalculateDialogStats(tenantId, dialogId);
+    await recalculateDialogStats(tenantId, dialogId, {
+      skipMessageCount: messageCountApplied
+    });
   }
 
   const seenMessages = new Set<string>();

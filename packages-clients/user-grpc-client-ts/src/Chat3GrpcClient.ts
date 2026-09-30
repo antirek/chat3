@@ -398,7 +398,7 @@ export type WatchUsersOpts = {
 export class WatchUpdatesSession {
   private pendingAcks = new Map<
     string,
-    { resolve: (u: any) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }
+    { resolve: (u: any) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
   >();
   private ackSeq = 0;
   private updateHandlers = new Set<(update: any) => void>();
@@ -421,7 +421,7 @@ export class WatchUpdatesSession {
       if (type === 'watch.ack' || type === 'unwatch.ack' || type === 'watch.error') {
         // Resolve oldest pending of matching kind (FIFO for simplicity)
         const entry = this.pendingAcks.values().next().value as
-          | { resolve: (u: any) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }
+          | { resolve: (u: any) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
           | undefined;
         if (entry) {
           const key = this.pendingAcks.keys().next().value as string;

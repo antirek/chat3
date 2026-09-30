@@ -1,5 +1,5 @@
  
-import { Message, MessageVersion, Dialog, MessageStatus, User, DialogMember } from '@chat3/models';
+import { Message, MessageVersion, Dialog } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as eventUtils from '@chat3/utils/eventUtils.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
@@ -7,7 +7,6 @@ import { parseFilters, buildFilterQuery } from '@chat3/utils/queryParser.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { buildStatusMessageMatrix, buildReactionSet } from '@chat3/utils/userDialogUtils.js';
-import { updateLastMessageAt } from '../utils/dialogMemberUtils.js';
 import { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 import { getSenderInfo, enrichMessagesWithMetaAndStatuses } from '../utils/messageEnrichment.js';

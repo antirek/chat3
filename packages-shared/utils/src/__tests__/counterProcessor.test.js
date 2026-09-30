@@ -531,11 +531,8 @@ describe('counterProcessor', () => {
     dialogStats = await DialogStats.findOne({ tenantId, dialogId }).lean();
     expect(dialogStats?.messageCount).toBe(0);
 
-    // Repeat with same final state — ProcessedCounterEvent blocks re-run; simulate fresh id
-    await processCounterEvent({
-      ...deletedEvent,
-      eventId: 'evt_f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2'
-    });
+    // Повтор того же eventId не двигает счётчик (MessageCountClaim).
+    await processCounterEvent(deletedEvent);
 
     stats = await UserDialogStats.findOne({ tenantId, userId: readerId, dialogId }).lean();
     expect(stats?.unreadCount).toBe(0);

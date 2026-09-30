@@ -1195,7 +1195,8 @@ export async function readDialogStatsSnapshot(
  */
 export async function recalculateDialogStats(
   tenantId: string, 
-  dialogId: string
+  dialogId: string,
+  options: { skipMessageCount?: boolean } = {}
 ): Promise<{
   topicCount: number;
   memberCount: number;
@@ -1204,6 +1205,26 @@ export async function recalculateDialogStats(
   // Используем уже импортированные модели
   const topicCount = await Topic.countDocuments({ tenantId, dialogId });
   const memberCount = await DialogMember.countDocuments({ tenantId, dialogId });
+  if (options.skipMessageCount) {
+    const timestamp = generateTimestamp();
+    const updated = await DialogStats.findOneAndUpdate(
+      { tenantId, dialogId },
+      {
+        $set: {
+          topicCount,
+          memberCount,
+          lastUpdatedAt: timestamp
+        },
+        $setOnInsert: {
+          messageCount: 0,
+          createdAt: timestamp
+        }
+      },
+      { upsert: true, setDefaultsOnInsert: true, new: true }
+    );
+    const messageCount = (updated as { messageCount?: number } | null)?.messageCount ?? 0;
+    return { topicCount, memberCount, messageCount };
+  }
   const messageCount = await Message.countDocuments({
     tenantId,
     dialogId,

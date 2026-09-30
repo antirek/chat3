@@ -21,6 +21,7 @@ import Update from './operational/Update.js';
 import DialogReadTask from './operational/DialogReadTask.js';
 import CounterHistory from './operational/CounterHistory.js';
 import ProcessedCounterEvent from './operational/ProcessedCounterEvent.js';
+import MessageCountClaim from './operational/MessageCountClaim.js';
 import OutboxEvent from './operational/OutboxEvent.js';
 
 // Journals
@@ -61,6 +62,7 @@ export {
   DialogReadTask,
   CounterHistory,
   ProcessedCounterEvent,
+  MessageCountClaim,
   OutboxEvent,
   Topic,
   Pack,
@@ -103,6 +105,7 @@ import type { IUpdate, UpdateType } from './operational/Update';
 import type { IDialogReadTask, DialogReadTaskStatus } from './operational/DialogReadTask';
 import type { ICounterHistory, CounterType, CounterEntityType, CounterOperation, CounterActorType } from './operational/CounterHistory';
 import type { IProcessedCounterEvent } from './operational/ProcessedCounterEvent';
+import type { IMessageCountClaim } from './operational/MessageCountClaim';
 import type { IOutboxEvent } from './operational/OutboxEvent';
 
 export type { IEvent, EventType, EntityType, ActorType };
@@ -111,6 +114,7 @@ export { UPDATE_TYPE_MESSAGE, UPDATE_TYPE_DIALOG, UPDATE_TYPE_USER, UPDATE_TYPE_
 export type { IDialogReadTask, DialogReadTaskStatus };
 export type { ICounterHistory, CounterType, CounterEntityType, CounterOperation, CounterActorType };
 export type { IProcessedCounterEvent };
+export type { IMessageCountClaim };
 export type { IOutboxEvent };
 
 // Export TypeScript interfaces - Stats models
