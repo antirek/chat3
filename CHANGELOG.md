@@ -9,6 +9,25 @@
 
 ---
 
+## [0.0.89] — 2026-09-30
+
+Инкремент счётчиков сообщений без полного скана (#16074) и HTTP health по C-09 (#16029).
+
+### Изменено
+
+- `message.create` и `message.deleted` меняют `UserStats.totalMessagesCount` и `DialogStats.messageCount` через `$inc`. Перед инкрементом пишется `MessageCountClaim` (`tenantId` + `eventId`): повтор того же события счётчики не двигает. `system.*` входит в счётчик. Горячий путь не вызывает `Message.countDocuments`.
+- Полный пересчёт этих полей остаётся в `recalculateUserStats` и `POST /api/init/full-recalculate-stats`.
+- `GET /health` больше не отвечает 503 по RabbitMQ и не отдаёт url брокера. Это liveness: всегда 200, `{ "status": "ok", "version" }`. `GET /livez` — тот же ответ.
+- `GET /ready` и `GET /readyz`: tenant-api проверяет Mongo (ping, 1 с) и флаг RabbitMQ, 200 или 503. controlo проверяет только Mongo. Эти пути, вместе с `/health` и `/livez`, не пишутся в ApiJournal и описаны в OpenAPI с пустым security.
+
+### Docker
+
+```text
+antirek/mms3:0.0.89
+```
+
+---
+
 ## [0.0.88] — 2026-09-28
 
 counter-worker не пишет повторный `update.dialog`, который уже создаёт update-worker.
@@ -261,6 +280,7 @@ antirek/mms3:0.0.80
 
 ---
 
+[0.0.89]: https://github.com/antirek/chat3/compare/94fe543...RELEASE
 [0.0.88]: https://github.com/antirek/chat3/compare/108349c...94fe543
 [0.0.87]: https://github.com/antirek/chat3/compare/15f1969...5c16cb8
 [0.0.86]: https://github.com/antirek/chat3/compare/c2bd723...309e0f7
