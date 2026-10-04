@@ -97,17 +97,16 @@ describe('bulkCreateMessages', () => {
       messages: [
         {
           senderId: 'bob',
-          externalId: 'ext-1',
           content: 'hello',
           sentAt,
-          status: 'delivered'
+          status: 'delivered',
+          meta: { externalId: 'ext-1' }
         },
         {
           senderId: 'alice',
-          externalId: 'ext-2',
           content: 'reply',
           sentAt: sentAt + 1000,
-          sentFromPhone: true
+          meta: { externalId: 'ext-2', sentFromPhone: true }
         }
       ]
     });
@@ -138,9 +137,9 @@ describe('bulkCreateMessages', () => {
       messages: [
         {
           senderId: 'bob',
-          externalId: 'same-ext',
           content: 'one',
-          sentAt: 1700000001000
+          sentAt: 1700000001000,
+          meta: { externalId: 'same-ext' }
         }
       ]
     };
@@ -172,9 +171,9 @@ describe('bulkCreateMessages', () => {
       messages: [
         {
           senderId: 'bob',
-          externalId: 'old-1',
           content: 'old',
-          sentAt: 1700000000000
+          sentAt: 1700000000000,
+          meta: { externalId: 'old-1' }
         }
       ]
     });
@@ -190,9 +189,9 @@ describe('bulkCreateMessages', () => {
   test('rejects more than 50 messages', async () => {
     const messages = Array.from({ length: 51 }, (_, i) => ({
       senderId: 'bob',
-      externalId: `e-${i}`,
       content: `m${i}`,
-      sentAt: 1700000000000 + i
+      sentAt: 1700000000000 + i,
+      meta: { externalId: `e-${i}` }
     }));
     await expect(
       bulkCreateMessages({ tenantId, dialogId, messages })

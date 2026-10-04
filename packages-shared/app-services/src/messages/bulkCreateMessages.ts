@@ -18,12 +18,15 @@ const MAX_BATCH = 50;
 
 export interface BulkCreateMessageItem {
   senderId: string;
-  externalId: string;
   content?: string;
   sentAt: number;
-  sentFromPhone?: boolean;
-  hasAttachment?: boolean;
   status?: string;
+  meta: {
+    externalId: string;
+    sentFromPhone?: boolean;
+    hasAttachment?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 export interface BulkCreateMessagesInput {
@@ -156,33 +159,47 @@ async function bumpLastMessageAtIfNewer(
   );
 }
 
-async function setMetaFlags(
+async function setMessageMetaEntries(
   tenantId: string,
   messageId: string,
   senderId: string,
-  item: BulkCreateMessageItem
+  metaPayload: Record<string, unknown>
 ): Promise<void> {
-  type MetaDataType = 'string' | 'number' | 'boolean' | 'object' | 'array';
-  const entries: Array<{ key: string; value: unknown; dataType: MetaDataType }> = [
-    { key: 'externalId', value: item.externalId, dataType: 'string' },
-    { key: 'historical', value: true, dataType: 'boolean' }
-  ];
-  if (item.sentFromPhone === true) {
-    entries.push({ key: 'sentFromPhone', value: true, dataType: 'boolean' });
-  }
-  if (item.hasAttachment === true) {
-    entries.push({ key: 'hasAttachment', value: true, dataType: 'boolean' });
-  }
-  for (const entry of entries) {
-    await metaUtils.setEntityMeta(
-      tenantId,
-      'message',
-      messageId,
-      entry.key,
-      entry.value,
-      entry.dataType,
-      { createdBy: senderId }
-    );
+  for (const [key, value] of Object.entries(metaPayload)) {
+    const metaOptions = { createdBy: senderId };
+    if (
+      typeof value === 'object' &&
+      value !== null &&
+      Object.prototype.hasOwnProperty.call(value, 'value')
+    ) {
+      const valueObj = value as { value: unknown; dataType?: string };
+      await metaUtils.setEntityMeta(
+        tenantId,
+        'message',
+        messageId,
+        key,
+        valueObj.value,
+        (valueObj.dataType as 'string' | 'number' | 'boolean' | 'object' | 'array') ||
+          'string',
+        metaOptions
+      );
+    } else {
+      await metaUtils.setEntityMeta(
+        tenantId,
+        'message',
+        messageId,
+        key,
+        value,
+        typeof value === 'number'
+          ? 'number'
+          : typeof value === 'boolean'
+            ? 'boolean'
+            : Array.isArray(value)
+              ? 'array'
+              : 'string',
+        metaOptions
+      );
+    }
   }
 }
 
@@ -221,19 +238,27 @@ export async function bulkCreateMessages(
     try {
       const senderId =
         typeof raw.senderId === 'string' ? raw.senderId.trim() : '';
+      const metaPayload: Record<string, unknown> =
+        raw.meta && typeof raw.meta === 'object' ? { ...raw.meta } : {};
+      const externalIdRaw = metaPayload.externalId;
       const externalId =
-        typeof raw.externalId === 'string' ? raw.externalId.trim() : '';
+        typeof externalIdRaw === 'string' ? externalIdRaw.trim() : '';
       const content = typeof raw.content === 'string' ? raw.content : '';
-      const hasAttachment = raw.hasAttachment === true;
+      const hasAttachment = metaPayload.hasAttachment === true;
 
       if (!senderId) {
         results.push({ index, status: 'error', error: 'senderId is required' });
         continue;
       }
       if (!externalId) {
-        results.push({ index, status: 'error', error: 'externalId is required' });
+        results.push({
+          index,
+          status: 'error',
+          error: 'meta.externalId is required'
+        });
         continue;
       }
+      metaPayload.externalId = externalId;
       if (!Number.isFinite(raw.sentAt)) {
         results.push({ index, status: 'error', error: 'sentAt is required' });
         continue;
@@ -242,7 +267,7 @@ export async function bulkCreateMessages(
         results.push({
           index,
           status: 'error',
-          error: 'content is required unless hasAttachment is true'
+          error: 'content is required unless meta.hasAttachment is true'
         });
         continue;
       }
@@ -289,11 +314,9 @@ export async function bulkCreateMessages(
       ]);
       const message = created[0];
 
-      await setMetaFlags(tenantId, message.messageId, senderId, {
-        ...raw,
-        senderId,
-        externalId,
-        hasAttachment
+      await setMessageMetaEntries(tenantId, message.messageId, senderId, {
+        ...metaPayload,
+        historical: true
       });
 
       if (status) {
