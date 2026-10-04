@@ -136,6 +136,30 @@ export const createMessageSchema = Joi.object({
 });
 
 /**
+ * Пакетная запись исторических сообщений (#16179)
+ */
+export const bulkCreateMessagesSchema = Joi.object({
+  messages: Joi.array()
+    .items(
+      Joi.object({
+        senderId: Joi.string().trim().min(1).max(100).required(),
+        externalId: Joi.string().trim().min(1).max(256).required(),
+        content: Joi.string().trim().max(10000).allow('').optional().default(''),
+        sentAt: Joi.number().required(),
+        sentFromPhone: Joi.boolean().optional(),
+        hasAttachment: Joi.boolean().optional(),
+        status: Joi.string()
+          .trim()
+          .pattern(/^[a-zA-Z0-9_-]{1,64}$/)
+          .optional()
+      })
+    )
+    .min(1)
+    .max(50)
+    .required()
+});
+
+/**
  * Схема валидации soft-delete / undelete сообщения (PATCH /api/messages/:messageId)
  */
 export const patchMessageDeletedSchema = Joi.object({

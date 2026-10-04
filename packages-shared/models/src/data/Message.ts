@@ -121,9 +121,9 @@ const messageSchema = new mongoose.Schema<IMessage>({
   timestamps: false // Отключаем автоматические timestamps
 });
 
-// Pre-save hook для установки createdAt при создании
+// Pre-save: auto createdAt only when caller did not set it (bulkCreate passes historical sentAt)
 messageSchema.pre('save', function(next) {
-  if (this.isNew) {
+  if (this.isNew && (this.createdAt === undefined || this.createdAt === null)) {
     this.createdAt = generateTimestamp();
   }
   next();

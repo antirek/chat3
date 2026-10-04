@@ -49,6 +49,17 @@ export type {
   SendMessageResult
 } from './messages/sendMessage.js';
 
+export {
+  bulkCreateMessages,
+  normalizeToUnixTimestampMicroseconds
+} from './messages/bulkCreateMessages.js';
+export type {
+  BulkCreateMessageItem,
+  BulkCreateMessagesInput,
+  BulkCreateMessagesResult,
+  BulkCreateItemResult
+} from './messages/bulkCreateMessages.js';
+
 export { listUserDialogs } from './dialogs/listUserDialogs.js';
 export type {
   ListUserDialogsInput,

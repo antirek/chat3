@@ -254,9 +254,10 @@ describe('userPackController.getUserPacks - sort unread+lastActivityAt', () => {
       { tenantId, packId: p2, dialogId: dlg2 },
       { tenantId, packId: p3, dialogId: dlg3 }
     ]);
+    // Explicit createdAt is kept (Message pre-save no longer overwrites). Make p2 lastActivity clearly > p3 pack.createdAt.
     await Message.create([
-      { tenantId, dialogId: dlg1, messageId: messageId(50), senderId: 's1', type: 'internal.text', content: 'm1', createdAt: ts + 100 },
-      { tenantId, dialogId: dlg2, messageId: messageId(51), senderId: 's1', type: 'internal.text', content: 'm2', createdAt: ts + 200 }
+      { tenantId, dialogId: dlg1, messageId: messageId(50), senderId: 's1', type: 'internal.text', content: 'm1', createdAt: ts + 1000 },
+      { tenantId, dialogId: dlg2, messageId: messageId(51), senderId: 's1', type: 'internal.text', content: 'm2', createdAt: ts + 2000 }
       // dlg3 без сообщений — lastActivity fallback = Pack.createdAt (ts+30)
     ]);
     await UserPackUnreadBySenderType.create([

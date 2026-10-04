@@ -13,6 +13,7 @@ import { getSenderInfo, enrichMessagesWithMetaAndStatuses } from '../utils/messa
 import {
   setMessageDeleted,
   sendMessage,
+  bulkCreateMessages,
   isAppServiceError,
   appServiceErrorToHttpStatus,
   appServiceErrorToHttpBody
@@ -261,6 +262,43 @@ const messageController = {
           });
           return;
         }
+        res.status(appServiceErrorToHttpStatus(error)).json(appServiceErrorToHttpBody(error));
+        return;
+      }
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: error.message
+      });
+    } finally {
+      log('>>>>> end');
+    }
+  },
+
+  async bulkCreate(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const routePath = 'post /dialogs/:dialogId/messages/bulkCreate';
+    const log = (...args: any[]) => {
+      console.log(`[${routePath}]`, ...args);
+    };
+    log('>>>>> start');
+
+    try {
+      const { dialogId } = req.params;
+      const { messages } = req.body;
+      log(`dialogId=${dialogId}, count=${Array.isArray(messages) ? messages.length : 0}`);
+
+      const result = await bulkCreateMessages({
+        tenantId: req.tenantId!,
+        dialogId,
+        messages
+      });
+
+      res.status(200).json({
+        data: result.results,
+        message: 'Bulk create finished'
+      });
+    } catch (error: any) {
+      log(`error:`, error.message);
+      if (isAppServiceError(error)) {
         res.status(appServiceErrorToHttpStatus(error)).json(appServiceErrorToHttpBody(error));
         return;
       }
