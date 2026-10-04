@@ -137,25 +137,18 @@ export const createMessageSchema = Joi.object({
 
 /**
  * Пакетная запись исторических сообщений (#16179).
- * externalId / sentFromPhone / hasAttachment — в meta, как у createMessage.
+ * Элемент = createMessage + sentAt (+ опциональный status отправителя).
+ * Свободные ключи meta — как у create; уникальность только через meta-index тенанта.
  */
 export const bulkCreateMessagesSchema = Joi.object({
   messages: Joi.array()
     .items(
-      Joi.object({
-        senderId: Joi.string().trim().min(1).max(100).required(),
-        content: Joi.string().trim().max(10000).allow('').optional().default(''),
+      createMessageSchema.keys({
         sentAt: Joi.number().required(),
         status: Joi.string()
           .trim()
           .pattern(/^[a-zA-Z0-9_-]{1,64}$/)
-          .optional(),
-        meta: BASE_META_SCHEMA.keys({
-          externalId: Joi.string().trim().min(1).max(256).required(),
-          sentFromPhone: Joi.boolean().optional(),
-          hasAttachment: Joi.boolean().optional()
-        })
-          .required()
+          .optional()
       })
     )
     .min(1)

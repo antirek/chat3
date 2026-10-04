@@ -4,29 +4,41 @@ import {
   DialogStats,
   Message,
   MessageStatus,
-  Meta,
   User,
   UserDialogActivity
 } from '@chat3/models';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
+import * as topicUtils from '@chat3/utils/topicUtils.js';
+import { isMetaIndexError } from '@chat3/utils/metaIndexErrors.js';
 import { updateUserStatsTotalMessagesCount } from '@chat3/utils/counterUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { getSenderInfo } from '@chat3/utils/userDialogUtils.js';
 import { AppServiceError } from '../errors/AppServiceError.js';
 
 const STATUS_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 const MAX_BATCH = 50;
 
+const MEDIA_MESSAGE_TYPES = new Set([
+  'internal.image',
+  'internal.file',
+  'internal.audio',
+  'internal.video',
+  'internal.sticker'
+]);
+
+/**
+ * Элемент пакета = тело createMessage + sentAt (история) и опциональный status отправителя.
+ * Свободные ключи meta — как у create; уникальность только через meta-index тенанта.
+ */
 export interface BulkCreateMessageItem {
   senderId: string;
   content?: string;
+  type?: string;
+  meta?: Record<string, unknown>;
+  quotedMessageId?: string | null;
+  topicId?: string | null;
   sentAt: number;
   status?: string;
-  meta: {
-    externalId: string;
-    sentFromPhone?: boolean;
-    hasAttachment?: boolean;
-    [key: string]: unknown;
-  };
 }
 
 export interface BulkCreateMessagesInput {
@@ -68,38 +80,6 @@ export function normalizeToUnixTimestampMicroseconds(
   // JS Number ULP around Unix-ms is ~0.25, so µs fractions are not distinct.
   // Equal sentAt in one batch: +orderIndex ms so лента keeps packet order.
   return integerMs + orderIndex + Math.min(fraction, 0.999);
-}
-
-async function findDuplicateMessageId(
-  tenantId: string,
-  dialogId: string,
-  externalId: string
-): Promise<{ messageId: string; createdAt?: number } | null> {
-  const metas = await Meta.find({
-    tenantId,
-    entityType: 'message',
-    key: 'externalId',
-    value: externalId
-  })
-    .select('entityId')
-    .lean();
-
-  for (const meta of metas) {
-    const message = await Message.findOne({
-      tenantId,
-      dialogId,
-      messageId: meta.entityId
-    })
-      .select('messageId createdAt')
-      .lean();
-    if (message) {
-      return {
-        messageId: message.messageId,
-        createdAt: message.createdAt
-      };
-    }
-  }
-  return null;
 }
 
 async function bumpMessageCounts(
@@ -159,48 +139,39 @@ async function bumpLastMessageAtIfNewer(
   );
 }
 
-async function setMessageMetaEntries(
+async function resolveQuotedMessage(
   tenantId: string,
-  messageId: string,
-  senderId: string,
-  metaPayload: Record<string, unknown>
-): Promise<void> {
-  for (const [key, value] of Object.entries(metaPayload)) {
-    const metaOptions = { createdBy: senderId };
-    if (
-      typeof value === 'object' &&
-      value !== null &&
-      Object.prototype.hasOwnProperty.call(value, 'value')
-    ) {
-      const valueObj = value as { value: unknown; dataType?: string };
-      await metaUtils.setEntityMeta(
-        tenantId,
-        'message',
-        messageId,
-        key,
-        valueObj.value,
-        (valueObj.dataType as 'string' | 'number' | 'boolean' | 'object' | 'array') ||
-          'string',
-        metaOptions
-      );
-    } else {
-      await metaUtils.setEntityMeta(
-        tenantId,
-        'message',
-        messageId,
-        key,
-        value,
-        typeof value === 'number'
-          ? 'number'
-          : typeof value === 'boolean'
-            ? 'boolean'
-            : Array.isArray(value)
-              ? 'array'
-              : 'string',
-        metaOptions
-      );
-    }
+  quotedMessageId: string | null | undefined
+): Promise<Record<string, unknown> | null> {
+  if (!quotedMessageId || typeof quotedMessageId !== 'string' || !quotedMessageId.trim()) {
+    return null;
   }
+  const quotedMsg = await Message.findOne({
+    messageId: quotedMessageId.trim(),
+    tenantId
+  }).lean();
+  if (!quotedMsg) {
+    return null;
+  }
+  const quotedMessageMeta = await metaUtils.getEntityMeta(
+    tenantId,
+    'message',
+    quotedMsg.messageId
+  );
+  const quotedSenderInfo = await getSenderInfo(tenantId, quotedMsg.senderId);
+  return {
+    messageId: quotedMsg.messageId,
+    dialogId: quotedMsg.dialogId,
+    senderId: quotedMsg.senderId,
+    content: quotedMsg.content,
+    type: quotedMsg.type,
+    createdAt: quotedMsg.createdAt,
+    deleted: (quotedMsg as { deleted?: boolean }).deleted === true,
+    deletedAt: (quotedMsg as { deletedAt?: number | null }).deletedAt ?? null,
+    deletedBy: (quotedMsg as { deletedBy?: string | null }).deletedBy ?? null,
+    meta: quotedMessageMeta || {},
+    senderInfo: quotedSenderInfo || null
+  };
 }
 
 export async function bulkCreateMessages(
@@ -235,41 +206,50 @@ export async function bulkCreateMessages(
 
   for (let index = 0; index < messages.length; index++) {
     const raw = messages[index] || ({} as BulkCreateMessageItem);
+    let createdMessageId: string | null = null;
     try {
       const senderId =
         typeof raw.senderId === 'string' ? raw.senderId.trim() : '';
+      const normalizedType =
+        typeof raw.type === 'string' && raw.type.trim()
+          ? raw.type.trim().toLowerCase()
+          : 'internal.text';
       const metaPayload: Record<string, unknown> =
         raw.meta && typeof raw.meta === 'object' ? { ...raw.meta } : {};
-      const externalIdRaw = metaPayload.externalId;
-      const externalId =
-        typeof externalIdRaw === 'string' ? externalIdRaw.trim() : '';
       const content = typeof raw.content === 'string' ? raw.content : '';
-      const hasAttachment = metaPayload.hasAttachment === true;
+      const normalizedTopicId =
+        raw.topicId && String(raw.topicId).trim()
+          ? String(raw.topicId).trim()
+          : null;
 
       if (!senderId) {
         results.push({ index, status: 'error', error: 'senderId is required' });
         continue;
       }
-      if (!externalId) {
-        results.push({
-          index,
-          status: 'error',
-          error: 'meta.externalId is required'
-        });
-        continue;
-      }
-      metaPayload.externalId = externalId;
       if (!Number.isFinite(raw.sentAt)) {
         results.push({ index, status: 'error', error: 'sentAt is required' });
         continue;
       }
-      if (!hasAttachment && content.trim().length === 0) {
+      if (normalizedType === 'internal.text' && content.trim().length === 0) {
         results.push({
           index,
           status: 'error',
-          error: 'content is required unless meta.hasAttachment is true'
+          error: 'content is required for internal.text messages'
         });
         continue;
+      }
+      if (MEDIA_MESSAGE_TYPES.has(normalizedType)) {
+        const mediaUrl =
+          typeof metaPayload.url === 'string' ? metaPayload.url.trim() : '';
+        if (!mediaUrl) {
+          results.push({
+            index,
+            status: 'error',
+            error: `meta.url is required for ${normalizedType} messages`
+          });
+          continue;
+        }
+        metaPayload.url = mediaUrl;
       }
 
       let status: string | undefined;
@@ -279,45 +259,81 @@ export async function bulkCreateMessages(
           results.push({
             index,
             status: 'error',
-            error:
-              'status must match [a-zA-Z0-9_-]{1,64}'
+            error: 'status must match [a-zA-Z0-9_-]{1,64}'
           });
           continue;
         }
       }
 
-      const duplicate = await findDuplicateMessageId(
-        tenantId,
-        dialogId,
-        externalId
-      );
-      if (duplicate) {
-        results.push({
-          index,
-          status: 'duplicate',
-          messageId: duplicate.messageId,
-          createdAt: duplicate.createdAt
-        });
-        continue;
+      if (normalizedTopicId) {
+        const topicDoc = await topicUtils.getTopicById(
+          tenantId,
+          dialogId,
+          normalizedTopicId
+        );
+        if (!topicDoc) {
+          results.push({ index, status: 'error', error: 'Topic not found' });
+          continue;
+        }
       }
 
       const createdAt = normalizeToUnixTimestampMicroseconds(raw.sentAt, index);
+      const quotedMessage = await resolveQuotedMessage(tenantId, raw.quotedMessageId);
+
       const created = await Message.create([
         {
           tenantId,
           dialogId,
           content,
           senderId,
-          type: 'internal.text',
+          type: normalizedType,
+          topicId: normalizedTopicId,
+          quotedMessage,
           createdAt
         }
       ]);
       const message = created[0];
+      createdMessageId = message.messageId;
 
-      await setMessageMetaEntries(tenantId, message.messageId, senderId, {
-        ...metaPayload,
-        historical: true
-      });
+      try {
+        await metaUtils.setEntityMetaBulk(
+          tenantId,
+          'message',
+          message.messageId,
+          {
+            ...metaPayload,
+            historical: true
+          },
+          { createdBy: senderId }
+        );
+      } catch (metaError: unknown) {
+        if (isMetaIndexError(metaError) && metaError.code === 'DUPLICATE_INDEX') {
+          await Message.deleteOne({ tenantId, messageId: message.messageId });
+          createdMessageId = null;
+          const existingEntityId =
+            typeof metaError.details?.existingEntityId === 'string'
+              ? metaError.details.existingEntityId
+              : undefined;
+          let existingCreatedAt: number | undefined;
+          if (existingEntityId) {
+            const existing = await Message.findOne({
+              tenantId,
+              messageId: existingEntityId
+            })
+              .select('createdAt')
+              .lean();
+            existingCreatedAt = existing?.createdAt;
+          }
+          results.push({
+            index,
+            status: 'duplicate',
+            messageId: existingEntityId || 'unknown',
+            createdAt: existingCreatedAt
+          });
+          continue;
+        }
+        throw metaError;
+      }
 
       if (status) {
         const user = await User.findOne({ tenantId, userId: senderId })
@@ -356,6 +372,11 @@ export async function bulkCreateMessages(
         createdAt: message.createdAt
       });
     } catch (error: any) {
+      if (createdMessageId) {
+        await Message.deleteOne({ tenantId, messageId: createdMessageId }).catch(
+          () => undefined
+        );
+      }
       results.push({
         index,
         status: 'error',

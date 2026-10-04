@@ -15,6 +15,7 @@ import {
   UserStats
 } from '@chat3/models';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
+import { registerDefinition } from '@chat3/utils/metaIndexUtils.js';
 import {
   setupMongoMemoryServer,
   teardownMongoMemoryServer,
@@ -87,6 +88,11 @@ describe('bulkCreateMessages', () => {
       lastMessageAt: now,
       createdAt: now
     });
+    await registerDefinition(
+      tenantId,
+      'message',
+      { keys: ['externalId'], mode: 'unique' }
+    );
   });
 
   test('creates historical messages without events and unread statuses', async () => {
@@ -100,7 +106,7 @@ describe('bulkCreateMessages', () => {
           content: 'hello',
           sentAt,
           status: 'delivered',
-          meta: { externalId: 'ext-1' }
+          meta: { externalId: 'ext-1', channel: 'max' }
         },
         {
           senderId: 'alice',
@@ -130,7 +136,7 @@ describe('bulkCreateMessages', () => {
     expect(bobStats.totalMessagesCount).toBe(1);
   });
 
-  test('duplicate externalId does not create second message or bump counters twice', async () => {
+  test('duplicate meta unique index does not create second message or bump counters twice', async () => {
     const payload = {
       tenantId,
       dialogId,
