@@ -9,6 +9,25 @@
 
 ---
 
+## [0.0.90] — 2026-10-05
+
+Пакетная запись исторических сообщений в диалог (#16179).
+
+### Добавлено
+
+- `POST /api/dialogs/{dialogId}/messages/bulkCreate` — до 50 сообщений за вызов. Элемент = тело `createMessage` (`senderId`, `content`, `type`, `meta`, `quotedMessageId`, `topicId`) плюс обязательный `sentAt` и опциональный `status` отправителя.
+- `sentAt` нормализуется в `Message.createdAt` формата `unixtimestamp.microseconds`; pre-save не затирает явно заданный `createdAt`.
+- Без `message.create` / unread / `message.status.changed`. Счётчики `DialogStats.messageCount` и `UserStats.totalMessagesCount` растут прямым `$inc` только на `created`. `lastMessageAt` двигается только вперёд.
+- Идемпотентность через unique meta-index тенанта (`DUPLICATE_INDEX` → `duplicate`). Сервис дописывает `meta.historical: true`.
+
+### Docker
+
+```text
+antirek/mms3:0.0.90
+```
+
+---
+
 ## [0.0.89] — 2026-09-30
 
 Инкремент счётчиков сообщений без полного скана (#16074) и HTTP health по C-09 (#16029).
@@ -280,6 +299,7 @@ antirek/mms3:0.0.80
 
 ---
 
+[0.0.90]: https://github.com/antirek/chat3/compare/a405c0e...RELEASE
 [0.0.89]: https://github.com/antirek/chat3/compare/94fe543...a405c0e
 [0.0.88]: https://github.com/antirek/chat3/compare/108349c...94fe543
 [0.0.87]: https://github.com/antirek/chat3/compare/15f1969...5c16cb8
