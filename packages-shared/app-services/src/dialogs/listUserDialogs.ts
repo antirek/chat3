@@ -48,6 +48,21 @@ export interface ListUserDialogsResult {
   pagination: ListUserDialogsPagination;
 }
 
+/** Match latest-message senderId against parseFilters condition ($eq/$ne/$in/$nin or plain value). */
+function matchesLastMessageSender(senderId: string, condition: unknown): boolean {
+  if (condition === null || condition === undefined) return false;
+  if (typeof condition === 'string' || typeof condition === 'number' || typeof condition === 'boolean') {
+    return String(senderId) === String(condition);
+  }
+  if (typeof condition !== 'object') return false;
+  const c = condition as Record<string, unknown>;
+  if ('$eq' in c) return senderId === String(c.$eq);
+  if ('$ne' in c) return senderId !== String(c.$ne);
+  if ('$in' in c && Array.isArray(c.$in)) return c.$in.map(String).includes(senderId);
+  if ('$nin' in c && Array.isArray(c.$nin)) return !c.$nin.map(String).includes(senderId);
+  return false;
+}
+
 /**
  * List dialogs for a user with filters, sort and pagination.
  * Shared by REST and gRPC.
@@ -771,8 +786,8 @@ const { dialogId: regularDialogId, ...otherRegularFilters } = regularFilters;
 // lastSeenAt и lastMessageAt теперь в UserDialogActivity, обрабатываем отдельно
 // unreadCount теперь в UserDialogStats, обрабатываем отдельно
 if (Object.keys(otherRegularFilters).length > 0) {
-  // Применяем фильтры для полей DialogMember (кроме unreadCount, lastSeenAt, lastMessageAt)
-  const excludedFields = ['unreadCount', 'lastSeenAt', 'lastMessageAt', 'message'];
+  // unread / activity / lastMessage are handled below — not DialogMember columns.
+  const excludedFields = ['unreadCount', 'lastSeenAt', 'lastMessageAt', 'message', 'lastMessage'];
   for (const [field, condition] of Object.entries(otherRegularFilters)) {
     if (!excludedFields.includes(field)) {
       dialogMembersQuery[field] = condition;
@@ -890,6 +905,56 @@ if (lastMessageAt !== undefined || otherRegularFilters.lastMessageAt !== undefin
     activityFilter.lastMessageAt = lastMessageAtValue;
   }
   console.log('Applied lastMessageAt filter to activity:', activityFilter.lastMessageAt);
+}
+
+// lastMessage.senderId — «неотвеченные»: последнее сообщение не от текущего пользователя.
+// Example: (lastMessage.senderId,ne,alice) or combined (meta.type,eq,dm)&(lastMessage.senderId,ne,alice)
+const lastMessageFilter = otherRegularFilters.lastMessage;
+if (
+  lastMessageFilter &&
+  typeof lastMessageFilter === 'object' &&
+  (lastMessageFilter as any).senderId !== undefined
+) {
+  const senderCondition = (lastMessageFilter as any).senderId;
+  let scopeIds = dialogIds;
+  if (scopeIds === null) {
+    const allMembers = await DialogMember.find({ tenantId, userId })
+      .select('dialogId')
+      .lean();
+    scopeIds = allMembers.map((m: any) => m.dialogId as string);
+  }
+  if (scopeIds.length === 0) {
+    return { data: [], pagination: { page, limit, total: 0, pages: 0 } };
+  }
+
+  const latestByDialog = await Message.aggregate([
+    {
+      $match: {
+        tenantId,
+        dialogId: { $in: scopeIds },
+        deleted: { $ne: true }
+      }
+    },
+    { $sort: { createdAt: -1 } },
+    {
+      $group: {
+        _id: '$dialogId',
+        senderId: { $first: '$senderId' }
+      }
+    }
+  ]);
+
+  dialogIds = latestByDialog
+    .filter((row: any) => matchesLastMessageSender(String(row.senderId || ''), senderCondition))
+    .map((row: any) => row._id as string);
+
+  console.log(
+    'lastMessage.senderId filter applied:',
+    dialogIds.length,
+    'dialogs (from',
+    scopeIds.length,
+    'candidates)'
+  );
 }
 
 // Если есть фильтрация по meta или по участникам, ограничиваем выборку
