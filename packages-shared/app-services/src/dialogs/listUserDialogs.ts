@@ -1163,6 +1163,10 @@ if (sort) {
       if (field === 'lastSeenAt') {
         aVal = a.context.lastSeenAt || 0;
         bVal = b.context.lastSeenAt || 0;
+      } else if (field === 'lastMessageAt') {
+        // Inbox-by-message: open/mark-read must NOT reshuffle (unlike lastInteractionAt).
+        aVal = a.context.lastMessageAt || 0;
+        bVal = b.context.lastMessageAt || 0;
       } else if (field === 'lastInteractionAt') {
         aVal = a.lastInteractionAt || 0;
         bVal = b.lastInteractionAt || 0;
