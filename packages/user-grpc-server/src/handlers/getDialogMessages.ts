@@ -3,6 +3,12 @@ import { listUserDialogMessages, AppServiceError } from '@chat3/app-services';
 import type { AuthenticatedContext } from '@chat3/app-services';
 
 function mapMessage(msg: any): any {
+  const statuses = (msg.statuses || []).map((s: any) => ({
+    user_id: s.userId || '',
+    status: s.status || '',
+    read_at: s.readAt || (String(s.status || '').toLowerCase() === 'read' ? s.createdAt || 0 : 0),
+    created_at: s.createdAt || 0
+  }));
   return {
     message_id: msg.messageId || '',
     dialog_id: msg.dialogId || '',
@@ -10,7 +16,7 @@ function mapMessage(msg: any): any {
     type: msg.type || '',
     content: msg.content || '',
     meta: msg.meta || {},
-    statuses: [],
+    statuses,
     reaction_set: msg.reactionSet || {},
     sender_info: msg.senderInfo
       ? {

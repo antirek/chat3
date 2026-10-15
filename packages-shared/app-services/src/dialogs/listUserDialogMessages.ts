@@ -263,12 +263,6 @@ if (topicIds.length > 0) {
 // 5. Обогащаем сообщения контекстными данными для пользователя
 const enrichedMessages = await Promise.all(
   messages.map(async (message) => {
-    // Получаем статусы для этого сообщения
-    // const messageStatuses = statusesByMessage[message.messageId] || [];
-    
-    // Находим статусы для текущего пользователя (может быть несколько записей)
-    // const myStatuses = messageStatuses.filter(s => s.userId === userId);
-
     // Формируем матрицу статусов по userType и status (исключая статусы отправителя сообщения)
     const statusMessageMatrix = await buildStatusMessageMatrix(tenantId, message.messageId, message.senderId);
 
@@ -288,9 +282,6 @@ const enrichedMessages = await Promise.all(
     const contextData: any = {
       userId: userId,
       isMine: message.senderId === userId
-      // statuses: null, // Статусы только для данного пользователя
-      // statuses: myStatuses, // Закомментировано: всегда возвращаем null
-      // myReaction: userReaction // Удалено: используйте reactionSet для получения информации о реакциях
     };
 
     // Добавляем userInfo если пользователь найден в User модели
@@ -300,6 +291,18 @@ const enrichedMessages = await Promise.all(
 
     const senderInfo = await getSenderInfo(tenantId, message.senderId, senderInfoCache);
 
+    const senderNorm = String(message.senderId || '').toLowerCase();
+    const messageStatuses = statusesByMessage[message.messageId] || [];
+    const latestByUser = new Map<string, (typeof messageStatuses)[number]>();
+    for (const row of messageStatuses) {
+      const uid = String(row.userId || '').toLowerCase();
+      if (!uid || uid === senderNorm) continue;
+      const prev = latestByUser.get(uid);
+      if (!prev || (row.createdAt || 0) > (prev.createdAt || 0)) {
+        latestByUser.set(uid, row);
+      }
+    }
+
     return {
       ...message,
       meta: messageMeta,
@@ -308,7 +311,7 @@ const enrichedMessages = await Promise.all(
       context: contextData,
       // Матрица статусов (количество пар userType-status, исключая статусы отправителя)
       statusMessageMatrix: statusMessageMatrix,
-      // statuses: messageStatuses, // Закомментировано: заменено на statusMessageMatrix
+      statuses: Array.from(latestByUser.values()),
       reactionSet: reactionSet,
       senderInfo: senderInfo || null
     };
