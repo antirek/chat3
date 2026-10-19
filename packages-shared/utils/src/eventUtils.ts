@@ -49,7 +49,10 @@ export function resolveUiTargetForUpdate(
     case 'update.user':
       return 'users.list';
     case 'update.dialog':
-      return sourceEventType === 'dialog.typing' ? 'messages.list' : 'dialogs.list';
+      // typing + peer catch-up after MarkDialogAllRead → open feed (ticks), not sidebar.
+      return sourceEventType === 'dialog.typing' || sourceEventType === 'dialog.messages.bulk_read'
+        ? 'messages.list'
+        : 'dialogs.list';
     default:
       return 'dialogs.list';
   }

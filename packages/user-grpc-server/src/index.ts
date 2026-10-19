@@ -30,6 +30,15 @@ import { removeDialogMemberHandler } from './handlers/removeDialogMember.js';
 import { getDialogHandler } from './handlers/getDialog.js';
 import { listDialogMembersHandler } from './handlers/listDialogMembers.js';
 import { updateDialogMetaHandler } from './handlers/updateDialogMeta.js';
+import { getMessageHandler } from './handlers/getMessage.js';
+import { searchMessagesHandler } from './handlers/searchMessages.js';
+import { listMessageStatusesHandler } from './handlers/listMessageStatuses.js';
+import { deleteDialogHandler } from './handlers/deleteDialog.js';
+import {
+  setMetaHandler,
+  getMetaHandler,
+  deleteMetaHandler
+} from './handlers/entityMeta.js';
 import { RabbitMQClient } from './services/rabbitmqClient.js';
 import { toGrpcServiceError } from './utils/errorMapper.js';
 
@@ -85,6 +94,13 @@ server.addService(chat3UserService.service, {
   GetDialog: wrapUnary('read', getDialogHandler),
   ListDialogMembers: wrapUnary('read', listDialogMembersHandler),
   UpdateDialogMeta: wrapUnary('write', updateDialogMetaHandler),
+  GetMessage: wrapUnary('read', getMessageHandler),
+  SearchMessages: wrapUnary('read', searchMessagesHandler),
+  ListMessageStatuses: wrapUnary('read', listMessageStatusesHandler),
+  DeleteDialog: wrapUnary('write', deleteDialogHandler),
+  SetMeta: wrapUnary('write', setMetaHandler),
+  GetMeta: wrapUnary('read', getMetaHandler),
+  DeleteMeta: wrapUnary('write', deleteMetaHandler),
   SubscribeUpdates: (call: grpc.ServerWritableStream<any, any>) => {
     authenticateCall(call.metadata, 'read')
       .then((auth) => subscribeUpdatesHandler(call, auth, rabbitmqClient))

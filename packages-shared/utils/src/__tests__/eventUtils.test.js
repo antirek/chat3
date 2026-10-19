@@ -126,6 +126,7 @@ describe('eventUtils - Integration Tests with MongoDB', () => {
     test('resolveUiTargetForUpdate maps updateType + sourceEventType', () => {
       expect(resolveUiTargetForUpdate('update.message', 'message.create')).toBe('messages.list');
       expect(resolveUiTargetForUpdate('update.dialog', 'dialog.typing')).toBe('messages.list');
+      expect(resolveUiTargetForUpdate('update.dialog', 'dialog.messages.bulk_read')).toBe('messages.list');
       expect(resolveUiTargetForUpdate('update.dialog', 'message.create')).toBe('dialogs.list');
       expect(resolveUiTargetForUpdate('update.user', 'message.create')).toBe('users.list');
     });

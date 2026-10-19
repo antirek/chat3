@@ -1007,6 +1007,96 @@ export async function createTypingUpdate(
 }
 
 /**
+ * Peer catch-up after dialog.messages.bulk_read (MarkDialogAllRead finished writing MessageStatus).
+ * Notifies other dialog members so open chats can mark the reader's ticks without N× MessageUpdate.
+ * Reader themselves get DialogMemberUpdate/UserStats from the counter path — not here.
+ */
+export async function createPeerCatchUpUpdates(
+  tenantId: string,
+  dialogId: string,
+  readerUserId: string,
+  eventId: string | mongoose.Types.ObjectId,
+  eventType: string,
+  eventData: EventData = {}
+): Promise<void> {
+  try {
+    const eventIdString = await getEventIdString(eventId, tenantId);
+    if (!eventIdString) {
+      console.warn(
+        `Cannot create peer catch-up updates: eventId "${eventId}" not found for tenant ${tenantId}`
+      );
+      return;
+    }
+
+    const normalizedReader = String(readerUserId || '').trim().toLowerCase();
+    if (!dialogId || !normalizedReader) {
+      console.warn('createPeerCatchUpUpdates: dialogId and readerUserId are required');
+      return;
+    }
+
+    const dialogMembers = await DialogMember.find({ tenantId, dialogId }).select('userId').lean();
+    const recipients = dialogMembers.filter(
+      (m) => String((m as { userId: string }).userId).toLowerCase() !== normalizedReader
+    );
+    if (recipients.length === 0) {
+      console.log(`No peer catch-up recipients for dialog ${dialogId}`);
+      return;
+    }
+
+    const extra = (eventData as { extra?: Record<string, unknown> }).extra || {};
+    const readUntil =
+      (extra.readUntil as number | undefined) ??
+      ((eventData.member as { state?: { lastSeenAt?: number } } | undefined)?.state?.lastSeenAt) ??
+      null;
+
+    const eventDialog = (eventData.dialog || { dialogId, tenantId }) as Record<string, unknown>;
+    const contextBase = {
+      dialogId,
+      entityId: dialogId,
+      includedSections: ['dialog', 'peerCatchUp'],
+      updatedFields: ['peerCatchUp'],
+      // Open-feed UX (outgoing ticks), not sidebar unread.
+      uiTarget: 'messages.list' as const
+    };
+    const finalizedContext = withUpdateContext(contextBase, UPDATE_TYPE_DIALOG, eventType);
+
+    const peerCatchUp = {
+      userId: normalizedReader,
+      dialogId,
+      readUntil,
+      unreadCount: 0
+    };
+
+    const updatesPayload = recipients.map((member) => {
+      const memberObj = member as { userId: string };
+      return {
+        tenantId,
+        userId: memberObj.userId,
+        entityId: dialogId,
+        eventId: eventIdString,
+        ...buildUpdateDocumentFields(eventType, UPDATE_TYPE_DIALOG),
+        data: {
+          dialog: {
+            ...cloneSection(eventDialog),
+            dialogId
+          },
+          peerCatchUp: cloneSection(peerCatchUp),
+          context: cloneSection(finalizedContext)
+        },
+        published: false
+      };
+    });
+
+    const savedUpdates = await persistUpdates(updatesPayload);
+    console.log(
+      `Created ${savedUpdates.length} peer catch-up updates for dialog ${dialogId} (reader ${normalizedReader})`
+    );
+  } catch (error) {
+    console.error('Error creating peer catch-up updates:', error);
+  }
+}
+
+/**
  * Создает UserStatsUpdate - update со статистикой пользователя (dialogCount, unreadDialogsCount)
  */
 export async function createUserStatsUpdate(

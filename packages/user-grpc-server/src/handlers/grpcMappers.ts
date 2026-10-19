@@ -164,9 +164,101 @@ export function metaFromRequest(meta: any): Record<string, unknown> | undefined 
       else if (v.numberValue !== undefined) out[k] = v.numberValue;
       else if (v.boolValue !== undefined) out[k] = v.boolValue;
       else if (v.structValue) out[k] = metaFromRequest(v.structValue);
+      else if (v.listValue?.values) {
+        out[k] = v.listValue.values.map((item: any) => valueFromProtobuf(item));
+      } else if (v.nullValue !== undefined) out[k] = null;
       else out[k] = v;
     }
     return out;
   }
   return JSON.parse(JSON.stringify(meta));
+}
+
+/** Decode google.protobuf.Value (from proto-loader). */
+export function valueFromProtobuf(value: any): unknown {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object') return value;
+  if (value.stringValue !== undefined) return value.stringValue;
+  if (value.numberValue !== undefined) return value.numberValue;
+  if (value.boolValue !== undefined) return value.boolValue;
+  if (value.nullValue !== undefined) return null;
+  if (value.structValue) return metaFromRequest(value.structValue) ?? {};
+  if (value.listValue?.values) {
+    return value.listValue.values.map((item: any) => valueFromProtobuf(item));
+  }
+  // Plain JS already (client helpers sometimes pass raw)
+  return value;
+}
+
+/** Encode plain JS → google.protobuf.Value shape for proto-loader. */
+export function valueToProtobuf(value: unknown): any {
+  if (value === null || value === undefined) return { nullValue: 0 };
+  if (typeof value === 'string') return { stringValue: value };
+  if (typeof value === 'number') return { numberValue: value };
+  if (typeof value === 'boolean') return { boolValue: value };
+  if (Array.isArray(value)) {
+    return {
+      listValue: { values: value.map((item) => valueToProtobuf(item)) }
+    };
+  }
+  if (typeof value === 'object') {
+    return { structValue: structFromObject(value as Record<string, unknown>) };
+  }
+  return { stringValue: String(value) };
+}
+
+export function toGrpcMessage(msg: any): any {
+  if (!msg) return undefined;
+  const statuses = (msg.statuses || []).map((s: any) => ({
+    user_id: s.userId || s.user_id || '',
+    status: s.status || '',
+    read_at:
+      s.readAt ||
+      s.read_at ||
+      (String(s.status || '').toLowerCase() === 'read' ? s.createdAt || s.created_at || 0 : 0),
+    created_at: s.createdAt || s.created_at || 0
+  }));
+  return {
+    message_id: msg.messageId || msg.message_id || '',
+    dialog_id: msg.dialogId || msg.dialog_id || '',
+    sender_id: msg.senderId || msg.sender_id || '',
+    type: msg.type || '',
+    content: msg.content || '',
+    meta: structFromObject(msg.meta),
+    statuses,
+    reaction_set: structFromObject(msg.reactionSet || msg.reaction_set),
+    sender_info: msg.senderInfo || msg.sender_info
+      ? {
+          user_id: (msg.senderInfo || msg.sender_info).userId || (msg.senderInfo || msg.sender_info).user_id || '',
+          name: (msg.senderInfo || msg.sender_info).name || '',
+          created_at: (msg.senderInfo || msg.sender_info).createdAt || (msg.senderInfo || msg.sender_info).created_at || 0,
+          meta: structFromObject((msg.senderInfo || msg.sender_info).meta)
+        }
+      : undefined,
+    created_at: msg.createdAt || msg.created_at || 0,
+    topic_id: msg.topicId || msg.topic_id || '',
+    topic: structFromObject(msg.topic),
+    deleted: msg.deleted === true,
+    deleted_at: msg.deletedAt || msg.deleted_at || 0,
+    deleted_by: msg.deletedBy || msg.deleted_by || '',
+    status_message_matrix: structFromObject(
+      msg.statusMessageMatrix || msg.status_message_matrix
+    ),
+    edited: msg.edited === true,
+    edited_at: msg.editedAt || msg.edited_at || 0,
+    edited_by: msg.editedBy || msg.edited_by || ''
+  };
+}
+
+export function toGrpcMessageStatus(s: any): any {
+  if (!s) return undefined;
+  return {
+    user_id: s.userId || s.user_id || '',
+    status: s.status || '',
+    read_at:
+      s.readAt ||
+      s.read_at ||
+      (String(s.status || '').toLowerCase() === 'read' ? s.createdAt || s.created_at || 0 : 0),
+    created_at: s.createdAt || s.created_at || 0
+  };
 }

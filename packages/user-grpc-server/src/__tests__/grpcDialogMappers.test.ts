@@ -1,7 +1,11 @@
 import {
   toGrpcDialogFromListRow,
   toGrpcDialogMember,
-  toGrpcDialogStatsLite
+  toGrpcDialogStatsLite,
+  toGrpcMessage,
+  toGrpcMessageStatus,
+  valueFromProtobuf,
+  valueToProtobuf
 } from '../handlers/grpcMappers.js';
 
 describe('toGrpcDialogFromListRow', () => {
@@ -67,5 +71,51 @@ describe('toGrpcDialogMember / stats', () => {
     expect(
       toGrpcDialogStatsLite({ memberCount: 2, messageCount: 9, topicCount: 0 })
     ).toEqual({ member_count: 2, message_count: 9, topic_count: 0 });
+  });
+});
+
+describe('toGrpcMessage / Value codec', () => {
+  test('maps message fields and statuses', () => {
+    const grpc = toGrpcMessage({
+      messageId: 'msg_1',
+      dialogId: 'dlg_1',
+      senderId: 'alice',
+      type: 'internal.text',
+      content: 'hi',
+      meta: { k: 'v' },
+      statuses: [{ userId: 'bob', status: 'read', createdAt: 42 }],
+      reactionSet: { '👍': 1 },
+      senderInfo: { userId: 'alice', name: 'Alice', createdAt: 1, meta: {} },
+      createdAt: 10,
+      deleted: false,
+      statusMessageMatrix: { user: { read: 1 } }
+    });
+
+    expect(grpc.message_id).toBe('msg_1');
+    expect(grpc.dialog_id).toBe('dlg_1');
+    expect(grpc.statuses[0].user_id).toBe('bob');
+    expect(grpc.statuses[0].read_at).toBe(42);
+    expect(grpc.meta.fields.k.stringValue).toBe('v');
+    expect(grpc.sender_info.user_id).toBe('alice');
+  });
+
+  test('valueToProtobuf / valueFromProtobuf roundtrip', () => {
+    expect(valueFromProtobuf(valueToProtobuf('x'))).toBe('x');
+    expect(valueFromProtobuf(valueToProtobuf(3))).toBe(3);
+    expect(valueFromProtobuf(valueToProtobuf(true))).toBe(true);
+    expect(valueFromProtobuf(valueToProtobuf(null))).toBeNull();
+    expect(valueFromProtobuf(valueToProtobuf(['a', 1]))).toEqual(['a', 1]);
+    expect(valueFromProtobuf(valueToProtobuf({ a: 'b' }))).toEqual({ a: 'b' });
+  });
+
+  test('toGrpcMessageStatus', () => {
+    expect(
+      toGrpcMessageStatus({ userId: 'bob', status: 'delivered', createdAt: 9 })
+    ).toEqual({
+      user_id: 'bob',
+      status: 'delivered',
+      read_at: 0,
+      created_at: 9
+    });
   });
 });

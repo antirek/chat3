@@ -98,6 +98,37 @@ service Chat3UserService {
   // Merge meta dialog (opaque keys). Типично: смена title группы.
   // Эмитит dialog.changed.
   rpc UpdateDialogMeta(UpdateDialogMetaRequest) returns (UpdateDialogMetaResponse);
+
+  // --- Messages (tenant-wide / by id) ---
+
+  // Получить одно сообщение по message_id (tenant из metadata).
+  // Если передан user_id — только при членстве этого user в dialog сообщения.
+  rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
+
+  // Tenant-wide список/поиск сообщений (аналог GET /api/messages?filter=…).
+  // Не требует user_id / membership (integrator API-key scope).
+  rpc SearchMessages(SearchMessagesRequest) returns (SearchMessagesResponse);
+
+  // История статусов сообщения (read/delivered/…) с пагинацией.
+  // user_id должен быть участником dialog сообщения.
+  rpc ListMessageStatuses(ListMessageStatusesRequest) returns (ListMessageStatusesResponse);
+
+  // --- Dialog delete ---
+
+  // Удалить dialog (каскад members/stats/meta/pack-links). Эмитит dialog.delete.
+  // user_id — actor для event (опционально).
+  rpc DeleteDialog(DeleteDialogRequest) returns (DeleteDialogResponse);
+
+  // --- Generic entity meta (аналог /api/meta/…) ---
+
+  // Установить/обновить один meta key сущности.
+  rpc SetMeta(SetMetaRequest) returns (SetMetaResponse);
+
+  // Получить meta сущности: весь объект или один key.
+  rpc GetMeta(GetMetaRequest) returns (GetMetaResponse);
+
+  // Удалить один meta key сущности.
+  rpc DeleteMeta(DeleteMetaRequest) returns (DeleteMetaResponse);
 }
 
 message GetUserDialogsRequest {
@@ -497,4 +528,94 @@ message UpdateDialogMetaRequest {
 
 message UpdateDialogMetaResponse {
   DialogInfo dialog = 1;
+}
+
+message GetMessageRequest {
+  // Id сообщения (msg_…).
+  string message_id = 1;
+  // Опционально: membership gate в dialog этого сообщения.
+  string user_id = 2;
+}
+
+message GetMessageResponse {
+  Message message = 1;
+}
+
+message SearchMessagesRequest {
+  int32 page = 1;
+  int32 limit = 2;
+  // Filter expression (синтаксис как у Tenant API GET /api/messages).
+  string filter = 3;
+  // Sort, напр. (createdAt,desc).
+  string sort = 4;
+}
+
+message SearchMessagesResponse {
+  repeated Message messages = 1;
+  Pagination pagination = 2;
+}
+
+message ListMessageStatusesRequest {
+  // Запрашивающий пользователь (проверка членства).
+  string user_id = 1;
+  string dialog_id = 2;
+  string message_id = 3;
+  int32 page = 4;
+  int32 limit = 5;
+}
+
+message ListMessageStatusesResponse {
+  repeated MessageStatus statuses = 1;
+  Pagination pagination = 2;
+}
+
+message DeleteDialogRequest {
+  string dialog_id = 1;
+  // Actor для dialog.delete event (опционально).
+  string user_id = 2;
+}
+
+message DeleteDialogResponse {
+  string dialog_id = 1;
+  bool deleted = 2;
+}
+
+message SetMetaRequest {
+  // user | dialog | message | tenant | system | dialogMember | topic | pack
+  string entity_type = 1;
+  string entity_id = 2;
+  string key = 3;
+  // Значение meta (string/number/bool/struct/list/null).
+  google.protobuf.Value value = 4;
+  // string | number | boolean | object | array (default: выводится из value).
+  string data_type = 5;
+  // Actor для side-effect events (dialog.changed / message.changed).
+  string user_id = 6;
+}
+
+message SetMetaResponse {
+  // Полная meta сущности после записи (key → value).
+  google.protobuf.Struct meta = 1;
+}
+
+message GetMetaRequest {
+  string entity_type = 1;
+  string entity_id = 2;
+  // Если задан — вернуть только этот key в meta; иначе весь объект.
+  string key = 3;
+}
+
+message GetMetaResponse {
+  google.protobuf.Struct meta = 1;
+}
+
+message DeleteMetaRequest {
+  string entity_type = 1;
+  string entity_id = 2;
+  string key = 3;
+  string user_id = 4;
+}
+
+message DeleteMetaResponse {
+  bool deleted = 1;
 }

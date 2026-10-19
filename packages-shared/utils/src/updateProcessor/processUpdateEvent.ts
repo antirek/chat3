@@ -55,6 +55,30 @@ export async function processUpdateEvent(eventData: UpdateEventPayload): Promise
     return;
   }
 
+  // MarkDialogAllRead → MessageStatus batch → bulk_read. Notify other members so open
+  // feeds can set outgoing ticks without N× message.status.changed.
+  if (eventType === 'dialog.messages.bulk_read') {
+    const dialogId = (context.dialogId || dialogPayload.dialogId) as string | undefined;
+    const readerUserId = (memberPayload.userId || context.userId || data.userId) as
+      | string
+      | undefined;
+    if (dialogId && readerUserId) {
+      await updateUtils.createPeerCatchUpUpdates(
+        tenantId,
+        dialogId,
+        readerUserId,
+        eventId,
+        eventType,
+        data
+      );
+      console.log(`✅ Created peer catch-up updates for bulk_read ${dialogId}:${readerUserId}`);
+    } else {
+      console.warn(`⚠️ Missing dialogId/reader for bulk_read event ${eventId}`);
+    }
+    // Counter still owns DialogMemberUpdate/UserStats for the reader.
+    return;
+  }
+
   const shouldUpdate = updateUtils.shouldCreateUpdate(eventType);
 
   if (shouldUpdate.dialog) {

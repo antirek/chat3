@@ -122,4 +122,43 @@ export type {
   UpdateDialogMetaResult
 } from './dialogs/updateDialogMeta.js';
 
+export { deleteDialog } from './dialogs/deleteDialog.js';
+export type {
+  DeleteDialogInput,
+  DeleteDialogResult
+} from './dialogs/deleteDialog.js';
+
+export { getMessage } from './messages/getMessage.js';
+export type { GetMessageInput, GetMessageResult } from './messages/getMessage.js';
+
+export { searchMessages } from './messages/searchMessages.js';
+export type {
+  SearchMessagesInput,
+  SearchMessagesResult,
+  SearchMessagesPagination
+} from './messages/searchMessages.js';
+
+export { listMessageStatuses } from './messages/listMessageStatuses.js';
+export type {
+  ListMessageStatusesInput,
+  ListMessageStatusesResult,
+  ListMessageStatusesPagination
+} from './messages/listMessageStatuses.js';
+
+export {
+  setEntityMetaService,
+  getEntityMetaService,
+  deleteEntityMetaService
+} from './meta/entityMeta.js';
+export type {
+  SetEntityMetaInput,
+  SetEntityMetaResult,
+  GetEntityMetaInput,
+  GetEntityMetaResult,
+  DeleteEntityMetaInput,
+  DeleteEntityMetaResult,
+  MetaEntityTypeName,
+  MetaDataType
+} from './meta/entityMeta.js';
+
 export { normalizeUserId } from './dialogs/dialogHelpers.js';

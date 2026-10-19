@@ -45,6 +45,8 @@ export interface SendMessageOptions {
   content?: string;
   type?: string;
   meta?: Record<string, any>;
+  /** Passed through to SendMessageRequest.idempotency_key (server may use later). */
+  idempotencyKey?: string;
 }
 
 export interface GetUserDialogsOptions {
@@ -63,6 +65,25 @@ export interface GetDialogMessagesOptions {
   limit?: number;
   filter?: string;
   sort?: string;
+}
+
+/** Encode plain JS → google.protobuf.Value for proto-loader. */
+function encodeProtobufValue(value: unknown): any {
+  if (value === null || value === undefined) return { nullValue: 0 };
+  if (typeof value === 'string') return { stringValue: value };
+  if (typeof value === 'number') return { numberValue: value };
+  if (typeof value === 'boolean') return { boolValue: value };
+  if (Array.isArray(value)) {
+    return { listValue: { values: value.map((item) => encodeProtobufValue(item)) } };
+  }
+  if (typeof value === 'object') {
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      fields[k] = encodeProtobufValue(v);
+    }
+    return { structValue: { fields } };
+  }
+  return { stringValue: String(value) };
 }
 
 function resolveProtoPath(): string {
@@ -126,7 +147,8 @@ export class Chat3GrpcClient {
       dialog_id: options.dialogId,
       content: options.content || '',
       type: options.type || 'internal.text',
-      meta: options.meta
+      meta: options.meta,
+      idempotency_key: options.idempotencyKey || ''
     });
   }
 
@@ -293,6 +315,100 @@ export class Chat3GrpcClient {
       user_id: options.userId,
       dialog_id: options.dialogId,
       meta: options.meta
+    });
+  }
+
+  async getMessage(options: {
+    messageId: string;
+    userId?: string;
+  }): Promise<any> {
+    return this.unary('GetMessage', {
+      message_id: options.messageId,
+      user_id: options.userId || ''
+    });
+  }
+
+  async searchMessages(options: {
+    page?: number;
+    limit?: number;
+    filter?: string;
+    sort?: string;
+  } = {}): Promise<any> {
+    return this.unary('SearchMessages', {
+      page: options.page || 1,
+      limit: options.limit || 10,
+      filter: options.filter || '',
+      sort: options.sort || ''
+    });
+  }
+
+  async listMessageStatuses(options: {
+    userId: string;
+    dialogId: string;
+    messageId: string;
+    page?: number;
+    limit?: number;
+  }): Promise<any> {
+    return this.unary('ListMessageStatuses', {
+      user_id: options.userId,
+      dialog_id: options.dialogId,
+      message_id: options.messageId,
+      page: options.page || 1,
+      limit: options.limit || 50
+    });
+  }
+
+  async deleteDialog(options: {
+    dialogId: string;
+    userId?: string;
+  }): Promise<any> {
+    return this.unary('DeleteDialog', {
+      dialog_id: options.dialogId,
+      user_id: options.userId || ''
+    });
+  }
+
+  async setMeta(options: {
+    entityType: string;
+    entityId: string;
+    key: string;
+    value: unknown;
+    dataType?: string;
+    userId?: string;
+  }): Promise<any> {
+    return this.unary('SetMeta', {
+      entity_type: options.entityType,
+      entity_id: options.entityId,
+      key: options.key,
+      value: encodeProtobufValue(options.value),
+      data_type: options.dataType || '',
+      user_id: options.userId || ''
+    });
+  }
+
+  async getMeta(options: {
+    entityType: string;
+    entityId: string;
+    key?: string;
+  }): Promise<any> {
+    return this.unary('GetMeta', {
+      entity_type: options.entityType,
+      entity_id: options.entityId,
+      key: options.key || ''
+    });
+  }
+
+  async deleteMeta(options: {
+    entityType: string;
+    entityId: string;
+    key: string;
+    userId?: string;
+  }): Promise<any> {
+    return this.unary('DeleteMeta', {
+      entity_type: options.entityType,
+      entity_id: options.entityId,
+      key: options.key,
+      user_id: options.userId || ''
     });
   }
 
