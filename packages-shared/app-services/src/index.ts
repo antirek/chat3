@@ -161,4 +161,27 @@ export type {
   MetaDataType
 } from './meta/entityMeta.js';
 
+export { createTenant, ensureTenant } from './tenants/createTenant.js';
+export type {
+  CreateTenantInput,
+  CreateTenantResult,
+  TenantResult
+} from './tenants/createTenant.js';
+
+export { getTenant } from './tenants/getTenant.js';
+export type { GetTenantInput, GetTenantResult } from './tenants/getTenant.js';
+
+export { listTenants } from './tenants/listTenants.js';
+export type {
+  ListTenantsInput,
+  ListTenantsResult,
+  ListTenantsPagination
+} from './tenants/listTenants.js';
+
+export { deleteTenant } from './tenants/deleteTenant.js';
+export type {
+  DeleteTenantInput,
+  DeleteTenantResult
+} from './tenants/deleteTenant.js';
+
 export { normalizeUserId } from './dialogs/dialogHelpers.js';

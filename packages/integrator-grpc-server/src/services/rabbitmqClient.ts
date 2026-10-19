@@ -48,7 +48,7 @@ export class RabbitMQClient {
     this.connection = await amqp.connect(this.options.url);
     this.channel = await this.connection.createChannel();
     await this.channel.assertExchange(this.exchange, 'topic', { durable: true });
-    console.log('[user-grpc-server][RabbitMQ] Connected');
+    console.log('[integrator-grpc-server][RabbitMQ] Connected');
   }
 
   async disconnect(): Promise<void> {
@@ -157,13 +157,13 @@ export class RabbitMQClient {
         onMessage(update);
         this.channel!.ack(msg);
       } catch (error) {
-        console.error('[user-grpc-server][RabbitMQ] Error processing message:', error);
+        console.error('[integrator-grpc-server][RabbitMQ] Error processing message:', error);
         this.channel!.nack(msg, false, false);
       }
     });
 
     console.log(
-      `[user-grpc-server][RabbitMQ] Subscribed ${queueName} (${routingKeys.join(', ')})`
+      `[integrator-grpc-server][RabbitMQ] Subscribed ${queueName} (${routingKeys.join(', ')})`
     );
 
     return {
@@ -175,7 +175,7 @@ export class RabbitMQClient {
             await this.channel!.cancel(consumeResult.consumerTag);
             await this.channel!.deleteQueue(queueName);
           } catch (error) {
-            console.error('[user-grpc-server][RabbitMQ] cancel error:', error);
+            console.error('[integrator-grpc-server][RabbitMQ] cancel error:', error);
           }
         }
       }

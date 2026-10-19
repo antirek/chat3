@@ -1,5 +1,5 @@
 /**
- * gRPC User Server — domain via @chat3/app-services (not HTTP facade).
+ * gRPC Integrator Server — domain via @chat3/app-services (not HTTP facade).
  */
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import connectDB from '@chat3/utils/databaseUtils.js';
 import { loadConfig } from './config/index.js';
-import { wrapUnary, authenticateCall } from './auth/authenticateCall.js';
+import { wrapUnary, wrapAdminUnary, authenticateCall } from './auth/authenticateCall.js';
 import { sendTypingIndicatorHandler } from './handlers/sendTypingIndicator.js';
 import { setMessageStatusHandler } from './handlers/setMessageStatus.js';
 import { setMessageReactionHandler } from './handlers/setMessageReaction.js';
@@ -39,6 +39,13 @@ import {
   getMetaHandler,
   deleteMetaHandler
 } from './handlers/entityMeta.js';
+import {
+  createTenantHandler,
+  ensureTenantHandler,
+  getTenantHandler,
+  listTenantsHandler,
+  deleteTenantHandler
+} from './handlers/tenants.js';
 import { RabbitMQClient } from './services/rabbitmqClient.js';
 import { toGrpcServiceError } from './utils/errorMapper.js';
 
@@ -48,10 +55,10 @@ const require = createRequire(import.meta.url);
 
 function resolveProtoPath(): string {
   try {
-    const pkgJson = require.resolve('@chat3/user-grpc-proto/package.json');
-    return path.join(path.dirname(pkgJson), 'src', 'chat3_user.proto');
+    const pkgJson = require.resolve('@chat3/integrator-grpc-proto/package.json');
+    return path.join(path.dirname(pkgJson), 'src', 'chat3_integrator.proto');
   } catch {
-    return path.join(__dirname, '../../../packages-shared/proto/src/chat3_user.proto');
+    return path.join(__dirname, '../../../packages-shared/proto/src/chat3_integrator.proto');
   }
 }
 
@@ -71,12 +78,13 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 });
 
 const chat3Proto = grpc.loadPackageDefinition(packageDefinition) as any;
-const chat3UserService = chat3Proto.chat3.user.Chat3UserService;
+const chat3IntegratorService = chat3Proto.chat3.integrator.Chat3IntegratorService;
+const chat3TenantService = chat3Proto.chat3.integrator.Chat3TenantService;
 
 const rabbitmqClient = new RabbitMQClient({ url: config.rabbitmq.url });
 const server = new grpc.Server();
 
-server.addService(chat3UserService.service, {
+server.addService(chat3IntegratorService.service, {
   GetUserDialogs: wrapUnary('read', getUserDialogsHandler),
   GetDialogMessages: wrapUnary('read', getDialogMessagesHandler),
   SendMessage: wrapUnary('write', sendMessageHandler),
@@ -118,11 +126,19 @@ server.addService(chat3UserService.service, {
   }
 });
 
+server.addService(chat3TenantService.service, {
+  CreateTenant: wrapAdminUnary('write', createTenantHandler, { forbidTenantHeader: true }),
+  EnsureTenant: wrapAdminUnary('write', ensureTenantHandler, { forbidTenantHeader: true }),
+  GetTenant: wrapAdminUnary('read', getTenantHandler),
+  ListTenants: wrapAdminUnary('read', listTenantsHandler),
+  DeleteTenant: wrapAdminUnary('delete', deleteTenantHandler)
+});
+
 try {
   const reflectionService = new reflection.ReflectionService(packageDefinition);
   reflectionService.addToServer(server);
 } catch (error) {
-  console.warn('[user-grpc-server] Failed to enable reflection:', error);
+  console.warn('[integrator-grpc-server] Failed to enable reflection:', error);
 }
 
 async function startServer(): Promise<void> {
@@ -141,10 +157,10 @@ async function startServer(): Promise<void> {
     });
   });
 
-  console.log(`[user-grpc-server] listening on ${bindAddress} (plaintext)`);
+  console.log(`[integrator-grpc-server] listening on ${bindAddress} (plaintext)`);
 }
 
 startServer().catch((error) => {
-  console.error('[user-grpc-server] failed to start:', error);
+  console.error('[integrator-grpc-server] failed to start:', error);
   process.exit(1);
 });

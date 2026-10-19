@@ -53,7 +53,7 @@ controlo-backend `GET /health` уже всегда 200 и deps не пингуе
 ### 5. Вне объёма
 
 - `/startupz`, graceful SIGTERM и `@godaddy/terminus`.
-- HTTP health воркеров и `user-grpc-server`.
+- HTTP health воркеров и `integrator-grpc-server`.
 - Prod-стеки MMS3 кроме `amo-max-mms3`.
 - Смена тега образа и выкладка. HEALTHCHECK на проде начнёт проходить после образа, в котором `/health` уже liveness.
 

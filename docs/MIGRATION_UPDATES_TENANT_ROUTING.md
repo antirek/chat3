@@ -9,7 +9,7 @@
 | Способ интеграции | Нужно менять bind? |
 |-------------------|--------------------|
 | Прямая подписка AMQP к `chat3_updates` | **Да** |
-| gRPC `SubscribeUpdates` (user-grpc-server) | Нет — bind уже внутри Chat3 |
+| gRPC `SubscribeUpdates` (integrator-grpc-server) | Нет — bind уже внутри Chat3 |
 | Только REST / unary gRPC без realtime | Нет |
 
 Если приложение **не** обновят bind, после деплоя Chat3 с новым publish **сообщения перестанут приходить** (старый pattern больше не матчится).

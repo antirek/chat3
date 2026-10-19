@@ -1,10 +1,10 @@
-export { Chat3GrpcClient } from './Chat3GrpcClient.js';
+export { Chat3IntegratorClient } from './Chat3IntegratorClient.js';
 export type {
-  Chat3GrpcClientOptions,
+  Chat3IntegratorClientOptions,
   SendTypingIndicatorOptions,
   SetMessageStatusOptions,
   SetMessageReactionOptions,
   SendMessageOptions,
   GetUserDialogsOptions,
   GetDialogMessagesOptions
-} from './Chat3GrpcClient.js';
+} from './Chat3IntegratorClient.js';

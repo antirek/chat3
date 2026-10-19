@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate HTML + Markdown docs from chat3_user.proto (protoc-gen-doc).
+# Generate HTML + Markdown docs from chat3_integrator.proto (protoc-gen-doc).
 # Requires Docker. Output: docs/grpc/
 set -euo pipefail
 
@@ -24,19 +24,19 @@ run_gen() {
     "$IMAGE" \
     -I /protos \
     --doc_opt="$opt" \
-    chat3_user.proto
+    chat3_integrator.proto
 }
 
 run_gen "html,index.html"
-run_gen "markdown,chat3_user.md"
+run_gen "markdown,chat3_integrator.md"
 
 cat > "$OUT_DIR/README.md" <<'EOF'
 # Chat3 User gRPC docs
 
-Generated from `packages-shared/proto/src/chat3_user.proto`.
+Generated from `packages-shared/proto/src/chat3_integrator.proto`.
 
 - [HTML](./index.html) — browse locally or via CI artifact
-- [Markdown](./chat3_user.md)
+- [Markdown](./chat3_integrator.md)
 
 Regenerate:
 
@@ -44,9 +44,9 @@ Regenerate:
 ./scripts/gen-grpc-docs.sh
 ```
 
-Do not hand-edit `index.html` / `chat3_user.md`; change the `.proto` and re-run the script.
+Do not hand-edit `index.html` / `chat3_integrator.md`; change the `.proto` and re-run the script.
 
 Local interactive UI (run_local): http://localhost:5080 (grpcui + reflection).
 EOF
 
-echo "Wrote $OUT_DIR/index.html and $OUT_DIR/chat3_user.md"
+echo "Wrote $OUT_DIR/index.html and $OUT_DIR/chat3_integrator.md"

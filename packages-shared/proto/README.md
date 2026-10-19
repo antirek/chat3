@@ -1,6 +1,6 @@
-# @chat3/user-grpc-proto
+# @chat3/integrator-grpc-proto
 
-Proto-контракт интеграторского `Chat3UserService`.
+Proto-контракт интеграторского `Chat3IntegratorService`.
 
 - Auth: `x-api-key` (единственный credential)
 - Tenant scope: `x-tenant-id` (не auth; ключ может любой tenant)

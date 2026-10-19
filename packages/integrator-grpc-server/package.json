@@ -1,5 +1,5 @@
 {
-  "name": "@chat3/user-grpc-server",
+  "name": "@chat3/integrator-grpc-server",
   "version": "0.0.90",
   "type": "module",
   "main": "dist/index.js",
@@ -15,7 +15,7 @@
     "@chat3/app-services": "*",
     "@chat3/models": "*",
     "@chat3/utils": "*",
-    "@chat3/user-grpc-proto": "*",
+    "@chat3/integrator-grpc-proto": "*",
     "@grpc/grpc-js": "^1.11.0",
     "@grpc/proto-loader": "^0.7.13",
     "@grpc/reflection": "^1.0.4",

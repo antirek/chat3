@@ -7,6 +7,19 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Rename User gRPC → Integrator gRPC** (external contract for amax / server↔server):
+  - Proto: `package chat3.integrator`, service `Chat3IntegratorService`, file `chat3_integrator.proto`
+  - Packages: `@chat3/integrator-grpc-server`, `@chat3/integrator-grpc-client-ts`, `@chat3/integrator-grpc-proto`
+  - Client class: `Chat3IntegratorClient` (was `Chat3GrpcClient`)
+  - Compose/script: `integrator-grpc-server` / `start:integrator-grpc-server`
+- `Chat3TenantService` остаётся отдельным service в том же proto-пакете (FQN: `chat3.integrator.Chat3TenantService`)
+
+### Added
+
+- `Chat3TenantService`: `CreateTenant` / `EnsureTenant` / `GetTenant` / `ListTenants` / `DeleteTenant` (+ app-services; REST thin)
+
 ---
 
 ## [0.0.90] — 2026-10-05
@@ -102,13 +115,13 @@ Unread без полного скана истории диалога и фон�
 
 ### Добавлено (WatchUpdates multiplex)
 
-- Proto / user-grpc-server / client-ts: bidi `WatchUpdates` — динамический bind/unbind personal updates на одной AMQP queue
+- Proto / integrator-grpc-server / client-ts: bidi `WatchUpdates` — динамический bind/unbind personal updates на одной AMQP queue
 - Active-set filter + ack-кадры (`watch.ack` / `unwatch.ack` / `watch.error`); idle = keep stream
 - Docs: corp-chat `MULTIPLEXED_WATCH.md`
 
 ### Добавлено (dialog read/meta gRPC)
 
-- app-services / proto / user-grpc-server / client: `GetDialog`, `ListDialogMembers`, `UpdateDialogMeta`
+- app-services / proto / integrator-grpc-server / client: `GetDialog`, `ListDialogMembers`, `UpdateDialogMeta`
 - Proto auth comment: credential = `x-api-key`; `x-tenant-id` = scope (без allowlist)
 
 ### Добавлено (SubscribeTenantUpdates / watch scopes)
@@ -127,11 +140,11 @@ Unread без полного скана истории диалога и фон�
 ### Добавлено (gRPC provisioning для local-chat)
 
 - app-services: `upsertUser`, `getUser`, `createDialog`, `findDialogByMeta`, `addDialogMembers`, `removeDialogMemberService`
-- Proto / user-grpc-server / client: `UpsertUser`, `GetUser`, `CreateDialog`, `FindDialogByMeta`, `AddDialogMembers`, `RemoveDialogMember`
+- Proto / integrator-grpc-server / client: `UpsertUser`, `GetUser`, `CreateDialog`, `FindDialogByMeta`, `AddDialogMembers`, `RemoveDialogMember`
 - Dialog meta остаётся opaque: продуктовые конвенции (например 1:1 keys) — на стороне интегратора
 - Fix: `GetUserDialogs` отдаёт `meta` как protobuf Struct
 - Docs: `./scripts/gen-grpc-docs.sh` → `docs/grpc/` (HTML+MD); CI workflow `grpc-docs.yml`
-- Proto comments for Chat3UserService RPCs
+- Proto comments for Chat3IntegratorService RPCs
 
 ### Docker
 
@@ -143,19 +156,19 @@ antirek/mms3:0.0.86
 
 ## [0.0.85] — 2026-09-12
 
-Integrator gRPC API: общий слой `@chat3/app-services`, `user-grpc-server` / TS-клиент, REST thin поверх тех же use-case.
+Integrator gRPC API: общий слой `@chat3/app-services`, `integrator-grpc-server` / TS-клиент, REST thin поверх тех же use-case.
 
 ### Добавлено
 
 - **`@chat3/app-services`** — доменный use-case слой (auth, typing, status, reaction, soft-delete, sendMessage, markAllRead, list dialogs/messages) для REST и gRPC.
-- **`@chat3/user-grpc-server`** — gRPC API интегратора (MVP RPC + `SubscribeUpdates` через AMQP), plaintext, `user_id` в теле RPC.
-- **`@chat3/user-grpc-client-ts`** + **`@chat3/proto`** (`chat3_user.proto`).
+- **`@chat3/integrator-grpc-server`** — gRPC API интегратора (MVP RPC + `SubscribeUpdates` через AMQP), plaintext, `user_id` в теле RPC.
+- **`@chat3/integrator-grpc-client-ts`** + **`@chat3/proto`** (`chat3_integrator.proto`).
 - Утилиты в shared: `queryParser`, `userDialogMessageFilterUtils`, `dialogMemberActivityUtils`.
 
 ### Изменено
 
 - Controllers tenant-api / `apiAuth` тонко делегируют в app-services; HTTP API совместим.
-- Docker-образ: сборка и копирование `app-services` и `user-grpc-server`.
+- Docker-образ: сборка и копирование `app-services` и `integrator-grpc-server`.
 - Удалён устаревший `alwaysStrict: false` в корневом `tsconfig`.
 
 ### Docker

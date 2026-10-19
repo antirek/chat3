@@ -20,8 +20,8 @@
 |-----------|--------|
 | `@chat3/app-services` | auth, typing, status, reaction, soft-delete, **sendMessage**, **markDialogAllRead**, **listUserDialogs**, **listUserDialogMessages** |
 | Proto (`user_id` в теле) | полный scope |
-| `user-grpc-server` | **все MVP RPC** + SubscribeUpdates |
-| `user-grpc-client-ts` | те же методы + stream |
+| `integrator-grpc-server` | **все MVP RPC** + SubscribeUpdates |
+| `integrator-grpc-client-ts` | те же методы + stream |
 | REST thin adapters | соответствующие handlers на services |
 | Hardening / npm publish / TLS | позже |
 
@@ -74,7 +74,7 @@
                    (+ shared utils)     → Outbox → workers
                                 ▲
                     ┌───────────┴─────────────┐
-  gRPC clients ──►  │ user-grpc-server        │
+  gRPC clients ──►  │ integrator-grpc-server        │
                     │ тонкие RPC handlers     │
                     │ + SubscribeUpdates(AMQP)│
                     └─────────────────────────┘
@@ -117,9 +117,9 @@
 | Пакет | Путь | Роль |
 |-------|------|------|
 | `@chat3/app-services` | `packages-shared/app-services` | use-cases + auth core |
-| `@chat3/user-grpc-proto` | `packages-shared/proto` | контракт |
-| `@chat3/user-grpc-server` | `packages/user-grpc-server` | RPC + AMQP stream (plaintext) |
-| `@chat3/user-grpc-client-ts` | `packages-clients/user-grpc-client-ts` | SDK в монорепо |
+| `@chat3/integrator-grpc-proto` | `packages-shared/proto` | контракт |
+| `@chat3/integrator-grpc-server` | `packages/integrator-grpc-server` | RPC + AMQP stream (plaintext) |
+| `@chat3/integrator-grpc-client-ts` | `packages-clients/integrator-grpc-client-ts` | SDK в монорепо |
 
 Локальные utils tenant-api, нужные сервисам, переносить в `@chat3/utils` или внутрь `@chat3/app-services` по мере извлечения.
 

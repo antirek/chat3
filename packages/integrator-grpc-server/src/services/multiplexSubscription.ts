@@ -81,12 +81,12 @@ export async function createMultiplexSubscription(
       onMessage(update);
       channel.ack(msg);
     } catch (error) {
-      console.error('[user-grpc-server][RabbitMQ] multiplex process error:', error);
+      console.error('[integrator-grpc-server][RabbitMQ] multiplex process error:', error);
       channel.nack(msg, false, false);
     }
   });
 
-  console.log(`[user-grpc-server][RabbitMQ] Multiplex queue ${queueName}`);
+  console.log(`[integrator-grpc-server][RabbitMQ] Multiplex queue ${queueName}`);
 
   return {
     connId,
@@ -115,7 +115,7 @@ export async function createMultiplexSubscription(
         await channel.cancel(consumeResult.consumerTag);
         await channel.deleteQueue(queueName);
       } catch (error) {
-        console.error('[user-grpc-server][RabbitMQ] multiplex cancel error:', error);
+        console.error('[integrator-grpc-server][RabbitMQ] multiplex cancel error:', error);
       }
     }
   };

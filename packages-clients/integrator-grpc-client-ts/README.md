@@ -1,11 +1,11 @@
-# @chat3/user-grpc-client-ts
+# @chat3/integrator-grpc-client-ts
 
-Интеграторский TypeScript-клиент для `Chat3UserService`.
+Интеграторский TypeScript-клиент для `Chat3IntegratorService`.
 
 ```ts
-import { Chat3GrpcClient } from '@chat3/user-grpc-client-ts';
+import { Chat3IntegratorClient } from '@chat3/integrator-grpc-client-ts';
 
-const client = new Chat3GrpcClient({
+const client = new Chat3IntegratorClient({
   url: 'localhost:50051',
   apiKey: '...',
   tenantId: 'tnt_default'

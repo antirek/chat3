@@ -65,8 +65,8 @@
    - ⚠️ TODO: Использовать mongodb-memory-server и @onify/fake-amqplib
 
 5. **Документация**
-   - ✅ README для user-grpc-server
-   - ✅ README для user-grpc-client-ts
+   - ✅ README для integrator-grpc-server
+   - ✅ README для integrator-grpc-client-ts
    - ✅ TypeDoc документация для клиента
    - ⚠️ TODO: Примеры использования для разных языков
    - ⚠️ TODO: Документация по обработке ошибок
@@ -94,7 +94,7 @@
 
 #### 1.1. Реализация SetMessageStatus
 - [ ] Добавить метод в proto файл
-- [ ] Реализовать handler в user-grpc-server
+- [ ] Реализовать handler в integrator-grpc-server
 - [ ] Интегрировать с tenant-api endpoint
 - [ ] Добавить метод в TypeScript клиент
 - [ ] Обновить документацию

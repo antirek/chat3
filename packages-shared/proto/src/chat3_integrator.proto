@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package chat3.user;
+package chat3.integrator;
 
 import "google/protobuf/struct.proto";
 
-// Chat3UserService — интеграторский User gRPC API.
+// Chat3IntegratorService — интеграторский gRPC API (server↔server).
 //
 // Auth (gRPC metadata):
 //   - x-api-key: секрет интегратора (единственный credential)
@@ -16,7 +16,7 @@ import "google/protobuf/struct.proto";
 // Контекст пользователя — поле user_id в теле RPC (не JWT).
 // Meta на сущностях — opaque google.protobuf.Struct (продуктовые конвенции
 // вроде type/dmKey живут у интегратора, не в Chat3).
-service Chat3UserService {
+service Chat3IntegratorService {
   // Список диалогов пользователя.
   // Поддерживает page/limit, filter/sort (как в Tenant REST) и опционально last_message.
   rpc GetUserDialogs(GetUserDialogsRequest) returns (GetUserDialogsResponse);
@@ -618,4 +618,91 @@ message DeleteMetaRequest {
 
 message DeleteMetaResponse {
   bool deleted = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Chat3TenantService — provisioning / admin tenant CRUD (не User scope).
+//
+// Auth (gRPC metadata):
+//   - x-api-key: обязателен
+//   - x-tenant-id: для CreateTenant / EnsureTenant ЗАПРЕЩЁН (как REST
+//     apiAuthForTenantCreation). Для Get/List/Delete игнорируется —
+//     tenant_id в теле запроса.
+// Permissions: Create/Ensure → write; Get/List → read; Delete → delete.
+// ---------------------------------------------------------------------------
+service Chat3TenantService {
+  // Создать tenant. tenant_id пустой → автогенерация tnt_XXXXXXXX.
+  rpc CreateTenant(CreateTenantRequest) returns (CreateTenantResponse);
+
+  // Идемпотентный провижининг: если tenant_id есть — вернуть; иначе создать.
+  // Без tenant_id всегда создаёт новый (как CreateTenant).
+  rpc EnsureTenant(EnsureTenantRequest) returns (EnsureTenantResponse);
+
+  // Получить tenant по id (+ meta).
+  rpc GetTenant(GetTenantRequest) returns (GetTenantResponse);
+
+  // Список всех tenants (пагинация).
+  rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
+
+  // Удалить tenant + его entity meta (без cascade users/dialogs).
+  rpc DeleteTenant(DeleteTenantRequest) returns (DeleteTenantResponse);
+}
+
+message TenantInfo {
+  string tenant_id = 1;
+  double created_at = 2;
+  google.protobuf.Struct meta = 3;
+}
+
+message CreateTenantRequest {
+  // Опционально; пусто → автогенерация.
+  string tenant_id = 1;
+  google.protobuf.Struct meta = 2;
+}
+
+message CreateTenantResponse {
+  TenantInfo tenant = 1;
+  bool created = 2;
+}
+
+message EnsureTenantRequest {
+  // Рекомендуется задавать для идемпотентности (amax install).
+  string tenant_id = 1;
+  // Применяется только при создании; существующий tenant meta не мержится.
+  google.protobuf.Struct meta = 2;
+}
+
+message EnsureTenantResponse {
+  TenantInfo tenant = 1;
+  // false — tenant уже существовал.
+  bool created = 2;
+}
+
+message GetTenantRequest {
+  string tenant_id = 1;
+}
+
+message GetTenantResponse {
+  TenantInfo tenant = 1;
+}
+
+message ListTenantsRequest {
+  int32 page = 1;
+  int32 limit = 2;
+  // JSON, напр. {"createdAt":-1}.
+  string sort = 3;
+}
+
+message ListTenantsResponse {
+  repeated TenantInfo tenants = 1;
+  Pagination pagination = 2;
+}
+
+message DeleteTenantRequest {
+  string tenant_id = 1;
+}
+
+message DeleteTenantResponse {
+  string tenant_id = 1;
+  bool deleted = 2;
 }

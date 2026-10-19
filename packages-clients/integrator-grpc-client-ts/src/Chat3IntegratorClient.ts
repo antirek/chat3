@@ -1,5 +1,5 @@
 /**
- * TypeScript client for Chat3 User gRPC (integrator API).
+ * TypeScript client for Chat3 Integrator gRPC (integrator API).
  * Auth: apiKey + tenantId in metadata.
  * User context: userId in each RPC request body.
  */
@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 
-export interface Chat3GrpcClientOptions {
+export interface Chat3IntegratorClientOptions {
   url: string;
   apiKey: string;
   tenantId: string;
@@ -88,14 +88,14 @@ function encodeProtobufValue(value: unknown): any {
 
 function resolveProtoPath(): string {
   try {
-    const pkgJson = require.resolve('@chat3/user-grpc-proto/package.json');
-    return path.join(path.dirname(pkgJson), 'src', 'chat3_user.proto');
+    const pkgJson = require.resolve('@chat3/integrator-grpc-proto/package.json');
+    return path.join(path.dirname(pkgJson), 'src', 'chat3_integrator.proto');
   } catch {
-    return path.join(__dirname, '../../../packages-shared/proto/src/chat3_user.proto');
+    return path.join(__dirname, '../../../packages-shared/proto/src/chat3_integrator.proto');
   }
 }
 
-function loadService(): any {
+function loadServices(): { integrator: any; tenant: any } {
   const PROTO_PATH = resolveProtoPath();
   const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
     keepCase: true,
@@ -106,20 +106,29 @@ function loadService(): any {
     includeDirs: [path.dirname(require.resolve('protobufjs/package.json'))]
   });
   const chat3Proto = grpc.loadPackageDefinition(packageDefinition) as any;
-  return chat3Proto.chat3.user.Chat3UserService;
+  return {
+    integrator: chat3Proto.chat3.integrator.Chat3IntegratorService,
+    tenant: chat3Proto.chat3.integrator.Chat3TenantService
+  };
 }
 
-const Chat3UserService = loadService();
+const { integrator: Chat3IntegratorService, tenant: Chat3TenantService } = loadServices();
 
-export class Chat3GrpcClient {
+export class Chat3IntegratorClient {
   private client: any;
+  private tenantClient: any;
   private metadata: grpc.Metadata;
+  /** Api-key only — for Chat3TenantService (Create/Ensure forbid x-tenant-id). */
+  private adminMetadata: grpc.Metadata;
 
-  constructor(options: Chat3GrpcClientOptions) {
-    this.client = new Chat3UserService(options.url, grpc.credentials.createInsecure());
+  constructor(options: Chat3IntegratorClientOptions) {
+    this.client = new Chat3IntegratorService(options.url, grpc.credentials.createInsecure());
+    this.tenantClient = new Chat3TenantService(options.url, grpc.credentials.createInsecure());
     this.metadata = new grpc.Metadata();
     this.metadata.add('x-api-key', options.apiKey);
     this.metadata.add('x-tenant-id', options.tenantId);
+    this.adminMetadata = new grpc.Metadata();
+    this.adminMetadata.add('x-api-key', options.apiKey);
   }
 
   private unary(method: string, request: Record<string, unknown>): Promise<any> {
@@ -131,6 +140,22 @@ export class Chat3GrpcClient {
           resolve(response);
         }
       });
+    });
+  }
+
+  private tenantUnary(method: string, request: Record<string, unknown>): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.tenantClient[method](
+        request,
+        this.adminMetadata,
+        (error: grpc.ServiceError | null, response: any) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(response);
+          }
+        }
+      );
     });
   }
 
@@ -497,8 +522,55 @@ export class Chat3GrpcClient {
     };
   }
 
+  // --- Chat3TenantService (admin / provisioning; api-key only) ---
+
+  async createTenant(options: {
+    tenantId?: string;
+    meta?: Record<string, any>;
+  } = {}): Promise<any> {
+    return this.tenantUnary('CreateTenant', {
+      tenant_id: options.tenantId || '',
+      meta: options.meta
+    });
+  }
+
+  async ensureTenant(options: {
+    tenantId?: string;
+    meta?: Record<string, any>;
+  } = {}): Promise<any> {
+    return this.tenantUnary('EnsureTenant', {
+      tenant_id: options.tenantId || '',
+      meta: options.meta
+    });
+  }
+
+  async getTenant(options: { tenantId: string }): Promise<any> {
+    return this.tenantUnary('GetTenant', {
+      tenant_id: options.tenantId
+    });
+  }
+
+  async listTenants(options: {
+    page?: number;
+    limit?: number;
+    sort?: string;
+  } = {}): Promise<any> {
+    return this.tenantUnary('ListTenants', {
+      page: options.page || 1,
+      limit: options.limit || 10,
+      sort: options.sort || ''
+    });
+  }
+
+  async deleteTenant(options: { tenantId: string }): Promise<any> {
+    return this.tenantUnary('DeleteTenant', {
+      tenant_id: options.tenantId
+    });
+  }
+
   close(): void {
     this.client.close();
+    this.tenantClient.close();
   }
 }
 

@@ -34,7 +34,7 @@ export function toGrpcServiceError(error: unknown): grpc.ServiceError {
   }
 
   const message = error instanceof Error ? error.message : String(error);
-  console.error('[user-grpc-server]', error);
+  console.error('[integrator-grpc-server]', error);
   return {
     code: grpc.status.INTERNAL,
     message,
