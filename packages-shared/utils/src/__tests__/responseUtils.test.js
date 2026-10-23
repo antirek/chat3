@@ -67,6 +67,29 @@ describe('responseUtils', () => {
       expect(result.name).toBe('Test');
     });
 
+    test('should still sanitize plain objects that have a custom toString (structuredClone/ObjectId fallout)', () => {
+      const input = {
+        message: {
+          _id: 'should-drop',
+          __v: 0,
+          messageId: 'msg_1',
+          createdAt: 1792739457534.26001,
+        },
+      };
+      Object.defineProperty(input.message, 'toString', {
+        value() { return '[weird]'; },
+        enumerable: false,
+      });
+
+      const result = sanitizeResponse(input);
+
+      expect(result.message).not.toHaveProperty('_id');
+      expect(result.message).not.toHaveProperty('__v');
+      expect(typeof result.message.createdAt).toBe('string');
+      expect(result.message.createdAt).toMatch(/^\d+\.\d{6}$/);
+      expect(result.message.messageId).toBe('msg_1');
+    });
+
     test('should format all timestamp fields from TIMESTAMP_FIELDS', () => {
       // Timestamp должен быть > 1000000000000 для форматирования
       const baseTimestamp = 1734567890123;

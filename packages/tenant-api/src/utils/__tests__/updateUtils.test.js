@@ -695,8 +695,12 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       const update = await Update.findOne({ tenantId, entityId: messageId, userId: 'user1' }).lean();
       expect(update).toBeDefined();
       expect(update.data?.message).toBeDefined();
-      expect(update.data.message.createdAt).toBeDefined();
+      // persistUpdate sanitizes data: createdAt as "ms.micros" string, no mongoose _id/__v
+      expect(typeof update.data.message.createdAt).toBe('string');
+      expect(update.data.message.createdAt).toMatch(/^\d+\.\d{6}$/);
       expect(Number(update.data.message.createdAt)).toBeCloseTo(messageCreatedAt, 5);
+      expect(update.data.message).not.toHaveProperty('_id');
+      expect(update.data.message).not.toHaveProperty('__v');
       expect(update.data.message.content).toBe('Hello');
       expect(update.data.message.senderId).toBe('agent1');
     });
@@ -941,7 +945,8 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(update.data.message.reactionUpdate).toBeDefined();
       expect(update.data.message.reactionUpdate.userId).toBe('user2');
       expect(update.data.message.reactionUpdate.reaction).toBe('👍');
-      expect(update.data.message.reactionUpdate.oldReaction).toBeNull();
+      // sanitizeResponse omits nulls — oldReaction:null не попадает в сохранённый Update.data
+      expect(update.data.message.reactionUpdate.oldReaction).toBeUndefined();
       // member секция убрана для message.reaction.changed
       expect(update.data.member).toBeUndefined();
     });

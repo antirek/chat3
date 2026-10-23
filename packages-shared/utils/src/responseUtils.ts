@@ -56,14 +56,32 @@ export function removeIdFields(obj: unknown): unknown {
     return obj;
   }
 
-  // Проверяем на ObjectId (Mongoose ObjectId имеет свойство _bsontype)
+  // BSON / Mongoose ObjectId (legacy ObjectID и современный ObjectId)
   const objAny = obj as { _bsontype?: string; constructor?: { name?: string }; toString?: () => string };
-  if (objAny._bsontype === 'ObjectID' || (objAny.constructor && objAny.constructor.name === 'ObjectID')) {
+  const ctorName = objAny.constructor?.name;
+  if (
+    objAny._bsontype === 'ObjectID' ||
+    objAny._bsontype === 'ObjectId' ||
+    ctorName === 'ObjectID' ||
+    ctorName === 'ObjectId'
+  ) {
     return objAny.toString?.() || String(obj);
   }
 
-  // Если это Buffer или другой специальный объект, возвращаем как есть
-  if (obj instanceof Buffer || objAny.toString !== Object.prototype.toString) {
+  if (obj instanceof Buffer) {
+    return obj;
+  }
+
+  // Plain-object (и null-prototype). Не сравниваем proto === Object.prototype по ссылке:
+  // в Jest/VM modules structuredClone даёт объект с Object.prototype другого realm
+  // (constructor.name === 'Object', но !== локальный Object.prototype) — иначе message
+  // целиком пропускался: createdAt number, _id не вычищался (Controlo Update UI).
+  const proto = Object.getPrototypeOf(obj);
+  const isPlainObject =
+    proto === null ||
+    proto === Object.prototype ||
+    proto?.constructor?.name === 'Object';
+  if (!isPlainObject) {
     return obj;
   }
 

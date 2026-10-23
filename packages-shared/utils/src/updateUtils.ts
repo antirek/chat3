@@ -31,7 +31,13 @@ function isDuplicateKeyError(error: unknown): boolean {
 
 async function persistUpdate(updateData: Record<string, unknown>): Promise<IUpdate | null> {
   try {
-    const savedUpdate = await Update.create(updateData);
+    // Controlo читает Update из Mongo as-is; sanitize раньше был только на Rabbit publish.
+    // Чистим data до записи: timestamps → строки с µs, без _id/__v/ObjectId buffer.
+    const payload: Record<string, unknown> = { ...updateData };
+    if (payload.data != null && typeof payload.data === 'object') {
+      payload.data = sanitizeResponse(payload.data);
+    }
+    const savedUpdate = await Update.create(payload);
     await publishUpdate(savedUpdate).catch(err => {
       console.error(`Error publishing update ${savedUpdate._id}:`, err);
     });
