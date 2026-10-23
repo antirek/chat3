@@ -9,6 +9,23 @@
 
 ---
 
+## [0.0.92] — 2026-10-23
+
+Sanitize Update.data при записи в Mongo (Controlo / µs timestamps).
+
+### Fixed
+
+- `persistUpdate` прогоняет `data` через `sanitizeResponse` до Mongo: nested `createdAt` → строки `"ms.micros"` (6 знаков), без mongoose `_id` / `__v` / ObjectId buffer (Controlo JSON модалка).
+- `removeIdFields`: cross-realm plain-object check (Jest/VM `structuredClone`), корректный ObjectId (`ObjectId` / `ObjectID`).
+
+### Docker
+
+```text
+antirek/mms3:0.0.92
+```
+
+---
+
 ## [0.0.91] — 2026-10-23
 
 Integrator gRPC / Tenant gRPC, фильтры диалогов и полный payload в MessageUpdate.
@@ -330,6 +347,7 @@ antirek/mms3:0.0.80
 
 ---
 
+[0.0.92]: https://github.com/antirek/chat3/compare/3334d0a...RELEASE
 [0.0.91]: https://github.com/antirek/chat3/compare/d4385f1...3334d0a
 [0.0.90]: https://github.com/antirek/chat3/compare/a405c0e...d4385f1
 [0.0.89]: https://github.com/antirek/chat3/compare/94fe543...a405c0e
