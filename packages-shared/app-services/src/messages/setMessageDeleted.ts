@@ -3,6 +3,7 @@ import * as eventUtils from '@chat3/utils/eventUtils.js';
 import * as metaUtils from '@chat3/utils/metaUtils.js';
 import * as topicUtils from '@chat3/utils/topicUtils.js';
 import { sanitizeResponse } from '@chat3/utils/responseUtils.js';
+import { toApiTimestampString } from '@chat3/utils/timestampUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import {
   buildStatusMessageMatrix,
@@ -50,8 +51,11 @@ async function enrichMessageResponse(
     senderInfo: senderInfo || null
   }) as Record<string, unknown>;
 
+  // После sanitize: явно вернуть deleted* (в т.ч. null при undelete — sanitize их выкидывает).
   data.deleted = message.deleted === true;
-  data.deletedAt = message.deletedAt ?? null;
+  const rawDeletedAt = (message as { deletedAt?: number | null }).deletedAt ?? null;
+  data.deletedAt =
+    rawDeletedAt == null ? null : toApiTimestampString(rawDeletedAt) ?? String(rawDeletedAt);
   data.deletedBy = message.deletedBy ?? null;
   return data;
 }
