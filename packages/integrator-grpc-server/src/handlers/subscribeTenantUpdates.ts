@@ -3,6 +3,7 @@ import {
   authenticateApiKey,
   assertPermission
 } from '@chat3/app-services';
+import { toGrpcMicros } from '@chat3/utils/timestampUtils.js';
 import type { RabbitMQClient, Subscription } from '../services/rabbitmqClient.js';
 import { toGrpcServiceError } from '../utils/errorMapper.js';
 import { convertToGrpcUpdate } from './updateConverters.js';
@@ -62,7 +63,7 @@ export async function subscribeTenantUpdatesHandler(
         scope: tenantIds.length === 0 ? 'all' : 'tenants',
         tenant_ids: tenantIds
       },
-      created_at: Date.now()
+      created_at: toGrpcMicros(Date.now())
     });
 
     const cleanup = () => {

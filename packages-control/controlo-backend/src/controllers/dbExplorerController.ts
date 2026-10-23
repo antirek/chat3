@@ -193,9 +193,9 @@ export async function getModelData(req: Request, res: Response): Promise<void> {
         .lean()
     ]);
 
-    // Не используем sanitizeResponse: _id нужен фронту для однозначного удаления/редактирования строки
+    // keepId: _id нужен фронту; timestamps → string µs
     res.json({
-      data,
+      data: sanitizeResponse(data, { keepId: true }),
       pagination: {
         page: pageNum,
         limit: limitNum,

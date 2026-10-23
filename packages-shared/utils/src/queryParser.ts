@@ -173,7 +173,28 @@ function parseScalarValue(value: string, fieldName: string = ''): any {
   }
   
   // Конвертация дат в timestamps для временных полей
-  const timestampFields = ['createdAt', 'updatedAt', 'lastSeenAt', 'lastMessageAt', 'publishedAt', 'readAt', 'deliveredAt', 'statusTime', 'reactionTime', 'joinedAt', 'expiresAt', 'lastUsedAt'];
+  // Align with TIMESTAMP_FIELDS (+ filter aliases); values in filters remain numeric.
+  const timestampFields = [
+    'createdAt',
+    'updatedAt',
+    'deletedAt',
+    'editedAt',
+    'lastSeenAt',
+    'lastMessageAt',
+    'publishedAt',
+    'readAt',
+    'deliveredAt',
+    'statusTime',
+    'reactionTime',
+    'joinedAt',
+    'expiresAt',
+    'expireAt',
+    'lastUsedAt',
+    'lastUpdatedAt',
+    'processedAt',
+    'startedAt',
+    'finishedAt'
+  ];
   const isTimestampField = timestampFields.some(field => fieldName.includes(field));
   
   if (isTimestampField && isDateLike(value)) {

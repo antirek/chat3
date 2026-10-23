@@ -104,8 +104,11 @@ describe('responseUtils', () => {
         expiresAt: baseTimestamp + 0.11,
         lastUsedAt: baseTimestamp + 0.12,
         lastInteractionAt: baseTimestamp + 0.13,
-        statusTime: baseTimestamp + 0.8, // Не в TIMESTAMP_FIELDS, не должно форматироваться
-        reactionTime: baseTimestamp + 0.9, // Не в TIMESTAMP_FIELDS, не должно форматироваться
+        statusTime: baseTimestamp + 0.8,
+        reactionTime: baseTimestamp + 0.9,
+        deletedAt: baseTimestamp + 0.2,
+        editedAt: baseTimestamp + 0.21,
+        updatedAt: baseTimestamp + 0.22,
         name: 'Test'
       };
       
@@ -132,10 +135,29 @@ describe('responseUtils', () => {
       expect(result.lastUsedAt).toMatch(/^\d+\.\d{6}$/);
       expect(typeof result.lastInteractionAt).toBe('string');
       expect(result.lastInteractionAt).toMatch(/^\d+\.\d{6}$/);
-      // statusTime и reactionTime не в TIMESTAMP_FIELDS, не должны форматироваться
-      expect(typeof result.statusTime).toBe('number');
-      expect(typeof result.reactionTime).toBe('number');
+      expect(typeof result.statusTime).toBe('string');
+      expect(result.statusTime).toMatch(/^\d+\.\d{6}$/);
+      expect(typeof result.reactionTime).toBe('string');
+      expect(result.reactionTime).toMatch(/^\d+\.\d{6}$/);
+      expect(typeof result.deletedAt).toBe('string');
+      expect(result.deletedAt).toMatch(/^\d+\.\d{6}$/);
+      expect(typeof result.editedAt).toBe('string');
+      expect(result.editedAt).toMatch(/^\d+\.\d{6}$/);
+      expect(typeof result.updatedAt).toBe('string');
+      expect(result.updatedAt).toMatch(/^\d+\.\d{6}$/);
       expect(result.name).toBe('Test');
+    });
+
+    test('keepId preserves _id and still formats timestamps', () => {
+      const baseTimestamp = 1734567890123;
+      const result = sanitizeResponse(
+        { _id: 'abc', id: 'abc', __v: 0, createdAt: baseTimestamp + 0.1, name: 'x' },
+        { keepId: true }
+      );
+      expect(result._id).toBe('abc');
+      expect(result.id).toBe('abc');
+      expect(result.__v).toBeUndefined();
+      expect(result.createdAt).toMatch(/^\d+\.\d{6}$/);
     });
 
     test('should format lastUpdatedAt, lastActivityAt, addedAt as strings with 6 decimals', () => {

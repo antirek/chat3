@@ -8,16 +8,17 @@ import {
   AppServiceError
 } from '@chat3/app-services';
 import type { AuthenticatedContext } from '@chat3/app-services';
+import { toGrpcMicros } from '@chat3/utils/timestampUtils.js';
 import { metaFromRequest, structFromObject } from './grpcMappers.js';
 
 function toGrpcTenant(tenant: {
   tenantId: string;
-  createdAt: number;
+  createdAt: number | string;
   meta: Record<string, unknown>;
 }): any {
   return {
     tenant_id: tenant.tenantId || '',
-    created_at: tenant.createdAt || 0,
+    created_at: toGrpcMicros(tenant.createdAt),
     meta: structFromObject(tenant.meta)
   };
 }

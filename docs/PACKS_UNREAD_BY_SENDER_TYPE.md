@@ -20,7 +20,7 @@
 | fromType    | string  | Тип отправителя (User.type: user, contact, bot …) |
 | countUnread | number  | Количество непрочитанных сообщений от этого типа в этом диалоге |
 | lastUpdatedAt | number | Время последнего изменения (опционально) |
-| createdAt   | number  | Время создания записи (опционально) |
+| createdAt   | string  | HTTP: `"ms.micros"`; storage Number (опционально) |
 
 **Уникальность:** один документ на комбинацию `(tenantId, userId, dialogId, fromType)`.
 
@@ -48,7 +48,7 @@
 | fromType    | string  | Тип отправителя |
 | countUnread | number  | Непрочитанные от этого типа в паке (сумма по диалогам пака) |
 | lastUpdatedAt | number | Опционально |
-| createdAt   | number  | Опционально |
+| createdAt   | string  | HTTP `"ms.micros"` (опционально) |
 
 **Уникальность:** `(tenantId, userId, packId, fromType)`.
 
@@ -78,7 +78,7 @@
 | fromType    | string  | Тип отправителя |
 | countUnread | number  | Непрочитанные от этого типа в этом диалоге (в контексте пака) |
 | lastUpdatedAt | number | Опционально |
-| createdAt   | number  | Опционально |
+| createdAt   | string  | HTTP `"ms.micros"` (опционально) |
 
 **Уникальность:** `(tenantId, userId, packId, dialogId, fromType)`.
 

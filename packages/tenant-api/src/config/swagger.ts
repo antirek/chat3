@@ -69,8 +69,9 @@ const options = {
               maxLength: 20
             },
             createdAt: {
-              type: 'number',
-              description: 'Timestamp создания (микросекунды)'
+              type: 'string',
+              description: 'Unix ms with 6 fractional digits (microseconds), e.g. "1730891234567.123456"',
+              example: '1730891234567.123456'
             }
           }
         },

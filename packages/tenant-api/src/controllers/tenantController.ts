@@ -10,14 +10,16 @@ import {
 } from '@chat3/app-services';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 
+import { toApiTimestampString } from '@chat3/utils/timestampUtils.js';
+
 function formatTenantResponse(tenant: {
   tenantId: string;
-  createdAt: number;
+  createdAt: number | string;
   meta?: Record<string, unknown>;
 }): any {
   return {
     tenantId: tenant.tenantId,
-    createdAt: Number(tenant.createdAt).toFixed(6),
+    createdAt: toApiTimestampString(tenant.createdAt) ?? String(tenant.createdAt),
     meta: tenant.meta || {}
   };
 }

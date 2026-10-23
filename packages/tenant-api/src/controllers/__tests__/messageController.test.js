@@ -417,7 +417,8 @@ describe('messageController.updateMessageContent', () => {
 
     expect(res.body.data.content).toBe('Updated content');
     expect(res.body.data.edited).toBe(true);
-    expect(res.body.data.editedAt).toEqual(expect.any(Number));
+    expect(typeof res.body.data.editedAt).toBe('string');
+    expect(res.body.data.editedAt).toMatch(/^\d+\.\d{6}$/);
     expect(res.body.data.editedBy).toBe('alice');
     expect(res.body.data.meta?.editedAt).toBeUndefined();
 
@@ -1597,7 +1598,8 @@ describe('messageController.patchMessageDeleted', () => {
 
     expect(res.body.data.deleted).toBe(true);
     expect(res.body.data.deletedBy).toBe('alice');
-    expect(res.body.data.deletedAt).toEqual(expect.any(Number));
+    expect(typeof res.body.data.deletedAt).toBe('string');
+    expect(res.body.data.deletedAt).toMatch(/^\d+\.\d{6}$/);
 
     const updated = await Message.findOne({ tenantId, messageId: message.messageId }).lean();
     expect(updated.deleted).toBe(true);

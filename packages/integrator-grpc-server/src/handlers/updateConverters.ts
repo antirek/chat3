@@ -1,3 +1,4 @@
+import { toGrpcMicros } from '@chat3/utils/timestampUtils.js';
 import { structFromObject } from './grpcMappers.js';
 
 /** Map Mongo/AMQP update document → gRPC Update message. */
@@ -15,6 +16,6 @@ export function convertToGrpcUpdate(update: any): any {
     data: structFromObject(
       rawData && typeof rawData === 'object' ? (rawData as Record<string, unknown>) : {}
     ),
-    created_at: update.createdAt || update.created_at || 0
+    created_at: toGrpcMicros(update.createdAt ?? update.created_at)
   };
 }

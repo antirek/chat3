@@ -13,6 +13,7 @@ import { isMetaIndexError } from '@chat3/utils/metaIndexErrors.js';
 import { updateUserStatsTotalMessagesCount } from '@chat3/utils/counterUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { getSenderInfo } from '@chat3/utils/userDialogUtils.js';
+import { toApiTimestampString } from '@chat3/utils/timestampUtils.js';
 import { AppServiceError } from '../errors/AppServiceError.js';
 
 const STATUS_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
@@ -48,8 +49,8 @@ export interface BulkCreateMessagesInput {
 }
 
 export type BulkCreateItemResult =
-  | { index: number; status: 'created'; messageId: string; createdAt: number }
-  | { index: number; status: 'duplicate'; messageId: string; createdAt?: number }
+  | { index: number; status: 'created'; messageId: string; createdAt: string }
+  | { index: number; status: 'duplicate'; messageId: string; createdAt?: string }
   | { index: number; status: 'error'; error: string };
 
 export interface BulkCreateMessagesResult {
@@ -328,7 +329,10 @@ export async function bulkCreateMessages(
             index,
             status: 'duplicate',
             messageId: existingEntityId || 'unknown',
-            createdAt: existingCreatedAt
+            createdAt:
+              existingCreatedAt != null
+                ? toApiTimestampString(existingCreatedAt) ?? String(existingCreatedAt)
+                : undefined
           });
           continue;
         }
@@ -369,7 +373,7 @@ export async function bulkCreateMessages(
         index,
         status: 'created',
         messageId: message.messageId,
-        createdAt: message.createdAt
+        createdAt: toApiTimestampString(message.createdAt) ?? String(message.createdAt)
       });
     } catch (error: any) {
       if (createdMessageId) {

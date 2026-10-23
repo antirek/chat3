@@ -1,3 +1,4 @@
+import { toGrpcMicros } from '@chat3/utils/timestampUtils.js';
 import {
   toGrpcDialogFromListRow,
   toGrpcDialogMember,
@@ -9,7 +10,7 @@ import {
 } from '../handlers/grpcMappers.js';
 
 describe('toGrpcDialogFromListRow', () => {
-  test('maps created_at, tenant_id, members_count, joined_at, unread', () => {
+  test('maps created_at, tenant_id, members_count, joined_at, unread as int64 µs', () => {
     const grpc = toGrpcDialogFromListRow({
       dialogId: 'dlg_aaaaaaaaaaaaaaaaaaaa',
       tenantId: 'tnt_a',
@@ -40,13 +41,14 @@ describe('toGrpcDialogFromListRow', () => {
 
     expect(grpc.dialog_id).toBe('dlg_aaaaaaaaaaaaaaaaaaaa');
     expect(grpc.tenant_id).toBe('tnt_a');
-    expect(grpc.created_at).toBe(1000);
+    expect(grpc.created_at).toBe(toGrpcMicros(1000));
     expect(grpc.members_count).toBe(3);
     expect(grpc.member.state.unread_count).toBe(7);
-    expect(grpc.member.state.joined_at).toBe(99);
+    expect(grpc.member.state.joined_at).toBe(toGrpcMicros(99));
     expect(grpc.stats.member_count).toBe(3);
     expect(grpc.stats.message_count).toBe(40);
     expect(grpc.last_message.message_id).toBe('msg_1');
+    expect(grpc.last_message.created_at).toBe(toGrpcMicros(50));
   });
 });
 
@@ -64,7 +66,7 @@ describe('toGrpcDialogMember / stats', () => {
     });
     expect(m.user_id).toBe('bob');
     expect(m.state.unread_count).toBe(2);
-    expect(m.state.joined_at).toBe(55);
+    expect(m.state.joined_at).toBe(toGrpcMicros(55));
   });
 
   test('stats lite', () => {
@@ -94,9 +96,12 @@ describe('toGrpcMessage / Value codec', () => {
     expect(grpc.message_id).toBe('msg_1');
     expect(grpc.dialog_id).toBe('dlg_1');
     expect(grpc.statuses[0].user_id).toBe('bob');
-    expect(grpc.statuses[0].read_at).toBe(42);
+    expect(grpc.statuses[0].read_at).toBe(toGrpcMicros(42));
+    expect(grpc.statuses[0].created_at).toBe(toGrpcMicros(42));
+    expect(grpc.created_at).toBe(toGrpcMicros(10));
     expect(grpc.meta.fields.k.stringValue).toBe('v');
     expect(grpc.sender_info.user_id).toBe('alice');
+    expect(grpc.sender_info.created_at).toBe(toGrpcMicros(1));
   });
 
   test('valueToProtobuf / valueFromProtobuf roundtrip', () => {
@@ -114,8 +119,8 @@ describe('toGrpcMessage / Value codec', () => {
     ).toEqual({
       user_id: 'bob',
       status: 'delivered',
-      read_at: 0,
-      created_at: 9
+      read_at: '0',
+      created_at: toGrpcMicros(9)
     });
   });
 });

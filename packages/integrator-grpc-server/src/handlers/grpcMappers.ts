@@ -1,3 +1,10 @@
+import { toGrpcMicros } from '@chat3/utils/timestampUtils.js';
+
+/** Domain/API timestamp → gRPC int64 unix microseconds (decimal string for proto-loader). */
+function ts(value: unknown): string {
+  return toGrpcMicros(value);
+}
+
 export function structFromObject(obj: Record<string, unknown> | undefined | null): any {
   if (!obj || typeof obj !== 'object') {
     return { fields: {} };
@@ -45,7 +52,7 @@ export function toGrpcUser(user: any): any {
     user_id: user.userId || '',
     tenant_id: user.tenantId || '',
     type: user.type || 'user',
-    created_at: user.createdAt || 0,
+    created_at: ts(user.createdAt),
     meta: structFromObject(user.meta)
   };
 }
@@ -55,7 +62,7 @@ export function toGrpcDialogInfo(dialog: any): any {
   return {
     dialog_id: dialog.dialogId || '',
     tenant_id: dialog.tenantId || '',
-    created_at: dialog.createdAt || 0,
+    created_at: ts(dialog.createdAt),
     meta: structFromObject(dialog.meta),
     member_user_ids: Array.isArray(dialog.memberUserIds) ? dialog.memberUserIds : []
   };
@@ -69,10 +76,10 @@ export function toGrpcDialogMember(member: any): any {
     meta: structFromObject(member.meta),
     state: {
       unread_count: state.unreadCount ?? state.unread_count ?? 0,
-      last_seen_at: state.lastSeenAt ?? state.last_seen_at ?? 0,
-      last_message_at: state.lastMessageAt ?? state.last_message_at ?? 0,
+      last_seen_at: ts(state.lastSeenAt ?? state.last_seen_at),
+      last_message_at: ts(state.lastMessageAt ?? state.last_message_at),
       is_active: state.isActive ?? state.is_active ?? true,
-      joined_at: state.joinedAt ?? state.joined_at ?? 0
+      joined_at: ts(state.joinedAt ?? state.joined_at)
     }
   };
 }
@@ -101,19 +108,19 @@ function mapLastMessage(msg: any): any | undefined {
       ? {
           user_id: msg.senderInfo.userId || '',
           name: msg.senderInfo.name || '',
-          created_at: msg.senderInfo.createdAt || 0,
+          created_at: ts(msg.senderInfo.createdAt),
           meta: msg.senderInfo.meta || {}
         }
       : undefined,
-    created_at: msg.createdAt || 0,
+    created_at: ts(msg.createdAt),
     topic_id: msg.topicId || '',
     topic: {},
     deleted: msg.deleted === true,
-    deleted_at: msg.deletedAt || 0,
+    deleted_at: ts(msg.deletedAt),
     deleted_by: msg.deletedBy || '',
     status_message_matrix: {},
     edited: false,
-    edited_at: 0,
+    edited_at: '0',
     edited_by: ''
   };
 }
@@ -129,18 +136,18 @@ export function toGrpcDialogFromListRow(dialog: any): any {
     tenant_id: dialog.tenantId || '',
     name: dialog.name || '',
     created_by: dialog.createdBy || '',
-    created_at: dialog.createdAt || 0,
-    updated_at: dialog.updatedAt || 0,
+    created_at: ts(dialog.createdAt),
+    updated_at: ts(dialog.updatedAt),
     meta: dialog.meta ? structFromObject(dialog.meta) : { fields: {} },
     member: {
       user_id: context.userId || '',
       meta: {},
       state: {
         unread_count: context.unreadCount || 0,
-        last_seen_at: context.lastSeenAt || 0,
-        last_message_at: context.lastMessageAt || 0,
+        last_seen_at: ts(context.lastSeenAt),
+        last_message_at: ts(context.lastMessageAt),
         is_active: true,
-        joined_at: context.joinedAt || 0
+        joined_at: ts(context.joinedAt)
       }
     },
     last_message: mapLastMessage(dialog.lastMessage),
@@ -209,15 +216,20 @@ export function valueToProtobuf(value: unknown): any {
 
 export function toGrpcMessage(msg: any): any {
   if (!msg) return undefined;
-  const statuses = (msg.statuses || []).map((s: any) => ({
-    user_id: s.userId || s.user_id || '',
-    status: s.status || '',
-    read_at:
-      s.readAt ||
-      s.read_at ||
-      (String(s.status || '').toLowerCase() === 'read' ? s.createdAt || s.created_at || 0 : 0),
-    created_at: s.createdAt || s.created_at || 0
-  }));
+  const statuses = (msg.statuses || []).map((s: any) => {
+    const created = s.createdAt ?? s.created_at;
+    const read =
+      s.readAt ??
+      s.read_at ??
+      (String(s.status || '').toLowerCase() === 'read' ? created : undefined);
+    return {
+      user_id: s.userId || s.user_id || '',
+      status: s.status || '',
+      read_at: ts(read),
+      created_at: ts(created)
+    };
+  });
+  const sender = msg.senderInfo || msg.sender_info;
   return {
     message_id: msg.messageId || msg.message_id || '',
     dialog_id: msg.dialogId || msg.dialog_id || '',
@@ -227,38 +239,40 @@ export function toGrpcMessage(msg: any): any {
     meta: structFromObject(msg.meta),
     statuses,
     reaction_set: structFromObject(msg.reactionSet || msg.reaction_set),
-    sender_info: msg.senderInfo || msg.sender_info
+    sender_info: sender
       ? {
-          user_id: (msg.senderInfo || msg.sender_info).userId || (msg.senderInfo || msg.sender_info).user_id || '',
-          name: (msg.senderInfo || msg.sender_info).name || '',
-          created_at: (msg.senderInfo || msg.sender_info).createdAt || (msg.senderInfo || msg.sender_info).created_at || 0,
-          meta: structFromObject((msg.senderInfo || msg.sender_info).meta)
+          user_id: sender.userId || sender.user_id || '',
+          name: sender.name || '',
+          created_at: ts(sender.createdAt ?? sender.created_at),
+          meta: structFromObject(sender.meta)
         }
       : undefined,
-    created_at: msg.createdAt || msg.created_at || 0,
+    created_at: ts(msg.createdAt ?? msg.created_at),
     topic_id: msg.topicId || msg.topic_id || '',
     topic: structFromObject(msg.topic),
     deleted: msg.deleted === true,
-    deleted_at: msg.deletedAt || msg.deleted_at || 0,
+    deleted_at: ts(msg.deletedAt ?? msg.deleted_at),
     deleted_by: msg.deletedBy || msg.deleted_by || '',
     status_message_matrix: structFromObject(
       msg.statusMessageMatrix || msg.status_message_matrix
     ),
     edited: msg.edited === true,
-    edited_at: msg.editedAt || msg.edited_at || 0,
+    edited_at: ts(msg.editedAt ?? msg.edited_at),
     edited_by: msg.editedBy || msg.edited_by || ''
   };
 }
 
 export function toGrpcMessageStatus(s: any): any {
   if (!s) return undefined;
+  const created = s.createdAt ?? s.created_at;
+  const read =
+    s.readAt ??
+    s.read_at ??
+    (String(s.status || '').toLowerCase() === 'read' ? created : undefined);
   return {
     user_id: s.userId || s.user_id || '',
     status: s.status || '',
-    read_at:
-      s.readAt ||
-      s.read_at ||
-      (String(s.status || '').toLowerCase() === 'read' ? s.createdAt || s.created_at || 0 : 0),
-    created_at: s.createdAt || s.created_at || 0
+    read_at: ts(read),
+    created_at: ts(created)
   };
 }

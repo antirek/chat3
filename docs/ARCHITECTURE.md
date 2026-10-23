@@ -430,10 +430,17 @@ flowchart TB
 
 ## Timestamps
 
-Система использует микросекундные timestamps:
-- Формат: число (миллисекунды с дробной частью)
-- Пример: `1763551369397.6482`
-- Генерация через `generateTimestamp()` из `@chat3/utils/timestampUtils.js`
+Микросекундные timestamps на разных слоях:
+
+| Слой | Тип | Пример |
+|------|-----|--------|
+| Storage / domain (Mongo) | `Number` ms + дробные µs | `1763551369397.648200` |
+| HTTP / Rabbit Update / Controlo JSON | `string` `"ms.micros"` | `"1763551369397.648200"` |
+| Integrator gRPC (`*_at`) | `int64` unix **микросекунды** (в JS — decimal string) | `"1763551369397648200"` |
+
+- Генерация: `generateTimestamp()` (`@chat3/utils/timestampUtils`)
+- HTTP egress: `sanitizeResponse` / `toApiTimestampString`
+- gRPC: `toGrpcMicros` / `fromGrpcMicros`
 
 ## Индексы MongoDB
 

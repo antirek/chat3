@@ -1,26 +1,45 @@
 /**
- * Удаляет поля _id, id и __v из объекта и всех его вложенных объектов
+ * Удаляет поля _id, id и __v из объекта и всех его вложенных объектов;
+ * timestamps из TIMESTAMP_FIELDS → строки с 6 знаками после точки (микросекунды).
  */
 
-// Список полей, которые являются timestamps и должны быть форматированы строками с 6 знаками после точки (микросекунды)
-const TIMESTAMP_FIELDS = [
+/** Поля-timestamps на HTTP/Rabbit/Controlo egress → string `"ms.micros"`. */
+export const TIMESTAMP_FIELDS = [
   'createdAt',
   'lastSeenAt',
   'lastMessageAt',
   'lastInteractionAt',
   'publishedAt',
   'expiresAt',
+  'expireAt',
   'lastUsedAt',
   'readAt',
   'deliveredAt',
   'joinedAt',
   'lastUpdatedAt',
   'lastActivityAt',
-  'addedAt'
+  'addedAt',
+  'deletedAt',
+  'editedAt',
+  'updatedAt',
+  'processedAt',
+  'startedAt',
+  'finishedAt',
+  'claimedAt',
+  'lastProcessedAt',
+  'statusTime',
+  'reactionTime'
 ] as const;
 
+export type TimestampField = (typeof TIMESTAMP_FIELDS)[number];
+
+export type SanitizeResponseOptions = {
+  /** Controlo DB Explorer: сохранить `_id` (и не трогать `id`), timestamps всё равно в string. */
+  keepId?: boolean;
+};
+
 /** Приводит значение timestamp к строке с 6 знаками после точки */
-function formatTimestampValue(value: unknown): string | undefined {
+export function formatTimestampValue(value: unknown): string | undefined {
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return undefined;
     return value.toFixed(6);
@@ -36,28 +55,35 @@ function formatTimestampValue(value: unknown): string | undefined {
   return undefined;
 }
 
-export function removeIdFields(obj: unknown): unknown {
+function isTimestampField(key: string): key is TimestampField {
+  return (TIMESTAMP_FIELDS as readonly string[]).includes(key);
+}
+
+export function removeIdFields(
+  obj: unknown,
+  options: SanitizeResponseOptions = {}
+): unknown {
   if (obj === null || obj === undefined) {
     return obj;
   }
 
-  // Если это массив, обрабатываем каждый элемент
   if (Array.isArray(obj)) {
-    return obj.map(item => removeIdFields(item));
+    return obj.map((item) => removeIdFields(item, options));
   }
 
-  // Если это не объект (примитив), возвращаем как есть
   if (typeof obj !== 'object') {
     return obj;
   }
 
-  // Если это Date, возвращаем как есть
   if (obj instanceof Date) {
     return obj;
   }
 
-  // BSON / Mongoose ObjectId (legacy ObjectID и современный ObjectId)
-  const objAny = obj as { _bsontype?: string; constructor?: { name?: string }; toString?: () => string };
+  const objAny = obj as {
+    _bsontype?: string;
+    constructor?: { name?: string };
+    toString?: () => string;
+  };
   const ctorName = objAny.constructor?.name;
   if (
     objAny._bsontype === 'ObjectID' ||
@@ -73,9 +99,7 @@ export function removeIdFields(obj: unknown): unknown {
   }
 
   // Plain-object (и null-prototype). Не сравниваем proto === Object.prototype по ссылке:
-  // в Jest/VM modules structuredClone даёт объект с Object.prototype другого realm
-  // (constructor.name === 'Object', но !== локальный Object.prototype) — иначе message
-  // целиком пропускался: createdAt number, _id не вычищался (Controlo Update UI).
+  // в Jest/VM modules structuredClone даёт объект с Object.prototype другого realm.
   const proto = Object.getPrototypeOf(obj);
   const isPlainObject =
     proto === null ||
@@ -85,39 +109,38 @@ export function removeIdFields(obj: unknown): unknown {
     return obj;
   }
 
-  // Создаем новый объект без _id, id, __v и name (для объектов User)
   const result: Record<string, unknown> = {};
   const objRecord = obj as Record<string, unknown>;
-  
-  // Определяем, является ли это объектом User (проверяем наличие userId и tenantId)
-  const isUserObject = objRecord.userId !== undefined && objRecord.tenantId !== undefined;
-  
+  const keepId = options.keepId === true;
+
+  const isUserObject =
+    objRecord.userId !== undefined && objRecord.tenantId !== undefined;
+
   for (const [key, value] of Object.entries(objRecord)) {
-    // Пропускаем поля _id, id, __v
-    if (key === '_id' || key === 'id' || key === '__v') {
+    if (key === '__v') {
+      continue;
+    }
+    if (!keepId && (key === '_id' || key === 'id')) {
       continue;
     }
 
-    // Не отдаём поля с null
     if (value === null) {
       continue;
     }
 
-    // Удаляем name только для объектов User
     if (key === 'name' && isUserObject) {
       continue;
     }
 
-    // Форматируем timestamp поля: всегда строка с 6 знаками после точки (микросекунды)
-    if (TIMESTAMP_FIELDS.includes(key as (typeof TIMESTAMP_FIELDS)[number])) {
+    if (isTimestampField(key)) {
       const formatted = formatTimestampValue(value);
       if (formatted !== undefined) {
         result[key] = formatted;
         continue;
       }
     }
-    // Рекурсивно обрабатываем вложенные объекты и массивы
-    const processed = removeIdFields(value);
+
+    const processed = removeIdFields(value, options);
     if (processed === null) {
       continue;
     }
@@ -129,11 +152,13 @@ export function removeIdFields(obj: unknown): unknown {
 
 /**
  * Очищает объект ответа от полей _id, id и __v перед отправкой клиенту
- * @param data - Данные для очистки
- * @returns Очищенные данные
+ * и форматирует TIMESTAMP_FIELDS строками с µs.
  */
-export function sanitizeResponse(data: unknown): unknown {
-  return removeIdFields(data);
+export function sanitizeResponse(
+  data: unknown,
+  options: SanitizeResponseOptions = {}
+): unknown {
+  return removeIdFields(data, options);
 }
 
 /**
@@ -141,7 +166,7 @@ export function sanitizeResponse(data: unknown): unknown {
  * Использовать: JSON.stringify(data, timestampReplacer)
  */
 export function timestampReplacer(key: string, value: unknown): unknown {
-  if (TIMESTAMP_FIELDS.includes(key as (typeof TIMESTAMP_FIELDS)[number])) {
+  if (isTimestampField(key)) {
     const formatted = formatTimestampValue(value);
     if (formatted !== undefined) return formatted;
   }

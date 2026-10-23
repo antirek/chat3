@@ -1,6 +1,13 @@
 /**
  * Утилиты для работы с временными метками с точностью до наносекунд
+ *
+ * Канон:
+ * - Storage / domain: Number ms + дробные µs (`generateTimestamp()`), напр. 1730891234567.123456
+ * - HTTP / Rabbit / Controlo JSON: string `"1730891234567.123456"` (`toApiTimestampString` / sanitizeResponse)
+ * - gRPC: int64 целые unix-микросекунды (`toGrpcMicros` / `fromGrpcMicros`)
  */
+
+import { formatTimestampValue } from './responseUtils.js';
 
 /**
  * Генерирует временную метку с микросекундами
@@ -233,11 +240,69 @@ export function getMongoTimestamp(): { date: Date; microseconds: number } {
   };
 }
 
+/**
+ * HTTP/Rabbit egress: storage Number|string → `"ms.micros"` (6 знаков).
+ */
+export function toApiTimestampString(value: unknown): string | undefined {
+  return formatTimestampValue(value);
+}
+
+/**
+ * gRPC egress: storage Number|string (ms.micros) → int64 unix microseconds as decimal **string**.
+ * (Число µs ~1.7e18 > Number.MAX_SAFE_INTEGER; proto-loader обычно ждёт string/Long для int64.)
+ * Конверсия через toFixed(6), без `Math.round(n * 1e6)` на сыром float.
+ */
+export function toGrpcMicros(value: unknown): string {
+  if (value == null || value === '') return '0';
+  const s = toApiTimestampString(value);
+  if (!s) return '0';
+  const [intPart, fracPart = ''] = s.split('.');
+  const frac = (fracPart + '000000').slice(0, 6);
+  const micros = BigInt(intPart) * 1_000_000n + BigInt(frac);
+  return micros.toString();
+}
+
+/**
+ * gRPC → domain Number (ms.micros). Принимает number | string | bigint | Long-like.
+ */
+export function fromGrpcMicros(us: unknown): number {
+  if (us == null || us === '') return 0;
+  let n: bigint;
+  try {
+    if (typeof us === 'bigint') {
+      n = us;
+    } else if (typeof us === 'number' && Number.isFinite(us)) {
+      n = BigInt(Math.trunc(us));
+    } else if (typeof us === 'string' && /^-?\d+$/.test(us.trim())) {
+      n = BigInt(us.trim());
+    } else if (
+      typeof us === 'object' &&
+      us !== null &&
+      typeof (us as { toString?: () => string }).toString === 'function'
+    ) {
+      const str = String((us as { toString: () => string }).toString());
+      if (!/^-?\d+$/.test(str)) return 0;
+      n = BigInt(str);
+    } else {
+      return 0;
+    }
+  } catch {
+    return 0;
+  }
+  if (n < 0n) n = 0n;
+  const ms = n / 1_000_000n;
+  const frac = n % 1_000_000n;
+  return Number(ms) + Number(frac) / 1e6;
+}
+
 export default {
   generateTimestamp,
   generateISOTimestamp,
   formatTimestamp,
   compareTimestamps,
   timestampToDate,
-  getMongoTimestamp
+  getMongoTimestamp,
+  toApiTimestampString,
+  toGrpcMicros,
+  fromGrpcMicros
 };

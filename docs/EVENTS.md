@@ -17,7 +17,7 @@ Chat3 использует событийно-ориентированную а�
   actorId: "carl",           // ID пользователя, инициировавшего событие (опционально)
   actorType: "api",          // Тип актора (user, system, bot, api)
   data: { ... },             // Данные события (context, dialog, message, member, typing, user, actor)
-  createdAt: 1763551369397.6482  // Timestamp создания (микросекунды)
+  createdAt: 1763551369397.6482  // Storage: Number ms.micros; в Update/HTTP egress — string "ms.micros"
 }
 ```
 

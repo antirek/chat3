@@ -9,6 +9,26 @@
 
 ---
 
+## [0.0.93] — 2026-10-23
+
+Timestamps: HTTP/Rabbit string µs; gRPC int64 unix microseconds.
+
+### Changed
+
+- **HTTP / Rabbit / Controlo egress:** расширен `TIMESTAMP_FIELDS` (`deletedAt`, `editedAt`, `updatedAt`, `statusTime`, `reactionTime`, operational `*At`, …) → строки `"ms.micros"`.
+- `sanitizeResponse(data, { keepId: true })` — Controlo DB Explorer list форматирует timestamps, сохраняя `_id`.
+- `bulkCreate` results `createdAt` — string; хелперы `toApiTimestampString` / `toGrpcMicros` / `fromGrpcMicros`.
+- **Integrator gRPC:** все `*_at` в proto `double` → **`int64` unix microseconds** (breaking). В JS `toGrpcMicros` отдаёт decimal **string** (~1.7e18 > `MAX_SAFE_INTEGER`).
+- Docs / Swagger: канон storage Number / HTTP string / gRPC int64 µs.
+
+### Docker
+
+```text
+antirek/mms3:0.0.93
+```
+
+---
+
 ## [0.0.92] — 2026-10-23
 
 Sanitize Update.data при записи в Mongo (Controlo / µs timestamps).

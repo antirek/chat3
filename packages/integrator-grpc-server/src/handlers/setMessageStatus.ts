@@ -1,6 +1,7 @@
 import * as grpc from '@grpc/grpc-js';
 import { setMessageStatus, AppServiceError } from '@chat3/app-services';
 import type { AuthenticatedContext } from '@chat3/app-services';
+import { toGrpcMessageStatus } from './grpcMappers.js';
 
 export async function setMessageStatusHandler(
   call: grpc.ServerUnaryCall<any, any>,
@@ -31,11 +32,11 @@ export async function setMessageStatusHandler(
 
   const st = result.status || {};
   return {
-    status: {
-      user_id: st.userId || userId,
+    status: toGrpcMessageStatus({
+      userId: st.userId || userId,
       status: st.status || status,
-      read_at: st.readAt || 0,
-      created_at: st.createdAt || 0
-    }
+      readAt: st.readAt,
+      createdAt: st.createdAt
+    })
   };
 }

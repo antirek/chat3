@@ -2,6 +2,7 @@ import * as grpc from '@grpc/grpc-js';
 import { User } from '@chat3/models';
 import { AppServiceError } from '@chat3/app-services';
 import type { AuthenticatedContext } from '@chat3/app-services';
+import { toGrpcMicros } from '@chat3/utils/timestampUtils.js';
 import type { RabbitMQClient, Subscription } from '../services/rabbitmqClient.js';
 import { toGrpcServiceError } from '../utils/errorMapper.js';
 import { convertToGrpcUpdate } from './updateConverters.js';
@@ -51,7 +52,7 @@ export async function subscribeUpdatesHandler(
       source_event_type: 'connection.established',
       update_type: '',
       data: { conn_id: connId, scope: 'user' },
-      created_at: Date.now()
+      created_at: toGrpcMicros(Date.now())
     });
 
     const cleanup = () => {

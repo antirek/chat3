@@ -4,6 +4,10 @@ package chat3.integrator;
 
 import "google/protobuf/struct.proto";
 
+// Timestamp convention: all `*_at` fields are int64 Unix **microseconds** since epoch
+// (not milliseconds, not IEEE double). Domain/Mongo still stores Number ms.micros;
+// server maps via toGrpcMicros / fromGrpcMicros.
+
 // Chat3IntegratorService — интеграторский gRPC API (server↔server).
 //
 // Auth (gRPC metadata):
@@ -225,8 +229,8 @@ message Update {
   string update_type = 7;
   // Полезная нагрузка update (структура зависит от update_type).
   google.protobuf.Struct data = 8;
-  // Unix time (мс, double как в Chat3).
-  double created_at = 9;
+  // Unix time: int64 microseconds since epoch.
+  int64 created_at = 9;
 }
 
 message Dialog {
@@ -234,8 +238,9 @@ message Dialog {
   string tenant_id = 2;
   string name = 3;
   string created_by = 4;
-  double created_at = 5;
-  double updated_at = 6;
+  // Unix microseconds since epoch.
+  int64 created_at = 5;
+  int64 updated_at = 6;
   // Opaque meta dialog (type, title, dmKey, … — на стороне интегратора).
   google.protobuf.Struct meta = 7;
   // Контекст членства запрашивающего user_id (unread и т.п.).
@@ -256,11 +261,12 @@ message DialogMember {
 
 message MemberState {
   int32 unread_count = 1;
-  double last_seen_at = 2;
-  double last_message_at = 3;
+  // Unix microseconds since epoch.
+  int64 last_seen_at = 2;
+  int64 last_message_at = 3;
   bool is_active = 4;
-  // Когда user стал member (мс/мкс timestamp Chat3).
-  double joined_at = 5;
+  // Когда user стал member.
+  int64 joined_at = 5;
 }
 
 // Компактные счётчики dialog (как REST stats без Controlo-полей).
@@ -281,16 +287,17 @@ message Message {
   repeated MessageStatus statuses = 7;
   google.protobuf.Struct reaction_set = 8;
   SenderInfo sender_info = 9;
-  double created_at = 10;
+  // Unix microseconds since epoch.
+  int64 created_at = 10;
   string topic_id = 11;
   google.protobuf.Struct topic = 12;
   // Soft-delete flag.
   bool deleted = 13;
-  double deleted_at = 14;
+  int64 deleted_at = 14;
   string deleted_by = 15;
   google.protobuf.Struct status_message_matrix = 16;
   bool edited = 17;
-  double edited_at = 18;
+  int64 edited_at = 18;
   string edited_by = 19;
 }
 
@@ -298,14 +305,16 @@ message MessageStatus {
   string user_id = 1;
   // Значение статуса, напр. read / delivered.
   string status = 2;
-  double read_at = 3;
-  double created_at = 4;
+  // Unix microseconds since epoch.
+  int64 read_at = 3;
+  int64 created_at = 4;
 }
 
 message SenderInfo {
   string user_id = 1;
   string name = 2;
-  double created_at = 3;
+  // Unix microseconds since epoch.
+  int64 created_at = 3;
   google.protobuf.Struct meta = 4;
 }
 
@@ -388,7 +397,7 @@ message User {
   string tenant_id = 2;
   // Тип сущности user, обычно "user".
   string type = 3;
-  double created_at = 4;
+  int64 created_at = 4;
   // Профильная meta (name и произвольные ключи).
   google.protobuf.Struct meta = 5;
 }
@@ -397,7 +406,7 @@ message User {
 message DialogInfo {
   string dialog_id = 1;
   string tenant_id = 2;
-  double created_at = 3;
+  int64 created_at = 3;
   // Opaque meta dialog.
   google.protobuf.Struct meta = 4;
   // Текущий список member user_id.
@@ -650,7 +659,7 @@ service Chat3TenantService {
 
 message TenantInfo {
   string tenant_id = 1;
-  double created_at = 2;
+  int64 created_at = 2;
   google.protobuf.Struct meta = 3;
 }
 

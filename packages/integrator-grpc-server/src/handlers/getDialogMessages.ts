@@ -1,43 +1,7 @@
 import * as grpc from '@grpc/grpc-js';
 import { listUserDialogMessages, AppServiceError } from '@chat3/app-services';
 import type { AuthenticatedContext } from '@chat3/app-services';
-
-function mapMessage(msg: any): any {
-  const statuses = (msg.statuses || []).map((s: any) => ({
-    user_id: s.userId || '',
-    status: s.status || '',
-    read_at: s.readAt || (String(s.status || '').toLowerCase() === 'read' ? s.createdAt || 0 : 0),
-    created_at: s.createdAt || 0
-  }));
-  return {
-    message_id: msg.messageId || '',
-    dialog_id: msg.dialogId || '',
-    sender_id: msg.senderId || '',
-    type: msg.type || '',
-    content: msg.content || '',
-    meta: msg.meta || {},
-    statuses,
-    reaction_set: msg.reactionSet || {},
-    sender_info: msg.senderInfo
-      ? {
-          user_id: msg.senderInfo.userId || '',
-          name: msg.senderInfo.name || '',
-          created_at: msg.senderInfo.createdAt || 0,
-          meta: msg.senderInfo.meta || {}
-        }
-      : undefined,
-    created_at: msg.createdAt || 0,
-    topic_id: msg.topicId || '',
-    topic: msg.topic || {},
-    deleted: msg.deleted === true,
-    deleted_at: msg.deletedAt || 0,
-    deleted_by: msg.deletedBy || '',
-    status_message_matrix: msg.statusMessageMatrix || {},
-    edited: msg.edited === true,
-    edited_at: msg.editedAt || 0,
-    edited_by: msg.editedBy || ''
-  };
-}
+import { toGrpcMessage } from './grpcMappers.js';
 
 export async function getDialogMessagesHandler(
   call: grpc.ServerUnaryCall<any, any>,
@@ -72,7 +36,7 @@ export async function getDialogMessagesHandler(
   });
 
   return {
-    messages: (result.data || []).map(mapMessage),
+    messages: (result.data || []).map(toGrpcMessage),
     pagination: {
       page: result.pagination.page,
       limit: result.pagination.limit,

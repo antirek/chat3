@@ -5,6 +5,7 @@ import {
 } from '@chat3/app-services';
 import type { RabbitMQClient } from '../services/rabbitmqClient.js';
 import type { MultiplexSubscription } from '../services/multiplexSubscription.js';
+import { toGrpcMicros } from '@chat3/utils/timestampUtils.js';
 import { toGrpcServiceError } from '../utils/errorMapper.js';
 import { convertToGrpcUpdate } from './updateConverters.js';
 import { DEFAULT_MULTIPLEX_LIMITS } from '../multiplexActiveSet.js';
@@ -29,7 +30,7 @@ function controlUpdate(
     source_event_type: sourceEventType,
     update_type: '',
     data,
-    created_at: Date.now()
+    created_at: toGrpcMicros(Date.now())
   };
 }
 

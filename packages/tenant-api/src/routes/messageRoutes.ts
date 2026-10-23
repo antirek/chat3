@@ -116,7 +116,8 @@ const router = express.Router();
  *                               description: Whether current user (if any) has this reaction
  *                       createdAt:
  *                         type: string
- *                         format: date-time
+ *                         description: Unix ms with 6 fractional digits
+ *                         example: "1730891234567.123456"
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -226,7 +227,8 @@ router.get('/:dialogId/messages', apiAuth, requirePermission('read'), validateDi
  *                       description: Message meta data
  *                     createdAt:
  *                       type: string
- *                       format: date-time
+ *                       description: Unix ms with 6 fractional digits
+ *                       example: "1730891234567.123456"
  *                 message:
  *                   type: string
  *                   example: "Message created successfully"
