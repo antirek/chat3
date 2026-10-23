@@ -621,8 +621,9 @@ export async function createDialogMemberUpdate(
 }
 
 /**
- * Формирует MessageUpdate для всех участников диалога
- * Использует данные из event.data напрямую, без перезагрузки из БД
+ * Формирует MessageUpdate для всех участников диалога.
+ * Для message.create/changed/deleted всегда догружает полный payload из БД
+ * (API buildMessageSection не кладёт createdAt и другие поля документа).
  */
 export async function createMessageUpdate(
   tenantId: string, 
@@ -640,28 +641,9 @@ export async function createMessageUpdate(
       return;
     }
     
-    // Используем данные из event.data напрямую
     const eventDialog = eventData.dialog;
-    let eventMessage = eventData.message || {} as Record<string, unknown>;
+    let eventMessage = (eventData.message || {}) as Record<string, unknown>;
     let eventContext = eventData.context || {};
-
-    // Получаем topic для сообщения, если topicId указан
-    // Если topic уже есть в eventData.message, используем его, иначе получаем из БД
-    if (eventMessage.topicId && !eventMessage.topic) {
-      try {
-        const topic = await topicUtils.getTopicWithMeta(tenantId, dialogId, eventMessage.topicId as string);
-        if (topic) {
-          eventMessage.topic = topic;
-        } else {
-          eventMessage.topic = null;
-        }
-      } catch (error) {
-        console.error('Error getting topic with meta for MessageUpdate:', error);
-        eventMessage.topic = null;
-      }
-    } else if (!eventMessage.topicId) {
-      eventMessage.topic = null;
-    }
 
     // Секция dialog должна всегда присутствовать в event.data
     if (!eventDialog || !eventDialog.dialogId) {
@@ -669,41 +651,61 @@ export async function createMessageUpdate(
       return;
     }
 
-    if (!eventMessage || !eventMessage.messageId) {
+    const needsFullMessagePayload = ['message.create', 'message.changed', 'message.deleted'].includes(eventType);
+
+    if (needsFullMessagePayload) {
+      // Даже если event уже содержит частичную message-секцию (типичный API flow),
+      // берём документ из БД — иначе в update не будет createdAt и др. полей.
       const message = await Message.findOne({ messageId: messageId, tenantId: tenantId });
       if (!message) {
         console.error(`Message ${messageId} not found for update`);
         return;
       }
-      // Для message.create/update нужно полное сообщение
-      if (['message.create', 'message.changed', 'message.deleted'].includes(eventType)) {
-        const senderCache = new Map<string, SenderInfo | null>();
-        const fullMessage = await buildFullMessagePayload(tenantId, message, senderCache);
-        if (!fullMessage) {
-          console.error(`Failed to build message payload for ${messageId}`);
-          return;
-        }
-        eventMessage = fullMessage;
-        eventMessage.dialogId = eventDialog.dialogId;
-        
-        // Получаем topic для сообщения, если topicId указан
-        const messageObj = message as { topicId?: string };
-        if (messageObj.topicId && !eventMessage.topic) {
+      const senderCache = new Map<string, SenderInfo | null>();
+      const fullMessage = await buildFullMessagePayload(tenantId, message, senderCache);
+      if (!fullMessage) {
+        console.error(`Failed to build message payload for ${messageId}`);
+        return;
+      }
+      eventMessage = fullMessage;
+      eventMessage.dialogId = eventDialog.dialogId;
+
+      const messageObj = message as { topicId?: string };
+      if (messageObj.topicId) {
+        eventMessage.topicId = messageObj.topicId;
+        if (!eventMessage.topic) {
           try {
             const topic = await topicUtils.getTopicWithMeta(tenantId, dialogId, messageObj.topicId);
             eventMessage.topic = topic;
-            eventMessage.topicId = messageObj.topicId;
           } catch (error) {
             console.error('Error getting topic with meta for MessageUpdate:', error);
             eventMessage.topic = null;
-            eventMessage.topicId = messageObj.topicId;
           }
-        } else if (!messageObj.topicId) {
-          eventMessage.topic = null;
-          eventMessage.topicId = null;
         }
       } else {
-        // Для других типов создаем минимальную структуру
+        eventMessage.topic = null;
+        eventMessage.topicId = null;
+      }
+    } else {
+      // status / reaction и пр.: topic из event или БД; минимальный payload если message нет в event
+      if (eventMessage.topicId && !eventMessage.topic) {
+        try {
+          const topic = await topicUtils.getTopicWithMeta(tenantId, dialogId, eventMessage.topicId as string);
+          eventMessage.topic = topic ?? null;
+        } catch (error) {
+          console.error('Error getting topic with meta for MessageUpdate:', error);
+          eventMessage.topic = null;
+        }
+      } else if (!eventMessage.topicId) {
+        eventMessage.topic = null;
+      }
+
+      if (!eventMessage.messageId) {
+        const message = await Message.findOne({ messageId: messageId, tenantId: tenantId });
+        if (!message) {
+          console.error(`Message ${messageId} not found for update`);
+          return;
+        }
         const messageObj = message as { messageId: string; senderId: string; type: string; topicId?: string };
         eventMessage = {
           messageId: messageObj.messageId,
@@ -712,8 +714,7 @@ export async function createMessageUpdate(
           type: messageObj.type,
           topicId: messageObj.topicId || null
         };
-        
-        // Получаем topic для сообщения, если topicId указан
+
         if (messageObj.topicId && !eventMessage.topic) {
           try {
             const topic = await topicUtils.getTopicWithMeta(tenantId, dialogId, messageObj.topicId);
@@ -725,24 +726,21 @@ export async function createMessageUpdate(
         } else if (!messageObj.topicId) {
           eventMessage.topic = null;
         }
-        // Добавляем данные из eventData, если есть
+
         if (eventData.message && (eventData.message as Record<string, unknown>).statusUpdate) {
           eventMessage.statusUpdate = (eventData.message as Record<string, unknown>).statusUpdate;
         } else if (eventType.startsWith('message.status.') && eventData.userId) {
-          // Fallback для старого формата: { userId, newStatus, oldStatus }
           eventMessage.statusUpdate = {
             userId: eventData.userId,
             status: eventData.newStatus,
             oldStatus: eventData.oldStatus ?? null
           };
-          // Для message.status.changed нужно добавить statusMessageMatrix
           const statusMessageMatrix = await buildStatusMessageMatrix(tenantId, messageId, messageObj.senderId);
           eventMessage.statusMessageMatrix = statusMessageMatrix;
         }
         if (eventData.message && (eventData.message as Record<string, unknown>).reactionUpdate) {
           eventMessage.reactionUpdate = (eventData.message as Record<string, unknown>).reactionUpdate;
         } else if (eventType.startsWith('message.reaction.') && eventData.userId) {
-          // Fallback для старого формата
           eventMessage.reactionUpdate = {
             userId: eventData.userId,
             reaction: eventData.reaction,

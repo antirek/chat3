@@ -639,6 +639,68 @@ describe('updateUtils - Integration Tests with MongoDB and Fake RabbitMQ', () =>
       expect(update.data.message.senderInfo.meta).toEqual(expect.objectContaining({ name: 'Support Agent' }));
     });
 
+    test('should hydrate full message payload (createdAt) when event message section is partial (API flow)', async () => {
+      const dialogId = generateDialogId();
+      const messageId = generateMessageId();
+      const messageCreatedAt = 1792739457534.26001;
+
+      await Dialog.create({ tenantId, dialogId, createdBy: 'user1' });
+      await Message.create({
+        tenantId,
+        messageId,
+        dialogId,
+        senderId: 'agent1',
+        content: 'Hello',
+        type: 'internal.text',
+        createdAt: messageCreatedAt
+      });
+      await User.create({ tenantId, userId: 'agent1', type: 'user' });
+      await DialogMember.create([
+        { tenantId, dialogId, userId: 'user1', unreadCount: 0 },
+        { tenantId, dialogId, userId: 'user2', unreadCount: 0 }
+      ]);
+
+      // Как sendMessage/buildMessageSection: без createdAt в секции message
+      const { eventId, eventData } = await createEventWithDialog('message.create', dialogId, {
+        context: {
+          version: 2,
+          eventType: 'message.create',
+          dialogId,
+          entityId: messageId,
+          messageId,
+          includedSections: ['dialog', 'message'],
+          updatedFields: ['message']
+        },
+        message: {
+          messageId,
+          dialogId,
+          senderId: 'agent1',
+          type: 'internal.text',
+          content: 'Hello',
+          meta: {},
+          topicId: null,
+          topic: null
+        }
+      });
+
+      await updateUtils.createMessageUpdate(
+        tenantId,
+        dialogId,
+        messageId,
+        eventId,
+        'message.create',
+        eventData
+      );
+
+      const update = await Update.findOne({ tenantId, entityId: messageId, userId: 'user1' }).lean();
+      expect(update).toBeDefined();
+      expect(update.data?.message).toBeDefined();
+      expect(update.data.message.createdAt).toBeDefined();
+      expect(Number(update.data.message.createdAt)).toBeCloseTo(messageCreatedAt, 5);
+      expect(update.data.message.content).toBe('Hello');
+      expect(update.data.message.senderId).toBe('agent1');
+    });
+
     test('should include status update in message data', async () => {
       const dialogId = generateDialogId();
       const messageId = generateMessageId();
