@@ -24,15 +24,50 @@ function updateDoc(overrides) {
 }
 
 async function dropUniqueIndex() {
-  const indexes = await Update.collection.indexes();
-  if (indexes.some((index) => index.name === UNIQUE_INDEX)) {
-    await Update.collection.dropIndex(UNIQUE_INDEX);
+  try {
+    const indexes = await Update.collection.indexes();
+    for (const index of indexes) {
+      const key = index.key || {};
+      const isTarget =
+        index.name === UNIQUE_INDEX ||
+        (Boolean(index.unique) &&
+          key.tenantId === 1 &&
+          key.eventId === 1 &&
+          key.userId === 1 &&
+          key.updateType === 1 &&
+          key.entityId === 1);
+      if (isTarget) {
+        await Update.collection.dropIndex(index.name);
+      }
+    }
+  } catch (err) {
+    // Collection may not exist yet in a fresh DB.
+    if (err?.code !== 26 && err?.codeName !== 'NamespaceNotFound') {
+      throw err;
+    }
+  }
+}
+
+/** Seed intentional duplicates; unique index must be absent (mongoose autoIndex may recreate it). */
+async function insertDuplicateUpdates(docs) {
+  Update.schema.set('autoIndex', false);
+  await dropUniqueIndex();
+  try {
+    await Update.collection.insertMany(docs);
+  } catch (err) {
+    if (err?.code !== 11000) {
+      throw err;
+    }
+    await dropUniqueIndex();
+    await Update.collection.insertMany(docs);
   }
 }
 
 describe('dedupeUpdates', () => {
   beforeAll(async () => {
     await setupMongoMemoryServer();
+    Update.schema.set('autoIndex', false);
+    await dropUniqueIndex();
   });
 
   afterAll(async () => {
@@ -45,7 +80,7 @@ describe('dedupeUpdates', () => {
   });
 
   test('keeps published document and drops the rest of the key', async () => {
-    await Update.collection.insertMany([
+    await insertDuplicateUpdates([
       updateDoc({ published: false, createdAt: 10, data: { keep: false } }),
       updateDoc({ published: true, createdAt: 50, data: { keep: true } }),
       updateDoc({ published: false, createdAt: 5, data: { keep: false } }),
@@ -72,7 +107,7 @@ describe('dedupeUpdates', () => {
   });
 
   test('keeps the earliest createdAt when none are published', async () => {
-    await Update.collection.insertMany([
+    await insertDuplicateUpdates([
       updateDoc({ createdAt: 30, data: { n: 30 } }),
       updateDoc({ createdAt: 10, data: { n: 10 } })
     ]);
