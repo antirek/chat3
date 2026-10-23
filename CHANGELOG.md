@@ -7,6 +7,12 @@
 
 ## [Unreleased]
 
+---
+
+## [0.0.91] — 2026-10-23
+
+Integrator gRPC / Tenant gRPC, фильтры диалогов и полный payload в MessageUpdate.
+
 ### Changed
 
 - **Rename User gRPC → Integrator gRPC** (external contract for amax / server↔server):
@@ -15,10 +21,22 @@
   - Client class: `Chat3IntegratorClient` (was `Chat3GrpcClient`)
   - Compose/script: `integrator-grpc-server` / `start:integrator-grpc-server`
 - `Chat3TenantService` остаётся отдельным service в том же proto-пакете (FQN: `chat3.integrator.Chat3TenantService`)
+- `WatchUpdates`: `Update.data` кодируется как protobuf `Struct`
+- `createMessageUpdate` для `message.create` / `changed` / `deleted` всегда догружает полный payload сообщения из БД (в т.ч. `createdAt`), даже если в event уже есть частичная `message`-секция
 
 ### Added
 
 - `Chat3TenantService`: `CreateTenant` / `EnsureTenant` / `GetTenant` / `ListTenants` / `DeleteTenant` (+ app-services; REST thin)
+- Закрытие product gaps Integrator gRPC и peer catch-up на bulk_read
+- Фильтр диалогов по `lastMessage.senderId` (unanswered)
+- Сортировка `sort=(lastMessageAt,desc)` для `GetUserDialogs`
+- Peer `MessageStatus` в `GetDialogMessages`
+
+### Docker
+
+```text
+antirek/mms3:0.0.91
+```
 
 ---
 
@@ -312,6 +330,7 @@ antirek/mms3:0.0.80
 
 ---
 
+[0.0.91]: https://github.com/antirek/chat3/compare/d4385f1...RELEASE
 [0.0.90]: https://github.com/antirek/chat3/compare/a405c0e...d4385f1
 [0.0.89]: https://github.com/antirek/chat3/compare/94fe543...a405c0e
 [0.0.88]: https://github.com/antirek/chat3/compare/108349c...94fe543
