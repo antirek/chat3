@@ -30,18 +30,21 @@ async function claimMessageCountEvent(
   eventType: string
 ): Promise<boolean> {
   await ensureClaimIndexes();
-  const existing = await MessageCountClaim.findOne({ tenantId, eventId }).select('_id').lean();
-  if (existing) {
-    return false;
-  }
+  // Атомарный upsert: upsertedCount=1 — мы первые; повтор/гонка → 0 или E11000 (#16517).
   try {
-    await MessageCountClaim.create({
-      tenantId,
-      eventId,
-      eventType,
-      claimedAt: generateTimestamp()
-    });
-    return true;
+    const res = await MessageCountClaim.updateOne(
+      { tenantId, eventId },
+      {
+        $setOnInsert: {
+          tenantId,
+          eventId,
+          eventType,
+          claimedAt: generateTimestamp()
+        }
+      },
+      { upsert: true }
+    );
+    return (res.upsertedCount ?? 0) === 1;
   } catch (err: unknown) {
     const code = (err as { code?: number })?.code;
     if (code === 11000) {
@@ -54,7 +57,8 @@ async function claimMessageCountEvent(
 /**
  * $inc totalMessagesCount и DialogStats.messageCount без скана messages.
  * Отметка MessageCountClaim пишется до $inc: повтор eventId счётчик не двигает.
- * Возвращает true, если полный countDocuments по messages на этом событии не нужен.
+ * Возвращает true для message.create/deleted (в т.ч. при повторном claim);
+ * false — событие не из hot path. recalculateSlice всегда skipMessageCount (#16517).
  */
 export async function applyHotMessageCount(slice: CounterSlice): Promise<boolean> {
   if (!HOT_MESSAGE_COUNT_EVENTS.has(slice.sourceEventType)) {

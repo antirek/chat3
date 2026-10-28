@@ -458,6 +458,79 @@ describe('counterProcessor', () => {
     console.log = origLog;
   });
 
+  test('member.add with messages already in DB then message.create does not double messageCount (#16517)', async () => {
+    const tenantId = 'tnt_mc16517';
+    const dialogId = 'dlg_jj111111111111111111';
+    const senderId = 'contact';
+    const operatorId = 'alice';
+    const now = generateTimestamp();
+    const messageIds = [
+      'msg_kk111111111111111111',
+      'msg_kk222222222222222222',
+      'msg_kk333333333333333333',
+      'msg_kk444444444444444444'
+    ];
+
+    await DialogMember.insertMany([
+      { tenantId, dialogId, userId: senderId, createdAt: now },
+      { tenantId, dialogId, userId: operatorId, createdAt: now }
+    ]);
+
+    await Message.insertMany(
+      messageIds.map((messageId, i) => ({
+        tenantId,
+        dialogId,
+        messageId,
+        senderId,
+        type: 'internal.text',
+        content: `m${i}`,
+        createdAt: now + i
+      }))
+    );
+
+    // Как при connect канала: member.* после того, как сообщения уже в Mongo,
+    // а message.create ещё в очереди. Раньше countDocuments ставил N, затем $inc давал 2N.
+    await processCounterEvent({
+      eventId: 'evt_m0m0m0m0m0m0m0m0m0m0m0m0m0m0m0m0',
+      tenantId,
+      eventType: 'dialog.member.add',
+      entityType: 'dialogMember',
+      entityId: `${dialogId}:${operatorId}`,
+      data: {
+        context: { dialogId, userId: operatorId },
+        dialog: { dialogId },
+        member: { userId: operatorId }
+      }
+    });
+
+    const createEventIds = [
+      'evt_n0n0n0n0n0n0n0n0n0n0n0n0n0n0n0n0',
+      'evt_n1n1n1n1n1n1n1n1n1n1n1n1n1n1n1n1',
+      'evt_n2n2n2n2n2n2n2n2n2n2n2n2n2n2n2n2',
+      'evt_n3n3n3n3n3n3n3n3n3n3n3n3n3n3n3n3'
+    ];
+    for (let i = 0; i < messageIds.length; i++) {
+      const messageId = messageIds[i];
+      await processCounterEvent({
+        eventId: createEventIds[i],
+        tenantId,
+        eventType: 'message.create',
+        entityType: 'message',
+        entityId: messageId,
+        data: {
+          context: { dialogId, messageId },
+          message: { messageId, dialogId, senderId, type: 'internal.text' }
+        }
+      });
+    }
+
+    const dialogStats = await DialogStats.findOne({ tenantId, dialogId }).lean();
+    expect(dialogStats?.messageCount).toBe(4);
+
+    const senderStats = await UserStats.findOne({ tenantId, userId: senderId }).lean();
+    expect(senderStats?.totalMessagesCount).toBe(4);
+  });
+
   test('message.deleted recalculates unread and totalMessagesCount; repeat is idempotent', async () => {
     const tenantId = 'tnt_del';
     const dialogId = 'dlg_hh999999999999999999';

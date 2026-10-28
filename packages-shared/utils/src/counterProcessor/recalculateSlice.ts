@@ -77,11 +77,13 @@ export async function recalculateSlice(slice: CounterSlice): Promise<void> {
     }
   }
 
-  const messageCountApplied = await applyHotMessageCount(slice);
+  // messageCount только через applyHotMessageCount ($inc + claim).
+  // countDocuments на member/pack/status + поздние message.create давали 2N (#16517).
+  await applyHotMessageCount(slice);
 
   for (const dialogId of dialogIds) {
     await recalculateDialogStats(tenantId, dialogId, {
-      skipMessageCount: messageCountApplied
+      skipMessageCount: true
     });
   }
 
