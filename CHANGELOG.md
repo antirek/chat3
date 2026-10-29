@@ -9,6 +9,21 @@
 
 ---
 
+## [0.0.94] — 2026-10-29
+
+### Fixed
+
+- **Counters (#16517):** `DialogStats.messageCount` больше не считается дважды при пересчёте member/pack (`applyHotMessageCount`, `recalculateSlice`).
+- **Soft-delete response:** `deletedAt` форматируется строкой `"ms.micros"` после `sanitize`.
+
+### Docker
+
+```text
+antirek/mms3:0.0.94
+```
+
+---
+
 ## [0.0.93] — 2026-10-23
 
 Timestamps: HTTP/Rabbit string µs; gRPC int64 unix microseconds.
