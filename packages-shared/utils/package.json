@@ -34,7 +34,8 @@
     "./userDialogMessageFilterUtils.js": "./dist/userDialogMessageFilterUtils.js",
     "./dialogMemberActivityUtils.js": "./dist/dialogMemberActivityUtils.js",
     "./dedupeUpdates.js": "./dist/dedupeUpdates.js",
-    "./httpHealth.js": "./dist/httpHealth.js"
+    "./httpHealth.js": "./dist/httpHealth.js",
+    "./otel.js": "./dist/otel/index.js"
   },
   "private": true,
   "scripts": {
@@ -42,8 +43,20 @@
     "build:watch": "tsc --watch"
   },
   "dependencies": {
+    "@chat3/models": "*",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/api-logs": "^0.223.0",
+    "@opentelemetry/exporter-logs-otlp-grpc": "^0.223.0",
+    "@opentelemetry/exporter-metrics-otlp-grpc": "^0.223.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.223.0",
+    "@opentelemetry/instrumentation-amqplib": "^0.70.0",
+    "@opentelemetry/instrumentation-http": "^0.223.0",
+    "@opentelemetry/instrumentation-mongoose": "^0.69.0",
+    "@opentelemetry/resources": "^2.12.0",
+    "@opentelemetry/sdk-logs": "^0.223.0",
+    "@opentelemetry/sdk-metrics": "^2.12.0",
+    "@opentelemetry/sdk-node": "^0.223.0",
     "amqplib": "^0.10.9",
-    "mongoose": "^8.0.0",
-    "@chat3/models": "*"
+    "mongoose": "^8.0.0"
   }
 }

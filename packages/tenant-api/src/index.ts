@@ -1,3 +1,10 @@
+import {
+  initOtel,
+  setHealth,
+  startHealthPoll,
+  shutdownOtel
+} from '@chat3/utils/otel.js';
+import mongoose from 'mongoose';
 import express from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
@@ -19,6 +26,8 @@ import packRoutes from './routes/packRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
 import idempotencyGuard from './middleware/idempotencyGuard.js';
 import { apiJournalMiddleware } from './middleware/apiJournal.js';
+
+initOtel({ instrumentations: ['http', 'mongoose', 'amqplib'] });
 
 const app = express();
 
@@ -110,6 +119,12 @@ const startServer = async (): Promise<void> => {
     
     console.log('✅ RabbitMQ connection established successfully');
 
+    startHealthPoll(
+      () => mongoose.connection.readyState === 1 && rabbitmqUtils.isRabbitMQConnected(),
+      1000
+    );
+    setHealth(1);
+
     // Start server
     app.listen(PORT, () => {
       const rabbitmqInfo = rabbitmqUtils.getRabbitMQInfo();
@@ -133,8 +148,27 @@ const startServer = async (): Promise<void> => {
     });
   } catch (error: any) {
     console.error('Failed to start Tenant API server:', error);
+    setHealth(0);
     process.exit(1);
   }
 };
 
-startServer();
+async function shutdown(): Promise<void> {
+  setHealth(0);
+  try {
+    await rabbitmqUtils.closeRabbitMQ();
+    await shutdownOtel();
+  } catch {
+    // ignore
+  }
+  process.exit(0);
+}
+
+process.on('SIGINT', () => {
+  void shutdown();
+});
+process.on('SIGTERM', () => {
+  void shutdown();
+});
+
+void startServer();

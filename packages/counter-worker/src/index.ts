@@ -1,6 +1,15 @@
+import {
+  initOtel,
+  setHealth,
+  startHealthPoll,
+  shutdownOtel
+} from '@chat3/utils/otel.js';
+import mongoose from 'mongoose';
 import connectDB from '@chat3/utils/databaseUtils.js';
 import * as rabbitmqUtils from '@chat3/utils/rabbitmqUtils.js';
 import { processCounterEvent } from '@chat3/utils/counterProcessor/processCounterEvent.js';
+
+initOtel({ instrumentations: ['mongoose', 'amqplib'] });
 
 const WORKER_QUEUE = 'counter_worker_queue';
 
@@ -33,9 +42,16 @@ async function startWorker(): Promise<void> {
     const rabbitmqConnected = await rabbitmqUtils.initRabbitMQ();
     if (!rabbitmqConnected) {
       console.error('❌ Cannot start worker without RabbitMQ connection');
+      setHealth(0);
       process.exit(1);
     }
     console.log('✅ RabbitMQ initialized\n');
+
+    startHealthPoll(
+      () => mongoose.connection.readyState === 1 && rabbitmqUtils.isRabbitMQConnected(),
+      1000
+    );
+    setHealth(1);
 
     console.log('👂 Creating consumer for counter events...\n');
     consumer = await rabbitmqUtils.createConsumer(
@@ -54,6 +70,7 @@ async function startWorker(): Promise<void> {
     console.log('   Press Ctrl+C to stop\n');
   } catch (error: unknown) {
     console.error('❌ Failed to start worker:', error);
+    setHealth(0);
     process.exit(1);
   }
 }
@@ -63,6 +80,7 @@ async function startWorker(): Promise<void> {
  */
 async function shutdown(): Promise<void> {
   console.log('\n\n🛑 Shutting down worker...');
+  setHealth(0);
 
   try {
     if (consumer) {
@@ -71,6 +89,7 @@ async function shutdown(): Promise<void> {
     }
 
     await rabbitmqUtils.closeRabbitMQ();
+    await shutdownOtel();
   } catch (error: unknown) {
     console.error('❌ Error during shutdown:', error);
   }
@@ -78,8 +97,12 @@ async function shutdown(): Promise<void> {
   process.exit(0);
 }
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+process.on('SIGINT', () => {
+  void shutdown();
+});
+process.on('SIGTERM', () => {
+  void shutdown();
+});
 
 process.on('unhandledRejection', (error: unknown) => {
   console.error('❌ Unhandled promise rejection:', error);
@@ -88,7 +111,7 @@ process.on('unhandledRejection', (error: unknown) => {
 process.on('uncaughtException', (error: Error) => {
   console.error('❌ Uncaught exception:', error);
   console.error('⚠️  Critical error detected, shutting down...');
-  shutdown();
+  void shutdown();
 });
 
-startWorker();
+void startWorker();

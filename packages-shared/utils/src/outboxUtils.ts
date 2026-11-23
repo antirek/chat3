@@ -4,6 +4,8 @@ import type { EventType, EntityType, ActorType, IEvent } from '@chat3/models';
 import { generateTimestamp } from './timestampUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { toOutboxPublishPayload } from './domainEventPayload.js';
+import { count, recordSeconds } from './otel/metrics.js';
+import { isEnabled } from './otel/state.js';
 
 const DEFAULT_BATCH_SIZE = Number(process.env.OUTBOX_BATCH_SIZE || 100);
 
@@ -155,10 +157,30 @@ export async function publishOutboxBatch(batchSize = DEFAULT_BATCH_SIZE): Promis
   let published = 0;
   for (const row of pending) {
     const payload = toOutboxPublishPayload(row);
+    const attemptKind = (row.publishAttempts ?? 0) === 0 ? 'first' : 'retry';
+    const eventType = String(row.eventType || 'other');
+    const t0 = process.hrtime.bigint();
 
     try {
       const ok = await rabbitmqUtils.publishEvent(payload);
+      const dur = Number(process.hrtime.bigint() - t0) / 1e9;
       if (!ok) {
+        const reason = rabbitmqUtils.isRabbitMQConnected()
+          ? 'publish_failed'
+          : 'rabbitmq_unavailable';
+        if (isEnabled()) {
+          count('outbox_publish_attempts_total', {
+            outcome: 'error',
+            attempt_kind: attemptKind,
+            reason,
+            event_type: eventType
+          });
+          recordSeconds('outbox_publish_duration_seconds', dur, {
+            outcome: 'error',
+            attempt_kind: attemptKind,
+            event_type: eventType
+          });
+        }
         await OutboxEvent.updateOne(
           { eventId: row.eventId },
           {
@@ -167,6 +189,27 @@ export async function publishOutboxBatch(batchSize = DEFAULT_BATCH_SIZE): Promis
           }
         );
         continue;
+      }
+
+      if (isEnabled()) {
+        count('outbox_publish_attempts_total', {
+          outcome: 'success',
+          attempt_kind: attemptKind,
+          reason: 'ok',
+          event_type: eventType
+        });
+        recordSeconds('outbox_publish_duration_seconds', dur, {
+          outcome: 'success',
+          attempt_kind: attemptKind,
+          event_type: eventType
+        });
+        const createdAt = Number(row.createdAt);
+        if (Number.isFinite(createdAt)) {
+          recordSeconds('outbox_event_delivery_lag_seconds', (Date.now() - createdAt) / 1000, {
+            attempt_kind: attemptKind,
+            event_type: eventType
+          });
+        }
       }
 
       await OutboxEvent.updateOne(
@@ -182,6 +225,20 @@ export async function publishOutboxBatch(batchSize = DEFAULT_BATCH_SIZE): Promis
       published += 1;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      if (isEnabled()) {
+        const dur = Number(process.hrtime.bigint() - t0) / 1e9;
+        count('outbox_publish_attempts_total', {
+          outcome: 'error',
+          attempt_kind: attemptKind,
+          reason: 'publish_exception',
+          event_type: eventType
+        });
+        recordSeconds('outbox_publish_duration_seconds', dur, {
+          outcome: 'error',
+          attempt_kind: attemptKind,
+          event_type: eventType
+        });
+      }
       await OutboxEvent.updateOne(
         { eventId: row.eventId },
         {

@@ -2,11 +2,13 @@
  * Валидация userId - должна быть непустой строкой
  */
 import { Request, Response, NextFunction } from 'express';
+import { setInvalidParamsMetric } from '../../middleware/requestMetrics.js';
 
 export const validateUserId = (req: Request, res: Response, next: NextFunction): void => {
   const userId = req.params.userId;
   
   if (!userId) {
+    setInvalidParamsMetric(req);
     res.status(400).json({
       error: 'Bad Request',
       message: 'User ID is required',
@@ -16,6 +18,7 @@ export const validateUserId = (req: Request, res: Response, next: NextFunction):
   }
   
   if (typeof userId !== 'string' || userId.trim().length === 0) {
+    setInvalidParamsMetric(req);
     res.status(400).json({
       error: 'Bad Request',
       message: 'User ID must be a non-empty string',
@@ -27,6 +30,7 @@ export const validateUserId = (req: Request, res: Response, next: NextFunction):
   
   // Проверка на допустимые символы (опционально, можно расширить)
   if (userId.length > 100) {
+    setInvalidParamsMetric(req);
     res.status(400).json({
       error: 'Bad Request',
       message: 'User ID is too long (maximum 100 characters)',
@@ -37,6 +41,7 @@ export const validateUserId = (req: Request, res: Response, next: NextFunction):
   
   // Проверка, что userId не содержит точку
   if (userId.includes('.')) {
+    setInvalidParamsMetric(req);
     res.status(400).json({
       error: 'Bad Request',
       message: 'userId не может содержать точку',

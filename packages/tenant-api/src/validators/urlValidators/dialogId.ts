@@ -3,12 +3,14 @@
  * Поддерживает как параметр dialogId, так и id (для совместимости)
  */
 import { Request, Response, NextFunction } from 'express';
+import { setInvalidParamsMetric } from '../../middleware/requestMetrics.js';
 
 export const validateDialogId = (req: Request, res: Response, next: NextFunction): void => {
   // Проверяем оба варианта: dialogId и id
   const dialogId = req.params.dialogId || req.params.id;
   
   if (!dialogId) {
+    setInvalidParamsMetric(req);
     res.status(400).json({
       error: 'Bad Request',
       message: 'Dialog ID is required',
@@ -20,6 +22,7 @@ export const validateDialogId = (req: Request, res: Response, next: NextFunction
   const dialogIdPattern = /^dlg_[a-z0-9]{20}$/;
   
   if (!dialogIdPattern.test(dialogId)) {
+    setInvalidParamsMetric(req);
     res.status(400).json({
       error: 'Bad Request',
       message: `Invalid dialog ID format. Expected format: dlg_[20 lowercase alphanumeric characters]`,

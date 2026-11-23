@@ -3,6 +3,7 @@ import { dialogController } from '../controllers/dialogController.js';
 import dialogMemberController from '../controllers/dialogMemberController.js';
 import typingController from '../controllers/typingController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { bindRouteMetric } from '../middleware/requestMetrics.js';
 import { validateDialogId, validateUserId } from '../validators/urlValidators/index.js';
 import { validateBody, validateQuery } from '../validators/middleware.js';
 import { createDialogSchema, queryWithFilterSchema } from '../validators/schemas/index.js';
@@ -280,7 +281,7 @@ router.get('/:id', apiAuth, requirePermission('read'), validateDialogId, dialogC
  *       201:
  *         description: Dialog created
  */
-router.post('/', apiAuth, requirePermission('write'), validateBody(createDialogSchema), dialogController.create);
+router.post('/', bindRouteMetric('dialog_write_requests_total'), apiAuth, requirePermission('write'), validateBody(createDialogSchema), dialogController.create);
 
 /**
  * @swagger

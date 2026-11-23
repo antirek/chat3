@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { ApiJournal } from '@chat3/models';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { isProbePath } from '@chat3/utils/httpHealth.js';
+import { count } from '@chat3/utils/otel.js';
 import type { AuthenticatedRequest } from './apiAuth.js';
 
 /**
@@ -101,13 +102,19 @@ export function apiJournalMiddleware(req: AuthenticatedRequest, res: Response, n
         requestBody,
         createdAt: startTimestamp,
         expireAt: new Date()
-      }).catch((err: any) => {
-        // Логируем ошибку, но не прерываем выполнение
-        console.error('Error saving API journal entry:', err.message);
-      });
+      })
+        .then(() => {
+          count('api_journal_writes_total', { outcome: 'success', reason: 'ok' });
+        })
+        .catch((err: any) => {
+          // Логируем ошибку, но не прерываем выполнение
+          console.error('Error saving API journal entry:', err.message);
+          count('api_journal_writes_total', { outcome: 'error', reason: 'mongo_unavailable' });
+        });
     } catch (error: any) {
       // Игнорируем ошибки логирования
       console.error('Error in API journal middleware:', error.message);
+      count('api_journal_writes_total', { outcome: 'error', reason: 'internal_error' });
     }
   });
 

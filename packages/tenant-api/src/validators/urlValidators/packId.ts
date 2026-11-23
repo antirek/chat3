@@ -2,11 +2,13 @@
  * Валидация packId - должен быть в формате pck_[a-z0-9]{20}
  */
 import { Request, Response, NextFunction } from 'express';
+import { setInvalidParamsMetric } from '../../middleware/requestMetrics.js';
 
 export const validatePackId = (req: Request, res: Response, next: NextFunction): void => {
   const packId = req.params.packId || req.params.id;
 
   if (!packId) {
+    setInvalidParamsMetric(req);
     res.status(400).json({
       error: 'Bad Request',
       message: 'Pack ID is required',
@@ -18,6 +20,7 @@ export const validatePackId = (req: Request, res: Response, next: NextFunction):
   const packIdPattern = /^pck_[a-z0-9]{20}$/;
 
   if (!packIdPattern.test(packId)) {
+    setInvalidParamsMetric(req);
     res.status(400).json({
       error: 'Bad Request',
       message: 'Invalid pack ID format. Expected format: pck_[20 lowercase alphanumeric characters]',

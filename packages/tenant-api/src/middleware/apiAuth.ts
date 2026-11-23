@@ -6,6 +6,7 @@ import {
   appServiceErrorToHttpStatus,
   appServiceErrorToHttpBody
 } from '@chat3/app-services';
+import { setAuthMetricFromError } from './requestMetrics.js';
 
 // Расширяем Request для добавления кастомных полей
 export interface AuthenticatedRequest extends Request {
@@ -16,7 +17,13 @@ export interface AuthenticatedRequest extends Request {
   userId?: string; // Для некоторых контроллеров
 }
 
-function sendAuthError(res: Response, error: unknown): void {
+function sendAuthError(
+  req: AuthenticatedRequest,
+  res: Response,
+  error: unknown,
+  permission?: string
+): void {
+  setAuthMetricFromError(req, error, permission);
   if (isAppServiceError(error)) {
     res.status(appServiceErrorToHttpStatus(error)).json(appServiceErrorToHttpBody(error));
     return;
@@ -42,7 +49,7 @@ export const apiAuth = async (req: AuthenticatedRequest, res: Response, next: Ne
 
     next();
   } catch (error: any) {
-    sendAuthError(res, error);
+    sendAuthError(req, res, error);
   }
 };
 
@@ -53,7 +60,7 @@ export const requirePermission = (permission: string) => {
       assertPermission(req.apiKey, permission);
       next();
     } catch (error: any) {
-      sendAuthError(res, error);
+      sendAuthError(req, res, error, permission);
     }
   };
 };
@@ -84,12 +91,13 @@ export const apiAuthForTenantCreation = async (req: AuthenticatedRequest, res: R
     next();
   } catch (error: any) {
     if (isAppServiceError(error) && error.code === 'FORBIDDEN') {
+      setAuthMetricFromError(req, error, 'write');
       res.status(403).json({
         error: 'Forbidden',
         message: 'Permission "write" is required to create tenants'
       });
       return;
     }
-    sendAuthError(res, error);
+    sendAuthError(req, res, error);
   }
 };

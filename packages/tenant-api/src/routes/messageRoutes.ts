@@ -1,6 +1,7 @@
 import express from 'express';
 import messageController from '../controllers/messageController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { bindRouteMetric } from '../middleware/requestMetrics.js';
 import { validateDialogId } from '../validators/urlValidators/index.js';
 import { validateBody, validateQuery } from '../validators/middleware.js';
 import {
@@ -250,7 +251,7 @@ router.post(
   messageController.bulkCreate
 );
 
-router.post('/:dialogId/messages', apiAuth, requirePermission('write'), validateDialogId, validateBody(createMessageSchema), messageController.createMessage);
+router.post('/:dialogId/messages', bindRouteMetric('dialog_messages_requests_total'), apiAuth, requirePermission('write'), validateDialogId, validateBody(createMessageSchema), messageController.createMessage);
 
 
 export default router;

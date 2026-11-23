@@ -461,6 +461,25 @@ export function isRabbitMQConnected(): boolean {
 }
 
 /**
+ * messageCount for an existing queue (checkQueue). Returns null if disconnected or error.
+ */
+export async function getQueueMessageCount(queueName: string): Promise<number | null> {
+  if (!isConnected || !channel) {
+    return null;
+  }
+  try {
+    const info = await channel.checkQueue(queueName);
+    return typeof info.messageCount === 'number' ? info.messageCount : 0;
+  } catch (error) {
+    console.error(
+      `Error checkQueue(${queueName}):`,
+      error instanceof Error ? error.message : String(error)
+    );
+    return null;
+  }
+}
+
+/**
  * Получить информацию о RabbitMQ
  */
 export function getRabbitMQInfo(): {

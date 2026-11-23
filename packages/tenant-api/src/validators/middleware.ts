@@ -4,6 +4,7 @@
 
 import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
+import { setInvalidParamsMetric } from '../middleware/requestMetrics.js';
 
 type ValidationProperty = 'body' | 'query' | 'params';
 
@@ -32,6 +33,7 @@ export const validate = (schema: Joi.Schema, property: ValidationProperty = 'bod
     });
     
     if (error) {
+      setInvalidParamsMetric(req);
       const errors = error.details.map(detail => ({
         field: detail.path.join('.'),
         message: detail.message,

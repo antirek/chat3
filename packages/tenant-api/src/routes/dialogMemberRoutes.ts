@@ -1,6 +1,7 @@
 import express from 'express';
 import dialogMemberController from '../controllers/dialogMemberController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { bindRouteMetric } from '../middleware/requestMetrics.js';
 import { validateDialogId, validateUserId } from '../validators/urlValidators/index.js';
 import { validateBody } from '../validators/middleware.js';
 import { setUnreadCountSchema, addDialogMemberSchema } from '../validators/schemas/index.js';
@@ -80,7 +81,8 @@ const router = express.Router();
  *         description: Dialog not found
  */
 router.post(
-  '/:dialogId/members/add', 
+  '/:dialogId/members/add',
+  bindRouteMetric('dialog_write_requests_total'),
   apiAuth, 
   requirePermission('write'), 
   validateDialogId, 
@@ -130,7 +132,7 @@ router.post(
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-router.post('/:dialogId/members/:userId/remove', apiAuth, requirePermission('write'), validateDialogId, validateUserId, dialogMemberController.removeDialogMember);
+router.post('/:dialogId/members/:userId/remove', bindRouteMetric('dialog_write_requests_total'), apiAuth, requirePermission('write'), validateDialogId, validateUserId, dialogMemberController.removeDialogMember);
 
 /**
  * @swagger

@@ -1,9 +1,18 @@
+import {
+  initOtel,
+  setHealth,
+  startHealthPoll,
+  shutdownOtel
+} from '@chat3/utils/otel.js';
+import mongoose from 'mongoose';
 import connectDB from '@chat3/utils/databaseUtils.js';
 import { DialogReadTask } from '@chat3/models';
 import type { IDialogReadTask } from '@chat3/models';
 import { runDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import type { Document } from 'mongoose';
+
+initOtel({ instrumentations: ['mongoose'] });
 
 type DialogReadTaskDocument = Document & IDialogReadTask;
 
@@ -90,6 +99,9 @@ async function startWorker(): Promise<void> {
     await connectDB();
     console.log('✅ MongoDB connected\n');
 
+    startHealthPoll(() => mongoose.connection.readyState === 1, POLL_INTERVAL_MS);
+    setHealth(1);
+
     console.log('👂 Polling for dialog read tasks...\n');
     console.log(`   Poll interval: ${POLL_INTERVAL_MS}ms`);
     console.log(`   Batch size: ${BATCH_SIZE}\n`);
@@ -98,6 +110,7 @@ async function startWorker(): Promise<void> {
     await workerLoop();
   } catch (error: any) {
     console.error('❌ Failed to start worker:', error);
+    setHealth(0);
     process.exit(1);
   }
 }
@@ -107,6 +120,7 @@ async function startWorker(): Promise<void> {
  */
 async function shutdown(): Promise<void> {
   console.log('\n\n🛑 Shutting down worker...');
+  setHealth(0);
   
   shouldStop = true;
   
@@ -120,14 +134,24 @@ async function shutdown(): Promise<void> {
       await delay(100);
     }
   }
+
+  try {
+    await shutdownOtel();
+  } catch {
+    // ignore
+  }
   
   console.log('✅ Dialog Read Worker stopped');
   process.exit(0);
 }
 
 // Обработка сигналов завершения
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+process.on('SIGINT', () => {
+  void shutdown();
+});
+process.on('SIGTERM', () => {
+  void shutdown();
+});
 
 // Обработка необработанных ошибок
 process.on('unhandledRejection', (error: any) => {
@@ -136,8 +160,8 @@ process.on('unhandledRejection', (error: any) => {
 
 process.on('uncaughtException', (error: Error) => {
   console.error('❌ Uncaught exception:', error);
-  shutdown();
+  void shutdown();
 });
 
 // Запускаем воркер
-startWorker();
+void startWorker();

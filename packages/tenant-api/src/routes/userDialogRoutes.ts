@@ -2,6 +2,7 @@ import express from 'express';
 import userDialogController from '../controllers/userDialogController.js';
 import messageReactionController from '../controllers/messageReactionController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { bindRouteMetric } from '../middleware/requestMetrics.js';
 import { validateUserId, validateDialogId, validateMessageId, validateAction, validateStatus } from '../validators/urlValidators/index.js';
 import { validateQuery, validateBody } from '../validators/middleware.js';
 import { userDialogsQuerySchema, addReactionSchema, reactionsQuerySchema } from '../validators/schemas/index.js';
@@ -512,7 +513,7 @@ router.post('/:userId/dialogs/:dialogId/markAllRead', apiAuth, requirePermission
  *       404:
  *         description: Dialog not found
  */
-router.get('/:userId/dialogs/:dialogId/messages', apiAuth, requirePermission('read'), validateUserId, validateDialogId, userDialogController.getUserDialogMessages);
+router.get('/:userId/dialogs/:dialogId/messages', bindRouteMetric('user_dialog_messages_requests_total'), apiAuth, requirePermission('read'), validateUserId, validateDialogId, userDialogController.getUserDialogMessages);
 
 /**
  * @swagger
@@ -1018,6 +1019,7 @@ router.post('/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action',
  *         description: Unauthorized - Invalid API key
  */
 router.post('/:userId/dialogs/:dialogId/messages/:messageId/status/:status',
+  bindRouteMetric('message_status_requests_total'),
   apiAuth,
   requirePermission('write'),
   validateUserId,

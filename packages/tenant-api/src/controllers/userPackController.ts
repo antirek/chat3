@@ -16,6 +16,7 @@ import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import { Response } from 'express';
 import { parseFilters, buildFilterQuery } from '@chat3/utils/queryParser.js';
 import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
+import { setRequestMetric } from '../middleware/requestMetrics.js';
 import { applyMarkDialogAllRead, addDialogMember, removeDialogMember } from '../utils/dialogMemberUtils.js';
 import * as userUtils from '../utils/userUtils.js';
 
@@ -1078,6 +1079,7 @@ export async function getPackMessages(req: AuthenticatedRequest, res: Response):
     const userDialogSet = new Set(userDialogIds);
     const allowedDialogIds = packDialogIds.filter((d) => userDialogSet.has(d));
     if (allowedDialogIds.length === 0) {
+      setRequestMetric(req, 'rejected', 'no_dialog_intersection');
       res.status(404).json({
         error: 'Not Found',
         message: 'Pack not found or user has no access (user is not in any dialog of this pack)'
@@ -1097,6 +1099,7 @@ export async function getPackMessages(req: AuthenticatedRequest, res: Response):
       });
     } catch (error: any) {
       if (error?.message === 'PACK_NOT_FOUND') {
+        setRequestMetric(req, 'rejected', 'pack_not_found');
         res.status(404).json({
           error: 'Not Found',
           message: 'Pack not found'
@@ -1104,16 +1107,19 @@ export async function getPackMessages(req: AuthenticatedRequest, res: Response):
         return;
       }
       if (error?.name === 'FILTER_ERROR') {
+        setRequestMetric(req, 'rejected', 'invalid_filter');
         res.status(400).json({
           error: 'Bad Request',
           message: error?.message || 'Invalid filter format'
         });
         return;
       }
+      setRequestMetric(req, 'error', 'message_unavailable');
       throw error;
     }
 
     if (packMessages.messages.length === 0) {
+      setRequestMetric(req, 'success', 'ok');
       res.json({
         data: [],
         cursor: packMessages.pageInfo.cursor,
@@ -1131,6 +1137,7 @@ export async function getPackMessages(req: AuthenticatedRequest, res: Response):
       }
     }));
 
+    setRequestMetric(req, 'success', 'ok');
     res.json({
       data: sanitizeResponse(dataWithContext),
       cursor: packMessages.pageInfo.cursor,
@@ -1138,6 +1145,7 @@ export async function getPackMessages(req: AuthenticatedRequest, res: Response):
     });
   } catch (error: any) {
     console.error('Error in getPackMessages:', error);
+    setRequestMetric(req, 'error', 'internal_error');
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message

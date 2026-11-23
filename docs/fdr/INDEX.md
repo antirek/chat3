@@ -7,3 +7,4 @@
 | [FDR-0003](./FDR-0003-controlo-public-base-path.md) | Controlo public base path (CONTROLO_PUBLIC_PATH) для path-gateway | draft | #15601 |
 | [FDR-0004](./FDR-0004-unread-watermark.md) | Unread по lastSeenAt и инкременту, markAllRead без синхронной записи статусов | draft | #16023 |
 | [FDR-0005](./FDR-0005-http-health.md) | HTTP health: liveness `/health` и readiness `/ready` | draft | #16029 |
+| [FDR-0006](./FDR-0006-mms3-otel-telemetry.md) | Телеметрия MMS3 (OpenTelemetry) внутри chat3 | draft | #16314 |

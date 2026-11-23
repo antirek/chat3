@@ -1,6 +1,7 @@
 import express from 'express';
 import * as userPackController from '../controllers/userPackController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
+import { bindRouteMetric } from '../middleware/requestMetrics.js';
 import { validateUserId, validateDialogId, validatePackId } from '../validators/urlValidators/index.js';
 import { validateQuery } from '../validators/middleware.js';
 import { queryWithFilterSchema, packMessagesQuerySchema } from '../validators/schemas/index.js';
@@ -379,6 +380,7 @@ router.post(
  */
 router.get(
   '/:userId/packs/:packId/dialogs',
+  bindRouteMetric('pack_dialogs_requests_total'),
   apiAuth,
   requirePermission('read'),
   validateUserId,
@@ -425,6 +427,7 @@ router.get(
  */
 router.get(
   '/:userId/packs/:packId/messages',
+  bindRouteMetric('pack_messages_requests_total'),
   apiAuth,
   requirePermission('read'),
   validateUserId,
