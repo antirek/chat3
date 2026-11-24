@@ -9,6 +9,21 @@
 
 ---
 
+## [0.0.95] — 2026-11-24
+
+### Added
+
+- **Pack search (#17022):** денормализованный `lastMessageSearchText` на `UserDialogActivity`; `getUserPacks` фильтрует по `lastMessageContent`.
+- **OpenTelemetry (#16314):** OTLP/gRPC SDK gate, доменные метрики и health gauge в процессах MMS3 (без смены business API / cross-service trace).
+
+### Docker
+
+```text
+antirek/mms3:0.0.95
+```
+
+---
+
 ## [0.0.94] — 2026-10-29
 
 ### Fixed
