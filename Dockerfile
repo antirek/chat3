@@ -15,7 +15,9 @@ COPY packages-clients/ ./packages-clients/
 COPY packages-shared/ ./packages-shared/
 
 # Устанавливаем все зависимости (включая dev для сборки TypeScript)
-RUN npm ci && npm cache clean --force
+RUN npm ci && \
+    test -x node_modules/.bin/tsc && \
+    npm cache clean --force
 
 # Собираем TypeScript пакеты в правильном порядке зависимостей
 # Из-за циклической зависимости models <-> utils используем двухпроходную сборку:
