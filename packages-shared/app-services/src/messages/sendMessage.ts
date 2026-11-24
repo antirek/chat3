@@ -240,7 +240,13 @@ export async function sendMessage(input: SendMessageInput): Promise<SendMessageR
       const messageTimestamp = createdMessage.createdAt;
       await Promise.allSettled(
         dialogMembers.map((member) =>
-          updateLastMessageAt(tenantId, member.userId, dialog.dialogId, messageTimestamp)
+          updateLastMessageAt(
+            tenantId,
+            member.userId,
+            dialog.dialogId,
+            messageTimestamp,
+            messageContent
+          )
         )
       );
     }

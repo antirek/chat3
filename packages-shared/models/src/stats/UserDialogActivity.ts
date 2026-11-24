@@ -8,6 +8,8 @@ export interface IUserDialogActivity extends mongoose.Document {
   dialogId: string;
   lastSeenAt: number;
   lastMessageAt: number;
+  /** Lowercase preview text of last message for pack-list search (#17022). */
+  lastMessageSearchText?: string | null;
   lastUpdatedAt: number;
   createdAt: number;
 }
@@ -43,6 +45,11 @@ const userDialogActivitySchema = new mongoose.Schema<IUserDialogActivity>({
     default: generateTimestamp,
     description: 'Timestamp последнего сообщения в диалоге (микросекунды)'
   },
+  lastMessageSearchText: {
+    type: String,
+    default: null,
+    description: 'Нормализованный (lowercase) текст превью последнего сообщения для поиска'
+  },
   lastUpdatedAt: {
     type: Number,
     default: generateTimestamp,
@@ -71,6 +78,7 @@ userDialogActivitySchema.pre('save', function(next) {
 userDialogActivitySchema.index({ tenantId: 1, userId: 1, dialogId: 1 }, { unique: true });
 userDialogActivitySchema.index({ tenantId: 1, userId: 1, lastSeenAt: -1 });
 userDialogActivitySchema.index({ tenantId: 1, userId: 1, lastMessageAt: -1 });
+userDialogActivitySchema.index({ tenantId: 1, userId: 1, lastMessageSearchText: 1 });
 userDialogActivitySchema.index({ tenantId: 1, dialogId: 1 });
 userDialogActivitySchema.index({ tenantId: 1, lastSeenAt: -1 });
 userDialogActivitySchema.index({ tenantId: 1, lastMessageAt: -1 });

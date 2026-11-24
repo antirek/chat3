@@ -121,7 +121,8 @@ async function bumpLastMessageAtIfNewer(
   tenantId: string,
   userId: string,
   dialogId: string,
-  createdAt: number
+  createdAt: number,
+  content?: string
 ): Promise<void> {
   const activity = await UserDialogActivity.findOne({ tenantId, userId, dialogId })
     .select('lastMessageAt')
@@ -130,10 +131,18 @@ async function bumpLastMessageAtIfNewer(
   if (current != null && current >= createdAt) {
     return;
   }
+  const $set: Record<string, unknown> = { lastMessageAt: createdAt };
+  if (content !== undefined) {
+    const text =
+      typeof content === 'string'
+        ? content.trim().toLowerCase().slice(0, 500)
+        : '';
+    $set.lastMessageSearchText = text;
+  }
   await UserDialogActivity.findOneAndUpdate(
     { tenantId, userId, dialogId },
     {
-      $set: { lastMessageAt: createdAt },
+      $set,
       $setOnInsert: { lastSeenAt: 0 }
     },
     { upsert: true, setDefaultsOnInsert: false }
@@ -364,7 +373,8 @@ export async function bulkCreateMessages(
             tenantId,
             member.userId,
             dialogId,
-            createdAt
+            createdAt,
+            content
           )
         )
       );

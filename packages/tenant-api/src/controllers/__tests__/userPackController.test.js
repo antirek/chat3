@@ -8,7 +8,8 @@ import {
   Meta,
   Message,
   User,
-  UserPackUnreadBySenderType
+  UserPackUnreadBySenderType,
+  UserDialogActivity
 } from '@chat3/models';
 import { setupMongoMemoryServer, teardownMongoMemoryServer, clearDatabase } from '../../utils/__tests__/setup.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
@@ -220,6 +221,111 @@ describe('userPackController.getUserPacks - filter by meta', () => {
     expect(packBRow?.lastMessage.messageId).toBe(msgIdB);
     expect(packBRow?.lastMessage.meta).toEqual({ contactId: 'cnt_xyz' });
     expect(Array.isArray(packBRow?.lastMessage.statusMessageMatrix)).toBe(true);
+  });
+});
+
+describe('userPackController.getUserPacks - filter by lastMessageContent', () => {
+  const userId = 'user_lm_search';
+  const otherUserId = 'user_lm_other';
+  let packHit;
+  let packMiss;
+  let packOther;
+
+  beforeEach(async () => {
+    const dialogHit = createDialogId(10);
+    const dialogMiss = createDialogId(11);
+    const dialogOther = createDialogId(12);
+    const ts = generateTimestamp();
+
+    await Dialog.create([
+      { tenantId, dialogId: dialogHit, createdAt: ts },
+      { tenantId, dialogId: dialogMiss, createdAt: ts },
+      { tenantId, dialogId: dialogOther, createdAt: ts }
+    ]);
+
+    await DialogMember.create([
+      { tenantId, dialogId: dialogHit, userId },
+      { tenantId, dialogId: dialogMiss, userId },
+      { tenantId, dialogId: dialogOther, userId: otherUserId }
+    ]);
+
+    packHit = createPackId(10);
+    packMiss = createPackId(11);
+    packOther = createPackId(12);
+
+    await Pack.create([
+      { tenantId, packId: packHit, createdAt: ts },
+      { tenantId, packId: packMiss, createdAt: ts },
+      { tenantId, packId: packOther, createdAt: ts }
+    ]);
+
+    await PackLink.create([
+      { tenantId, packId: packHit, dialogId: dialogHit },
+      { tenantId, packId: packMiss, dialogId: dialogMiss },
+      { tenantId, packId: packOther, dialogId: dialogOther }
+    ]);
+
+    await UserDialogActivity.create([
+      {
+        tenantId,
+        userId,
+        dialogId: dialogHit,
+        lastSeenAt: 0,
+        lastMessageAt: ts,
+        lastMessageSearchText: 'hello invoice payment'
+      },
+      {
+        tenantId,
+        userId,
+        dialogId: dialogMiss,
+        lastSeenAt: 0,
+        lastMessageAt: ts,
+        lastMessageSearchText: 'weather forecast'
+      },
+      {
+        tenantId,
+        userId: otherUserId,
+        dialogId: dialogOther,
+        lastSeenAt: 0,
+        lastMessageAt: ts,
+        lastMessageSearchText: 'hello invoice payment'
+      }
+    ]);
+  });
+
+  test('filter (lastMessageContent,regex,…) returns packs by preview substring, case-insensitive', async () => {
+    const req = createMockReq(userId, {
+      page: 1,
+      limit: 10,
+      filter: '(lastMessageContent,regex,InVoIcE)',
+      sort: 'createdAt',
+      sortDirection: 'desc'
+    });
+    const res = createMockRes();
+
+    await userPackController.getUserPacks(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].packId).toBe(packHit);
+    expect(res.body.pagination.total).toBe(1);
+  });
+
+  test('filter does not return packs of other users with same preview text', async () => {
+    const req = createMockReq(userId, {
+      page: 1,
+      limit: 10,
+      filter: '(lastMessageContent,regex,hello)',
+      sort: 'createdAt'
+    });
+    const res = createMockRes();
+
+    await userPackController.getUserPacks(req, res);
+
+    const packIds = res.body.data.map((p) => p.packId);
+    expect(packIds).toContain(packHit);
+    expect(packIds).not.toContain(packOther);
+    expect(packIds).not.toContain(packMiss);
   });
 });
 

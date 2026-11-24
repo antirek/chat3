@@ -19,6 +19,30 @@ import type { AuthenticatedRequest } from '../middleware/apiAuth.js';
 import { setRequestMetric } from '../middleware/requestMetrics.js';
 import { applyMarkDialogAllRead, addDialogMember, removeDialogMember } from '../utils/dialogMemberUtils.js';
 import * as userUtils from '../utils/userUtils.js';
+import { toLastMessageSearchText } from '@chat3/utils/dialogMemberActivityUtils.js';
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Extract substring pattern from parseFilters lastMessageContent condition. */
+function extractLastMessageContentPattern(condition: unknown): string | null {
+  if (condition == null) return null;
+  if (typeof condition === 'string') {
+    return toLastMessageSearchText(condition) || null;
+  }
+  if (typeof condition === 'object') {
+    const obj = condition as Record<string, unknown>;
+    if (obj.$regex != null) {
+      return toLastMessageSearchText(String(obj.$regex)) || null;
+    }
+    const op = Object.keys(obj)[0];
+    if (op && obj[op] != null) {
+      return toLastMessageSearchText(String(obj[op])) || null;
+    }
+  }
+  return null;
+}
 
 /**
  * Получить пак в контексте пользователя
@@ -560,8 +584,10 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
       try {
         const parsedFilters = parseFilters(String(req.query.filter)) as Record<string, unknown>;
         unreadCountCondition = parsedFilters.unreadCount as Record<string, unknown> | undefined;
+        const lastMessageContentCondition = parsedFilters.lastMessageContent;
         const restFilters = { ...parsedFilters };
         delete restFilters.unreadCount;
+        delete restFilters.lastMessageContent;
 
         const hasRestFilters = Object.keys(restFilters).length > 0;
         if (hasRestFilters) {
@@ -573,6 +599,36 @@ export async function getUserPacks(req: AuthenticatedRequest, res: Response): Pr
           packIdsFilter = (matchedByFilter as any[])
             .map((p) => p.packId)
             .filter((id) => candidateSet.has(id));
+        }
+
+        // Filter packs by denormalized last-message preview (#17022 / ADR-S-0038)
+        if (lastMessageContentCondition !== undefined && packIdsFilter.length > 0) {
+          const pattern = extractLastMessageContentPattern(lastMessageContentCondition);
+          if (!pattern) {
+            packIdsFilter = [];
+          } else {
+            const matchedActivities = await UserDialogActivity.find({
+              tenantId,
+              userId,
+              dialogId: { $in: userDialogIds },
+              lastMessageSearchText: { $regex: escapeRegex(pattern) }
+            })
+              .select('dialogId')
+              .lean();
+            const matchedDialogIds = (matchedActivities as { dialogId: string }[]).map((a) => a.dialogId);
+            if (matchedDialogIds.length === 0) {
+              packIdsFilter = [];
+            } else {
+              const matchedPackIds = await PackLink.find({
+                tenantId,
+                dialogId: { $in: matchedDialogIds },
+                packId: { $in: packIdsFilter }
+              })
+                .distinct('packId')
+                .exec();
+              packIdsFilter = matchedPackIds as string[];
+            }
+          }
         }
 
         if (unreadCountCondition !== undefined && packIdsFilter.length > 0) {

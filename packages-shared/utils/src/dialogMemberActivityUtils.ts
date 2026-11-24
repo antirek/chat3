@@ -6,22 +6,39 @@ import type { ActorType } from '@chat3/models';
 import { generateTimestamp } from './timestampUtils.js';
 import { zeroUserDialogUnread } from './counterProcessor/recalculateUserDialogUnread.js';
 
+/** Max length of denormalized last-message preview for search (#17022). */
+export const LAST_MESSAGE_SEARCH_TEXT_MAX = 500;
+
+/**
+ * Normalize message content for UserDialogActivity.lastMessageSearchText.
+ */
+export function toLastMessageSearchText(content: string | null | undefined): string {
+  if (content == null || typeof content !== 'string') return '';
+  return content.trim().toLowerCase().slice(0, LAST_MESSAGE_SEARCH_TEXT_MAX);
+}
+
 /**
  * Обновить время последнего сообщения в диалоге для участника.
+ * Optional `content` denormalizes searchable preview text (#17022 / ADR-S-0038).
  */
 export async function updateLastMessageAt(
   tenantId: string,
   userId: string,
   dialogId: string,
-  timestamp: number | null = null
+  timestamp: number | null = null,
+  content?: string | null
 ): Promise<void> {
   const lastMessageAt = timestamp || generateTimestamp();
+  const $set: Record<string, unknown> = { lastMessageAt };
+  if (content !== undefined) {
+    $set.lastMessageSearchText = toLastMessageSearchText(content);
+  }
   // Не даём schema default выставить lastSeenAt = now: иначе первое сообщение
   // попадает в «уже прочитано» до инкремента unread.
   await UserDialogActivity.findOneAndUpdate(
     { tenantId, userId, dialogId },
     {
-      $set: { lastMessageAt },
+      $set,
       $setOnInsert: { lastSeenAt: 0 }
     },
     { upsert: true, setDefaultsOnInsert: false }
