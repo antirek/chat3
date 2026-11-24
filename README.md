@@ -47,6 +47,7 @@
 ## 📚 Документация
 
 - **[Архитектура](docs/ARCHITECTURE.md)** - Компоненты системы, потоки данных, RabbitMQ
+- **[Анализ messaging-стека](docs/MESSAGING_STACK_ANALYSIS.md)** - RabbitMQ / Mongo vs NATS JetStream / Kafka / Redis (исследование)
 - **[API](docs/API.md)** - Полное описание REST API с примерами
 - **[Integrator gRPC](docs/grpc/)** - Сгенерированная документация `Chat3IntegratorService` (HTML/MD)
 - **[События](docs/EVENTS.md)** - Система событий и их обработка
