@@ -1,17 +1,23 @@
+import './otelRegister.js';
 import {
-  initOtel,
   setHealth,
   startHealthPoll,
+  stopHealthPoll,
   count,
   recordSeconds,
-  shutdownOtel
+  shutdownOtel,
+  recordCrashInSpan
 } from '@chat3/utils/otel.js';
-import mongoose from 'mongoose';
+import { checkMongo } from '@chat3/utils/httpHealth.js';
 import connectDB from '@chat3/utils/databaseUtils.js';
 import * as rabbitmqUtils from '@chat3/utils/rabbitmqUtils.js';
 import { processUpdateEvent } from '@chat3/utils/updateProcessor/processUpdateEvent.js';
-
-initOtel({ instrumentations: ['mongoose', 'amqplib'] });
+import {
+  classifyCaughtError,
+  createProcessOutcome,
+  noteFailure,
+  runWithProcessOutcome
+} from '@chat3/utils/updateProcessor/processOutcome.js';
 
 const WORKER_QUEUE = 'update_worker_queue';
 
@@ -29,32 +35,26 @@ let consumer: ConsumerObject | null = null;
 async function processEvent(eventData: unknown): Promise<void> {
   const eventType = String((eventData as { eventType?: string })?.eventType || 'other');
   const t0 = process.hrtime.bigint();
+  const outcomeState = createProcessOutcome();
   try {
-    await processUpdateEvent(eventData as Parameters<typeof processUpdateEvent>[0]);
-    const dur = Number(process.hrtime.bigint() - t0) / 1e9;
-    count('update_worker_events_total', {
-      outcome: 'success',
-      reason: 'ok',
-      event_type: eventType
-    });
-    recordSeconds('update_worker_event_duration_seconds', dur, {
-      outcome: 'success',
-      event_type: eventType
+    await runWithProcessOutcome(outcomeState, async () => {
+      await processUpdateEvent(eventData as Parameters<typeof processUpdateEvent>[0]);
     });
   } catch (error: unknown) {
-    const dur = Number(process.hrtime.bigint() - t0) / 1e9;
     console.error('❌ Error processing event:', error);
     console.error('   Event data:', JSON.stringify(eventData, null, 2));
-    count('update_worker_events_total', {
-      outcome: 'error',
-      reason: 'handler_error',
-      event_type: eventType
-    });
-    recordSeconds('update_worker_event_duration_seconds', dur, {
-      outcome: 'error',
-      event_type: eventType
-    });
+    noteFailure(outcomeState, classifyCaughtError(error));
   }
+  const dur = Number(process.hrtime.bigint() - t0) / 1e9;
+  count('update_worker_events_total', {
+    outcome: outcomeState.outcome,
+    reason: outcomeState.reason,
+    event_type: eventType
+  });
+  recordSeconds('update_worker_event_duration_seconds', dur, {
+    outcome: outcomeState.outcome,
+    event_type: eventType
+  });
 }
 
 async function startWorker(): Promise<void> {
@@ -74,7 +74,7 @@ async function startWorker(): Promise<void> {
     console.log('✅ RabbitMQ initialized\n');
 
     startHealthPoll(
-      () => mongoose.connection.readyState === 1 && rabbitmqUtils.isRabbitMQConnected(),
+      async () => (await checkMongo()) === 'connected' && rabbitmqUtils.isRabbitMQConnected(),
       1000
     );
     setHealth(1);
@@ -103,6 +103,7 @@ async function startWorker(): Promise<void> {
 
 async function shutdown(): Promise<void> {
   console.log('\n\n🛑 Shutting down worker...');
+  stopHealthPoll();
   setHealth(0);
 
   try {
@@ -129,11 +130,13 @@ process.on('SIGTERM', () => {
 
 process.on('unhandledRejection', (error: unknown) => {
   console.error('❌ Unhandled promise rejection:', error);
+  recordCrashInSpan(error);
 });
 
 process.on('uncaughtException', (error: Error) => {
   console.error('❌ Uncaught exception:', error);
   console.error('⚠️  Critical error detected, shutting down...');
+  recordCrashInSpan(error);
   void shutdown();
 });
 

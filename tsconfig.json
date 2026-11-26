@@ -31,6 +31,8 @@
       "@chat3/models": ["packages-shared/models/src"],
       "@chat3/models/*": ["packages-shared/models/src/*"],
       "@chat3/utils": ["packages-shared/utils/src"],
+      "@chat3/utils/otel.js": ["packages-shared/utils/src/otel/index.ts"],
+      "@chat3/utils/updateProcessor/*": ["packages-shared/utils/src/updateProcessor/*"],
       "@chat3/utils/*": ["packages-shared/utils/src/*"]
     }
   },

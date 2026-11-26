@@ -83,7 +83,7 @@ router.get(
  */
 router.post(
   '/',
-  bindRouteMetric('pack_write_requests_total'),
+  bindRouteMetric('pack_write_requests_total', { operation: 'create' }),
   apiAuth,
   requirePermission('write'),
   validateBody(createPackSchema),
@@ -123,7 +123,7 @@ router.post(
  */
 router.post(
   '/:packId/dialogs',
-  bindRouteMetric('pack_write_requests_total'),
+  bindRouteMetric('pack_write_requests_total', { operation: 'add_dialog' }),
   apiAuth,
   requirePermission('write'),
   validatePackId,
@@ -158,6 +158,7 @@ router.post(
  */
 router.delete(
   '/:packId/dialogs/:dialogId',
+  bindRouteMetric('pack_write_requests_total', { operation: 'remove_dialog' }),
   apiAuth,
   requirePermission('write'),
   validatePackId,

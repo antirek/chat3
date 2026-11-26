@@ -1,18 +1,18 @@
+import './otelRegister.js';
 import {
-  initOtel,
   setHealth,
   startHealthPoll,
-  shutdownOtel
+  stopHealthPoll,
+  shutdownOtel,
+  recordCrashInSpan
 } from '@chat3/utils/otel.js';
-import mongoose from 'mongoose';
+import { checkMongo } from '@chat3/utils/httpHealth.js';
 import connectDB from '@chat3/utils/databaseUtils.js';
 import { DialogReadTask } from '@chat3/models';
 import type { IDialogReadTask } from '@chat3/models';
 import { runDialogReadTask } from '@chat3/utils/dialogReadTaskUtils.js';
 import { generateTimestamp } from '@chat3/utils/timestampUtils.js';
 import type { Document } from 'mongoose';
-
-initOtel({ instrumentations: ['mongoose'] });
 
 type DialogReadTaskDocument = Document & IDialogReadTask;
 
@@ -99,7 +99,7 @@ async function startWorker(): Promise<void> {
     await connectDB();
     console.log('✅ MongoDB connected\n');
 
-    startHealthPoll(() => mongoose.connection.readyState === 1, POLL_INTERVAL_MS);
+    startHealthPoll(async () => (await checkMongo()) === 'connected', POLL_INTERVAL_MS);
     setHealth(1);
 
     console.log('👂 Polling for dialog read tasks...\n');
@@ -120,17 +120,18 @@ async function startWorker(): Promise<void> {
  */
 async function shutdown(): Promise<void> {
   console.log('\n\n🛑 Shutting down worker...');
+  stopHealthPoll();
   setHealth(0);
-  
+
   shouldStop = true;
-  
+
   // Если есть текущая задача, ждем её завершения
   if (currentTask) {
     console.log(`⏳ Waiting for current task ${currentTask._id} to complete...`);
     // Даем время на завершение (максимум 30 секунд)
     const maxWait = 30000;
     const startTime = Date.now();
-    while (currentTask && (Date.now() - startTime) < maxWait) {
+    while (currentTask && Date.now() - startTime < maxWait) {
       await delay(100);
     }
   }
@@ -140,7 +141,7 @@ async function shutdown(): Promise<void> {
   } catch {
     // ignore
   }
-  
+
   console.log('✅ Dialog Read Worker stopped');
   process.exit(0);
 }
@@ -156,10 +157,12 @@ process.on('SIGTERM', () => {
 // Обработка необработанных ошибок
 process.on('unhandledRejection', (error: any) => {
   console.error('❌ Unhandled promise rejection:', error);
+  recordCrashInSpan(error);
 });
 
 process.on('uncaughtException', (error: Error) => {
   console.error('❌ Uncaught exception:', error);
+  recordCrashInSpan(error);
   void shutdown();
 });
 

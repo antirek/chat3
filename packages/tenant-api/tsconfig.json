@@ -10,6 +10,8 @@
       "@chat3/models": ["../../packages-shared/models/dist/index.js"],
       "@chat3/models/*": ["../../packages-shared/models/dist/*.js"],
       "@chat3/utils": ["../../packages-shared/utils/dist/index.js"],
+      "@chat3/utils/otel.js": ["../../packages-shared/utils/dist/otel/index.js"],
+      "@chat3/utils/updateProcessor/*": ["../../packages-shared/utils/dist/updateProcessor/*"],
       "@chat3/utils/*": ["../../packages-shared/utils/dist/*.js"]
     }
   },

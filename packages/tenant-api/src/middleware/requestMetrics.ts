@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import { count } from '@chat3/utils/otel.js';
+import { count, runWithOutboxFailHook } from '@chat3/utils/otel.js';
+import { isMongoUnavailableError } from '@chat3/utils/updateProcessor/processOutcome.js';
 
 export type MetricOutcome = 'success' | 'rejected' | 'error' | 'partial';
 
@@ -19,9 +20,12 @@ function getState(req: Request): RequestMetricState | undefined {
   return (req as ReqWithMetric)[STATE_KEY];
 }
 
-export function bindRouteMetric(name: string) {
+export function bindRouteMetric(name: string, labels?: Record<string, string>) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const state: RequestMetricState = { name };
+    const state: RequestMetricState = {
+      name,
+      labels: labels ? { ...labels } : undefined
+    };
     (req as ReqWithMetric)[STATE_KEY] = state;
 
     res.on('finish', () => {
@@ -49,7 +53,9 @@ export function bindRouteMetric(name: string) {
       });
     });
 
-    next();
+    runWithOutboxFailHook(() => {
+      setRequestMetric(req, 'partial', 'event_outbox_write_failed', { event_stage: 'outbox' });
+    }, () => next());
   };
 }
 
@@ -73,7 +79,7 @@ export function setAuthMetricFromError(req: Request, error: unknown, permission?
   const state = getState(req);
   if (!state) return;
 
-  const err = error as { code?: string; message?: string; name?: string };
+  const err = error as { code?: string; message?: string; name?: string; stage?: string };
   if (err?.code === 'UNAUTHORIZED') {
     setRequestMetric(req, 'rejected', 'apikey_not_found');
     return;
@@ -91,10 +97,23 @@ export function setAuthMetricFromError(req: Request, error: unknown, permission?
     setRequestMetric(req, 'rejected', 'invalid_params');
     return;
   }
+  if (isMongoUnavailableError(error) || err?.code === 'INTERNAL') {
+    const stage = err?.stage;
+    setRequestMetric(
+      req,
+      'error',
+      stage === 'tenant' ? 'tenant_unavailable' : 'apikey_unavailable'
+    );
+    return;
+  }
   // Mongo / infra during auth
   setRequestMetric(req, 'error', 'apikey_unavailable');
 }
 
 export function setInvalidParamsMetric(req: Request): void {
   setRequestMetric(req, 'rejected', 'invalid_params');
+}
+
+export function setInvalidBodyMetric(req: Request): void {
+  setRequestMetric(req, 'rejected', 'invalid_body');
 }

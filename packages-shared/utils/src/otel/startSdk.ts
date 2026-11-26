@@ -1,8 +1,8 @@
 import util from 'node:util';
 import { createRequire } from 'node:module';
-import { SpanStatusCode, trace } from '@opentelemetry/api';
 import { registerHealthGauge } from './health.js';
 import { emitLog } from './emitLog.js';
+import { setEnabled } from './state.js';
 
 const require = createRequire(import.meta.url);
 
@@ -26,7 +26,20 @@ function buildInstrumentations(names: InstrumentationName[] | undefined) {
 
   if (allow.has('http')) {
     const { HttpInstrumentation } = require('@opentelemetry/instrumentation-http');
-    list.push(new HttpInstrumentation());
+    list.push(
+      new HttpInstrumentation({
+        ignoreIncomingRequestHook: (req: { url?: string }) => {
+          const url = req.url || '';
+          return (
+            url.startsWith('/health') ||
+            url.startsWith('/livez') ||
+            url.startsWith('/ready') ||
+            url.startsWith('/readyz') ||
+            url.startsWith('/api-docs')
+          );
+        }
+      })
+    );
   }
   if (allow.has('mongoose')) {
     const { MongooseInstrumentation } = require('@opentelemetry/instrumentation-mongoose');
@@ -91,39 +104,6 @@ function installConsoleBridge(): void {
   }
 }
 
-function installProcessHandlers(): void {
-  const crash = async (err: unknown) => {
-    const error = err instanceof Error ? err : new Error(String(err));
-    const span = trace.getActiveSpan();
-    if (span) {
-      span.recordException(error);
-      span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
-    }
-    try {
-      emitLog('error', error.message, {
-        'exception.type': error.name,
-        'exception.message': error.message,
-        'exception.stacktrace': error.stack || '',
-        'error.type': error.name
-      });
-    } catch {
-      // ignore
-    }
-    try {
-      await shutdownOtel();
-    } catch {
-      // best-effort
-    }
-    process.exit(1);
-  };
-  process.on('uncaughtException', (err) => {
-    void crash(err);
-  });
-  process.on('unhandledRejection', (err) => {
-    void crash(err);
-  });
-}
-
 export function startSdk(options: { instrumentations?: InstrumentationName[] } = {}): void {
   const { NodeSDK } = require('@opentelemetry/sdk-node');
   const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-grpc');
@@ -151,12 +131,13 @@ export function startSdk(options: { instrumentations?: InstrumentationName[] } =
         })
       })
     ],
+    // sdk-logs 0.223: constructor expects { exporter }, not bare exporter
     logRecordProcessors: [
-      new BatchLogRecordProcessor(
-        new OTLPLogExporter({
+      new BatchLogRecordProcessor({
+        exporter: new OTLPLogExporter({
           url: process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
         })
-      )
+      })
     ],
     instrumentations: buildInstrumentations(options.instrumentations)
   });
@@ -164,7 +145,6 @@ export function startSdk(options: { instrumentations?: InstrumentationName[] } =
   sdkInstance = sdk;
   registerHealthGauge();
   installConsoleBridge();
-  installProcessHandlers();
 }
 
 export async function shutdownOtel(): Promise<void> {
@@ -175,6 +155,8 @@ export async function shutdownOtel(): Promise<void> {
     await instance.shutdown();
   } catch (err) {
     console.error('otel shutdown failed', err instanceof Error ? err.message : err);
+  } finally {
+    setEnabled(false);
   }
 }
 

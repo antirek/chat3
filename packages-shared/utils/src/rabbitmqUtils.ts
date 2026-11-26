@@ -1,4 +1,5 @@
 import amqp, { Channel, ConsumeMessage } from 'amqplib';
+import { context, propagation } from '@opentelemetry/api';
 import { getUserType } from './userTypeUtils.js';
 
 // amqp.connect() возвращает Promise<Connection>, но типы могут отличаться
@@ -339,6 +340,14 @@ export async function publishEvent(event: Event): Promise<boolean> {
   try {
     const routingKey = generateRoutingKey(event);
     const message = JSON.stringify(event);
+
+    const headers: Record<string, unknown> = {
+      eventType: event.eventType,
+      entityType: event.entityType,
+      tenantId: event.tenantId?.toString()
+    };
+    // Inject W3C context into AMQP headers only (not JSON body)
+    propagation.inject(context.active(), headers);
     
     const published = channel.publish(
       EXCHANGE_NAME,
@@ -348,11 +357,7 @@ export async function publishEvent(event: Event): Promise<boolean> {
         persistent: true, // Сообщения переживут перезапуск RabbitMQ
         contentType: 'application/json',
         timestamp: Date.now(),
-        headers: {
-          eventType: event.eventType,
-          entityType: event.entityType,
-          tenantId: event.tenantId?.toString(),
-        }
+        headers
       }
     );
     

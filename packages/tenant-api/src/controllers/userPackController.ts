@@ -1059,6 +1059,7 @@ export async function getPackDialogs(req: AuthenticatedRequest, res: Response): 
       (m: { dialogId: string }) => m.dialogId
     );
     if (userDialogIds.length === 0) {
+      setRequestMetric(req, 'success', 'empty_user_dialogs');
       res.json({
         data: [],
         pagination: { page, limit, total: 0, pages: 0 }
@@ -1084,6 +1085,16 @@ export async function getPackDialogs(req: AuthenticatedRequest, res: Response): 
       })
     ]);
 
+    if (total === 0) {
+      setRequestMetric(req, 'success', 'empty_pack_dialogs');
+      res.json({
+        data: [],
+        pagination: { page, limit, total: 0, pages: 0 }
+      });
+      return;
+    }
+
+    setRequestMetric(req, 'success', 'ok');
     res.json({
       data: (links as { dialogId: string; addedAt: number }[]).map((l) => ({ dialogId: l.dialogId, addedAt: l.addedAt })),
       pagination: {
@@ -1095,6 +1106,7 @@ export async function getPackDialogs(req: AuthenticatedRequest, res: Response): 
     });
   } catch (error: any) {
     console.error('Error in getPackDialogs:', error);
+    setRequestMetric(req, 'error', 'internal_error');
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
@@ -1171,7 +1183,11 @@ export async function getPackMessages(req: AuthenticatedRequest, res: Response):
         return;
       }
       setRequestMetric(req, 'error', 'message_unavailable');
-      throw error;
+      res.status(503).json({
+        error: 'Service Unavailable',
+        message: error.message
+      });
+      return;
     }
 
     if (packMessages.messages.length === 0) {

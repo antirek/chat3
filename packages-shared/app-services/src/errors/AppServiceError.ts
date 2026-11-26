@@ -8,11 +8,13 @@ export type AppServiceErrorCode =
 
 export class AppServiceError extends Error {
   readonly code: AppServiceErrorCode;
+  readonly stage?: string;
 
-  constructor(code: AppServiceErrorCode, message: string) {
+  constructor(code: AppServiceErrorCode, message: string, stage?: string) {
     super(message);
     this.name = 'AppServiceError';
     this.code = code;
+    if (stage) this.stage = stage;
   }
 }
 

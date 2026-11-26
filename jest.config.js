@@ -5,7 +5,11 @@ export default {
       useESM: true,
       tsconfig: {
         module: 'ES2022',
-        moduleResolution: 'node'
+        moduleResolution: 'node16',
+        paths: {
+          '@chat3/utils/otel.js': ['<rootDir>/packages-shared/utils/dist/otel/index.js'],
+          '@chat3/utils/*': ['<rootDir>/packages-shared/utils/dist/*']
+        }
       }
     }],
     '^.+\\.js$': ['babel-jest', {
@@ -19,6 +23,8 @@ export default {
     '^@chat3/models$': '<rootDir>/packages-shared/models/dist/index.js',
     '^@chat3/models/(.*)$': '<rootDir>/packages-shared/models/dist/$1.js',
     '^@chat3/utils$': '<rootDir>/packages-shared/utils/dist/index.js',
+    '^@chat3/utils/otel\\.js$': '<rootDir>/packages-shared/utils/dist/otel/index.js',
+    '^@chat3/utils/updateProcessor/(.*)\\.js$': '<rootDir>/packages-shared/utils/dist/updateProcessor/$1.js',
     '^@chat3/utils/(.*)\\.js$': '<rootDir>/packages-shared/utils/dist/$1.js',
   },
   testMatch: ['**/__tests__/**/*.test.{js,ts}', '**/*.test.{js,ts}'],

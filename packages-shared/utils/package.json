@@ -28,6 +28,7 @@
     "./counterProcessor/processCounterEvent.js": "./dist/counterProcessor/processCounterEvent.js",
     "./counterProcessor/reconcileCounterDrift.js": "./dist/counterProcessor/reconcileCounterDrift.js",
     "./updateProcessor/processUpdateEvent.js": "./dist/updateProcessor/processUpdateEvent.js",
+    "./updateProcessor/processOutcome.js": "./dist/updateProcessor/processOutcome.js",
     "./domainEventPayload.js": "./dist/domainEventPayload.js",
     "./outboxUtils.js": "./dist/outboxUtils.js",
     "./queryParser.js": "./dist/queryParser.js",
@@ -35,7 +36,10 @@
     "./dialogMemberActivityUtils.js": "./dist/dialogMemberActivityUtils.js",
     "./dedupeUpdates.js": "./dist/dedupeUpdates.js",
     "./httpHealth.js": "./dist/httpHealth.js",
-    "./otel.js": "./dist/otel/index.js"
+    "./otel.js": {
+      "types": "./dist/otel/index.d.ts",
+      "default": "./dist/otel/index.js"
+    }
   },
   "private": true,
   "scripts": {

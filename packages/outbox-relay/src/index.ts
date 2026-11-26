@@ -1,17 +1,18 @@
+import './otelRegister.js';
 import {
-  initOtel,
   setHealth,
   startHealthPoll,
+  stopHealthPoll,
   setGauge,
-  shutdownOtel
+  shutdownOtel,
+  recordCrashInSpan
 } from '@chat3/utils/otel.js';
 import mongoose from 'mongoose';
+import { checkMongo } from '@chat3/utils/httpHealth.js';
 import connectDB from '@chat3/utils/databaseUtils.js';
 import * as rabbitmqUtils from '@chat3/utils/rabbitmqUtils.js';
 import { publishOutboxBatch } from '@chat3/utils/outboxUtils.js';
 import { OutboxEvent } from '@chat3/models';
-
-initOtel({ instrumentations: ['mongoose', 'amqplib'] });
 
 const POLL_INTERVAL_MS = 1000;
 const WORKER_QUEUES = ['update_worker_queue', 'counter_worker_queue'] as const;
@@ -34,9 +35,7 @@ async function refreshRelayGauges(): Promise<void> {
 
   for (const queue of WORKER_QUEUES) {
     const n = await rabbitmqUtils.getQueueMessageCount(queue);
-    if (n != null) {
-      setGauge('rabbitmq_queue_messages', n, { queue });
-    }
+    setGauge('rabbitmq_queue_messages', n == null ? 0 : n, { queue });
   }
 }
 
@@ -76,7 +75,7 @@ async function startRelay(): Promise<void> {
     console.log('✅ RabbitMQ initialized\n');
 
     startHealthPoll(
-      () => mongoose.connection.readyState === 1 && rabbitmqUtils.isRabbitMQConnected(),
+      async () => (await checkMongo()) === 'connected' && rabbitmqUtils.isRabbitMQConnected(),
       POLL_INTERVAL_MS
     );
     setHealth(1);
@@ -96,6 +95,7 @@ async function startRelay(): Promise<void> {
  */
 async function shutdown(): Promise<void> {
   console.log('\n\n🛑 Shutting down outbox relay...');
+  stopHealthPoll();
   setHealth(0);
   shouldStop = true;
 
@@ -119,11 +119,13 @@ process.on('SIGTERM', () => {
 
 process.on('unhandledRejection', (error: unknown) => {
   console.error('❌ Unhandled promise rejection:', error);
+  recordCrashInSpan(error);
 });
 
 process.on('uncaughtException', (error: Error) => {
   console.error('❌ Uncaught exception:', error);
   console.error('⚠️  Critical error detected, shutting down...');
+  recordCrashInSpan(error);
   void shutdown();
 });
 

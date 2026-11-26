@@ -2,7 +2,7 @@ import express from 'express';
 import userDialogController from '../controllers/userDialogController.js';
 import messageReactionController from '../controllers/messageReactionController.js';
 import { apiAuth, requirePermission } from '../middleware/apiAuth.js';
-import { bindRouteMetric } from '../middleware/requestMetrics.js';
+import { bindRouteMetric, setRequestMetric } from '../middleware/requestMetrics.js';
 import { validateUserId, validateDialogId, validateMessageId, validateAction, validateStatus } from '../validators/urlValidators/index.js';
 import { validateQuery, validateBody } from '../validators/middleware.js';
 import { userDialogsQuerySchema, addReactionSchema, reactionsQuerySchema } from '../validators/schemas/index.js';
@@ -1020,6 +1020,13 @@ router.post('/:userId/dialogs/:dialogId/messages/:messageId/reactions/:action',
  */
 router.post('/:userId/dialogs/:dialogId/messages/:messageId/status/:status',
   bindRouteMetric('message_status_requests_total'),
+  (req, _res, next) => {
+    const STATUS_ALLOW = new Set(['unread', 'delivered', 'read']);
+    const raw = String(req.params.status || '');
+    const status = STATUS_ALLOW.has(raw) ? raw : 'other';
+    setRequestMetric(req, 'success', 'ok', { status });
+    next();
+  },
   apiAuth,
   requirePermission('write'),
   validateUserId,

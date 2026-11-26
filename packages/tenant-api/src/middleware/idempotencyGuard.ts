@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { count } from '@chat3/utils/otel.js';
 
 interface RequestRecord {
   timestamp: number;
@@ -54,6 +55,37 @@ function getTtlForRequest(req: Request): number {
   return DEFAULT_TTL_MS;
 }
 
+function metricNameForPath(method: string, path: string): string | null {
+  const m = method.toUpperCase();
+  const p = path.split('?')[0];
+
+  if (m === 'POST' && /\/dialogs\/[^/]+\/messages\/?$/.test(p)) {
+    return 'dialog_messages_requests_total';
+  }
+  if (m === 'POST' && /^\/api\/packs\/?$/.test(p)) {
+    return 'pack_write_requests_total';
+  }
+  if (m === 'POST' && /\/packs\/[^/]+\/dialogs\/?$/.test(p)) {
+    return 'pack_write_requests_total';
+  }
+  if (m === 'DELETE' && /\/packs\/[^/]+\/dialogs\/[^/]+\/?$/.test(p)) {
+    return 'pack_write_requests_total';
+  }
+  if (m === 'POST' && /^\/api\/dialogs\/?$/.test(p)) {
+    return 'dialog_write_requests_total';
+  }
+  if (m === 'POST' && /\/dialogs\/[^/]+\/members\/add\/?$/.test(p)) {
+    return 'dialog_write_requests_total';
+  }
+  if (m === 'POST' && /\/members\/[^/]+\/remove\/?$/.test(p)) {
+    return 'dialog_write_requests_total';
+  }
+  if (m === 'POST' && /\/messages\/[^/]+\/status\/[^/]+\/?$/.test(p)) {
+    return 'message_status_requests_total';
+  }
+  return null;
+}
+
 export default function idempotencyGuard(req: Request, res: Response, next: NextFunction): void {
   if (!GUARDED_METHODS.has(req.method)) {
     return next();
@@ -66,6 +98,11 @@ export default function idempotencyGuard(req: Request, res: Response, next: Next
 
   if (existing && now - existing.timestamp < existing.ttlMs) {
     console.warn(`[IdempotencyGuard] Duplicate request blocked: ${req.method} ${req.originalUrl}`);
+    const pathOnly = req.originalUrl.split('?')[0];
+    const name = metricNameForPath(req.method, pathOnly);
+    if (name) {
+      count(name, { outcome: 'rejected', reason: 'duplicate_request' });
+    }
     res.status(429).json({
       error: 'Too Many Requests',
       message: 'Duplicate request detected. Please retry shortly.'

@@ -281,7 +281,7 @@ router.get('/:id', apiAuth, requirePermission('read'), validateDialogId, dialogC
  *       201:
  *         description: Dialog created
  */
-router.post('/', bindRouteMetric('dialog_write_requests_total'), apiAuth, requirePermission('write'), validateBody(createDialogSchema), dialogController.create);
+router.post('/', bindRouteMetric('dialog_write_requests_total', { operation: 'create' }), apiAuth, requirePermission('write'), validateBody(createDialogSchema), dialogController.create);
 
 /**
  * @swagger

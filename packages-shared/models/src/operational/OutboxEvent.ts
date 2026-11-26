@@ -15,6 +15,9 @@ export interface IOutboxEvent extends mongoose.Document {
   publishedAt?: number | null;
   publishAttempts: number;
   lastError?: string | null;
+  /** W3C trace context captured at enqueue (optional; for outbox → AMQP continuation). */
+  traceparent?: string | null;
+  tracestate?: string | null;
   createdAt: number;
 }
 
@@ -67,6 +70,14 @@ const outboxEventSchema = new mongoose.Schema<IOutboxEvent>({
     default: 0
   },
   lastError: {
+    type: String,
+    default: null
+  },
+  traceparent: {
+    type: String,
+    default: null
+  },
+  tracestate: {
     type: String,
     default: null
   },

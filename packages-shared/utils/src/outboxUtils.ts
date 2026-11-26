@@ -4,8 +4,11 @@ import type { EventType, EntityType, ActorType, IEvent } from '@chat3/models';
 import { generateTimestamp } from './timestampUtils.js';
 import * as rabbitmqUtils from './rabbitmqUtils.js';
 import { toOutboxPublishPayload } from './domainEventPayload.js';
+import { context, SpanStatusCode, trace } from '@opentelemetry/api';
 import { count, recordSeconds } from './otel/metrics.js';
 import { isEnabled } from './otel/state.js';
+import { captureTraceContext, restoreTraceContext } from './otel/traceContext.js';
+import { notifyOutboxWriteFailed } from './otel/outboxFailHook.js';
 
 const DEFAULT_BATCH_SIZE = Number(process.env.OUTBOX_BATCH_SIZE || 100);
 
@@ -64,6 +67,7 @@ async function createEventWithOutboxSequential(params: {
 
 export async function enqueueOutboxEvent(params: EnqueueOutboxParams): Promise<void> {
   const dataCopy = params.data ? JSON.parse(JSON.stringify(params.data)) : {};
+  const w3c = captureTraceContext();
   await OutboxEvent.create({
     eventId: params.eventId,
     tenantId: params.tenantId,
@@ -75,6 +79,8 @@ export async function enqueueOutboxEvent(params: EnqueueOutboxParams): Promise<v
     data: dataCopy,
     published: false,
     publishAttempts: 0,
+    traceparent: w3c.traceparent,
+    tracestate: w3c.tracestate,
     createdAt: generateTimestamp()
   });
 }
@@ -112,6 +118,7 @@ export async function createEventWithOutbox(params: {
         { session }
       );
       created = event;
+      const w3c = captureTraceContext();
 
       await OutboxEvent.create(
         [
@@ -126,6 +133,8 @@ export async function createEventWithOutbox(params: {
             data: dataCopy,
             published: false,
             publishAttempts: 0,
+            traceparent: w3c.traceparent,
+            tracestate: w3c.tracestate,
             createdAt: generateTimestamp()
           }
         ],
@@ -142,6 +151,7 @@ export async function createEventWithOutbox(params: {
       return createEventWithOutboxSequential(params);
     }
     console.error('Error createEventWithOutbox:', error);
+    notifyOutboxWriteFailed();
     return null;
   } finally {
     await session.endSession();
@@ -160,9 +170,25 @@ export async function publishOutboxBatch(batchSize = DEFAULT_BATCH_SIZE): Promis
     const attemptKind = (row.publishAttempts ?? 0) === 0 ? 'first' : 'retry';
     const eventType = String(row.eventType || 'other');
     const t0 = process.hrtime.bigint();
+    const parentCtx = restoreTraceContext({
+      traceparent: (row as { traceparent?: string | null }).traceparent,
+      tracestate: (row as { tracestate?: string | null }).tracestate
+    });
 
     try {
-      const ok = await rabbitmqUtils.publishEvent(payload);
+      const ok = await context.with(parentCtx, async () => {
+        return trace.getTracer('chat3').startActiveSpan('outbox.publish', async (span) => {
+          try {
+            const publishedOk = await rabbitmqUtils.publishEvent(payload);
+            if (!publishedOk) {
+              span.setStatus({ code: SpanStatusCode.ERROR, message: 'publishEvent returned false' });
+            }
+            return publishedOk;
+          } finally {
+            span.end();
+          }
+        });
+      });
       const dur = Number(process.hrtime.bigint() - t0) / 1e9;
       if (!ok) {
         const reason = rabbitmqUtils.isRabbitMQConnected()
@@ -191,6 +217,18 @@ export async function publishOutboxBatch(batchSize = DEFAULT_BATCH_SIZE): Promis
         continue;
       }
 
+      await OutboxEvent.updateOne(
+        { eventId: row.eventId },
+        {
+          $set: {
+            published: true,
+            publishedAt: generateTimestamp(),
+            lastError: null
+          }
+        }
+      );
+
+      // Metrics only after successful mark published
       if (isEnabled()) {
         count('outbox_publish_attempts_total', {
           outcome: 'success',
@@ -211,17 +249,6 @@ export async function publishOutboxBatch(batchSize = DEFAULT_BATCH_SIZE): Promis
           });
         }
       }
-
-      await OutboxEvent.updateOne(
-        { eventId: row.eventId },
-        {
-          $set: {
-            published: true,
-            publishedAt: generateTimestamp(),
-            lastError: null
-          }
-        }
-      );
       published += 1;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);

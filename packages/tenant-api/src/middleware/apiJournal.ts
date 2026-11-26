@@ -109,7 +109,24 @@ export function apiJournalMiddleware(req: AuthenticatedRequest, res: Response, n
         .catch((err: any) => {
           // Логируем ошибку, но не прерываем выполнение
           console.error('Error saving API journal entry:', err.message);
-          count('api_journal_writes_total', { outcome: 'error', reason: 'mongo_unavailable' });
+          const name = String(err?.name || '');
+          const msg = String(err?.message || '').toLowerCase();
+          const mongoUnavailable =
+            [
+              'MongoNetworkError',
+              'MongoServerSelectionError',
+              'MongoTimeoutError',
+              'MongoExpiredSessionError',
+              'MongooseServerSelectionError'
+            ].includes(name) ||
+            err?.code === 'ECONNREFUSED' ||
+            err?.code === 'ETIMEDOUT' ||
+            msg.includes('econnrefused') ||
+            msg.includes('server selection timed out');
+          count('api_journal_writes_total', {
+            outcome: 'error',
+            reason: mongoUnavailable ? 'mongo_unavailable' : 'write_failed'
+          });
         });
     } catch (error: any) {
       // Игнорируем ошибки логирования

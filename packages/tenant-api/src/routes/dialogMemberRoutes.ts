@@ -82,7 +82,7 @@ const router = express.Router();
  */
 router.post(
   '/:dialogId/members/add',
-  bindRouteMetric('dialog_write_requests_total'),
+  bindRouteMetric('dialog_write_requests_total', { operation: 'add_member' }),
   apiAuth, 
   requirePermission('write'), 
   validateDialogId, 
@@ -132,7 +132,7 @@ router.post(
  *       403:
  *         description: Forbidden - Insufficient permissions
  */
-router.post('/:dialogId/members/:userId/remove', bindRouteMetric('dialog_write_requests_total'), apiAuth, requirePermission('write'), validateDialogId, validateUserId, dialogMemberController.removeDialogMember);
+router.post('/:dialogId/members/:userId/remove', bindRouteMetric('dialog_write_requests_total', { operation: 'remove_member' }), apiAuth, requirePermission('write'), validateDialogId, validateUserId, dialogMemberController.removeDialogMember);
 
 /**
  * @swagger

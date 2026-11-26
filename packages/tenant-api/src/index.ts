@@ -1,10 +1,11 @@
+import './otelRegister.js';
 import {
-  initOtel,
   setHealth,
   startHealthPoll,
+  stopHealthPoll,
   shutdownOtel
 } from '@chat3/utils/otel.js';
-import mongoose from 'mongoose';
+import { checkMongo } from '@chat3/utils/httpHealth.js';
 import express from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
@@ -26,8 +27,6 @@ import packRoutes from './routes/packRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
 import idempotencyGuard from './middleware/idempotencyGuard.js';
 import { apiJournalMiddleware } from './middleware/apiJournal.js';
-
-initOtel({ instrumentations: ['http', 'mongoose', 'amqplib'] });
 
 const app = express();
 
@@ -120,7 +119,7 @@ const startServer = async (): Promise<void> => {
     console.log('✅ RabbitMQ connection established successfully');
 
     startHealthPoll(
-      () => mongoose.connection.readyState === 1 && rabbitmqUtils.isRabbitMQConnected(),
+      async () => (await checkMongo()) === 'connected' && rabbitmqUtils.isRabbitMQConnected(),
       1000
     );
     setHealth(1);
@@ -154,6 +153,7 @@ const startServer = async (): Promise<void> => {
 };
 
 async function shutdown(): Promise<void> {
+  stopHealthPoll();
   setHealth(0);
   try {
     await rabbitmqUtils.closeRabbitMQ();

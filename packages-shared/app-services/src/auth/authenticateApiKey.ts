@@ -19,6 +19,25 @@ export interface AuthenticatedContext {
 
 const DEFAULT_TENANT_ID = 'tnt_default';
 
+function isMongoLikeError(err: unknown): boolean {
+  const e = err as { name?: string; message?: string; code?: string | number } | null;
+  const name = String(e?.name || '');
+  const msg = String(e?.message || '').toLowerCase();
+  if (
+    [
+      'MongoNetworkError',
+      'MongoServerSelectionError',
+      'MongoTimeoutError',
+      'MongoExpiredSessionError',
+      'MongooseServerSelectionError'
+    ].includes(name)
+  ) {
+    return true;
+  }
+  if (e?.code === 'ECONNREFUSED' || e?.code === 'ETIMEDOUT') return true;
+  return msg.includes('econnrefused') || msg.includes('server selection timed out');
+}
+
 /**
  * Shared API-key + tenant authentication for REST and gRPC adapters.
  */
@@ -34,7 +53,15 @@ export async function authenticateApiKey(
     );
   }
 
-  const key = await ApiKey.findOne({ key: rawKey });
+  let key: any;
+  try {
+    key = await ApiKey.findOne({ key: rawKey });
+  } catch (err) {
+    if (isMongoLikeError(err)) {
+      throw new AppServiceError('INTERNAL', 'API key lookup unavailable', 'apikey');
+    }
+    throw err;
+  }
 
   if (!key) {
     throw new AppServiceError('UNAUTHORIZED', 'Invalid API key');
@@ -44,7 +71,14 @@ export async function authenticateApiKey(
     throw new AppServiceError('UNAUTHORIZED', 'API key is expired or inactive');
   }
 
-  await key.updateLastUsed();
+  try {
+    await key.updateLastUsed();
+  } catch (err) {
+    if (isMongoLikeError(err)) {
+      throw new AppServiceError('INTERNAL', 'API key update unavailable', 'apikey');
+    }
+    throw err;
+  }
 
   if (input.skipTenant) {
     if (input.forbidTenantHeader && input.tenantId) {
@@ -58,7 +92,15 @@ export async function authenticateApiKey(
 
   let tenantId = (input.tenantId || DEFAULT_TENANT_ID).toLowerCase().trim();
 
-  const tenant = await Tenant.findOne({ tenantId });
+  let tenant: any;
+  try {
+    tenant = await Tenant.findOne({ tenantId });
+  } catch (err) {
+    if (isMongoLikeError(err)) {
+      throw new AppServiceError('INTERNAL', 'Tenant lookup unavailable', 'tenant');
+    }
+    throw err;
+  }
 
   if (!tenant) {
     throw new AppServiceError('NOT_FOUND', `Tenant '${tenantId}' not found`);

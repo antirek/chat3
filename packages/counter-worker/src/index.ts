@@ -1,15 +1,15 @@
+import './otelRegister.js';
 import {
-  initOtel,
   setHealth,
   startHealthPoll,
-  shutdownOtel
+  stopHealthPoll,
+  shutdownOtel,
+  recordCrashInSpan
 } from '@chat3/utils/otel.js';
-import mongoose from 'mongoose';
+import { checkMongo } from '@chat3/utils/httpHealth.js';
 import connectDB from '@chat3/utils/databaseUtils.js';
 import * as rabbitmqUtils from '@chat3/utils/rabbitmqUtils.js';
 import { processCounterEvent } from '@chat3/utils/counterProcessor/processCounterEvent.js';
-
-initOtel({ instrumentations: ['mongoose', 'amqplib'] });
 
 const WORKER_QUEUE = 'counter_worker_queue';
 
@@ -48,7 +48,7 @@ async function startWorker(): Promise<void> {
     console.log('✅ RabbitMQ initialized\n');
 
     startHealthPoll(
-      () => mongoose.connection.readyState === 1 && rabbitmqUtils.isRabbitMQConnected(),
+      async () => (await checkMongo()) === 'connected' && rabbitmqUtils.isRabbitMQConnected(),
       1000
     );
     setHealth(1);
@@ -80,6 +80,7 @@ async function startWorker(): Promise<void> {
  */
 async function shutdown(): Promise<void> {
   console.log('\n\n🛑 Shutting down worker...');
+  stopHealthPoll();
   setHealth(0);
 
   try {
@@ -106,11 +107,13 @@ process.on('SIGTERM', () => {
 
 process.on('unhandledRejection', (error: unknown) => {
   console.error('❌ Unhandled promise rejection:', error);
+  recordCrashInSpan(error);
 });
 
 process.on('uncaughtException', (error: Error) => {
   console.error('❌ Uncaught exception:', error);
   console.error('⚠️  Critical error detected, shutting down...');
+  recordCrashInSpan(error);
   void shutdown();
 });
 

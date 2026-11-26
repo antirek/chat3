@@ -6,12 +6,12 @@ import {
 
 describe('toApiTimestampString / toGrpcMicros / fromGrpcMicros', () => {
   test('formats storage number as ms.micros string', () => {
-    expect(toApiTimestampString(1730891234567.123456)).toMatch(/^\d+\.\d{6}$/);
+    expect(toApiTimestampString(Number('1730891234567.123456'))).toMatch(/^\d+\.\d{6}$/);
     expect(toApiTimestampString(1730891234567)).toBe('1730891234567.000000');
   });
 
   test('toGrpcMicros returns decimal string (beyond MAX_SAFE_INTEGER)', () => {
-    const storage = 1730891234567.123456;
+    const storage = Number('1730891234567.123456');
     const s = toApiTimestampString(storage);
     const [ms, frac] = s.split('.');
     const expected = (BigInt(ms) * 1000000n + BigInt(frac)).toString();
@@ -21,7 +21,7 @@ describe('toApiTimestampString / toGrpcMicros / fromGrpcMicros', () => {
   });
 
   test('round-trip preserves toFixed(6) representation', () => {
-    const storage = 1730891234567.123456;
+    const storage = Number('1730891234567.123456');
     const s = toApiTimestampString(storage);
     const us = toGrpcMicros(storage);
     const back = fromGrpcMicros(us);

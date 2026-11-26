@@ -12,6 +12,11 @@ import { buildStatusMessageMatrix } from './userDialogUtils.js';
 import * as eventUtils from './eventUtils.js';
 import * as topicUtils from './topicUtils.js';
 import { buildUnreadBySenderTypeMatrix, getPackDialogIds, maxStatsLastUpdatedAt } from './packStatsUtils.js';
+import {
+  classifyCaughtError,
+  isMongoUnavailableError,
+  noteCurrentFailure
+} from './updateProcessor/processOutcome.js';
 
 function withUpdateContext(
   context: Record<string, unknown>,
@@ -40,6 +45,9 @@ async function persistUpdate(updateData: Record<string, unknown>): Promise<IUpda
     const savedUpdate = await Update.create(payload);
     await publishUpdate(savedUpdate).catch(err => {
       console.error(`Error publishing update ${savedUpdate._id}:`, err);
+      noteCurrentFailure(
+        isMongoUnavailableError(err) ? 'mongo_unavailable' : 'publish_updates_failed'
+      );
     });
     return savedUpdate;
   } catch (error) {
@@ -49,6 +57,7 @@ async function persistUpdate(updateData: Record<string, unknown>): Promise<IUpda
       );
       return null;
     }
+    noteCurrentFailure(classifyCaughtError(error));
     throw error;
   }
 }
@@ -430,6 +439,7 @@ export async function createDialogUpdate(
     console.log(`Created ${savedUpdates.length} DialogUpdate for dialog ${dialogId}`);
   } catch (error) {
     console.error('Error creating DialogUpdate:', error);
+    noteCurrentFailure(classifyCaughtError(error));
   }
 }
 
@@ -539,6 +549,7 @@ export async function createDialogUpdatesForPackChanged(
     );
   } catch (error) {
     console.error('Error creating DialogUpdates for pack.changed:', error);
+    noteCurrentFailure(classifyCaughtError(error));
   }
 }
 
@@ -623,6 +634,7 @@ export async function createDialogMemberUpdate(
     console.log(`Created DialogMemberUpdate for user ${userId} in dialog ${dialogId}`);
   } catch (error) {
     console.error('Error creating DialogMemberUpdate:', error);
+    noteCurrentFailure(classifyCaughtError(error));
   }
 }
 
@@ -869,6 +881,7 @@ export async function createMessageUpdate(
     console.log(`Created ${savedUpdates.length} MessageUpdate for message ${messageId}`);
   } catch (error) {
     console.error('Error creating MessageUpdate:', error);
+    noteCurrentFailure(classifyCaughtError(error));
   }
 }
 
@@ -1007,6 +1020,7 @@ export async function createTypingUpdate(
     console.log(`Created ${savedUpdates.length} TypingUpdate for dialog ${dialogId}`);
   } catch (error) {
     console.error('Error creating TypingUpdate:', error);
+    noteCurrentFailure(classifyCaughtError(error));
   }
 }
 
@@ -1097,6 +1111,7 @@ export async function createPeerCatchUpUpdates(
     );
   } catch (error) {
     console.error('Error creating peer catch-up updates:', error);
+    noteCurrentFailure(classifyCaughtError(error));
   }
 }
 
@@ -1207,6 +1222,7 @@ export async function createUserStatsUpdate(
     console.log(`Created UserStatsUpdate for user ${userId} from event ${sourceEventId}`);
   } catch (error) {
     console.error('Error creating UserStatsUpdate:', error);
+    noteCurrentFailure(classifyCaughtError(error));
   }
 }
 
@@ -1260,6 +1276,7 @@ export async function createUserUpdate(
     console.log(`Created UserUpdate for user ${userId} from event ${eventId}`);
   } catch (error) {
     console.error('Error creating UserUpdate:', error);
+    noteCurrentFailure(classifyCaughtError(error));
   }
 }
 
